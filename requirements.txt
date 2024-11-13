@@ -1,5 +1,10 @@
 numpy==1.26.4
 bokeh==2.4.3
+param<2
+holoviews
+hvplot
+matplotlib
+ipykernel
 xarray
 zarr
 pandas

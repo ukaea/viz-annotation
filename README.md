@@ -5,6 +5,7 @@ Below is a high level overview of the project structure:
 ```
 .
 ├── data                # Sample experimental data
+├── notebooks           # Notebooks for exploring data
 ├── ui                  # Code for the UI
 ├── README.md           # This README doc
 └── requirements.txt    # Python environment requirements file.

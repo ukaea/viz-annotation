@@ -1,0 +1,4405 @@
+{
+    "metadata": {
+        ".zgroup": {
+            "zarr_format": 2
+        },
+        "charge_exchange/.zattrs": {},
+        "charge_exchange/.zgroup": {
+            "zarr_format": 2
+        },
+        "charge_exchange/major_radius/.zarray": {
+            "chunks": [
+                160
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                160
+            ],
+            "zarr_format": 2
+        },
+        "charge_exchange/major_radius/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "major_radius"
+            ],
+            "units": "m"
+        },
+        "charge_exchange/ti/.zarray": {
+            "chunks": [
+                34,
+                160
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                34,
+                160
+            ],
+            "zarr_format": 2
+        },
+        "charge_exchange/ti/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "major_radius"
+            ],
+            "description": "",
+            "dimensions": {
+                "major_radius": {
+                    "imas_name": "charge_exchange.channel[:].position.r",
+                    "source": null,
+                    "units": null
+                },
+                "time": {
+                    "imas_name": "charge_exchange.time",
+                    "source": null,
+                    "units": null
+                }
+            },
+            "imas_name": "charge_exchange.channel[:].ion[:].t_i",
+            "label": "Carbon temperature",
+            "rank": 2,
+            "shape": [
+                130,
+                64
+            ],
+            "source": "ACT_SS_TEMPERATURE",
+            "time_index": 0,
+            "units": "eV"
+        },
+        "charge_exchange/time/.zarray": {
+            "chunks": [
+                34
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                34
+            ],
+            "zarr_format": 2
+        },
+        "charge_exchange/time/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "units": "s"
+        },
+        "charge_exchange/vi/.zarray": {
+            "chunks": [
+                34,
+                160
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                34,
+                160
+            ],
+            "zarr_format": 2
+        },
+        "charge_exchange/vi/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "major_radius"
+            ],
+            "description": "",
+            "dimensions": {
+                "major_radius": {
+                    "imas_name": "charge_exchange.channel[:].position.r",
+                    "source": null,
+                    "units": null
+                },
+                "time": {
+                    "imas_name": "charge_exchange.time",
+                    "source": null,
+                    "units": null
+                }
+            },
+            "label": "Carbon Velocity",
+            "rank": 2,
+            "shape": [
+                130,
+                64
+            ],
+            "source": "ACT_SS_VELOCITY",
+            "time_index": 0,
+            "units": "m / s"
+        },
+        "control/.zattrs": {},
+        "control/.zgroup": {
+            "zarr_format": 2
+        },
+        "control/ref_plasma_current/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "control/ref_plasma_current/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": {
+                    "imas_name": null,
+                    "source": "/xdc/time1",
+                    "units": null
+                }
+            },
+            "label": "/xdc/ip/t/ipref",
+            "rank": 1,
+            "shape": [
+                21000
+            ],
+            "source": "/xdc/ip/t/ipref",
+            "time_index": 0,
+            "units": "MA"
+        },
+        "control/ref_plasma_density/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "control/ref_plasma_density/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": {
+                    "imas_name": null,
+                    "source": "/xdc/time1",
+                    "units": null
+                }
+            },
+            "label": "/xdc/density/t/nelref",
+            "rank": 1,
+            "shape": [
+                21000
+            ],
+            "source": "/xdc/density/t/nelref",
+            "time_index": 0,
+            "units": "1 / m ** 2"
+        },
+        "control/time/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "control/time/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "Time",
+            "label": "time1",
+            "rank": 1,
+            "shape": [
+                21000
+            ],
+            "time_index": 0,
+            "units": "s"
+        },
+        "core_profiles/.zattrs": {},
+        "core_profiles/.zgroup": {
+            "zarr_format": 2
+        },
+        "core_profiles/gas_pressure/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "core_profiles/gas_pressure/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Fast Ion Gauge molec.den",
+            "rank": 1,
+            "shape": [
+                127000
+            ],
+            "source": "AGA_FIG",
+            "time_index": 0,
+            "units": "D2/m3"
+        },
+        "core_profiles/integrated_electron_density/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "core_profiles/integrated_electron_density/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "m^-2",
+            "rank": 1,
+            "shape": [
+                32768
+            ],
+            "source": "ANE_DENSITY",
+            "time_index": 0,
+            "units": "1 / m ** 2"
+        },
+        "core_profiles/line_averaged_density/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "core_profiles/line_averaged_density/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Ne_bar",
+            "rank": 1,
+            "shape": [
+                32768
+            ],
+            "source": "ESM_NE_BAR",
+            "time_index": 0,
+            "units": "1 / m ** 3"
+        },
+        "core_profiles/neutron_flux/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "core_profiles/neutron_flux/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "neutrons",
+            "rank": 1,
+            "shape": [
+                11275
+            ],
+            "source": "ANU_NEUTRONS",
+            "time_index": 0,
+            "units": "neutrons/sec"
+        },
+        "core_profiles/plasma_current/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "core_profiles/plasma_current/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": {
+                    "imas_name": "core_profiles.time",
+                    "source": null,
+                    "units": null
+                }
+            },
+            "imas_name": "core_profiles.global_quantities.ip",
+            "label": "Plasma Current",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "AMC_PLASMA CURRENT",
+            "time_index": 0,
+            "units": "kA"
+        },
+        "core_profiles/sol_current/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "core_profiles/sol_current/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Sol Current",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "AMC_SOL CURRENT",
+            "time_index": 0,
+            "units": "kA"
+        },
+        "core_profiles/time/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "core_profiles/time/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "units": "s"
+        },
+        "core_profiles/tot_sum_power/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "core_profiles/tot_sum_power/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": " ",
+            "rank": 1,
+            "shape": [
+                50001
+            ],
+            "source": "ANB_TOT_SUM_POWER",
+            "time_index": 0,
+            "units": "MW"
+        },
+        "core_profiles/vloop_dynamic/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "core_profiles/vloop_dynamic/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "dynamic V_loop",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "ESM_V_LOOP_DYNAMIC",
+            "time_index": 0,
+            "units": "V"
+        },
+        "core_profiles/vloop_static/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "core_profiles/vloop_static/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "static V_loop",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "ESM_V_LOOP_STATIC",
+            "time_index": 0,
+            "units": "V"
+        },
+        "dalpha/.zattrs": {},
+        "dalpha/.zgroup": {
+            "zarr_format": 2
+        },
+        "dalpha/dalpha_mid_plane_center/.zarray": {
+            "chunks": [
+                16750
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                16750
+            ],
+            "zarr_format": 2
+        },
+        "dalpha/dalpha_mid_plane_center/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                50000
+            ],
+            "source": "XIM_DA/HM10/R",
+            "time_index": 0,
+            "units": "V"
+        },
+        "dalpha/dalpha_mid_plane_wide/.zarray": {
+            "chunks": [
+                16750
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                16750
+            ],
+            "zarr_format": 2
+        },
+        "dalpha/dalpha_mid_plane_wide/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                50000
+            ],
+            "source": "XIM_DA/HM10/T",
+            "time_index": 0,
+            "units": "V"
+        },
+        "dalpha/dalpha_tangential/.zarray": {
+            "chunks": [
+                16750
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                16750
+            ],
+            "zarr_format": 2
+        },
+        "dalpha/dalpha_tangential/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                50000
+            ],
+            "source": "XIM_DA/HU10/T",
+            "time_index": 0,
+            "units": "V"
+        },
+        "dalpha/time/.zarray": {
+            "chunks": [
+                16750
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                16750
+            ],
+            "zarr_format": 2
+        },
+        "dalpha/time/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "units": "s"
+        },
+        "equilibrium/.zattrs": {},
+        "equilibrium/.zgroup": {
+            "zarr_format": 2
+        },
+        "equilibrium/bphi_rmag/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/bphi_rmag/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Bphi at rmag",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_BPHI_RMAG",
+            "time_index": 0,
+            "units": "T"
+        },
+        "equilibrium/bvac_rmag/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/bvac_rmag/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Bvac at rmag",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_BVAC_RMAG",
+            "time_index": 0,
+            "units": "T"
+        },
+        "equilibrium/elongation/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/elongation/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Elongation",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_ELONGATION",
+            "time_index": 0,
+            "units": ""
+        },
+        "equilibrium/elongation_axis/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/elongation_axis/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Elongation on Magnetic A",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_ELONGATION_AXIS",
+            "time_index": 0,
+            "units": ""
+        },
+        "equilibrium/internal_inductance/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/internal_inductance/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Plasma Inductance",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_LI",
+            "time_index": 0,
+            "units": ""
+        },
+        "equilibrium/lcfs_r/.zarray": {
+            "chunks": [
+                24,
+                2600
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48,
+                2600
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/lcfs_r/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "n_boundary_coords"
+            ],
+            "description": "",
+            "dimensions": {
+                "n_boundary_coords": {
+                    "imas_name": null,
+                    "source": null,
+                    "units": "dimensionless"
+                },
+                "time": null
+            },
+            "label": "r-coords of separatrix",
+            "rank": 2,
+            "shape": [
+                36,
+                2600
+            ],
+            "source": "EFM_LCFS(R)_(C)",
+            "time_index": 0,
+            "units": "m"
+        },
+        "equilibrium/lcfs_z/.zarray": {
+            "chunks": [
+                24,
+                2600
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48,
+                2600
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/lcfs_z/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "n_boundary_coords"
+            ],
+            "description": "",
+            "dimensions": {
+                "n_boundary_coords": {
+                    "imas_name": null,
+                    "source": null,
+                    "units": "dimensionless"
+                },
+                "time": null
+            },
+            "label": "z-coords of separatrix",
+            "rank": 2,
+            "shape": [
+                36,
+                2600
+            ],
+            "source": "EFM_LCFS(Z)_(C)",
+            "time_index": 0,
+            "units": "m"
+        },
+        "equilibrium/lower_triangularity/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/lower_triangularity/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Lower Triangularity",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_TRIANG_LOWER",
+            "time_index": 0,
+            "units": ""
+        },
+        "equilibrium/magnetic_axis_r/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/magnetic_axis_r/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Radius of Magnetic Axis",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_MAGNETIC_AXIS_R",
+            "time_index": 0,
+            "units": "m"
+        },
+        "equilibrium/magnetic_axis_z/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/magnetic_axis_z/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Height of Magnetic Axis",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_MAGNETIC_AXIS_Z",
+            "time_index": 0,
+            "units": "m"
+        },
+        "equilibrium/magnetic_flux/.zarray": {
+            "chunks": [
+                24,
+                33,
+                65
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48,
+                65,
+                65
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/magnetic_flux/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "z",
+                "major_radius"
+            ],
+            "description": "",
+            "dimensions": {
+                "major_radius": {
+                    "imas_name": null,
+                    "source": "EFM_RVALS",
+                    "units": "m"
+                },
+                "time": {
+                    "imas_name": null,
+                    "source": null,
+                    "units": "s"
+                },
+                "z": {
+                    "imas_name": null,
+                    "source": null,
+                    "units": "m"
+                }
+            },
+            "label": "psi(r,z)",
+            "rank": 3,
+            "shape": [
+                48,
+                65,
+                65
+            ],
+            "source": "EFM_PSI(R,Z)",
+            "time_index": 0,
+            "units": "Wb / rad"
+        },
+        "equilibrium/major_radius/.zarray": {
+            "chunks": [
+                65
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                65
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/major_radius/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "major_radius"
+            ],
+            "description": "",
+            "label": "R-coords used for radial",
+            "rank": 2,
+            "shape": [
+                36,
+                65
+            ],
+            "time_index": 0,
+            "units": "m"
+        },
+        "equilibrium/minor_radius/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/minor_radius/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Minor Radius",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_MINOR_RADIUS",
+            "time_index": 0,
+            "units": "m"
+        },
+        "equilibrium/n_boundary_coords/.zarray": {
+            "chunks": [
+                2600
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                2600
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/n_boundary_coords/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "n_boundary_coords"
+            ],
+            "units": ""
+        },
+        "equilibrium/normalized_beta/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/normalized_beta/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "betat/(I/ a Bvac_geom)",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_BETAN",
+            "time_index": 0,
+            "units": "T"
+        },
+        "equilibrium/plasma_current/.zarray": {
+            "chunks": [
+                24,
+                33,
+                65
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48,
+                65,
+                65
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/plasma_current/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "z",
+                "major_radius"
+            ],
+            "description": "",
+            "dimensions": {
+                "major_radius": {
+                    "imas_name": null,
+                    "source": "EFM_RVALS",
+                    "units": "m"
+                },
+                "time": {
+                    "imas_name": null,
+                    "source": null,
+                    "units": "s"
+                },
+                "z": {
+                    "imas_name": null,
+                    "source": null,
+                    "units": "m"
+                }
+            },
+            "label": "J(r,z)",
+            "rank": 3,
+            "shape": [
+                36,
+                65,
+                65
+            ],
+            "source": "EFM_PLASMA_CURR(R,Z)",
+            "time_index": 0,
+            "units": "A / m ** 2"
+        },
+        "equilibrium/poloidal_beta/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/poloidal_beta/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Poloidal Beta",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_BETAP",
+            "time_index": 0,
+            "units": ""
+        },
+        "equilibrium/profile_r/.zarray": {
+            "chunks": [
+                65
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                65
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/profile_r/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "major_radius"
+            ],
+            "description": "",
+            "dimensions": {
+                "major_radius": {
+                    "imas_name": null,
+                    "source": "EFM_RVALS",
+                    "units": "m"
+                }
+            },
+            "label": "r-coordinates of computa",
+            "rank": 2,
+            "shape": [
+                1,
+                65
+            ],
+            "source": "EFM_GRID(R)",
+            "time_index": 0,
+            "units": ""
+        },
+        "equilibrium/profile_z/.zarray": {
+            "chunks": [
+                65
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                65
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/profile_z/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "z"
+            ],
+            "description": "",
+            "dimensions": {
+                "z": {
+                    "imas_name": null,
+                    "source": "EFM_GRID(Z)",
+                    "units": "m"
+                }
+            },
+            "label": "z-coordinates of computa",
+            "rank": 2,
+            "shape": [
+                1,
+                65
+            ],
+            "source": "EFM_GRID(Z)",
+            "time_index": 0,
+            "units": "m"
+        },
+        "equilibrium/q/.zarray": {
+            "chunks": [
+                48,
+                65
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48,
+                65
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/q/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "major_radius"
+            ],
+            "description": "",
+            "dimensions": {
+                "major_radius": {
+                    "imas_name": null,
+                    "source": "EFM_RVALS",
+                    "units": "m"
+                },
+                "time": {
+                    "imas_name": null,
+                    "source": null,
+                    "units": "s"
+                }
+            },
+            "label": "q(r) at z=0.",
+            "rank": 2,
+            "shape": [
+                36,
+                65
+            ],
+            "source": "EFM_Q(R)",
+            "time_index": 0,
+            "units": ""
+        },
+        "equilibrium/q0/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/q0/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "q on Magnetic Axis",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_Q_AXIS",
+            "time_index": 0,
+            "units": ""
+        },
+        "equilibrium/q100/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/q100/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "q at Psi_norm=100%",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_Q_100",
+            "time_index": 0,
+            "units": ""
+        },
+        "equilibrium/q90/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/q90/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "q at Psi_norm=100%",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_Q_100",
+            "time_index": 0,
+            "units": ""
+        },
+        "equilibrium/q95/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/q95/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "q at Psi_norm=95%",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_Q_95",
+            "time_index": 0,
+            "units": ""
+        },
+        "equilibrium/rpsi100_in/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/rpsi100_in/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "i/b Rad of lcfs at Mid",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_R(PSI100)_IN",
+            "time_index": 0,
+            "units": "m"
+        },
+        "equilibrium/rpsi100_out/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/rpsi100_out/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "o/b Rad of lcfs at Mid",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_R(PSI100)_OUT",
+            "time_index": 0,
+            "units": "m"
+        },
+        "equilibrium/rpsi90_in/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/rpsi90_in/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "i/b Rad of 90%Psi at Mid",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_R(PSI90)_IN",
+            "time_index": 0,
+            "units": "m"
+        },
+        "equilibrium/rpsi90_out/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/rpsi90_out/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "o/b Rad of 90%Psi at Mid",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_R(PSI90)_OUT",
+            "time_index": 0,
+            "units": "m"
+        },
+        "equilibrium/rpsi95_in/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/rpsi95_in/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "i/b Rad of 95%Psi at Mid",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_R(PSI95)_IN",
+            "time_index": 0,
+            "units": "m"
+        },
+        "equilibrium/rpsi95_out/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/rpsi95_out/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "o/b Rad of 95%Psi at Mid",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_R(PSI95)_OUT",
+            "time_index": 0,
+            "units": "m"
+        },
+        "equilibrium/time/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/time/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "units": "s"
+        },
+        "equilibrium/toroidal_beta/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/toroidal_beta/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Toroidal Beta",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_BETAT",
+            "time_index": 0,
+            "units": "%"
+        },
+        "equilibrium/upper_triangularity/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/upper_triangularity/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Upper Triangularity",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_TRIANG_UPPER",
+            "time_index": 0,
+            "units": ""
+        },
+        "equilibrium/whmd/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/whmd/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Plasma Diamagnetic Energ",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_WPLASMD",
+            "time_index": 0,
+            "units": "J"
+        },
+        "equilibrium/xpoint1_r/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/xpoint1_r/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Radius of X-point 1",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_XPOINT1_R(C)",
+            "time_index": 0,
+            "units": "m"
+        },
+        "equilibrium/xpoint1_z/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/xpoint1_z/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Height of X-point 1",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_XPOINT1_Z(C)",
+            "time_index": 0,
+            "units": "m"
+        },
+        "equilibrium/xpoint2_r/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/xpoint2_r/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Radius of X-point 2",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_XPOINT2_R(C)",
+            "time_index": 0,
+            "units": "m"
+        },
+        "equilibrium/xpoint2_z/.zarray": {
+            "chunks": [
+                48
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                48
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/xpoint2_z/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Height of X-point 2",
+            "rank": 1,
+            "shape": [
+                36
+            ],
+            "source": "EFM_XPOINT2_Z(C)",
+            "time_index": 0,
+            "units": "m"
+        },
+        "equilibrium/z/.zarray": {
+            "chunks": [
+                65
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                65
+            ],
+            "zarr_format": 2
+        },
+        "equilibrium/z/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "z"
+            ],
+            "units": "m"
+        },
+        "flux_loops/.zattrs": {},
+        "flux_loops/.zgroup": {
+            "zarr_format": 2
+        },
+        "flux_loops/fl_cc03/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "flux_loops/fl_cc03/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "FL/CC03",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "AMB_FL/CC03",
+            "time_index": 0,
+            "units": "Wb"
+        },
+        "flux_loops/fl_cc09/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "flux_loops/fl_cc09/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "FL/CC09",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "AMB_FL/CC09",
+            "time_index": 0,
+            "units": "Wb"
+        },
+        "flux_loops/fl_p4l_4/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "flux_loops/fl_p4l_4/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "FL/P4U/4",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "AMB_FL/P4U/4",
+            "time_index": 0,
+            "units": "Wb"
+        },
+        "flux_loops/fl_p4u_4/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "flux_loops/fl_p4u_4/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "FL/P4U/4",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "AMB_FL/P4U/4",
+            "time_index": 0,
+            "units": "Wb"
+        },
+        "flux_loops/fl_p5l_1/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "flux_loops/fl_p5l_1/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "FL/P5L/1",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "AMB_FL/P5L/1",
+            "time_index": 0,
+            "units": "Wb"
+        },
+        "flux_loops/fl_p5u_1/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "flux_loops/fl_p5u_1/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "FL/P5U/1",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "AMB_FL/P5U/1",
+            "time_index": 0,
+            "units": "Wb"
+        },
+        "flux_loops/time/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "flux_loops/time/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "units": "s"
+        },
+        "magnetics/.zattrs": {},
+        "magnetics/.zgroup": {
+            "zarr_format": 2
+        },
+        "magnetics/ccbv_04/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "magnetics/ccbv_04/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "xma/ccbv/04",
+            "time_index": 0,
+            "units": "V"
+        },
+        "magnetics/ccbv_12/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "magnetics/ccbv_12/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "xma/ccbv/12",
+            "time_index": 0,
+            "units": "V"
+        },
+        "magnetics/ccbv_20/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "magnetics/ccbv_20/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "xma/ccbv/20",
+            "time_index": 0,
+            "units": "V"
+        },
+        "magnetics/ccbv_28/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "magnetics/ccbv_28/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "xma/ccbv/28",
+            "time_index": 0,
+            "units": "V"
+        },
+        "magnetics/ccbv_36/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "magnetics/ccbv_36/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "xma/ccbv/36",
+            "time_index": 0,
+            "units": "V"
+        },
+        "magnetics/obr_03/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "magnetics/obr_03/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "xma/obr/03",
+            "time_index": 0,
+            "units": "V"
+        },
+        "magnetics/obr_06/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "magnetics/obr_06/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "xma/obr/06",
+            "time_index": 0,
+            "units": "V"
+        },
+        "magnetics/obr_14/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "magnetics/obr_14/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "xma/obr/14",
+            "time_index": 0,
+            "units": "V"
+        },
+        "magnetics/obr_17/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "magnetics/obr_17/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "xma/obr/17",
+            "time_index": 0,
+            "units": "V"
+        },
+        "magnetics/obv_03/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "magnetics/obv_03/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "xma/obr/03",
+            "time_index": 0,
+            "units": "V"
+        },
+        "magnetics/obv_06/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "magnetics/obv_06/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "xma/obr/06",
+            "time_index": 0,
+            "units": "V"
+        },
+        "magnetics/obv_14/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "magnetics/obv_14/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "xma/obr/14",
+            "time_index": 0,
+            "units": "V"
+        },
+        "magnetics/obv_17/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "magnetics/obv_17/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                30000
+            ],
+            "source": "xma/obr/17",
+            "time_index": 0,
+            "units": "V"
+        },
+        "magnetics/time/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "magnetics/time/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "units": "s"
+        },
+        "mirnov/.zattrs": {},
+        "mirnov/.zgroup": {
+            "zarr_format": 2
+        },
+        "mirnov/omv_110/.zarray": {
+            "chunks": [
+                41875
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                167500
+            ],
+            "zarr_format": 2
+        },
+        "mirnov/omv_110/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                650000
+            ],
+            "source": "xmc/omv/110",
+            "time_index": 0,
+            "units": "V"
+        },
+        "mirnov/omv_210/.zarray": {
+            "chunks": [
+                41875
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                167500
+            ],
+            "zarr_format": 2
+        },
+        "mirnov/omv_210/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                650000
+            ],
+            "source": "xmc/omv/210",
+            "time_index": 0,
+            "units": "V"
+        },
+        "mirnov/omv_310/.zarray": {
+            "chunks": [
+                41875
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                167500
+            ],
+            "zarr_format": 2
+        },
+        "mirnov/omv_310/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                650000
+            ],
+            "source": "xmc/omv/310",
+            "time_index": 0,
+            "units": "V"
+        },
+        "mirnov/time/.zarray": {
+            "chunks": [
+                41875
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                167500
+            ],
+            "zarr_format": 2
+        },
+        "mirnov/time/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "units": "s"
+        },
+        "mirnov_fft/.zattrs": {},
+        "mirnov_fft/.zgroup": {
+            "zarr_format": 2
+        },
+        "mirnov_fft/frequency/.zarray": {
+            "chunks": [
+                128
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                128
+            ],
+            "zarr_format": 2
+        },
+        "mirnov_fft/frequency/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "frequency"
+            ],
+            "units": "Hz"
+        },
+        "mirnov_fft/omv_110_angles/.zarray": {
+            "chunks": [
+                64,
+                656
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                128,
+                656
+            ],
+            "zarr_format": 2
+        },
+        "mirnov_fft/omv_110_angles/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "frequency",
+                "time"
+            ],
+            "units": "radians"
+        },
+        "mirnov_fft/omv_110_spectrogram/.zarray": {
+            "chunks": [
+                64,
+                656
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                128,
+                656
+            ],
+            "zarr_format": 2
+        },
+        "mirnov_fft/omv_110_spectrogram/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "frequency",
+                "time"
+            ]
+        },
+        "mirnov_fft/omv_210_angles/.zarray": {
+            "chunks": [
+                64,
+                656
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                128,
+                656
+            ],
+            "zarr_format": 2
+        },
+        "mirnov_fft/omv_210_angles/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "frequency",
+                "time"
+            ],
+            "units": "radians"
+        },
+        "mirnov_fft/omv_210_spectrogram/.zarray": {
+            "chunks": [
+                64,
+                656
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                128,
+                656
+            ],
+            "zarr_format": 2
+        },
+        "mirnov_fft/omv_210_spectrogram/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "frequency",
+                "time"
+            ]
+        },
+        "mirnov_fft/omv_310_angles/.zarray": {
+            "chunks": [
+                64,
+                656
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                128,
+                656
+            ],
+            "zarr_format": 2
+        },
+        "mirnov_fft/omv_310_angles/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "frequency",
+                "time"
+            ],
+            "units": "radians"
+        },
+        "mirnov_fft/omv_310_spectrogram/.zarray": {
+            "chunks": [
+                64,
+                656
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                128,
+                656
+            ],
+            "zarr_format": 2
+        },
+        "mirnov_fft/omv_310_spectrogram/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "frequency",
+                "time"
+            ]
+        },
+        "mirnov_fft/time/.zarray": {
+            "chunks": [
+                656
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                656
+            ],
+            "zarr_format": 2
+        },
+        "mirnov_fft/time/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "untis": "s"
+        },
+        "saddle_coils/.zattrs": {},
+        "saddle_coils/.zgroup": {
+            "zarr_format": 2
+        },
+        "saddle_coils/m1/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "saddle_coils/m1/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "V",
+            "rank": 1,
+            "shape": [
+                82500
+            ],
+            "source": "xmb/sad/out/m01",
+            "time_index": 0,
+            "units": "V"
+        },
+        "saddle_coils/m3/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "saddle_coils/m3/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "V",
+            "rank": 1,
+            "shape": [
+                82500
+            ],
+            "source": "xmb/sad/out/m03",
+            "time_index": 0,
+            "units": "V"
+        },
+        "saddle_coils/m5/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "saddle_coils/m5/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "V",
+            "rank": 1,
+            "shape": [
+                82500
+            ],
+            "source": "xmb/sad/out/m05",
+            "time_index": 0,
+            "units": "V"
+        },
+        "saddle_coils/m7/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "saddle_coils/m7/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": null
+            },
+            "label": "V",
+            "rank": 1,
+            "shape": [
+                82500
+            ],
+            "source": "xmb/sad/out/m07",
+            "time_index": 0,
+            "units": "V"
+        },
+        "saddle_coils/time/.zarray": {
+            "chunks": [
+                1340
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1340
+            ],
+            "zarr_format": 2
+        },
+        "saddle_coils/time/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "units": "s"
+        },
+        "soft_xrays/.zattrs": {},
+        "soft_xrays/.zgroup": {
+            "zarr_format": 2
+        },
+        "soft_xrays/hcam_l/.zarray": {
+            "chunks": [
+                3,
+                41875
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                18,
+                167500
+            ],
+            "zarr_format": 2
+        },
+        "soft_xrays/hcam_l/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "hcam_l_channel",
+                "time"
+            ],
+            "channels": [
+                "/XSX/HCAM/L/1",
+                "/XSX/HCAM/L/2",
+                "/XSX/HCAM/L/3",
+                "/XSX/HCAM/L/4",
+                "/XSX/HCAM/L/5",
+                "/XSX/HCAM/L/6",
+                "/XSX/HCAM/L/7",
+                "/XSX/HCAM/L/8",
+                "/XSX/HCAM/L/9",
+                "/XSX/HCAM/L/10",
+                "/XSX/HCAM/L/11",
+                "/XSX/HCAM/L/12",
+                "/XSX/HCAM/L/13",
+                "/XSX/HCAM/L/14",
+                "/XSX/HCAM/L/15",
+                "/XSX/HCAM/L/16",
+                "/XSX/HCAM/L/17",
+                "/XSX/HCAM/L/18"
+            ],
+            "description": "",
+            "dimensions": {
+                "hcam_l_channel": null,
+                "time": {
+                    "imas_name": null,
+                    "source": "XSX/TIME1",
+                    "units": null
+                }
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                300000
+            ],
+            "source": "XSX/HCAM/L",
+            "time_index": 0,
+            "units": "V"
+        },
+        "soft_xrays/hcam_l_channel/.zarray": {
+            "chunks": [
+                18
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i8",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                18
+            ],
+            "zarr_format": 2
+        },
+        "soft_xrays/hcam_l_channel/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "hcam_l_channel"
+            ]
+        },
+        "soft_xrays/hcam_u/.zarray": {
+            "chunks": [
+                3,
+                41875
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                18,
+                167500
+            ],
+            "zarr_format": 2
+        },
+        "soft_xrays/hcam_u/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "hcam_u_channel",
+                "time"
+            ],
+            "channels": [
+                "/XSX/HCAM/U/1",
+                "/XSX/HCAM/U/2",
+                "/XSX/HCAM/U/3",
+                "/XSX/HCAM/U/4",
+                "/XSX/HCAM/U/5",
+                "/XSX/HCAM/U/6",
+                "/XSX/HCAM/U/7",
+                "/XSX/HCAM/U/8",
+                "/XSX/HCAM/U/9",
+                "/XSX/HCAM/U/10",
+                "/XSX/HCAM/U/11",
+                "/XSX/HCAM/U/12",
+                "/XSX/HCAM/U/13",
+                "/XSX/HCAM/U/14",
+                "/XSX/HCAM/U/15",
+                "/XSX/HCAM/U/16",
+                "/XSX/HCAM/U/17",
+                "/XSX/HCAM/U/18"
+            ],
+            "description": "",
+            "dimensions": {
+                "hcam_u_channel": null,
+                "time": {
+                    "imas_name": null,
+                    "source": "XSX/TIME1",
+                    "units": null
+                }
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                300000
+            ],
+            "source": "XSX/HCAM/U",
+            "time_index": 0,
+            "units": "V"
+        },
+        "soft_xrays/hcam_u_channel/.zarray": {
+            "chunks": [
+                18
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i8",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                18
+            ],
+            "zarr_format": 2
+        },
+        "soft_xrays/hcam_u_channel/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "hcam_u_channel"
+            ]
+        },
+        "soft_xrays/tcam/.zarray": {
+            "chunks": [
+                3,
+                41875
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                18,
+                167500
+            ],
+            "zarr_format": 2
+        },
+        "soft_xrays/tcam/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "tcam_channel",
+                "time"
+            ],
+            "channels": [
+                "/xsx/TCAM/1",
+                "/xsx/TCAM/2",
+                "/xsx/TCAM/3",
+                "/xsx/TCAM/4",
+                "/xsx/TCAM/5",
+                "/xsx/TCAM/6",
+                "/xsx/TCAM/7",
+                "/xsx/TCAM/8",
+                "/xsx/TCAM/9",
+                "/xsx/TCAM/10",
+                "/xsx/TCAM/11",
+                "/xsx/TCAM/12",
+                "/xsx/TCAM/13",
+                "/xsx/TCAM/14",
+                "/xsx/TCAM/15",
+                "/xsx/TCAM/16",
+                "/xsx/TCAM/17",
+                "/xsx/TCAM/18"
+            ],
+            "description": "",
+            "dimensions": {
+                "tcam_channel": null,
+                "time": {
+                    "imas_name": null,
+                    "source": "XSX/TIME1",
+                    "units": null
+                }
+            },
+            "label": "Volt",
+            "rank": 1,
+            "shape": [
+                300000
+            ],
+            "source": "XSX/TCAM",
+            "time_index": 0,
+            "units": "V"
+        },
+        "soft_xrays/tcam_channel/.zarray": {
+            "chunks": [
+                18
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i8",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                18
+            ],
+            "zarr_format": 2
+        },
+        "soft_xrays/tcam_channel/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "tcam_channel"
+            ]
+        },
+        "soft_xrays/time/.zarray": {
+            "chunks": [
+                41875
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                167500
+            ],
+            "zarr_format": 2
+        },
+        "soft_xrays/time/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "label": "Time",
+            "rank": 1,
+            "shape": [
+                300000
+            ],
+            "time_index": 0,
+            "units": "s"
+        },
+        "thomson_scattering/.zattrs": {},
+        "thomson_scattering/.zgroup": {
+            "zarr_format": 2
+        },
+        "thomson_scattering/major_radius/.zarray": {
+            "chunks": [
+                120
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                120
+            ],
+            "zarr_format": 2
+        },
+        "thomson_scattering/major_radius/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "major_radius"
+            ],
+            "description": "",
+            "label": "major radius",
+            "rank": 2,
+            "shape": [
+                42,
+                130
+            ],
+            "time_index": 0,
+            "units": "m"
+        },
+        "thomson_scattering/ne/.zarray": {
+            "chunks": [
+                67,
+                120
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                67,
+                120
+            ],
+            "zarr_format": 2
+        },
+        "thomson_scattering/ne/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "major_radius"
+            ],
+            "description": "",
+            "dimensions": {
+                "major_radius": {
+                    "imas_name": "thomson_scattering.channel[:].delta_position.r",
+                    "source": [
+                        {
+                            "name": "AYC_R",
+                            "shot_range": {
+                                "shot_max": 30471,
+                                "shot_min": 22831
+                            }
+                        },
+                        {
+                            "name": "ATM_R",
+                            "shot_range": {
+                                "shot_max": 22831,
+                                "shot_min": 1
+                            }
+                        }
+                    ],
+                    "units": null
+                },
+                "time": {
+                    "imas_name": "thomson_scattering.channel[:].n_e.time",
+                    "source": [
+                        {
+                            "name": "AYC_TIME",
+                            "shot_range": {
+                                "shot_max": 30471,
+                                "shot_min": 22831
+                            }
+                        },
+                        {
+                            "name": "ATM_TIME",
+                            "shot_range": {
+                                "shot_max": 22831,
+                                "shot_min": 1
+                            }
+                        }
+                    ],
+                    "units": null
+                }
+            },
+            "imas_name": "thomson_scattering.channel[:].n_e",
+            "label": "electron density",
+            "rank": 2,
+            "shape": [
+                42,
+                130
+            ],
+            "source": [
+                {
+                    "name": "AYC_NE",
+                    "shot_range": {
+                        "shot_max": 30471,
+                        "shot_min": 22831
+                    }
+                },
+                {
+                    "name": "ATM_NE",
+                    "shot_range": {
+                        "shot_max": 22831,
+                        "shot_min": 1
+                    }
+                }
+            ],
+            "time_index": 0,
+            "units": "1 / m ** 3"
+        },
+        "thomson_scattering/ne_core/.zarray": {
+            "chunks": [
+                67
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                67
+            ],
+            "zarr_format": 2
+        },
+        "thomson_scattering/ne_core/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": {
+                    "imas_name": null,
+                    "source": [
+                        {
+                            "name": "AYC_TIME",
+                            "shot_range": {
+                                "shot_max": 30471,
+                                "shot_min": 22831
+                            }
+                        },
+                        {
+                            "name": "ATM_TIME",
+                            "shot_range": {
+                                "shot_max": 22831,
+                                "shot_min": 1
+                            }
+                        }
+                    ],
+                    "units": null
+                }
+            },
+            "label": "core density",
+            "rank": 1,
+            "shape": [
+                42
+            ],
+            "source": [
+                {
+                    "name": "AYC_NE_CORE",
+                    "shot_range": {
+                        "shot_max": 30471,
+                        "shot_min": 22831
+                    }
+                },
+                {
+                    "name": "ATM_NE_CORE",
+                    "shot_range": {
+                        "shot_max": 22831,
+                        "shot_min": 1
+                    }
+                }
+            ],
+            "time_index": 0,
+            "units": "1 / m ** 3"
+        },
+        "thomson_scattering/pe/.zarray": {
+            "chunks": [
+                67,
+                120
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                67,
+                120
+            ],
+            "zarr_format": 2
+        },
+        "thomson_scattering/pe/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "major_radius"
+            ],
+            "description": "",
+            "dimensions": {
+                "major_radius": {
+                    "imas_name": "thomson_scattering.channel[:].delta_position.r",
+                    "source": [
+                        {
+                            "name": "AYC_R",
+                            "shot_range": {
+                                "shot_max": 30471,
+                                "shot_min": 22831
+                            }
+                        },
+                        {
+                            "name": "ATM_R",
+                            "shot_range": {
+                                "shot_max": 22831,
+                                "shot_min": 1
+                            }
+                        }
+                    ],
+                    "units": null
+                },
+                "time": {
+                    "imas_name": null,
+                    "source": [
+                        {
+                            "name": "AYC_TIME",
+                            "shot_range": {
+                                "shot_max": 30471,
+                                "shot_min": 22831
+                            }
+                        },
+                        {
+                            "name": "ATM_TIME",
+                            "shot_range": {
+                                "shot_max": 22831,
+                                "shot_min": 1
+                            }
+                        }
+                    ],
+                    "units": null
+                }
+            },
+            "label": "electron pressure",
+            "rank": 2,
+            "shape": [
+                42,
+                130
+            ],
+            "source": [
+                {
+                    "name": "AYC_PE",
+                    "shot_range": {
+                        "shot_max": 30471,
+                        "shot_min": 22831
+                    }
+                },
+                {
+                    "name": "ATM_PE",
+                    "shot_range": {
+                        "shot_max": 22831,
+                        "shot_min": 1
+                    }
+                }
+            ],
+            "time_index": 0,
+            "units": "a * u"
+        },
+        "thomson_scattering/te/.zarray": {
+            "chunks": [
+                67,
+                120
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                67,
+                120
+            ],
+            "zarr_format": 2
+        },
+        "thomson_scattering/te/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "major_radius"
+            ],
+            "description": "",
+            "dimensions": {
+                "major_radius": {
+                    "imas_name": "thomson_scattering.channel[:].delta_position.r",
+                    "source": [
+                        {
+                            "name": "AYC_R",
+                            "shot_range": {
+                                "shot_max": 30471,
+                                "shot_min": 22831
+                            }
+                        },
+                        {
+                            "name": "ATM_R",
+                            "shot_range": {
+                                "shot_max": 22831,
+                                "shot_min": 1
+                            }
+                        }
+                    ],
+                    "units": null
+                },
+                "time": {
+                    "imas_name": "thomson_scattering.channel[:].t_e.time",
+                    "source": [
+                        {
+                            "name": "AYC_TIME",
+                            "shot_range": {
+                                "shot_max": 30471,
+                                "shot_min": 22831
+                            }
+                        },
+                        {
+                            "name": "AYC_TIME",
+                            "shot_range": {
+                                "shot_max": 22831,
+                                "shot_min": 1
+                            }
+                        }
+                    ],
+                    "units": null
+                }
+            },
+            "imas_name": "thomson_scattering.channel[:].t_e",
+            "label": "electron temperature",
+            "rank": 2,
+            "shape": [
+                42,
+                130
+            ],
+            "source": [
+                {
+                    "name": "AYC_TE",
+                    "shot_range": {
+                        "shot_max": 30471,
+                        "shot_min": 22831
+                    }
+                },
+                {
+                    "name": "ATM_TE",
+                    "shot_range": {
+                        "shot_max": 22831,
+                        "shot_min": 1
+                    }
+                }
+            ],
+            "time_index": 0,
+            "units": "eV"
+        },
+        "thomson_scattering/te_core/.zarray": {
+            "chunks": [
+                67
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                67
+            ],
+            "zarr_format": 2
+        },
+        "thomson_scattering/te_core/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "dimensions": {
+                "time": {
+                    "imas_name": null,
+                    "source": [
+                        {
+                            "name": "AYC_TIME",
+                            "shot_range": {
+                                "shot_max": 30471,
+                                "shot_min": 22831
+                            }
+                        },
+                        {
+                            "name": "ATM_TIME",
+                            "shot_range": {
+                                "shot_max": 22831,
+                                "shot_min": 1
+                            }
+                        }
+                    ],
+                    "units": null
+                }
+            },
+            "label": "core temperature",
+            "rank": 1,
+            "shape": [
+                42
+            ],
+            "source": [
+                {
+                    "name": "AYC_TE_CORE",
+                    "shot_range": {
+                        "shot_max": 30471,
+                        "shot_min": 22831
+                    }
+                },
+                {
+                    "name": "ATM_TE_CORE",
+                    "shot_range": {
+                        "shot_max": 22831,
+                        "shot_min": 1
+                    }
+                }
+            ],
+            "time_index": 0,
+            "units": "eV"
+        },
+        "thomson_scattering/time/.zarray": {
+            "chunks": [
+                67
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                67
+            ],
+            "zarr_format": 2
+        },
+        "thomson_scattering/time/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "description": "",
+            "label": "time",
+            "rank": 1,
+            "shape": [
+                42
+            ],
+            "time_index": 0,
+            "units": "s"
+        }
+    },
+    "zarr_consolidated_format": 1
+}

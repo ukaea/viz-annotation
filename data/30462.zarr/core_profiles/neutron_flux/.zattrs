@@ -1,0 +1,17 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "time"
+    ],
+    "description": "",
+    "dimensions": {
+        "time": null
+    },
+    "label": "neutrons",
+    "rank": 1,
+    "shape": [
+        11275
+    ],
+    "source": "ANU_NEUTRONS",
+    "time_index": 0,
+    "units": "neutrons/sec"
+}

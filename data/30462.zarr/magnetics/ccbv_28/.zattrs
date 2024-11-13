@@ -1,0 +1,17 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "time"
+    ],
+    "description": "",
+    "dimensions": {
+        "time": null
+    },
+    "label": "Volt",
+    "rank": 1,
+    "shape": [
+        30000
+    ],
+    "source": "xma/ccbv/28",
+    "time_index": 0,
+    "units": "V"
+}

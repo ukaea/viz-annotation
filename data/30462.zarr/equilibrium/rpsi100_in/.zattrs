@@ -1,0 +1,17 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "time"
+    ],
+    "description": "",
+    "dimensions": {
+        "time": null
+    },
+    "label": "i/b Rad of lcfs at Mid",
+    "rank": 1,
+    "shape": [
+        36
+    ],
+    "source": "EFM_R(PSI100)_IN",
+    "time_index": 0,
+    "units": "m"
+}

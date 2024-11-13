@@ -1,0 +1,17 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "time"
+    ],
+    "description": "",
+    "dimensions": {
+        "time": null
+    },
+    "label": "Plasma Diamagnetic Energ",
+    "rank": 1,
+    "shape": [
+        36
+    ],
+    "source": "EFM_WPLASMD",
+    "time_index": 0,
+    "units": "J"
+}

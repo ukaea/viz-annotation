@@ -1,0 +1,24 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "time",
+        "n_boundary_coords"
+    ],
+    "description": "",
+    "dimensions": {
+        "n_boundary_coords": {
+            "imas_name": null,
+            "source": null,
+            "units": "dimensionless"
+        },
+        "time": null
+    },
+    "label": "r-coords of separatrix",
+    "rank": 2,
+    "shape": [
+        36,
+        2600
+    ],
+    "source": "EFM_LCFS(R)_(C)",
+    "time_index": 0,
+    "units": "m"
+}

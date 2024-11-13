@@ -1,0 +1,22 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "z"
+    ],
+    "description": "",
+    "dimensions": {
+        "z": {
+            "imas_name": null,
+            "source": "EFM_GRID(Z)",
+            "units": "m"
+        }
+    },
+    "label": "z-coordinates of computa",
+    "rank": 2,
+    "shape": [
+        1,
+        65
+    ],
+    "source": "EFM_GRID(Z)",
+    "time_index": 0,
+    "units": "m"
+}

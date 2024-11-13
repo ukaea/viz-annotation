@@ -1,0 +1,17 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "time"
+    ],
+    "description": "",
+    "dimensions": {
+        "time": null
+    },
+    "label": " ",
+    "rank": 1,
+    "shape": [
+        50001
+    ],
+    "source": "ANB_TOT_SUM_POWER",
+    "time_index": 0,
+    "units": "MW"
+}

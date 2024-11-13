@@ -1,0 +1,17 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "time"
+    ],
+    "description": "",
+    "dimensions": {
+        "time": null
+    },
+    "label": "Height of X-point 2",
+    "rank": 1,
+    "shape": [
+        36
+    ],
+    "source": "EFM_XPOINT2_Z(C)",
+    "time_index": 0,
+    "units": "m"
+}

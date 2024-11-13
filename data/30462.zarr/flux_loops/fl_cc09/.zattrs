@@ -1,0 +1,17 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "time"
+    ],
+    "description": "",
+    "dimensions": {
+        "time": null
+    },
+    "label": "FL/CC09",
+    "rank": 1,
+    "shape": [
+        30000
+    ],
+    "source": "AMB_FL/CC09",
+    "time_index": 0,
+    "units": "Wb"
+}

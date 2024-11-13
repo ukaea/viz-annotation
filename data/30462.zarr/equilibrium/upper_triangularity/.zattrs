@@ -1,0 +1,17 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "time"
+    ],
+    "description": "",
+    "dimensions": {
+        "time": null
+    },
+    "label": "Upper Triangularity",
+    "rank": 1,
+    "shape": [
+        36
+    ],
+    "source": "EFM_TRIANG_UPPER",
+    "time_index": 0,
+    "units": ""
+}

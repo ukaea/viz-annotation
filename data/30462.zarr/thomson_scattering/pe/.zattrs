@@ -1,0 +1,73 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "time",
+        "major_radius"
+    ],
+    "description": "",
+    "dimensions": {
+        "major_radius": {
+            "imas_name": "thomson_scattering.channel[:].delta_position.r",
+            "source": [
+                {
+                    "name": "AYC_R",
+                    "shot_range": {
+                        "shot_max": 30471,
+                        "shot_min": 22831
+                    }
+                },
+                {
+                    "name": "ATM_R",
+                    "shot_range": {
+                        "shot_max": 22831,
+                        "shot_min": 1
+                    }
+                }
+            ],
+            "units": null
+        },
+        "time": {
+            "imas_name": null,
+            "source": [
+                {
+                    "name": "AYC_TIME",
+                    "shot_range": {
+                        "shot_max": 30471,
+                        "shot_min": 22831
+                    }
+                },
+                {
+                    "name": "ATM_TIME",
+                    "shot_range": {
+                        "shot_max": 22831,
+                        "shot_min": 1
+                    }
+                }
+            ],
+            "units": null
+        }
+    },
+    "label": "electron pressure",
+    "rank": 2,
+    "shape": [
+        42,
+        130
+    ],
+    "source": [
+        {
+            "name": "AYC_PE",
+            "shot_range": {
+                "shot_max": 30471,
+                "shot_min": 22831
+            }
+        },
+        {
+            "name": "ATM_PE",
+            "shot_range": {
+                "shot_max": 22831,
+                "shot_min": 1
+            }
+        }
+    ],
+    "time_index": 0,
+    "units": "a * u"
+}

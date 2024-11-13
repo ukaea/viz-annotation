@@ -1,0 +1,17 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "time"
+    ],
+    "description": "",
+    "dimensions": {
+        "time": null
+    },
+    "label": "q at Psi_norm=100%",
+    "rank": 1,
+    "shape": [
+        36
+    ],
+    "source": "EFM_Q_100",
+    "time_index": 0,
+    "units": ""
+}

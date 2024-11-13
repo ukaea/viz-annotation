@@ -1,0 +1,17 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "time"
+    ],
+    "description": "",
+    "dimensions": {
+        "time": null
+    },
+    "label": "FL/P5U/1",
+    "rank": 1,
+    "shape": [
+        30000
+    ],
+    "source": "AMB_FL/P5U/1",
+    "time_index": 0,
+    "units": "Wb"
+}

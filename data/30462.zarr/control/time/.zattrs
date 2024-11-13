@@ -1,0 +1,13 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "time"
+    ],
+    "description": "Time",
+    "label": "time1",
+    "rank": 1,
+    "shape": [
+        21000
+    ],
+    "time_index": 0,
+    "units": "s"
+}

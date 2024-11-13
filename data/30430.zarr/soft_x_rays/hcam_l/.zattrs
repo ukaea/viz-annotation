@@ -1,0 +1,12 @@
+{
+  "_ARRAY_DIMENSIONS": [
+    "hcam_l_channel",
+    "time"
+  ],
+  "description": "",
+  "label": "Volt",
+  "rank": 1,
+  "shape": "[300000]",
+  "time_index": 0,
+  "units": "V"
+}

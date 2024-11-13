@@ -1,0 +1,11 @@
+{
+  "_ARRAY_DIMENSIONS": [
+    "time"
+  ],
+  "description": "",
+  "label": "core temperature",
+  "rank": 1,
+  "shape": "[145]",
+  "time_index": 0,
+  "units": "eV"
+}

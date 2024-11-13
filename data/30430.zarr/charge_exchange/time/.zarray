@@ -1,0 +1,15 @@
+{
+  "shape": [
+    51
+  ],
+  "chunks": [
+    51
+  ],
+  "fill_value": NaN,
+  "order": "C",
+  "filters": null,
+  "dimension_separator": ".",
+  "compressor": null,
+  "zarr_format": 2,
+  "dtype": "<f8"
+}

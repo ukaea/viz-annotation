@@ -1,0 +1,11 @@
+{
+  "_ARRAY_DIMENSIONS": [
+    "time"
+  ],
+  "description": "Total of SS and SW Powers",
+  "label": "P(SS+SW)",
+  "rank": 1,
+  "shape": "[50001]",
+  "time_index": 0,
+  "units": "MW"
+}

@@ -1,0 +1,11 @@
+{
+  "_ARRAY_DIMENSIONS": [
+    "time"
+  ],
+  "description": "",
+  "label": "/xdc/density/t/nelref",
+  "rank": 1,
+  "shape": "[21000]",
+  "time_index": 0,
+  "units": "1 / m ** 2"
+}

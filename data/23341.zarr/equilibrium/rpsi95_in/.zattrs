@@ -1,0 +1,11 @@
+{
+  "_ARRAY_DIMENSIONS": [
+    "time"
+  ],
+  "description": "",
+  "label": "i/b Rad of 95%Psi at Mid",
+  "rank": 1,
+  "shape": "[39]",
+  "time_index": 0,
+  "units": "m"
+}

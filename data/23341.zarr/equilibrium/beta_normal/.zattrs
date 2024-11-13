@@ -1,0 +1,11 @@
+{
+  "_ARRAY_DIMENSIONS": [
+    "time"
+  ],
+  "description": "",
+  "label": "betat/(I/ a Bvac_geom)",
+  "rank": 1,
+  "shape": "[39]",
+  "time_index": 0,
+  "units": "T"
+}

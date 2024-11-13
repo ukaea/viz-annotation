@@ -1,0 +1,12 @@
+{
+  "_ARRAY_DIMENSIONS": [
+    "time",
+    "major_radius"
+  ],
+  "description": "",
+  "label": "q(r) at z=0.",
+  "rank": 2,
+  "shape": "[108, 65]",
+  "time_index": 0,
+  "units": ""
+}

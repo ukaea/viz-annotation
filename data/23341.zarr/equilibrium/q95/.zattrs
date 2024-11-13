@@ -1,0 +1,11 @@
+{
+  "_ARRAY_DIMENSIONS": [
+    "time"
+  ],
+  "description": "",
+  "label": "q at Psi_norm=95%",
+  "rank": 1,
+  "shape": "[39]",
+  "time_index": 0,
+  "units": ""
+}

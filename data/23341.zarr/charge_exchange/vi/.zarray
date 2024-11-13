@@ -1,0 +1,17 @@
+{
+  "shape": [
+    39,
+    160
+  ],
+  "chunks": [
+    39,
+    160
+  ],
+  "fill_value": NaN,
+  "order": "C",
+  "filters": null,
+  "dimension_separator": ".",
+  "compressor": null,
+  "zarr_format": 2,
+  "dtype": "<f8"
+}

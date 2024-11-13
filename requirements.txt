@@ -1,0 +1,6 @@
+numpy==1.26.4
+bokeh==2.4.3
+xarray
+zarr
+pandas
+streamlit

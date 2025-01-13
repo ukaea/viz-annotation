@@ -72,8 +72,10 @@ class ELMAnalysis():
      return df
 
   def __preprocess_signal(self, signal: xr.DataArray) -> xr.DataArray:
-    signal = signal.dropna(dim='time').sel(time=slice(self.params.tmin, self.params.tmax))
+    time_period = self.params.tmax - self.params.tmin
+    signal = signal.dropna(dim='time').sel(time=slice(self.params.tmin - time_period*0.05, self.params.tmax))
     signal = self.__background_subtract(signal)
+    signal = signal.sel(time=slice(self.params.tmin, self.params.tmax))
     return signal
 
   def __background_subtract(self, signal) -> xr.DataArray:

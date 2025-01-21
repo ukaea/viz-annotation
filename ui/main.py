@@ -1,7 +1,8 @@
 import streamlit as st
 import xarray as xr
 import os
-from tabs import elm_tab
+from tabs import elm_tab as elm
+from tabs import h_mode_tab as h_mode
 st.set_page_config(layout="wide")
 
 st.title('MAST Data Viewer')
@@ -22,9 +23,9 @@ if st.session_state.shot_id:
     if os.path.exists(file_name):
         h_mode_tab, elms_tab = st.tabs(["H Mode Analysis", "ELMs Analysis"])
         with h_mode_tab:
-            st.write("Nothing yet")
+            h_mode.generate_h_mode_tab(st.session_state.shot_id)
         with elms_tab:
-            elm_tab.generate_elm_tab(file_name) 
+            elm.generate_elm_tab(file_name) 
     else:
         with st.expander("Invalid shot number"):
             st.write('The shot ID provided does not exist')

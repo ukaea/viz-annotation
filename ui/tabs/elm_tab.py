@@ -4,6 +4,7 @@ import xarray as xr
 from utilities import elms_analysis
 from utilities.custom_components import slider_with_input, elm_zone_controls
 
+@st.fragment
 def generate_elm_tab(data_file_name: str):
     if 'zones' not in st.session_state:
         st.session_state['zones'] = []

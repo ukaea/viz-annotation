@@ -6,17 +6,19 @@ from utilities.custom_components import slider_with_input, elm_zone_controls
 
 @st.fragment
 def generate_elm_tab(shot_id: str):
+    # Zones must be stored as session state to persist through updates
     if 'zones' not in st.session_state:
         st.session_state['zones'] = []
+
+    # Pull data from server - this is cached based on shot ID
+    dalpha_signal = pull_data(shot_id)
+    if dalpha_signal is None:
+        st.write("Invalid shot ID")
+        return
     
     config_col, graph_col = st.columns([2, 3])
 
-    with config_col:
-        dalpha_signal = pull_data(shot_id, 0.001)
-        if dalpha_signal is None:
-            st.write("Invalid shot ID")
-            return
-        
+    with config_col:        
         threshold = slider_with_input("ELM Threshold", default=0.15)
         
         # These options may be tweaked less frequently so hide them to save space
@@ -69,6 +71,7 @@ def generate_elm_tab(shot_id: str):
                  elm_zone_controls(id=zone_id, min=params.tmin, max=params.tmax)
                  zone_id += 1
 
+        # Download the data created by the analysis tool - fragmented to avoid update
         @st.fragment
         def download_data():
             elm_data = elm_analysis.get_elm_data()

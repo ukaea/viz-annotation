@@ -39,6 +39,7 @@ zone_colour_mapping = {
    "Type III" : "lightblue"
 }
 
+# This function is carried out in the cached method so is outside the analysis class
 def background_subtract(signal: xr.DataArray, moving_av_length: float) -> xr.DataArray:
     dtime = signal.time.values
     values = signal.values
@@ -51,9 +52,21 @@ def background_subtract(signal: xr.DataArray, moving_av_length: float) -> xr.Dat
     signal.values = values
     return signal
 
-# Pull data from online storage and perform any basic manipulation- cache based on shot ID
 @st.cache_data
-def pull_data(shot_id: str, moving_av_length: float) -> Optional[xr.DataArray]:
+def pull_data(shot_id: str, moving_av_length: float = 0.001) -> Optional[xr.DataArray]:
+    """
+    Used to pull ELM data from the online storage server
+
+    Parameters
+    ----------
+    shot_id : str
+        The numerical shot ID of the MAST data
+
+    moving_av_length : float
+        - Moving average value used by the background subtraction algorithm
+        - This is included as a parameter in case user control is needed
+        - Default : 0.001
+    """
     loader = get_dataset_loader(shot_id, "test/level2", metadata=False)
     if (dalpha_dataset := loader("dalpha")) is None:
         return None
@@ -71,6 +84,9 @@ class ELMAnalysis():
         self.elm_data = self.__analyze_bursts()
 
     def generate_elm_graph(self, width, height) -> Figure:
+        """
+        Generates the DAlpha graph with ELMs labelled plus the threshold and any zones drawn
+        """
         series = self.dalpha_series
         fig = figure(title=series.name, x_axis_label="time", y_axis_label="d-alpha")
         fig.x_range = Range1d(self.analysis_parameters.tmin, self.analysis_parameters.tmax)
@@ -93,6 +109,9 @@ class ELMAnalysis():
         return fig
     
     def generate_elm_frequency_graph(self, width, height, range=None) -> Figure:
+        """
+        Generates the ELM frequency graph and any zones
+        """
         fig = figure(title="ELM Frequency Plot", x_axis_label="time", y_axis_label="ELM Frequency")
         fig.width = width
         fig.height = height
@@ -112,12 +131,15 @@ class ELMAnalysis():
         return fig
     
     def get_elm_data(self) -> pd.DataFrame:
+        """
+        Combines all ELM data into one dataframe for export
+        """
         valid = pd.DataFrame(
         {
             "Time": self.elm_data.elm_times,
             "Height": self.elm_data.elm_heights,
             "Type": self.__analyze_zones(self.elm_data.elm_times),
-            "Valid": [True] * len(self.elm_data.elm_times)
+            "Valid": [True] * len(self.elm_data.elm_times) # These ELMs are all valid
         }
         )
 
@@ -126,7 +148,7 @@ class ELMAnalysis():
             "Time": self.elm_data.too_short_t,
             "Height": self.elm_data.too_short,
             "Type": self.__analyze_zones(self.elm_data.too_short_t),
-            "Valid": [False] * len(self.elm_data.too_short_t)
+            "Valid": [False] * len(self.elm_data.too_short_t) # All ELMs in the remaining DFs are invalid
         }
         )
 
@@ -152,9 +174,15 @@ class ELMAnalysis():
         return all.sort_values(by="Time")
   
     def get_zone_data(self) -> pd.DataFrame:
+        """
+        Fetches the zone data and converts to a DF for export
+        """
         return pd.DataFrame(self.analysis_parameters.zones, columns=["Start", "End", "Type"])
     
     def __analyze_zones(self, data: xr.DataArray) -> Optional[xr.DataArray]:
+        """
+        Calculate which zone each ELM time is in
+        """
         if len(data) == 0:
             return None
 
@@ -196,6 +224,14 @@ class ELMAnalysis():
             return windows
         
     def __analyze_bursts(self) -> ELMData:
+        """
+        Analyzes the burst to caluclate if they are:
+            - Too short
+            - Too long
+            - Too frequent
+        
+        If not, they are added to the ELM list
+        """
         too_short_windows = []
         too_long_windows = []
 
@@ -265,6 +301,9 @@ class ELMAnalysis():
         )
     
     def __calculate_elm_frequency(self, elm_times):
+        """
+        Calculates the frequency of an ELM based off of the previous ELM
+        """
         elm_interval = self.analysis_parameters.elm_interval
         freq_t = np.arange(min(elm_times),max(elm_times),self.analysis_parameters.elm_interval)
         freq = np.zeros(len(freq_t))

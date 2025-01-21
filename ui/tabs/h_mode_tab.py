@@ -4,6 +4,7 @@ from utilities.custom_components import slider_with_input
 
 @st.fragment
 def generate_h_mode_tab(shot_id: str):
+    # Pull data from server - this is cached based on shot ID
     signals = pull_data(shot_id, 100)
     if signals == None:
         st.write("Invalid shot ID")
@@ -25,6 +26,7 @@ def generate_h_mode_tab(shot_id: str):
             )
             min_current = slider_with_input("Maximum plasma current", default=100, max=200.0)
 
+        # Structure to feed into H Mode analysis algorithm
         params = HModeParams(
             threshold=threshold,
             tmin=tmin,
@@ -33,6 +35,7 @@ def generate_h_mode_tab(shot_id: str):
         )
         h_mode_analysis = HModeAnalysis(signals, params)
 
+        # Download the data created by the analysis tool - fragmented to avoid update
         @st.fragment
         def download_data():
             zone_data = h_mode_analysis.get_zone_data()

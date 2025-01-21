@@ -29,6 +29,19 @@ class HModeParams:
 
 @st.cache_resource
 def pull_data(shot_id: str, min_plasma_current: float) -> Optional[HModeSignals]:
+    """
+    Used to pull H Mode data from the online storage server
+
+    Parameters
+    ----------
+    shot_id : str
+        The numerical shot ID of the MAST data
+
+    min_plasma_current : float
+        - Minimum plasma current value used for H Mode calculation
+        - This is included as a parameter in case user control is needed
+        - Default : 100
+    """
     loader = get_dataset_loader(shot_id, "level1")
 
     if (adg := loader("adg")) is None:

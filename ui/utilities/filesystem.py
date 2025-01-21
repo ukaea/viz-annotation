@@ -19,6 +19,9 @@ def get_dataset_loader(shot_id: str, location: str, metadata: bool = True) -> Ca
     location : str
         Storage location ('level1' or 'test/level2' for example)
 
+    metadata : bool
+        Can consolidated metadata be used (preferable unless dataset doesn't allow)
+
     Returns
     -------
     Callable
@@ -35,7 +38,9 @@ def get_dataset_loader(shot_id: str, location: str, metadata: bool = True) -> Ca
 
     store = zarr.storage.FSStore(fs=fs, url=url)
 
+    # This function is returned so that it can be called for the different groups
     def get_dataset(group: str) -> Optional[xr.DataArray]:
+        # Some data can be fetched using the consolidated metadata (faster), but some cannot
         try:
             if metadata:
                 data = xr.open_zarr(fs.get_mapper(f"{url}/{group}"))

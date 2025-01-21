@@ -6,8 +6,12 @@ st.set_page_config(layout="wide")
 
 st.title('MAST Data Viewer')
 
+def clear_state():
+    if 'zones' in st.session_state:
+        del st.session_state['zones']
+
 st.sidebar.title("Shot Selector")
-st.sidebar.text_input("Shot ID: ", key="shot_id")
+st.sidebar.text_input("Shot ID: ", key="shot_id", on_change=clear_state)
 
 # Improvements needed for handling initial state with no input - maybe just improve look
 if st.session_state.shot_id:

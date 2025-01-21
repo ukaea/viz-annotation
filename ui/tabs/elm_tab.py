@@ -2,9 +2,11 @@ import streamlit as st
 import xarray as xr
 
 from utilities import elms_analysis
-from utilities.custom_components import slider_with_input
+from utilities.custom_components import slider_with_input, elm_zone_controls
 
 def generate_elm_tab(data_file_name: str):
+    if 'zones' not in st.session_state:
+        st.session_state['zones'] = []
     # Load the d-alpha data set from local storage
     dataset = xr.open_zarr(data_file_name, group='dalpha')
     signal: xr.DataArray = dataset.dalpha_mid_plane_wide.copy()
@@ -34,6 +36,7 @@ def generate_elm_tab(data_file_name: str):
                 step=0.01,
                 format="%0.2f"
             )
+            min_elm_seperation = slider_with_input("Minimum ELM Seperation (ms)", default=1.5, max=10.0)
             moving_av_length = slider_with_input("Moving Average Length", default=0.001, max=0.1)
             elm_interval = slider_with_input("ELM Interval", default=0.01, max=0.1)
 
@@ -47,12 +50,23 @@ def generate_elm_tab(data_file_name: str):
             tmin= tmin,
             tmax = tmax,
             elm_interval = elm_interval,
+            zones = st.session_state["zones"]
         )
         elm_analysis = elms_analysis.ELMAnalysis(signal, params)
 
         # ELMs located by the algorithm
         with st.expander(label="ELM Location Data"):
             st.dataframe(elm_analysis.get_elm_data(), width=500)
+
+        with st.expander(label="ELM Region Selection"):
+            def add_zone():
+                st.session_state['zones'].append((params.tmin, params.tmax, "Type I"))
+            st.button(label="Add ELM Region", on_click=add_zone)
+            zones = st.session_state["zones"]
+            zone_id = 0
+            for zone in zones:
+                 elm_zone_controls(id=zone_id, min=params.tmin, max=params.tmax)
+                 zone_id += 1
 
     with graph_col:
         width = 900

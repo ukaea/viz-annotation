@@ -1,10 +1,13 @@
+from typing import List, Optional, Tuple
 import numpy as np
 import xarray as xr
 from bokeh.plotting import figure, Figure
-from bokeh.models import Span, Range1d
+from bokeh.models import Span, Range1d, BoxAnnotation, CustomJS
 from dataclasses import dataclass
 import pandas as pd
 
+
+ZoneData = List[Tuple[float, float, str]]
 @dataclass
 class ELMParams:
    threshold: float
@@ -15,6 +18,7 @@ class ELMParams:
    tmin: float
    tmax: float
    elm_interval: float
+   zones: ZoneData
 
 @dataclass
 class ELMData:
@@ -29,6 +33,12 @@ class ELMData:
    freq_filtered: xr.DataArray
    freq_filtered_t: xr.DataArray
 
+zone_colour_mapping = {
+   "Type I" : "pink",
+   "Type II" : "lightgreen",
+   "Type III" : "lightblue"
+}
+
 class ELMAnalysis():
   def __init__(self, dalpha_series: xr.DataArray, params: ELMParams):
     self.params = params
@@ -39,6 +49,7 @@ class ELMAnalysis():
   def generate_elm_graph(self, width, height) -> Figure:
     series = self.dalpha_series
     fig = figure(title=series.name, x_axis_label="time", y_axis_label="d-alpha")
+    fig.x_range = Range1d(self.params.tmin, self.params.tmax)
     fig.width = width
     fig.height = height
     fig.line(series.time.values, series.values, line_width=2)
@@ -47,6 +58,13 @@ class ELMAnalysis():
     fig.scatter(self.elm_data.freq_filtered_t, self.elm_data.freq_filtered, marker="x", size=15, color="orange", line_width=2)
     fig.scatter(self.elm_data.too_long_t, self.elm_data.too_long, marker="x", size=15, color="green", line_width=2)
     span = Span(location=self.params.threshold, dimension='width', line_color='red', line_width=1.5, line_dash='dashed')
+    
+    zone_models = []
+    for zone in self.params.zones:
+      zone_model = BoxAnnotation(left=zone[0], right=zone[1], fill_alpha=0.3, fill_color=zone_colour_mapping[zone[2]])
+      fig.add_layout(zone_model)
+      zone_models.append(zone_model)
+
     fig.add_layout(span)
     return fig
   
@@ -60,16 +78,72 @@ class ELMAnalysis():
       fig.x_range = range
     fig.scatter(self.elm_data.elm_times[1:], 1/(self.elm_data.elm_times[1:]-self.elm_data.elm_times[:-1]), marker="+", size=15, color="red", line_width=2)
     fig.line(self.elm_data.elm_frequency_times, self.elm_data.elm_frequency, color="red", line_width=2)
+    
+    zone_models = []
+    for zone in self.params.zones:
+      zone_model = BoxAnnotation(left=zone[0], right=zone[1], fill_alpha=0.3, fill_color=zone_colour_mapping[zone[2]])
+      fig.add_layout(zone_model)
+      zone_models.append(zone_model)
+    
     return fig
 
   def get_elm_data(self) -> pd.DataFrame:
-     df = pd.DataFrame(
+     valid = pd.DataFrame(
         {
            "Time": self.elm_data.elm_times,
            "Height": self.elm_data.elm_heights,
+           "Type": self.__analyze_zones(self.elm_data.elm_times),
+           "Valid": [True] * len(self.elm_data.elm_times)
         }
      )
-     return df
+
+     short = pd.DataFrame(
+        {
+           "Time": self.elm_data.too_short_t,
+           "Height": self.elm_data.too_short,
+           "Type": self.__analyze_zones(self.elm_data.too_short_t),
+           "Valid": [False] * len(self.elm_data.too_short_t)
+        }
+     )
+
+     long = pd.DataFrame(
+        {
+           "Time": self.elm_data.too_long_t,
+           "Height": self.elm_data.too_long,
+           "Type": self.__analyze_zones(self.elm_data.too_long_t),
+           "Valid": [False] * len(self.elm_data.too_long_t)
+        }
+     )
+
+     frequency = pd.DataFrame(
+        {
+           "Time": self.elm_data.freq_filtered_t,
+           "Height": self.elm_data.freq_filtered,
+           "Type": self.__analyze_zones(self.elm_data.freq_filtered_t),
+           "Valid": [False] * len(self.elm_data.freq_filtered_t)
+        }
+     )
+
+     all = pd.concat([valid, short, long, frequency], axis=0)
+     return all.sort_values(by="Time")
+  
+  def get_zone_data(self) -> pd.DataFrame:
+     return pd.DataFrame(self.params.zones, columns=["Start", "End", "Type"])
+
+  def __analyze_zones(self, data: xr.DataArray) -> Optional[xr.DataArray]:
+     if len(data) == 0:
+        return None
+
+     def zone_allocator(time):
+        zone_id = "NONE"
+        for zone in self.params.zones:
+          if time > zone[0] and time < zone[1]:
+            zone_id = zone[2]
+            break
+        return zone_id
+     
+     vertorized_function = np.vectorize(zone_allocator)
+     return vertorized_function(data)
 
   def __preprocess_signal(self, signal: xr.DataArray) -> xr.DataArray:
     time_period = self.params.tmax - self.params.tmin

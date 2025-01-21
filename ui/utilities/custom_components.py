@@ -31,3 +31,23 @@ def slider_with_input(key: str, min=0.0, max=1.0, default=0.0):
     if slider_value != input_value:
         update_slider()
     return input_value
+
+def elm_zone_controls(id: int, min: float, max: float):
+    def update_input():
+        position = st.session_state[f'zone_{id}']
+        type = st.session_state[f'zone_type_{id}']
+        st.session_state['zones'][id] = (position[0], position[1], type)
+
+
+    slider_col, type_col = st.columns([3, 1])
+
+    with slider_col:
+        zone = st.session_state['zones'][id]
+        st.slider(key=f'zone_{id}', label=str(id), value=(zone[0], zone[1]), min_value=min, max_value=max, step=0.001, format="%0.3f", on_change=update_input)
+
+    with type_col:
+        st.selectbox(key=f'zone_type_{id}', label="ELM Type:", options=(
+            "Type I",
+            "Type II",
+            "Type III"
+        ), on_change=update_input)    

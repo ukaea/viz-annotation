@@ -9,3 +9,5 @@ xarray
 zarr
 pandas
 streamlit
+s3fs
+fsspec

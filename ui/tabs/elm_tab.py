@@ -46,7 +46,7 @@ def generate_elm_tab(data_file_name: str):
             moving_av_length = moving_av_length,
             min_elm_duration = duration_min * 1e-3,
             max_elm_duration = duration_max * 1e-3,
-            min_elm_seperation = 1.5 * 1e-3,
+            min_elm_seperation = min_elm_seperation * 1e-3,
             tmin= tmin,
             tmax = tmax,
             elm_interval = elm_interval,
@@ -67,6 +67,16 @@ def generate_elm_tab(data_file_name: str):
             for zone in zones:
                  elm_zone_controls(id=zone_id, min=params.tmin, max=params.tmax)
                  zone_id += 1
+
+        @st.fragment
+        def download_data():
+            elm_data = elm_analysis.get_elm_data()
+            zone_data = elm_analysis.get_zone_data()
+            csv_data = elm_data.to_csv(index=False)
+            csv_data += "\n" + zone_data.to_csv(index=False)
+            st.download_button(label="Download Data", data=csv_data, file_name="ELM_Data.csv")
+
+        download_data()
 
     with graph_col:
         width = 900

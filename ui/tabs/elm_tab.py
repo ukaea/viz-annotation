@@ -1,26 +1,28 @@
 import streamlit as st
 import xarray as xr
 
-from utilities import elms_analysis
+from utilities.elm_analysis import ELMAnalysis, ELMParams, pull_data
 from utilities.custom_components import slider_with_input, elm_zone_controls
 
 @st.fragment
-def generate_elm_tab(data_file_name: str):
+def generate_elm_tab(shot_id: str):
     if 'zones' not in st.session_state:
         st.session_state['zones'] = []
-    # Load the d-alpha data set from local storage
-    dataset = xr.open_zarr(data_file_name, group='dalpha')
-    signal: xr.DataArray = dataset.dalpha_mid_plane_wide.copy()
     
     config_col, graph_col = st.columns([2, 3])
 
     with config_col:
+        dalpha_signal = pull_data(shot_id, 0.001)
+        if dalpha_signal is None:
+            st.write("Invalid shot ID")
+            return
+        
         threshold = slider_with_input("ELM Threshold", default=0.15)
         
         # These options may be tweaked less frequently so hide them to save space
         with st.expander(label="Advanced Configuration"):
-            min_time = min(signal.time.values)
-            max_time = max(signal.time.values)
+            min_time = min(dalpha_signal.time.values)
+            max_time = max(dalpha_signal.time.values)
             tmin, tmax = st.slider(
                 label="Analysis Time Range", 
                 min_value=min_time, 
@@ -38,13 +40,11 @@ def generate_elm_tab(data_file_name: str):
                 format="%0.2f"
             )
             min_elm_seperation = slider_with_input("Minimum ELM Seperation (ms)", default=1.5, max=10.0)
-            moving_av_length = slider_with_input("Moving Average Length", default=0.001, max=0.1)
             elm_interval = slider_with_input("ELM Interval", default=0.01, max=0.1)
 
         # Structure to feed into elm analysis algorithm
-        params = elms_analysis.ELMParams(
+        params = ELMParams(
             threshold = threshold,
-            moving_av_length = moving_av_length,
             min_elm_duration = duration_min * 1e-3,
             max_elm_duration = duration_max * 1e-3,
             min_elm_seperation = min_elm_seperation * 1e-3,
@@ -53,7 +53,7 @@ def generate_elm_tab(data_file_name: str):
             elm_interval = elm_interval,
             zones = st.session_state["zones"]
         )
-        elm_analysis = elms_analysis.ELMAnalysis(signal, params)
+        elm_analysis = ELMAnalysis(dalpha_signal, params)
 
         # ELMs located by the algorithm
         with st.expander(label="ELM Location Data"):

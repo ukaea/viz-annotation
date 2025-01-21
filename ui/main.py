@@ -20,15 +20,11 @@ if st.session_state.shot_id:
 
     # Some input validation is done, but this needs to be worked on to make it nicer looking
     file_name=f'./data/{st.session_state.shot_id}.zarr'
-    if os.path.exists(file_name):
-        h_mode_tab, elms_tab = st.tabs(["H Mode Analysis", "ELMs Analysis"])
-        with h_mode_tab:
-            h_mode.generate_h_mode_tab(st.session_state.shot_id)
-        with elms_tab:
-            elm.generate_elm_tab(file_name) 
-    else:
-        with st.expander("Invalid shot number"):
-            st.write('The shot ID provided does not exist')
+    h_mode_tab, elms_tab = st.tabs(["H Mode Analysis", "ELMs Analysis"])
+    with h_mode_tab:
+        h_mode.generate_h_mode_tab(st.session_state.shot_id)
+    with elms_tab:
+        elm.generate_elm_tab(st.session_state.shot_id) 
 else:
     with st.expander("Input required"):
         st.write('Please provide a shot selection input')

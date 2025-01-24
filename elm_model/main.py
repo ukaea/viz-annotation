@@ -24,7 +24,7 @@ def main():
     hidden_dim = 128
     code_dim = 64
     n_clusters = 2
-    model_type = "cnn"
+    model_type = "unet"
 
     epochs = 30
     # device = "cuda:0"

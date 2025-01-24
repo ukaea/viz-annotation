@@ -1,48 +1,30 @@
 import streamlit as st
 import xarray as xr
-from bokeh.plotting import figure, column
-from bokeh.models import ColumnDataSource, BoxAnnotation, CustomJS
+import os
+from tabs import elm_tab as elm
+from tabs import h_mode_tab as h_mode
 st.set_page_config(layout="wide")
 
+st.title('MAST Data Viewer')
 
-width = 1500
-height = 250
+def clear_state():
+    if 'zones' in st.session_state:
+        del st.session_state['zones']
 
-shot = 30462
-st.title(f'MAST Shot #{shot}')
+st.sidebar.title("Shot Selector")
+st.sidebar.text_input("Shot ID: ", key="shot_id", on_change=clear_state)
 
-file_name =f'./data/{shot}.zarr' 
-dataset = xr.open_zarr(file_name, group='core_profiles')
+# Improvements needed for handling initial state with no input - maybe just improve look
+if st.session_state.shot_id:
+    st.subheader(f'MAST Shot #{st.session_state.shot_id}')
 
-signal = dataset.plasma_current
-p1 = figure(title=signal.name, x_axis_label="x", y_axis_label="y", width=width, height=height)
-p1.line(signal.time.values, signal.values, legend_label="Trend", line_width=2)
-
-dataset = xr.open_zarr(file_name, group='dalpha')
-signal = dataset.dalpha_mid_plane_wide
-p2 = figure(title=signal.name, x_axis_label="x", y_axis_label="y", x_range=p1.x_range, width=width, height=height)
-p2.line(signal.time.values, signal.values, legend_label="Trend", line_width=2)
-
-box = BoxAnnotation(left=0.1, right=0.2, fill_alpha=0.3, fill_color='lightgreen')
-p2.add_layout(box)
-
-# Add a callback for updating the annotation dynamically
-callback = CustomJS(args=dict(box=box), code="""
-    var start = cb_obj.start;
-    var end = cb_obj.end;
-    box.left = start;
-    box.right = end;
-""")
-
-# Add the range tool for user selection
-p2.x_range.js_on_change('start', callback)
-p2.x_range.js_on_change('end', callback)
-
-
-dataset = xr.open_zarr(file_name, group='mirnov')
-signal = dataset.omv_210
-p3 = figure(title=signal.name, x_axis_label="x", y_axis_label="y", x_range=p1.x_range, width=width, height=height)
-p3.line(signal.time.values, signal.values, legend_label="Trend", line_width=2)
-
-p = column(p1, p2, p3)
-st.bokeh_chart(p, use_container_width=False)
+    # Some input validation is done, but this needs to be worked on to make it nicer looking
+    file_name=f'./data/{st.session_state.shot_id}.zarr'
+    h_mode_tab, elms_tab = st.tabs(["H Mode Analysis", "ELMs Analysis"])
+    with h_mode_tab:
+        h_mode.generate_h_mode_tab(st.session_state.shot_id)
+    with elms_tab:
+        elm.generate_elm_tab(st.session_state.shot_id) 
+else:
+    with st.expander("Input required"):
+        st.write('Please provide a shot selection input')

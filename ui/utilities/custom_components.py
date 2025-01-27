@@ -51,6 +51,9 @@ def elm_zone_controls(id: int, min: float, max: float):
         type = st.session_state[f'zone_type_{id}']
         st.session_state['zones'][id] = (position[0], position[1], type)
 
+    def remove():
+        st.session_state['zones'].pop(id)
+
     slider_col, type_col = st.columns([3, 1])
     with slider_col:
         zone = st.session_state['zones'][id]
@@ -60,4 +63,6 @@ def elm_zone_controls(id: int, min: float, max: float):
             "Type I",
             "Type II",
             "Type III"
-        ), on_change=update_input)    
+        ), on_change=update_input)
+    with rem_col:
+        st.button("❌", key=f'rem_{id}', on_click=remove)

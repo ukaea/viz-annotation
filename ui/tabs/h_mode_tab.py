@@ -40,7 +40,7 @@ def generate_h_mode_tab(shot_id: str):
         def download_data():
             zone_data = h_mode_analysis.get_zone_data()
             csv_data = zone_data.to_csv(index=False)
-            st.download_button(label="Download Data", data=csv_data, file_name="HMode_Data.csv")
+            st.download_button(label="Download Data", data=csv_data, file_name=f"HMode_Data_{shot_id}.csv")
 
         download_data()
 

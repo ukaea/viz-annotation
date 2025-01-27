@@ -80,7 +80,7 @@ def generate_elm_tab(shot_id: str):
             zone_data = elm_analysis.get_zone_data()
             csv_data = elm_data.to_csv(index=False)
             csv_data += "\n" + zone_data.to_csv(index=False)
-            st.download_button(label="Download Data", data=csv_data, file_name="ELM_Data.csv")
+            st.download_button(label="Download Data", data=csv_data, file_name=f"ELM_Data_{shot_id}.csv")
 
         download_data()
 

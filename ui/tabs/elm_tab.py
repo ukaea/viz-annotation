@@ -60,13 +60,14 @@ def generate_elm_tab(shot_id: str):
         with st.expander(label="ELM Region Selection"):
             def add_zone():
                 st.session_state['zones'].append((params.tmin, params.tmax, "Type I"))
-            st.button(label="Add ELM Region", on_click=add_zone)
 
             zones = st.session_state["zones"]
             zone_id = 0
             for zone in zones:
                  elm_zone_controls(id=zone_id, min=params.tmin, max=params.tmax)
                  zone_id += 1
+
+            st.button(label="Add ELM Region", on_click=add_zone)
 
         # ELMs located by the algorithm
         with st.expander(label="ELM Data"):

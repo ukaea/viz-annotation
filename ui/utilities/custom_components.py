@@ -38,7 +38,7 @@ def elm_zone_controls(id: int, min: float, max: float):
 
         Parameters
         ----------
-        id : str
+        id : int
             A unique id for identifying the zone
         min : float, optional
             The minimum value of the slider
@@ -47,17 +47,25 @@ def elm_zone_controls(id: int, min: float, max: float):
     """
 
     def update_input():
-        position = st.session_state[f'zone_{id}']
+        lower = st.session_state[f'lower_{id}']
+        upper = st.session_state[f'upper_{id}']
         type = st.session_state[f'zone_type_{id}']
-        st.session_state['zones'][id] = (position[0], position[1], type)
+        st.session_state['zones'][id] = (lower, upper, type)
 
-    slider_col, type_col = st.columns([3, 1])
-    with slider_col:
-        zone = st.session_state['zones'][id]
-        st.slider(key=f'zone_{id}', label=str(id), value=(zone[0], zone[1]), min_value=min, max_value=max, step=0.001, format="%0.3f", on_change=update_input)
+    def remove():
+        st.session_state['zones'].pop(id)
+
+    lower_col, upper_col, type_col, rem_col = st.columns([1, 1, 1, 1])
+    zone = st.session_state['zones'][id]
+    with lower_col:
+        st.number_input(label="Lower bound:", key=f'lower_{id}', value=zone[0], label_visibility="collapsed", on_change=update_input)
+    with upper_col:
+        st.number_input(label="Upper bound:", key=f'upper_{id}', value=zone[1], label_visibility="collapsed", on_change=update_input)
     with type_col:
-        st.selectbox(key=f'zone_type_{id}', label="ELM Type:", options=(
+        st.selectbox(key=f'zone_type_{id}', label="ELM type", label_visibility="collapsed", options=(
             "Type I",
             "Type II",
             "Type III"
-        ), on_change=update_input)    
+        ), on_change=update_input)
+    with rem_col:
+        st.button("❌", key=f'rem_{id}', on_click=remove)

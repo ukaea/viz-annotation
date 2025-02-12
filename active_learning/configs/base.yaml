@@ -1,0 +1,112 @@
+net:
+    type: 'unet' # ['mlp', 'cnn', 'unet', 'pointcnn']
+    input_dim: 1
+    hidden_dim: 512
+    detection: True
+
+# rng
+rng:
+    seed: 42
+    torch_seed: 42
+
+# Optimizer
+optim:
+    lr: 0.0003
+    lr_min: 0.000001
+    lr_scheduler: 'reduceonplateau'
+    lr_patience: 1 # factor of eval_interval
+    lr_reduce_factor: 0.9
+    lr_monitor: 'test/loss'
+    lr_mode: 'min'
+    lr_adjust: False
+    lr_adjust_rule: ''
+    weight_decay: 0.01
+    weight_decay_end: 0.1
+    clip_grad_norm: 1.5
+
+# loss 
+loss:
+    cls_bce:
+        weight: 1
+        learn_weight: False
+        class_weights: ~   # weights for each class e.g. [2.12, 1]
+        label_smoothing: 0. # smoothing>0
+    det_bce:
+        weight: 1
+        learn_weight: False
+        class_weights: ~   # weights for each class e.g. [2.12, 1]
+        label_smoothing: 0. # smoothing>0
+        
+# data
+data:
+    data_dir: "../data/dalpha"
+    label_dir: "../data/labels"
+    
+    train_samples: 20 # number of samples from each class per dalpha during training
+    val_samples: 100
+    context_len: 512
+    
+    # proportion of train/val/test
+    train_split: 0.6
+    n_folds: 1 
+    curr_fold: 0
+
+    # class 
+    n_classes: 3
+    class_types: 
+        - 'NONE'
+        - 'Type I'
+        - 'Type II'
+    class_balance: ~  # [None, 'oversample', 'undersample']
+    
+train:
+    epochs: 1000
+    warmup_epochs: 0
+    batch_size: 16
+    num_workers: 16
+    prefetch: False
+    preprocess: False
+    
+    gpu: 0
+    ddp: False
+    dist_run: False
+    
+    resume_training: False
+    single_batch: False
+    debug: False
+    verbose: 0
+    
+    # normally, 10
+    eval_interval: 5
+    log_interval: 100
+    log_outputs: False
+    log_metrics: True
+
+    early_stop_metric: 'test/loss'
+    early_stop_mode: 'min'
+    early_stop_warmup: 10 # this is not epoch, rather multiple of eval intervals
+    early_stop_patience: 10 # this is not epoch, rather multiple of eval intervals
+    
+    # metric to monitor for saving checkpoints
+    monitor: 'test/loss'
+    monitor_mode: 'min'
+    
+    reset_head_steps: ~
+    pretrained: ~
+        
+# experiments
+exp:
+    name: 'exp'
+    session: 1
+    log_dir: '../logs'
+    exp_dir: ~
+    ckpt_dir: ~
+    ckpt_name: 'best_acc'
+    summary_dir: ~
+    overwrite: True
+
+
+hydra:  
+    output_subdir: "../hydra_log/"  
+    run:  
+        dir: .

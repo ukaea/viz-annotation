@@ -39,15 +39,15 @@ loss:
         
 # data
 data:
-    data_dir: "../data/dalpha"
-    label_dir: "../data/labels"
-    
+    data_dir: '../data/dalpha'
+    # data_dir: 's3://mast/level2/shots'
+    label_dir: '../data/labels'
     train_samples: 20 # number of samples from each class per dalpha during training
     val_samples: 100
     context_len: 512
     
     # proportion of train/val/test
-    train_split: 0.6
+    train_split: 0.8
     n_folds: 1 
     curr_fold: 0
 

@@ -1,12 +1,18 @@
 import os
+import io
+import sys
 import csv
 import json
 import math
+import importlib
 import random
 import numpy as np
+import matplotlib.pyplot as plt
 from omegaconf import DictConfig, ListConfig
+from PIL import Image
 
 import torch
+import torchvision.transforms as T
 
 from collections import UserDict
 
@@ -157,7 +163,7 @@ def get_best_val(val, mode='min'):
             
 def get_files_in_dir(
     root: str, 
-    file_end: str,
+    file_end: tuple | str,
 ) -> list:
     """
     Returns an array of all the files in the root dir with the given file
@@ -171,12 +177,12 @@ def get_files_in_dir(
     Returns:
         ndarray of the various files in alphanumeric order
     """
-    return [
+    return sorted([
             f
             for f in os.listdir(root)
             if os.path.isfile(os.path.join(root, f))
             and f.endswith(file_end)
-        ]
+        ])
     
     
 def create_new_dir(new_dir, clean=False):

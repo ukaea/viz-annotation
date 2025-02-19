@@ -19,40 +19,32 @@ from torch.utils.data import Dataset
 
 from utils.misc import TensorDictStruct
 
-def split_data(label_dir, train_split=0.8, n_folds=1, curr_fold=0, seed=42):
+def split_data(data, train_split=0.8, n_folds=1, seed=42):
     """
     Splits the common data and label files into training and validation sets.
     If n_folds > 1, performs manual cross-validation splits.
     
-    :param data_dir: Directory containing data files
-    :param label_dir: Directory containing label files
+    :param data: List of files to split
     :param train_split: Fraction of data to use for training (default 0.8)
     :param n_folds: Number of folds for cross-validation (if >1)
     :param seed: Random seed for reproducibility
     :return: List of (train_files, val_files) tuples
     """
-    # data_files = {f for f in sorted(os.listdir(data_dir))}
-    # label_files = {f for f in sorted(os.listdir(label_dir))}
-    # common_files = sorted(list(data_files & label_files))
-    # random.seed(seed)
-    # random.shuffle(common_files)
     
-    label_files = sorted([f.split('.')[0] for f in os.listdir(label_dir) if f.endswith('.csv')])
-
     if n_folds > 1:
-        fold_size = len(label_files) // n_folds
+        fold_size = len(data) // n_folds
         folds = []
         for i in range(n_folds):
             val_start = i * fold_size
-            val_end = val_start + fold_size if i < n_folds - 1 else len(label_files)
-            val_files = label_files[val_start:val_end]
-            train_files = label_files[:val_start] + label_files[val_end:]
+            val_end = val_start + fold_size if i < n_folds - 1 else len(data)
+            val_files = data[val_start:val_end]
+            train_files = data[:val_start] + data[val_end:]
             folds.append((train_files, val_files))
-        return folds[curr_fold]
+        return folds
     else:
-        split_idx = int(len(label_files) * train_split)
-        train_files, val_files = label_files[:split_idx], label_files[split_idx:]
-        return (train_files, val_files)
+        split_idx = int(len(data) * train_split)
+        train_files, val_files = data[:split_idx], data[split_idx:]
+        return train_files, val_files
 
 def generate_windows(data, window_size=512, step_size=256):
     num_windows = (len(data) - window_size) // step_size + 1
@@ -183,7 +175,7 @@ class ELMDataset(Dataset):
         self.mode = mode
         self.n_classes = data_cfg.n_classes
         self.endpoint_url = 'https://s3.echo.stfc.ac.uk'
-        self.shot_url = 's3://mast/test/level2/shots'
+        self.data_dir = data_cfg.data_dir
 
     @property
     def training(self):
@@ -236,22 +228,18 @@ class ELMDataset(Dataset):
         shot_id = self.label_files[idx]
         # print(shot_id)
         
-        # data_df = pd.read_csv(f"{self.data_cfg.data_dir}/{shot_id}.csv")
-        # dtime = data_df['time'].values
-        # dalpha = data_df['dalpha_mid_plane_wide'].values
-
-        store = get_remote_store(f"{self.shot_url}/{shot_id}.zarr", self.endpoint_url)
-        profiles = xr.open_zarr(store, group='dalpha')
+        if self.data_dir.startswith('s3://'):
+            store = get_remote_store(f"{self.data_dir}/{shot_id}.zarr", self.endpoint_url)
+            profiles = xr.open_zarr(store, group='dalpha')
+            dalpha = profiles.dalpha_mid_plane_wide.copy()
+            dalpha = dalpha.dropna(dim='time')
+            dtime = dalpha.time.values
+            dalpha = dalpha.values
+        else:
+            data_df = pd.read_csv(f"{self.data_dir}/{shot_id}.csv")
+            dtime = data_df['time'].values
+            dalpha = data_df['dalpha_mid_plane_wide'].values
         
-        # D-alpha signal
-        dalpha = profiles.dalpha_mid_plane_wide.copy()
-
-        # Preprocessing dalpha signal
-        dalpha = dalpha.dropna(dim='time')
-
-        dtime = dalpha.time.values
-        dalpha = dalpha.values
-
         dalpha = background_subtract(dalpha, dtime)
                                         
         labels = pd.read_csv(f"{self.data_cfg.label_dir}/{shot_id}.csv")

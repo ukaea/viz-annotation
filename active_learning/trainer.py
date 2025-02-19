@@ -5,26 +5,20 @@
 import os
 import json
 import time
+import torch
 import pickle
 import numpy as np
 import random
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
 from copy import copy
 from tqdm import tqdm
 from omegaconf import DictConfig
-from collections import defaultdict
+from collections import defaultdict, Counter
 from multiprocessing import cpu_count
-
-import torch
-from torch.nn import functional as F
-from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.utils.data.distributed import DistributedSampler as DS
-
+import sklearn.metrics as skmetrics
 
 from utils.misc import *
 from utils.metrics import ClassificationMetricLogger
@@ -34,6 +28,16 @@ from utils.schedulers import cosine_scheduler
 from dataset.datasets import ELMDataset, split_data, collate_fn
 from model.network import Network
 from model.losses import BCELoss
+
+
+import torch
+from torch.nn import functional as F
+import torchvision.transforms as T
+from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data.distributed import DistributedSampler as DS
 
 class Trainer:
 
@@ -52,6 +56,7 @@ class Trainer:
         self.world_size = world_size
         self.trace_func = trace_func
         self.exp_name = exp_name
+        self.exp_dir = f"{cfg.exp.log_dir}/{exp_name}"
         self.debug = cfg.train.debug
 
         # set seed
@@ -62,9 +67,9 @@ class Trainer:
         self.torch_gen = torch.manual_seed(cfg.rng.torch_seed)
 
         if not self.debug:
-            self.ckpt_dir = create_new_dir(f"{cfg.exp.exp_dir}/checkpoints")
+            self.ckpt_dir = create_new_dir(f"{self.exp_dir}/checkpoints")
 
-            self.tb_logger = SummaryWriter(log_dir=f"{cfg.exp.exp_dir}/summary")
+            self.tb_logger = SummaryWriter(log_dir=f"{self.exp_dir}/summary")
 
         if cfg.train.ddp:
             self.device = torch.device("cuda:{}".format(rank))
@@ -97,6 +102,7 @@ class Trainer:
         self.cls_loss_fn = torch.nn.CrossEntropyLoss()
         if cfg.net.detection:
             self.elm_loss_fn = torch.nn.CrossEntropyLoss()
+        
 
         # Metric Logger
         self.cls_metric_logger = ClassificationMetricLogger(name="elm_types", 
@@ -347,13 +353,6 @@ class Trainer:
                 if not self.debug:
                     for k, v in self.train_hist.items():
                         self.tb_logger.add_scalar(k, v[-1], epoch)
-                        
-                    for task_name in self.mtl_wrapper.learnable_tasks:
-                        self.tb_logger.add_scalar(
-                            f'loss_wts/learnable_{task_name}', 
-                            self.mtl_wrapper.get_weight(task_name).cpu(), 
-                            epoch,
-                            )
                     
                     if eval_condition:
                         # Try to syncronize with the model checkpoint, may incorrectly save the latest evaluated metric
@@ -364,7 +363,7 @@ class Trainer:
                             if cfg.net.detection:
                                 self.best_det_results = copy(self.det_metric_logger.results)
                         
-                    with open(cfg.exp.exp_dir + "/train_hist.txt", "w") as f:
+                    with open(self.exp_dir + "/train_hist.txt", "w") as f:
                         json.dump({k: str(v) for k, v in self.train_hist.items()}, f)
             
                 if self.early_stopping.early_stop:
@@ -455,13 +454,11 @@ class Trainer:
 
         total_loss= 0
         elm_cls_loss = self.cls_loss_fn(cls_preds, batch.cls_labels)
-        # cls_loss = self.mtl_wrapper(self.cls_loss(cls_preds, labels.max(-1).values), task_name='cls_bce')
         hist[f"{phase}/elm_cls_loss"].append(elm_cls_loss.detach().item())
         total_loss += elm_cls_loss
         
         if self.cfg.net.detection:
             elm_det_loss = self.elm_loss_fn(elm_preds, batch.elm_labels)
-            # det_loss = self.mtl_wrapper(self.det_loss(elm_preds, labels), task_name='det_bce')
             hist[f"{phase}/elm_det_loss"].append(elm_det_loss.detach().item())
             total_loss += elm_det_loss
 
@@ -471,7 +468,35 @@ class Trainer:
             self.log_outputs(batch, (cls_preds, elm_preds), self.global_step, phase)
             
         return hist, total_loss, cls_preds, elm_preds
+
+    def plot_history(self, ms=2):
         
+        train_epochs = np.arange(len(self.train_hist['epoch']))  # 450 epochs
+        test_epochs = np.linspace(0, len(self.train_hist['epoch']) - 1, len(self.train_hist['test/loss']))  # 90 test points
+        
+        # Plot Loss Components
+        fig, axes = plt.subplots(2, 1, figsize=(12, 5), layout='constrained')
+        axes[0].plot(train_epochs, self.train_hist['train/elm_cls_loss'], label=' Train Classification Loss')
+        axes[0].plot(train_epochs, self.train_hist['train/elm_det_loss'], label='Train Detection Loss')
+        axes[0].plot(test_epochs, self.train_hist['test/elm_cls_loss'], label='Test Classification Loss')
+        axes[0].plot(test_epochs, self.train_hist['test/elm_det_loss'], label='Test Detection Loss')
+        axes[0].set_title("Train/test Loss")
+        axes[0].set_xlabel("Epoch")
+        axes[0].set_ylabel("Loss")
+        axes[0].legend()
+        axes[0].grid()
+    
+        # Plot Test Accuracy
+        axes[1].plot(test_epochs, self.train_hist['test/cls_acc'], label='Classification', linestyle='-', marker='o', ms=ms)
+        axes[1].plot(test_epochs, self.train_hist['test/det_acc'], label='Detection', linestyle='-', marker='s', ms=ms)
+        axes[1].set_xlabel("Epoch")
+        axes[1].set_ylabel("Accuracy")
+        axes[1].set_title("Test Accuracy")
+        axes[1].legend()
+        axes[1].grid()
+        
+        plt.show()
+            
     def plot_preds(self, inputs, cls_preds, elm_preds, n_images=5, figsize=(8, 6)):
         
         '''
@@ -602,7 +627,7 @@ class Trainer:
                                                     batch.elm_labels.flatten(), 
                                                     files=batch.files,
                                                     )
-                    hist[f"{phase}/det_acc"].extend(cls_acc.tolist())
+                    hist[f"{phase}/det_acc"].extend(det_acc.tolist())
                     postfix += f", {phase}_det_acc: {np.mean(hist[f'{phase}/det_acc']):.3f}"
                 
                 pbar.set_postfix_str(postfix)

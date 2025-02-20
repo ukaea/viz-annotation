@@ -2,7 +2,7 @@ net:
     type: 'unet' # ['mlp', 'cnn', 'unet', 'pointcnn']
     input_dim: 1
     hidden_dim: 512
-    detection: True
+    detection: False
 
 # rng
 rng:

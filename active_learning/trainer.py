@@ -164,7 +164,6 @@ class Trainer:
             self.trace_func({k: v.shape for k, v in batch.items() if isinstance(v, torch.Tensor)})
             break
 
-
         return dataloader
 
     def train(self, train_sets=[], val_sets=[], test_sets=[]):
@@ -469,31 +468,25 @@ class Trainer:
             
         return hist, total_loss, cls_preds, elm_preds
 
-    def plot_history(self, ms=2):
+    def plot_history(self, ms=2, figsize=(10, 6)):
         
         train_epochs = np.arange(len(self.train_hist['epoch']))  # 450 epochs
         test_epochs = np.linspace(0, len(self.train_hist['epoch']) - 1, len(self.train_hist['test/loss']))  # 90 test points
         
         # Plot Loss Components
-        fig, axes = plt.subplots(2, 1, figsize=(12, 5), layout='constrained')
-        axes[0].plot(train_epochs, self.train_hist['train/elm_cls_loss'], label=' Train Classification Loss')
-        axes[0].plot(train_epochs, self.train_hist['train/elm_det_loss'], label='Train Detection Loss')
-        axes[0].plot(test_epochs, self.train_hist['test/elm_cls_loss'], label='Test Classification Loss')
-        axes[0].plot(test_epochs, self.train_hist['test/elm_det_loss'], label='Test Detection Loss')
-        axes[0].set_title("Train/test Loss")
-        axes[0].set_xlabel("Epoch")
-        axes[0].set_ylabel("Loss")
-        axes[0].legend()
-        axes[0].grid()
-    
-        # Plot Test Accuracy
-        axes[1].plot(test_epochs, self.train_hist['test/cls_acc'], label='Classification', linestyle='-', marker='o', ms=ms)
-        axes[1].plot(test_epochs, self.train_hist['test/det_acc'], label='Detection', linestyle='-', marker='s', ms=ms)
-        axes[1].set_xlabel("Epoch")
-        axes[1].set_ylabel("Accuracy")
-        axes[1].set_title("Test Accuracy")
-        axes[1].legend()
-        axes[1].grid()
+        fig, ax = plt.subplots(figsize=figsize, layout='constrained')
+        ax.plot(train_epochs, self.train_hist['train/elm_cls_loss'], label=' Train Classification Loss')
+        ax.plot(test_epochs, self.train_hist['test/elm_cls_loss'], label='Test Classification Loss')
+        if 'train/elm_det_loss' in self.train_hist:
+            ax.plot(train_epochs, self.train_hist['train/elm_det_loss'], label='Train Detection Loss')
+        if 'test/elm_det_loss' in self.train_hist:
+            ax.plot(test_epochs, self.train_hist['test/elm_det_loss'], label='Test Detection Loss')
+            
+        ax.set_title("Train/test Loss")
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel("Loss")
+        ax.legend()
+        ax.grid()
         
         plt.show()
             

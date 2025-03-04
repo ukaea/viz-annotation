@@ -72,19 +72,6 @@ def set_random_seed(seed):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
-
-def get_params_groups(model):
-    regularized = []
-    not_regularized = []
-    for name, param in model.named_parameters():
-        if not param.requires_grad:
-            continue
-        # we do not regularize biases nor Norm parameters
-        if name.endswith(".bias") or len(param.shape) == 1:
-            not_regularized.append(param)
-        else:
-            regularized.append(param)
-    return [{'params': regularized}, {'params': not_regularized, 'weight_decay': 0.}]
     
 def model_parameters(model, verbose=0):
     if verbose>0:
@@ -97,39 +84,6 @@ def model_parameters(model, verbose=0):
             total_params+=param.numel()
     print('Total Trainable Parameters :{:<10}'.format(total_params))
     return total_params
-
-# use computation graph to find all contributing tensors
-def get_contributing_params(y, top_level=True):
-    nf = y.grad_fn.next_functions if top_level else y.next_functions
-    for f, _ in nf:
-        try:
-            yield f.variable
-            print(f.shape)
-        except AttributeError:
-            pass  # node has no tensor
-        if f is not None:
-            yield from get_contributing_params(f, top_level=False)
-
-def non_contributing_params(model, outputs=[]):
-    
-    contributing_parameters = set.union(*[set(get_contributing_params(out)) for out in outputs])
-    all_parameters = set(model.parameters())
-    non_contributing_parameters = all_parameters - contributing_parameters
-
-    if len(non_contributing_parameters)>0:
-
-        print(f"{len(non_contributing_parameters)} non-contributing parameters:")
-        
-        # Map parameters back to their names in the model
-        for name, param in model.named_parameters():
-            if param in non_contributing_parameters:
-                print(f"{name}, Shape: {tuple(param.shape)}")
-         
-        # print([tuple(p.shape) for p in non_contributing_parameters])
-        
-    total_non_contributing = sum([np.product(p.shape) for p  in non_contributing_parameters])
-
-    return total_non_contributing
 
 
 def contains_nan(item):
@@ -211,22 +165,3 @@ def save_to_csv(file_path, row_data, header, overwrite=False):
         # Write the row data
         writer.writerow(row_data)
 
-
-def dictconf_to_dict(config, prefix=None, cfg_dict={}):
-    """
-    Recursively get fields in config and convert to primitive dictionary.
-    """
-    for key, value in config.items():
-        k = f"{prefix}.{key}" if prefix else key
-        # print(k, value, type(value))
-        if isinstance(value, DictConfig):
-            cfg_dict[k] = dictconf_to_dict(value, prefix=k, cfg_dict=cfg_dict)
-        elif isinstance(value, ListConfig):
-            cfg_dict[k] = ",".join([str(v) for v in value])
-        else:
-            cfg_dict[k] = value
-
-    # remove field with value '{...}'
-    cfg_dict = {k: v for k, v in cfg_dict.items() if not isinstance(v, dict)}
-
-    return cfg_dict

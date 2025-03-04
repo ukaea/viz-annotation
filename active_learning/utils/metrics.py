@@ -180,14 +180,15 @@ class ClassificationMetricLogger:
             )
 
         if tabulate_results:
-            self.trace_func(self.tabulate_metrics(self.results))
+            self.trace_func(self.tabulate_metrics())
         
         # self.print_metrics_table(self.trace_func)
         
-    def tabulate_metrics(self, metrics, tablefmt="outline", floatfmt=".3f", col_width=0):
+    def tabulate_metrics(self, tablefmt="outline", floatfmt=".3f", col_width=0):
         """
         Tabluate the results dictionary.
         """
+        metrics = self.results
         
         headers = [f"{self.name:<}"] + [f"{h:^}" for h in metrics.keys()]
         separator = ['-'*(len(h)+2) for h in headers]
@@ -223,13 +224,13 @@ class ClassificationMetricLogger:
                         )
         return pd.DataFrame(data_dict)
         
-    def plot_confusion_matrix(self, cmap='Blues', cbar=False, figsize=(5,5)):
+    def plot_confusion_matrix(self, cmap='Blues', cbar=False, fontsize=16, figsize=(5,5)):
         
         fig, ax = plt.subplots(figsize=figsize, layout='constrained')
         
         sns.heatmap(self.confusion_matrix, 
                     annot=True, 
-                    annot_kws = {'fontsize': 20},
+                    annot_kws = {'fontsize': fontsize},
                     fmt='g', 
                     linewidth=.5, 
                     ax=ax, 
@@ -242,12 +243,16 @@ class ClassificationMetricLogger:
             yticks=np.arange(self.num_class)+0.5,
             xticklabels=self.get_class_labels(),
             yticklabels=self.get_class_labels(),
-            # ylabel="True label",
-            # xlabel="Predicted label",
         )
+        # Set font size for tick labels
+        ax.tick_params(axis="both", labelsize=fontsize)  # Adjust 12 to desired font size
+
+
+        ax.set_xlabel("Predicted label", fontsize=fontsize)
+        ax.set_ylabel("True label", fontsize=fontsize)
 
         # set title
-        ax.set_title(self.name, fontsize=12)
+        ax.set_title(self.name, fontsize=fontsize)
         
         # Color x_ticks/y_ticks labels
         colors = sns.color_palette('bright', n_colors=self.num_class)

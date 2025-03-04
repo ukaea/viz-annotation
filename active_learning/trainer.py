@@ -36,8 +36,6 @@ import torchvision.transforms as T
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.utils.data.distributed import DistributedSampler as DS
 
 class Trainer:
 
@@ -71,32 +69,18 @@ class Trainer:
 
             self.tb_logger = SummaryWriter(log_dir=f"{self.exp_dir}/summary")
 
-        if cfg.train.ddp:
-            self.device = torch.device("cuda:{}".format(rank))
+        if torch.cuda.is_available():
+            self.device = torch.device(f"cuda:{cfg.train.gpu}")
         else:
-            if torch.cuda.is_available():
-                self.device = torch.device(f"cuda:{cfg.train.gpu}")
-            else:
-                print("GPUs not available. Setting device to cpu!!!")
-                self.device = torch.device("cpu")
+            print("GPUs not available. Setting device to cpu!!!")
+            self.device = torch.device("cpu")
 
         # Network
         self.network = Network(cfg, device=self.device)
         self.network = self.network.to(self.device)
-        self.network_ddp = self.network
         self.num_params = sum(p.numel() for p in self.network.parameters())
         if not cfg.train.debug:
             self.tb_logger.add_scalar("parameters", self.num_params)
-
-        if cfg.train.ddp:
-            if self.has_batchnorms():
-                self.network = torch.nn.SyncBatchNorm.convert_sync_batchnorm(
-                    self.network
-                )
-
-            self.network = DDP(self.network, device_ids=[self.rank])
-            self.network_ddp = self.network.module
-
 
         # Loss 
         self.cls_loss_fn = torch.nn.CrossEntropyLoss()
@@ -115,36 +99,18 @@ class Trainer:
                                                                 num_class=2, 
                                                                 trace_func=self.trace_func,
                                                             )
-        
-
-    def has_batchnorms(self):
-        bn_types = (
-            torch.nn.BatchNorm1d,
-            torch.nn.BatchNorm2d,
-            torch.nn.BatchNorm3d,
-            torch.nn.SyncBatchNorm,
-        )
-        for _, module in self.network.named_modules():
-            if isinstance(module, bn_types):
-                return True
-        return False
+        self.predictions = defaultdict(list)
     
-    def create_dataloader(self, data_files, phase='train', sampler=None, generator=None, shuffle=True, drop_last=False, collate_fn=None):
+    def create_dataloader(self, data_files, batch_size=1, phase='train', shuffle=False, drop_last=False):
         
         cfg = self.cfg
 
         dataset = ELMDataset(cfg.data, data_files, mode='train')
 
-        if (phase=='train')  & cfg.train.ddp:
-            shuffle = False
-            sampler = DS(dataset)
-
         dataloader = DataLoader(
             dataset,
-            batch_size=cfg.train.batch_size,
+            batch_size=batch_size,
             shuffle=shuffle,
-            generator=generator,
-            sampler=sampler,
             pin_memory=True if torch.cuda.is_available() else False,  # pin_memory is slightly faster but cpu pricy
             num_workers=min(cfg.train.num_workers, cpu_count()),
             persistent_workers=True if cfg.train.num_workers > 0 else False,
@@ -166,30 +132,20 @@ class Trainer:
 
         return dataloader
 
-    def train(self, train_sets=[], val_sets=[], test_sets=[]):
+    def train(self, train_sets, val_sets=[], test_sets=[]):
 
         cfg = self.cfg
 
         if (not len(val_sets)>0) and cfg.train.monitor in ['val/loss', 'val/acc']:
             raise Exception("cannot monitor {cfg.monitor} when validation samples is {len(val_sets)}")
 
-        ## Prepare datasets
-        self.trace_func("Preparing train/test dataset ... ")
-        if not len(train_sets)>0:
-            train_sets, val_sets = split_data(cfg.data.data_dir,
-                                             cfg.data.label_dir,
-                                             cfg.data.train_split,
-                                             cfg.data.n_folds, 
-                                             cfg.data.curr_fold,
-                                             cfg.rng.seed
-                                            )
-
+        ## Prepare dataloaders
         self.trace_func("Creating dataloaders ...")
         self.train_loader = self.create_dataloader(
             train_sets,
             phase='train',
             shuffle=True,
-            collate_fn=collate_fn
+            batch_size=cfg.train.batch_size,
         )
 
         if not len(self.train_loader) > 0:
@@ -198,17 +154,13 @@ class Trainer:
         self.val_loader = self.create_dataloader(
             val_sets,
             phase='val',
-            shuffle=False,
-            drop_last=False,
-            collate_fn=collate_fn,
+            batch_size=cfg.train.batch_size,
         )
 
         self.test_loader = self.create_dataloader(
             test_sets,
             phase='test',
-            shuffle=False,
-            drop_last=False,
-            collate_fn=collate_fn,
+            batch_size=cfg.train.batch_size,
         )
 
         #  Optimizer
@@ -217,16 +169,15 @@ class Trainer:
         self.optimizer = torch.optim.AdamW(net_params, lr=cfg.optim.lr)
 
         # Lr Schedulers 
-        if cfg.optim.lr_scheduler == "reduceonplateau":
-            self.lr_scheduler = ReduceLROnPlateau(
-                self.optimizer,
-                mode=cfg.optim.lr_mode,
-                factor=cfg.optim.lr_reduce_factor,
-                patience=cfg.optim.lr_patience,
-                threshold=1e-6,
-                threshold_mode='abs',
-                verbose=True,
-            )
+        self.lr_scheduler = ReduceLROnPlateau(
+            self.optimizer,
+            mode=cfg.optim.lr_mode,
+            factor=cfg.optim.lr_reduce_factor,
+            patience=cfg.optim.lr_patience,
+            threshold=1e-6,
+            threshold_mode='abs',
+            verbose=True,
+        )
 
         # Weight scheduler
         if cfg.optim.weight_decay > 0:
@@ -261,17 +212,6 @@ class Trainer:
         
         self.train_hist = defaultdict(list)
 
-        if cfg.train.pretrained is not None:
-            self.trace_func(f"Loading pretrained network from {cfg.train.pretrained}")
-            try:
-                self.network_ddp.load_state_dict(
-                    torch.load(cfg.train.pretrained), strict=False
-                )
-                print("Model loaded sucessfully!")
-            except Exception as e:
-                print(e)
-                pass
-
         self.trace_func(
             f"Training Started (device: {self.device}, " f"rank: {self.rank})"
         )
@@ -284,13 +224,10 @@ class Trainer:
 
             epoch_start = time.time()
 
-            if cfg.train.ddp and (not cfg.train.single_batch):
-                self.train_loader.sampler.set_epoch(epoch)
-
             epoch_hist = self.train_epoch() # new epoch_history for each epoch
 
             if self.rank == 0:
-                eval_condition = ((epoch + 1) % cfg.train.eval_interval == 0) & (epoch > cfg.train.warmup_epochs-1)
+                eval_condition = ((epoch + 1) % cfg.train.eval_interval == 0)
                 if eval_condition :
                     self.trace_func("Evaluating")
                     if len(self.val_loader)>0:
@@ -416,8 +353,6 @@ class Trainer:
             # clip gradients before step
             if self.cfg.optim.clip_grad_norm>0:
                 torch.nn.utils.clip_grad_norm_(self.network.parameters(), self.cfg.optim.clip_grad_norm)
-
-            # self.log_gradient_norms()
             
             # update all model parameters
             self.optimizer.step() 
@@ -425,15 +360,8 @@ class Trainer:
             # zero gradients 
             self.optimizer.zero_grad(set_to_none=True)
 
-            if self.cfg.train.reset_head_steps is not None:
-                if self.global_step == self.cfg.train.reset_head_steps:
-                    print("RESETTING HEADS")
-                    self.head.reset_parameters()
-
             self.global_step += 1
 
-            if self.cfg.train.ddp:
-                torch.cuda.synchronize()
             # break
 
         pbar.close()
@@ -490,7 +418,7 @@ class Trainer:
         
         plt.show()
             
-    def plot_preds(self, inputs, cls_preds, elm_preds, n_images=5, figsize=(8, 6)):
+    def plot_preds(self, phase='test', n_images=5, figsize=(8, 6)):
         
         '''
         Visualize class predictions
@@ -499,25 +427,31 @@ class Trainer:
             cls_preds (array): ELM type prediction 
             elm_preds (array): ELM label prediction. 
         '''
+
+        n_batch = len(self.predictions[f"{phase}/inputs"])
         
-        bs = inputs.dalpha.shape[0] # bs may be different from actual batch size
+        idx = self.rng_gen.choice(n_batch)
+        inputs = self.predictions[f"{phase}/inputs"][idx]
+        cls_preds = self.predictions[f"{phase}/cls_preds"][idx]
+        elm_preds = self.predictions[f"{phase}/elm_preds"][idx]
         
-        n_rows = min(n_images, bs)
-        
-        print(f"{n_rows=}")
-        
+        # bs may be different from actual batch size
+        n_rows = min(n_images, len(self.predictions[f"{phase}/inputs"][0].dalpha))
+                
         plt.close('all')
         fig, axes = plt.subplots(n_rows, 1, figsize=figsize, layout='constrained')
-
-        for i in range(n_rows):
+        
+        for i in range(n_rows):   
+        
             shot = inputs.files[i].split('.')[0]
             gt_class = inputs.cls_labels[i].cpu().numpy()
             pred_class = cls_preds[i].argmax().cpu().numpy()
             dtime = inputs.dtime[i].reshape(-1).cpu().numpy()
             dalpha = inputs.dalpha[i].reshape(-1).cpu().numpy()
+            
             text_label = f"Shot_{shot}, Type:{gt_class}, Pred:{pred_class}"
             axes[i].plot(dtime, dalpha, label=text_label, color="blue", zorder=1)
-        
+            
             if elm_preds is not None:
                 axes[i].plot(dtime, inputs.elm_labels[i].cpu().numpy(), label="GT ELM", color="green", alpha=0.6, zorder=5)
                 axes[i].plot(dtime, elm_preds[i].argmax(0).cpu().numpy(), label="Pred ELM", color="red", linestyle='--', zorder=10)
@@ -528,35 +462,8 @@ class Trainer:
         plt.xlabel("Time Steps")
         plt.show()
 
-        return fig, ax
+        return fig, axes
         
-    def log_gradient_norms(self, ):
-        """Logs gradient norms for all parameters to TensorBoard.
-        """
-        if self.debug:
-            return
-            
-        for name, param in self.network.named_parameters():
-            if "weight" in name:
-                if param.grad is not None: 
-                    grad_norm = torch.norm(param.grad).item()
-                    self.tb_logger.add_scalar(f"grad_norms/{name}", grad_norm, self.global_step)
-                
-    def log_hparams(self, final_epoch):
-        if self.debug:
-            return
-            
-        metric_dict = {
-            f"hparams/{k}": val_list[-1]
-            for k, val_list in self.train_hist.items()
-            if (("train" in k) or ("val" in k))
-        }
-        hparams_dict = dictconf_to_dict(self.cfg)
-        hparams_dict["hparams/parameters"] = self.num_params
-        hparams_dict["hparams/final_epoch"] = final_epoch
-        self.tb_logger.add_hparams(
-            hparams_dict, metric_dict=metric_dict, run_name="hparams"
-        )
 
     def log_metrics(self, metric_logger, epoch, phase):
         if self.debug:
@@ -583,7 +490,7 @@ class Trainer:
         # except Exception as e:
         #     print(e)
         
-    def evaluate_epoch(self, dataloader, phase="val", hist=None, epoch=0, return_preds=False, log_outputs=False, log_metrics=False):
+    def evaluate_epoch(self, dataloader, phase="val", hist=None, epoch=0, log_outputs=False, log_metrics=False):
 
         self.network.eval()
         
@@ -595,6 +502,7 @@ class Trainer:
             hist = defaultdict(list)
         
         pbar = tqdm(total=len(dataloader), position=0)
+        
         with torch.no_grad():
             for batch in dataloader:
                 pbar.update(1)
@@ -602,7 +510,6 @@ class Trainer:
                 hist, val_loss, cls_preds, elm_preds = self.step(batch, 
                                                                  hist, 
                                                                  phase=phase, 
-                                                                 return_preds=return_preds,
                                                                 )
                 
                 cls_acc = self.cls_metric_logger(cls_preds, 
@@ -625,14 +532,13 @@ class Trainer:
                 
                 pbar.set_postfix_str(postfix)
 
-                if return_preds:
-                    hist[f"{phase}/inputs"].append(batch)
-                    hist[f"{phase}/cls_preds"].append(cls_preds)
-                    hist[f"{phase}/elm_preds"].append(elm_preds)
+                self.predictions[f"{phase}/inputs"].append(batch)
+                self.predictions[f"{phase}/cls_preds"].append(cls_preds)
+                self.predictions[f"{phase}/elm_preds"].append(elm_preds)
 
         if log_outputs:
             print("Logging predictions ...")
-            fig, ax = self.plot_preds(batch, cls_preds, elm_preds, epoch, phase)
+            fig, ax = self.plot_preds(phase)
             self.tb_logger.add_figure(f"preds/{phase}", fig, epoch, close=True)
             
         self.cls_metric_logger.compute()
@@ -647,33 +553,32 @@ class Trainer:
             
         return hist
 
-    def evaluate(self, data_sets, ckpt_name='best_accuracy', return_preds=False):
+    def evaluate(self, eval_sets, phase='eval', ckpt_name='best_acc'):
 
         dataloader = self.create_dataloader(
-            test_sets,
-            phase='test',
-            shuffle=False,
-            drop_last=False,
-            collate_fn=collate_fn,
+            eval_sets,
+            phase='eval',
+            batch_size=self.cfg.train.batch_size, 
         )
 
         self.trace_func("Loading Checkpoint ... ")
             
-        self.model_checkpointer.load_checkpoint()
+        ModelCheckpoint.load_checkpoint(self.network, self.ckpt_dir, ckpt_name)
         
-        h = self.evaluate_epoch(dataloader, return_preds=return_preds)
+        h = self.evaluate_epoch(dataloader, phase='eval')
             
         return h
-        
+
+            
     def save_states(self, epoch=0, ckpt_dir=None, ckpt_name="model_states"):
-        state = {
+        states = {
             "last_epoch": epoch,
             "global_step": self.global_step,
-            "model_state": self.network_ddp.state_dict(),
-            "optimizer_state": self.optimizer.state_dict(),
-            "scheduler_state": self.lr_scheduler.state_dict(),
+            "model_states": self.network.state_dict(),
+            "optimizer_states": self.optimizer.state_dict(),
+            "scheduler_states": self.lr_scheduler.state_dict(),
         }
-        torch.save(state, os.path.join(ckpt_dir or self.ckpt_dir, ckpt_name + ".pth"))
+        torch.save(states, os.path.join(ckpt_dir or self.ckpt_dir, ckpt_name + ".pth"))
 
     def load_states(self, ckpt_dir=None, ckpt_name="model_states"):
 
@@ -682,8 +587,8 @@ class Trainer:
         )
 
         self.global_step = checkpoint["global_step"]
-        self.network_ddp.load_state_dict(checkpoint["model_state"], strict=True)
-        self.optimizer.load_state_dict(checkpoint["optimizer_state"])
-        self.lr_scheduler.load_state_dict(checkpoint["scheduler_state"])
+        self.network.load_state_dict(checkpoint["model_states"], strict=True)
+        self.optimizer.load_state_dict(checkpoint["optimizer_states"])
+        self.lr_scheduler.load_state_dict(checkpoint["scheduler_states"])
 
         return checkpoint["last_epoch"]

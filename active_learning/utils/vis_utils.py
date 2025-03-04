@@ -10,7 +10,7 @@ def plot_bar_metrics(
     xticks_label='Iteration', 
     bar_width=0.2, 
     cmap='tab10', 
-    figsize=(10, 6),
+    figsize=(8, 6),
     fontsize=8,
 ):
     '''
@@ -26,7 +26,7 @@ def plot_bar_metrics(
             metric_dict[k].append(v)
         
     # Plot metric results over iteration
-    fig, axes = plt.subplots(1, 2, figsize=figsize, layout='constrained')
+    fig, axes = plt.subplots(figsize=figsize, layout='constrained')
     
     X = np.arange(N)
     
@@ -37,24 +37,25 @@ def plot_bar_metrics(
         
         offset = bar_width * multiplier
         multiplier += 1
-        rects = axes[0].bar(X + offset, m_values, bar_width, color=colors(i), label=m)
-        axes[0].bar_label(rects, padding=3, fontsize=fontsize)
+        rects = axes.bar(X + offset, m_values, bar_width, color=colors(i), label=m)
+        axes.bar_label(rects, padding=3, fontsize=fontsize)
         
-    axes[0].set_title(f"ELM {metric_type} vs. Iterations")
-    axes[0].legend(loc='upper left', ncols=1, fontsize=fontsize, framealpha=0.6)
-    axes[0].set_xticks(X + bar_width, labels=[f"{xticks_label}{i+1}" for i in range(N)])
+    axes.set_title(f"ELM {metric_type}")
+    axes.legend(loc='upper left', ncols=1, fontsize=fontsize, framealpha=0.6)
+    axes.set_xticks(X + bar_width, labels=[f"{xticks_label}{i+1}" for i in range(N)])
        
-    for i, m in enumerate(['tp', 'tn']):
-        m_values = [round(v, 2) for v in metric_dict[m]]
+    # for i, m in enumerate(['tp', 'tn']):
+    #     m_values = [round(v, 2) for v in metric_dict[m]]
         
-        offset = bar_width * multiplier
-        multiplier += 1
-        rects = axes[1].bar(X + offset, m_values, bar_width, color=colors(i), label=m)
-        axes[1].bar_label(rects, padding=3)
-        
-    axes[1].set_title(f"ELM {metric_type} vs. Iteration")
-    axes[1].legend(loc='upper left', ncols=1, fontsize=fontsize, framealpha=0.6)
-    axes[1].set_xticks(X + bar_width, labels=[f"{xticks_label}{i+1}" for i in range(N)])
+    #     offset = bar_width * multiplier
+    #     multiplier += 1
+    #     rects = axes[1].bar(X + offset, m_values, bar_width, color=colors(i), label=m)
+    #     axes[1].bar_label(rects, padding=3)
+
+    # # Plot FPs/FNs
+    # axes[1].set_title(f"ELM {metric_type} vs. Iteration")
+    # axes[1].legend(loc='upper left', ncols=1, fontsize=fontsize, framealpha=0.6)
+    # axes[1].set_xticks(X + bar_width, labels=[f"{xticks_label}{i+1}" for i in range(N)])
 
     plt.show()
 

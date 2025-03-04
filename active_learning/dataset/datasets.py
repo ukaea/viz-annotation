@@ -19,7 +19,7 @@ from torch.utils.data import Dataset
 
 from utils.misc import TensorDictStruct
 
-def split_data(data, train_split=0.8, n_folds=1, seed=42):
+def split_data(data, train_split=0.8, n_folds=1, seed=None):
     """
     Splits the common data and label files into training and validation sets.
     If n_folds > 1, performs manual cross-validation splits.
@@ -30,7 +30,11 @@ def split_data(data, train_split=0.8, n_folds=1, seed=42):
     :param seed: Random seed for reproducibility
     :return: List of (train_files, val_files) tuples
     """
-    
+
+    if seed is not None:
+        rng = np.random.default_rng(seed)
+        rng.shuffle(data)
+        
     if n_folds > 1:
         fold_size = len(data) // n_folds
         folds = []
@@ -112,7 +116,7 @@ def map_elm_types(label, dtime, n_classes=3, elm_types=None):
     """
     # Map Type to numerical labels
     if elm_types is None:
-        elm_types = ["NONE", "Type I", "Type II"]
+        elm_types = ["Type I", "Type II", "Type III"]
 
     label_map = {elm_types[i]:i for i in range(n_classes)}
     label['mapped_label'] = label['Type'].map(label_map)
@@ -202,17 +206,13 @@ class ELMDataset(Dataset):
         if buffer is None:
             buffer = window_size//2
 
-        # pad indices 
-        if len(indices) < window_size:
+        if len(indices) < window_size + buffer:
             return None
-
-        # print("class indices", indices)
 
         # Set valid indices
         valid_start = np.isin(indices-buffer, indices)
         valid_end = np.isin(indices+buffer, indices)
         indices = indices[valid_start & valid_end]
-        # print('filtered indices', indices)
             
         # Random sample indices
         sampled_indices = np.random.choice(indices, size=(n_samples), replace=True if len(indices)<n_samples else False)
@@ -226,7 +226,6 @@ class ELMDataset(Dataset):
     
     def __getitem__(self, idx):
         shot_id = self.label_files[idx]
-        # print(shot_id)
         
         if self.data_dir.startswith('s3://'):
             store = get_remote_store(f"{self.data_dir}/{shot_id}.zarr", self.endpoint_url)
@@ -246,16 +245,17 @@ class ELMDataset(Dataset):
         cls_labels, elm_labels = map_labels(labels, 
                                             dtime, 
                                             n_classes=self.data_cfg.n_classes,
-                                            elm_types = self.data_cfg.class_types,
+                                            elm_types=self.data_cfg.class_types,
                                             )
         
         sampled_indices = []
         for l in np.unique(cls_labels):
-            sampled_class_indices = self.sample_uniform(dalpha, 
-                                                       np.where(cls_labels==l)[0],
-                                                       window_size=self.data_cfg.context_len,
-                                                       n_samples= self.data_cfg.train_samples if self.training else self.data_cfg.val_samples
-                                                      )
+            sampled_class_indices = self.sample_uniform(
+                dalpha, 
+                np.where(cls_labels==l)[0],
+                window_size=self.data_cfg.context_len,
+                n_samples=int(self.data_cfg.train_samples * self.data_cfg.sampling_factor[int(l)]) if self.training else self.data_cfg.val_samples
+            )
             if sampled_class_indices is not None:
                 sampled_indices.append(sampled_class_indices)
             

@@ -74,10 +74,8 @@ class ModelCheckpoint:
             except:
                 torch.save(self.model.state_dict(), save_path)
 
-    def load_checkpoint(self,):
-        load_path = os.path.join(self.ckpt_dir, self.ckpt_name + ".pth")
-        self.trace_func(f"Loading model checkpoint from {load_path}")
-        ckpt = torch.load(load_path)
-        if self.ckpt_name=='model_states':
-            ckpt = ckpt['model_state']
-        self.model.load_state_dict(ckpt, strict=True)
+    @staticmethod
+    def load_checkpoint(model, ckpt_dir, ckpt_name, strict=True):
+        load_path = os.path.join(ckpt_dir, ckpt_name + ".pth")
+        print(f"Loading model checkpoint from {load_path}")
+        model.load_state_dict(torch.load(load_path), strict=strict)

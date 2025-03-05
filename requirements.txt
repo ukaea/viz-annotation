@@ -6,8 +6,10 @@ hvplot
 matplotlib
 ipykernel
 xarray
-zarr
+zarr<3
 pandas
 streamlit
 s3fs
 fsspec
+scipy
+pint_xarray

@@ -235,13 +235,17 @@ class ELMDataset(Dataset):
             dtime = dalpha.time.values
             dalpha = dalpha.values
         else:
-            data_df = pd.read_csv(f"{self.data_dir}/{shot_id}.csv")
+            with open(f"{self.data_dir}/{shot_id}.csv", 'r') as f:
+                data_df = pd.read_csv(f)
+                
             dtime = data_df['time'].values
             dalpha = data_df['dalpha_mid_plane_wide'].values
         
         dalpha = background_subtract(dalpha, dtime)
-                                        
-        labels = pd.read_csv(f"{self.data_cfg.label_dir}/{shot_id}.csv")
+
+        with open(f"{self.data_cfg.label_dir}/{shot_id}.csv", 'r') as f:
+            labels = pd.read_csv(f)
+            
         cls_labels, elm_labels = map_labels(labels, 
                                             dtime, 
                                             n_classes=self.data_cfg.n_classes,

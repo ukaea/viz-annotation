@@ -55,6 +55,7 @@ services:
       - "8501:8501"
     environment:
       DB_URL: "http://db_app:8000"
+      MODEL_API_URL: "http://model_app:8001"
     depends_on:
       - mongodb
     volumes:

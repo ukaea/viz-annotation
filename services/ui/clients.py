@@ -17,4 +17,11 @@ class DBClient():
         payload['elms'] = items
 
         requests.post(f"{self.url}/shots", json=payload)
+
+class ModelClient:
+    def __init__(self):
+        self.url = os.environ['MODEL_API_URL']
+
+    def train(self, name: str):
+        requests.post(f"{self.url}/run/{name}")
         

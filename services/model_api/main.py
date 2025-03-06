@@ -15,7 +15,6 @@ async def start_model():
 
 @app.post("/update")
 async def update_model():
-    print('Updated!!!')
     redis_client.lpush('update_queue', '_update_')
 
 @app.get("/query/{task_id}")

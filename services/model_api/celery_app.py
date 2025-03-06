@@ -15,6 +15,7 @@ app = Celery('tasks',
 
 
 redis_client = redis.Redis(host='redis', port=6379, db=0)
+redis_client.flushdb()
 
 @app.task(bind=True)
 def run_elm_model(self):
@@ -30,9 +31,11 @@ def run_elm_model(self):
 
     while True:
         # Block until there is an update from the user
+        print('Waiting for update...')
         redis_client.blpop('update_queue')
 
         # Get all annotated items for database
+        print('Getting all annotations from DB')
         items = db.get_annotations()
 
         # Train model
@@ -40,7 +43,10 @@ def run_elm_model(self):
         model.train(items)
 
         # Query model for next shot
-        next_shot = model.query()
+        print('Querying model for next shot')
+        next_shots = model.query(n_samples=10)
 
-        print(f'Next shot {next_shot}')
-        redis_client.lpush("shot_queue", next_shot)
+        for shot in next_shots:
+            redis_client.lpush("shot_queue", int(shot))
+
+        print(f'Next shot {shot}')

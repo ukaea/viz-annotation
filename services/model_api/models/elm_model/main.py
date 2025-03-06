@@ -35,15 +35,13 @@ def entropy(probs):
 
 class ELMModel(Model):
     def __init__(self, all_shots):
-        self.epochs = 1
+        self.epochs = 10
         self.device = get_device()
         self.seed = 42
         set_random_seed(self.seed)
         self.network = UNet1D()
         self.network = self.network.to(self.device)
-        sources = pd.read_parquet('https://mastapp.site/parquet/level2/sources')
-        sources = sources.loc[sources.name == "spectrometer_visible"]
-        self.all_shots = all_shots
+        self.all_shots = all_shots[:100] # for testing
 
     def train(self, annotations):
         elms = [item['elms'] for item in annotations]
@@ -59,10 +57,10 @@ class ELMModel(Model):
         )
         self._train(self.network, train_dataloader)
 
-    def query(self) -> int:
+    def query(self, n_samples: int = 1) -> int:
         test_shots = [shot for shot in self.all_shots if shot not in self.labelled_shots]
         test_shots = np.array(test_shots)
-        test_shots = np.random.choice(test_shots, 10) # For testing!
+
         test_dataset = TimeSeriesDataset(test_shots)
         test_dataloader = DataLoader(
             test_dataset,
@@ -74,8 +72,8 @@ class ELMModel(Model):
         )
         entropy_scores = self.inference(self.network, test_dataloader)
         idx = np.argsort(entropy_scores)
-        next_shot = int(test_shots[idx][-1])
-        return next_shot
+        next_shots = test_shots[idx][-n_samples:]
+        return next_shots
             
     @torch.no_grad
     def inference(self, network, dataloader):

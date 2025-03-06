@@ -11,24 +11,14 @@ class Event(BaseModel):
     time: float
 
 
-class FlatTop(Region):
-    pass
-
-
-class RampUp(Region):
-    pass
-
-
 class ELM(Event):
-    pass
+    height: float
+    valid: bool
 
 
 class Shot(BaseModel):
     shot_id: int
-    flat_top: FlatTop
-    ramp_up: RampUp
     elms: List[ELM]
-
 
 class ShotInDB(Shot):
     id: str

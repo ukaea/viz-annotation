@@ -1,3 +1,4 @@
+from db_client import DBClient
 import streamlit as st
 import xarray as xr
 
@@ -83,6 +84,12 @@ def generate_elm_tab(shot_id: str):
             st.download_button(label="Download Data", data=csv_data, file_name=f"ELM_Data_{shot_id}.csv")
 
         download_data()
+
+        if st.button("Save"):
+            elm_data = elm_analysis.get_elm_data()
+            elm_data = elm_data.to_dict('records')
+            client = DBClient()
+            client.save(shot_id, elm_data)
 
     with graph_col:
         width = 900

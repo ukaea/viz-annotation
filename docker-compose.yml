@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    volumes:
+      - mongodb_data:/tmp/db
+    networks:
+      - app-network
+
+  db_api:
+    build: ./services/db/
+    container_name: db_app
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mongodb
+    environment:
+      MONGO_URL: "mongodb://root:example@mongodb:27017"
+    volumes:
+      - ./services/db:/app
+    working_dir: /app
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    networks:
+      - app-network
+
+  model_api:
+    build: ./services/model_api/
+    container_name: model_app
+    restart: always
+    ports:
+      - "8001:8001"
+    depends_on:
+      - mongodb
+    volumes:
+      - ./services/model_api:/app
+    working_dir: /app
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+    networks:
+      - app-network
+
+  ui:
+    build: ./services/ui/
+    container_name: ui_app
+    restart: always
+    ports:
+      - "8501:8501"
+    depends_on:
+      - mongodb
+    volumes:
+      - ./services/ui:/app
+    working_dir: /app
+    command: ["streamlit", "run", "main.py", "--server.port", "8501"]
+    networks:
+      - app-network
+
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:

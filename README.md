@@ -14,25 +14,14 @@ Below is a high level overview of the project structure:
 
 ## Installation
 
-1. Install `uv`: https://docs.astral.sh/uv/getting-started/installation/
+1. Install `docker` and `docker compose`: https://docs.docker.com/engine/install/
 
-2. Create a new python environment with `uv`:
-```sh
-uv venv --python 3.12.6 
-```
+## Run
 
-3. Install the project requirements:
+Run the application by running the following command:
 
 ```sh
-uv pip install -r requirements.txt
-```
-
-## Run UI
-
-Run the ui by running the following command:
-
-```sh
-streamlit run ui/main.py
+docker compose up 
 ```
 
 The UI will be available at `http://localhost:8501/`

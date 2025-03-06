@@ -8,4 +8,9 @@ class Model(ABC):
         """Abstract method that must be implemented to run the model"""
         pass
 
+    @abstractmethod
+    def query(self):
+        """Abstract method that must be implemented to run the model"""
+        pass
+
 model_registry = Registry[Model]()

@@ -20,11 +20,11 @@ if st.session_state.shot_id:
 
     # Some input validation is done, but this needs to be worked on to make it nicer looking
     file_name=f'./data/{st.session_state.shot_id}.zarr'
-    h_mode_tab, elms_tab = st.tabs(["H Mode Analysis", "ELMs Analysis"])
-    with h_mode_tab:
-        h_mode.generate_h_mode_tab(st.session_state.shot_id)
-    with elms_tab:
-        elm.generate_elm_tab(st.session_state.shot_id) 
+    shot_id = elm.generate_elm_tab(st.session_state.shot_id) 
+    st.write(shot_id)
+    if shot_id != st.session_state.shot_id:
+        st.sidebar.text_input.value = shot_id
+        st.rerun()
 else:
     with st.expander("Input required"):
         st.write('Please provide a shot selection input')

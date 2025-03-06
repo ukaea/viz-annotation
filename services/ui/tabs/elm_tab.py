@@ -85,6 +85,7 @@ def generate_elm_tab(shot_id: str):
 
         download_data()
 
+        model_client = ModelClient()
         if st.button("Save"):
             elm_data = elm_analysis.get_elm_data()
             elm_data = elm_data.to_dict('records')
@@ -92,8 +93,10 @@ def generate_elm_tab(shot_id: str):
             db_client = DBClient()
             db_client.save(shot_id, elm_data)
 
-            model_client = ModelClient()
             model_client.train('elms')
+
+        if st.button("Next"):
+            shot_id = model_client.query('elms')
 
 
     with graph_col:
@@ -103,3 +106,5 @@ def generate_elm_tab(shot_id: str):
         st.write(elm_figure)
         frequency_figure = elm_analysis.generate_elm_frequency_graph(width, height)
         st.write(frequency_figure)
+
+    return shot_id

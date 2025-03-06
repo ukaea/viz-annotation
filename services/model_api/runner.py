@@ -1,19 +1,32 @@
-from model import model_registry
+from model import Model, model_registry
 from models.elm_model.main import ELMModel
 from db_client import DBClient
 from multiprocessing import Process
 
-model_registry.register('elms', ELMModel)
+class ModelWorker:
+    
+    def __init__(self, model: Model):
+        self.model = model
+        self.db = DBClient()
+
+    def __call__(self):
+        items = self.db.get_annotations()
+        try:
+            self.model.run(items)
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc())
+
 class ModelRunner:
     def __init__(self):
-        pass
+        self.models = {
+            'elms': ELMModel()
+        }
 
     def run(self, name: str):
-        process = Process(target=self._do_run, args=(name,))
+        worker = ModelWorker(self.models[name])
+        process = Process(target=worker)
         process.start()
-        
-    def _do_run(self, name:str):
-        db = DBClient()
-        items = db.get_annotations()
-        model = model_registry.create(name)
-        model.run(items)
+
+    def query(self, name: str) -> int:
+        return self.models[name].query()

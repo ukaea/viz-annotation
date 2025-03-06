@@ -1,6 +1,8 @@
+import multiprocessing
 import torch
 import time
 import random
+import pandas as pd
 import numpy as np
 from collections import defaultdict
 from torch.utils.data import DataLoader, Subset
@@ -9,7 +11,6 @@ from models.elm_model.dataset import TimeSeriesDataset
 from model import Model
 
 def set_random_seed(seed):
-    # setup seeds
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -28,18 +29,27 @@ def get_device():
     print(f"Using device: {device}")
     return device
 
+def entropy(probs):
+    """Compute the entropy of a probability distribution."""
+    return -torch.sum(probs * torch.log(probs + 1e-9), dim=1).mean()
 
 class ELMModel(Model):
     def __init__(self):
-        self.epochs = 30
+        self.epochs = 1
         self.device = get_device()
         self.seed = 42
-    
-    def run(self, annotations):
         set_random_seed(self.seed)
-    
-        train_dataset = TimeSeriesDataset(annotations)
+        self.network = UNet1D()
+        self.network = self.network.to(self.device)
+        sources = pd.read_parquet('https://mastapp.site/parquet/level2/sources')
+        sources = sources.loc[sources.name == "spectrometer_visible"]
+        self.all_shots = sources.shot_id.values
+        self.next_shot = None
 
+    def run(self, annotations):
+        elms = [item['elms'] for item in annotations]
+        shots = [shot['shot_id'] for shot in annotations]
+        train_dataset = TimeSeriesDataset(shots, elms)
         train_dataloader = DataLoader(
             train_dataset,
             batch_size=None,
@@ -48,10 +58,41 @@ class ELMModel(Model):
             pin_memory=True,
             num_workers=0,
         )
-    
-        network = UNet1D()
-        network = network.to(self.device)
-        self.train(network, train_dataloader)
+        self.train(self.network, train_dataloader)
+
+        test_dataset = TimeSeriesDataset(self.all_shots)
+        test_dataset = Subset(test_dataset, np.arange(10)) # For testing!
+        test_dataloader = DataLoader(
+            test_dataset,
+            batch_size=None,
+            batch_sampler=None,
+            shuffle=True,
+            pin_memory=True,
+            num_workers=0,
+        )
+        scores = self.inference(self.network, test_dataloader)
+        idx = np.argsort(scores)
+        self.next_shot = self.all_shots[:10][idx][0]
+        print(self.next_shot)
+            
+    def query(self):
+        return self.next_shot
+
+    @torch.no_grad
+    def inference(self, network, dataloader):
+        self.network.eval()
+        scores = []
+        for batch in dataloader:
+            
+            x = batch
+            x = x.to(self.device)
+            _, probs = network(x)
+            score = entropy(probs)
+            scores.append(score)
+
+        scores = torch.stack(scores).cpu().numpy()
+        return scores
+
 
     def train(self, network, train_dataloader):
         optim = torch.optim.AdamW(network.parameters(), lr=0.003)
@@ -88,11 +129,3 @@ class ELMModel(Model):
             print(f"\n{epoch=}, etc={time.time() - time_start:.3f}secs, {string}")
             # break
         print("Done!!!")
-    
-
-
-
-
-
-if __name__ == "__main__":
-    main()

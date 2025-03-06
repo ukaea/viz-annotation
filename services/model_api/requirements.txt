@@ -8,3 +8,5 @@ fsspec
 s3fs
 xarray
 zarr<3
+pyarrow
+celery[redis]

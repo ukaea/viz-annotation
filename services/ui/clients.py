@@ -24,4 +24,9 @@ class ModelClient:
 
     def train(self, name: str):
         requests.post(f"{self.url}/run/{name}")
+
+    def query(self, name: str) -> int:
+        response = requests.get(f"{self.url}/query/{name}")
+        response= response.json()
+        return response['shot_id']
         

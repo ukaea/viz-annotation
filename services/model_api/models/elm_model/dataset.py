@@ -7,9 +7,9 @@ from torch.utils.data import DataLoader, Dataset
 
 
 class TimeSeriesDataset(Dataset):
-    def __init__(self, annotations):
-        self.elms = [item['elms'] for item in annotations]
-        self.shots = [shot['shot_id'] for shot in annotations]
+    def __init__(self, shots, elms = None):
+        self.shots = shots
+        self.elms = elms
         self.endpoint_url = "https://s3.echo.stfc.ac.uk"
         self.window_size = 512
         self.step_size = 256
@@ -19,7 +19,6 @@ class TimeSeriesDataset(Dataset):
 
     def __getitem__(self, idx):
         shot = self.shots[idx]
-        elms = self.elms[idx]
 
         url = f"s3://mast/level2/shots/{shot}.zarr"
         store = get_remote_store(url, self.endpoint_url)
@@ -29,25 +28,29 @@ class TimeSeriesDataset(Dataset):
         dalpha = dalpha.fillna(0)
         dalpha = background_subtract(dalpha)
 
+        windows = generate_windows(dalpha.values, self.window_size, self.step_size)
+        windows = torch.tensor(windows, dtype=torch.float)
+        windows.unsqueeze_(1)
+
         class_ = np.zeros_like(dalpha.time.values)
         class_ = xr.DataArray(class_, coords=dict(time=dalpha.time))
 
-        for item in elms:
-            buffer = 0.001
-            class_.loc[
-                dict(time=slice(item['time'] - buffer, item['time'] + buffer))
-            ] = 1
+        if self.elms is not None:
+            # create labels
+            elms = self.elms[idx]
+            for item in elms:
+                buffer = 0.001
+                class_.loc[
+                    dict(time=slice(item['time'] - buffer, item['time'] + buffer))
+                ] = 1
 
-        windows = generate_windows(dalpha.values, self.window_size, self.step_size)
-        labels = generate_windows(class_.values, self.window_size, self.step_size)
+            labels = generate_windows(class_.values, self.window_size, self.step_size)
+            labels = torch.tensor(labels, dtype=torch.float)
+            labels.unsqueeze_(1)
 
-        windows = torch.tensor(windows, dtype=torch.float)
-        labels = torch.tensor(labels, dtype=torch.float)
-
-        windows.unsqueeze_(1)
-        labels.unsqueeze_(1)
-
-        return windows, labels
+            return windows, labels
+        else:
+            return windows
 
 
 def generate_windows(data, window_size, step_size):

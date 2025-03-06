@@ -34,7 +34,7 @@ def entropy(probs):
     return -torch.sum(probs * torch.log(probs + 1e-9), dim=1).mean()
 
 class ELMModel(Model):
-    def __init__(self):
+    def __init__(self, all_shots):
         self.epochs = 1
         self.device = get_device()
         self.seed = 42
@@ -43,13 +43,12 @@ class ELMModel(Model):
         self.network = self.network.to(self.device)
         sources = pd.read_parquet('https://mastapp.site/parquet/level2/sources')
         sources = sources.loc[sources.name == "spectrometer_visible"]
-        self.all_shots = sources.shot_id.values
-        self.next_shot = None
+        self.all_shots = all_shots
 
-    def run(self, annotations):
+    def train(self, annotations):
         elms = [item['elms'] for item in annotations]
-        shots = [shot['shot_id'] for shot in annotations]
-        train_dataset = TimeSeriesDataset(shots, elms)
+        self.labelled_shots = [shot['shot_id'] for shot in annotations]
+        train_dataset = TimeSeriesDataset(self.labelled_shots, elms)
         train_dataloader = DataLoader(
             train_dataset,
             batch_size=None,
@@ -58,10 +57,13 @@ class ELMModel(Model):
             pin_memory=True,
             num_workers=0,
         )
-        self.train(self.network, train_dataloader)
+        self._train(self.network, train_dataloader)
 
-        test_dataset = TimeSeriesDataset(self.all_shots)
-        test_dataset = Subset(test_dataset, np.arange(10)) # For testing!
+    def query(self) -> int:
+        test_shots = [shot for shot in self.all_shots if shot not in self.labelled_shots]
+        test_shots = np.array(test_shots)
+        test_shots = np.random.choice(test_shots, 10) # For testing!
+        test_dataset = TimeSeriesDataset(test_shots)
         test_dataloader = DataLoader(
             test_dataset,
             batch_size=None,
@@ -70,14 +72,11 @@ class ELMModel(Model):
             pin_memory=True,
             num_workers=0,
         )
-        scores = self.inference(self.network, test_dataloader)
-        idx = np.argsort(scores)
-        self.next_shot = self.all_shots[:10][idx][0]
-        print(self.next_shot)
+        entropy_scores = self.inference(self.network, test_dataloader)
+        idx = np.argsort(entropy_scores)
+        next_shot = int(test_shots[idx][-1])
+        return next_shot
             
-    def query(self):
-        return self.next_shot
-
     @torch.no_grad
     def inference(self, network, dataloader):
         self.network.eval()
@@ -94,7 +93,7 @@ class ELMModel(Model):
         return scores
 
 
-    def train(self, network, train_dataloader):
+    def _train(self, network, train_dataloader):
         optim = torch.optim.AdamW(network.parameters(), lr=0.003)
     
         network.train()

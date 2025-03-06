@@ -22,11 +22,17 @@ class ModelClient:
     def __init__(self):
         self.url = os.environ['MODEL_API_URL']
 
-    def train(self, name: str):
-        requests.post(f"{self.url}/run/{name}")
+    def start_training(self):
+        response = requests.post(f"{self.url}/start")
+        response = response.json()
+        task_id = response['task_id']
+        return task_id
 
-    def query(self, name: str) -> int:
-        response = requests.get(f"{self.url}/query/{name}")
+    def update(self):
+        requests.post(f"{self.url}/update")
+        
+    def query(self, task_id: int) -> int:
+        response = requests.get(f"{self.url}/query/{task_id}")
         response= response.json()
         return response['shot_id']
         

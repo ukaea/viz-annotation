@@ -7,7 +7,7 @@ from typing import Optional
 from bokeh.layouts import column
 from bokeh.plotting import figure
 from bokeh.models import Range1d, BoxAnnotation
-from utilities.filesystem import get_dataset_loader
+from utilities.filesystem import get_dataset
 
 @dataclass
 class HModeSignals:
@@ -42,7 +42,7 @@ def pull_data(shot_id: str, min_plasma_current: float) -> Optional[HModeSignals]
         - This is included as a parameter in case user control is needed
         - Default : 100
     """
-    loader = get_dataset_loader(shot_id, "level1")
+    loader = get_dataset(shot_id, "spectrometer_visible")
 
     if (adg := loader("adg")) is None:
         return None

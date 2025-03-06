@@ -6,7 +6,7 @@ from typing import cast, List, Tuple, Optional
 from dataclasses import dataclass
 from bokeh.plotting import figure, Figure
 from bokeh.models import Span, Range1d, BoxAnnotation
-from utilities.filesystem import get_dataset_loader
+from utilities.filesystem import get_dataset
 
 ZoneData = List[Tuple[float, float, str]]
 @dataclass
@@ -67,10 +67,11 @@ def pull_data(shot_id: str, moving_av_length: float = 0.001) -> Optional[xr.Data
         - This is included as a parameter in case user control is needed
         - Default : 0.001
     """
-    loader = get_dataset_loader(shot_id, "test/level2", metadata=False)
-    if (dalpha_dataset := loader("dalpha")) is None:
+    dataset = get_dataset(shot_id, "spectrometer_visible")
+    if 'filter_spectrometer_dalpha_voltage' not in dataset:
         return None
-    signal: xr.DataArray = dalpha_dataset.dalpha_mid_plane_wide.copy()
+    signal: xr.DataArray = dataset['filter_spectrometer_dalpha_voltage']
+    signal = signal.isel(dalpha_channel=2)
     signal = signal.dropna(dim='time')
     signal = background_subtract(signal, moving_av_length)
     return signal

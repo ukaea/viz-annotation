@@ -24,11 +24,15 @@ services:
     networks:
       - app-network
 
-  celery_worker:
+  model_runner:
     build:
       context: ./services/model_api/
       dockerfile: Dockerfile.worker
-    container_name: celery_worker
+    container_name: model_runner
+    environment:
+      DB_URL: "http://db_app:8000"
+    volumes:
+      - ./services/model_api:/app
     command: ["celery", "-A", "celery_app.app", "worker", "--loglevel=info"]
     depends_on:
       - redis
@@ -84,7 +88,7 @@ services:
     volumes:
       - ./services/ui:/app
     working_dir: /app
-    command: ["streamlit", "run", "main.py", "--server.port", "8501"]
+    command: ["streamlit", "run", "main.py", "--server.port", "8501", "--server.runOnSave", "True"]
     networks:
       - app-network
 

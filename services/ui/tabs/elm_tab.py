@@ -7,9 +7,14 @@ from utilities.custom_components import slider_with_input, elm_zone_controls
 
 @st.fragment
 def generate_elm_tab(shot_id: str):
+    model_client = ModelClient()
+
     # Zones must be stored as session state to persist through updates
     if 'zones' not in st.session_state:
         st.session_state['zones'] = []
+
+    if 'task_id' not in st.session_state:
+        st.session_state['task_id'] = model_client.start_training()
 
     # Pull data from server - this is cached based on shot ID
     dalpha_signal = pull_data(shot_id)
@@ -85,18 +90,17 @@ def generate_elm_tab(shot_id: str):
 
         download_data()
 
-        model_client = ModelClient()
         if st.button("Save"):
             elm_data = elm_analysis.get_elm_data()
             elm_data = elm_data.to_dict('records')
 
             db_client = DBClient()
             db_client.save(shot_id, elm_data)
-
-            model_client.train('elms')
-
-        if st.button("Next"):
-            shot_id = model_client.query('elms')
+            model_client.update()
+            shot_id = model_client.query(st.session_state['task_id'])
+            st.session_state.shot_id = shot_id
+            st.write(shot_id)
+            st.rerun()
 
 
     with graph_col:

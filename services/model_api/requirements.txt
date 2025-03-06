@@ -10,3 +10,4 @@ xarray
 zarr<3
 pyarrow
 celery[redis]
+watchdog

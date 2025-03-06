@@ -1,23 +1,26 @@
+import numpy as np
+import pandas as pd
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from celery.result import AsyncResult
-from celery_app import add
-# from runner import ModelRunner
+from celery_app import run_elm_model, redis_client
 
 app = FastAPI()
-# runner = ModelRunner()
 
-@app.post("/run/{name}")
-async def run_model(name: str):
-    task = add.delay(4, 4)
+
+@app.post("/start")
+async def start_model():
+    task = run_elm_model.delay()
     return {'task_id': task.id}
-    # runner.run(name)
+
+@app.post("/update")
+async def update_model():
+    print('Updated!!!')
+    redis_client.lpush('update_queue', '_update_')
 
 @app.get("/query/{task_id}")
 async def query(task_id: str):
-    task_result = AsyncResult(task_id)
-    if task_result.ready():
-        return {"shot_id": task_result.result}
-    else:
-        return {'shot_id': -1}
+    item = redis_client.blpop('shot_queue')
+    shot_id= item[1].decode()
+    return {"shot_id": shot_id}
 

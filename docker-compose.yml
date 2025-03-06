@@ -40,6 +40,8 @@ services:
       - "8001:8001"
     depends_on:
       - mongodb
+    environment:
+      DB_URL: "http://db_app:8000"
     volumes:
       - ./services/model_api:/app
     working_dir: /app

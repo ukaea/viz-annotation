@@ -26,7 +26,7 @@ class MongoDBClient:
 
     async def list(self):
         items_cursor = self.collection.find()
-        items = await items_cursor.to_list(length=100)
+        items = await items_cursor.to_list()
         return [{"id": str(item["_id"]), **item} for item in items]
 
     async def find(self, shot_id: int):

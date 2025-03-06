@@ -1,2 +1,10 @@
 fastapi
 uvicorn
+pymongo
+requests
+torch
+numpy
+fsspec
+s3fs
+xarray
+zarr<3

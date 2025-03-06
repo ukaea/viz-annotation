@@ -7,10 +7,9 @@ from torch.utils.data import DataLoader, Dataset
 
 
 class TimeSeriesDataset(Dataset):
-    def __init__(self):
-        self.elms_df = pd.read_parquet("data/elms.parquet")
-        self.params = pd.read_parquet("data/general.parquet")
-        self.shots = self.elms_df.shot.values
+    def __init__(self, annotations):
+        self.elms = [item['elms'] for item in annotations]
+        self.shots = [shot['shot_id'] for shot in annotations]
         self.endpoint_url = "https://s3.echo.stfc.ac.uk"
         self.window_size = 512
         self.step_size = 256
@@ -20,26 +19,23 @@ class TimeSeriesDataset(Dataset):
 
     def __getitem__(self, idx):
         shot = self.shots[idx]
-        params = self.params.loc[self.params.shot == shot].iloc[0]
-        elms = self.elms_df.loc[self.elms_df.shot == shot]
+        elms = self.elms[idx]
 
         url = f"s3://mast/level2/shots/{shot}.zarr"
         store = get_remote_store(url, self.endpoint_url)
 
         dataset = xr.open_zarr(store, group="spectrometer_visible")
-        dalpha = dataset.filter_spectrometer.sel(channel="XIM_DA/HM10/T")
-        dalpha = dalpha.sel(
-            time=slice(params["flat_top.tmin"] - 0.01, params["flat_top.tmax"] + 0.01)
-        )
+        dalpha = dataset.filter_spectrometer_dalpha_voltage.isel(dalpha_channel=2)
+        dalpha = dalpha.fillna(0)
         dalpha = background_subtract(dalpha)
 
         class_ = np.zeros_like(dalpha.time.values)
         class_ = xr.DataArray(class_, coords=dict(time=dalpha.time))
 
-        for idx, item in elms.iterrows():
-            buffer = 0.0005
+        for item in elms:
+            buffer = 0.001
             class_.loc[
-                dict(time=slice(item.elm_min - buffer, item.elm_max + buffer))
+                dict(time=slice(item['time'] - buffer, item['time'] + buffer))
             ] = 1
 
         windows = generate_windows(dalpha.values, self.window_size, self.step_size)
@@ -87,9 +83,3 @@ def background_subtract(
     values[n - 1 :] -= ret
     dalpha.values = values
     return dalpha
-
-
-if __name__ == "__main__":
-    dataset = TimeSeriesDataset()
-    dataset[10]
-    # print(dataset[0])

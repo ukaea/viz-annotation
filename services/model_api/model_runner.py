@@ -1,38 +1,49 @@
-import time
+import random
+import os
 import redis
-import celery
 from celery import Celery, Task
-import numpy as np
 import pandas as pd
 import redis
 from db_client import DBClient
 from models.elm_model.main import ELMModel
 
+
+REDIS_HOST = os.environ['REDIS_HOST']
+
 app = Celery('tasks',
-    broker="redis://redis:6379/0",  # Redis as a message broker
-    backend="redis://redis:6379/0"  # Redis as result backend 
+    broker=f"redis://{REDIS_HOST}:6379/0",  # Redis as a message broker
+    backend=f"redis://{REDIS_HOST}:6379/0"  # Redis as result backend 
 )
 
 
-redis_client = redis.Redis(host='redis', port=6379, db=0)
+redis_client = redis.Redis(host=f'{REDIS_HOST}', port=6379, db=0)
+# Flush client at start to remove any stale messages.
 redis_client.flushdb()
 
-@app.task(bind=True)
-def run_elm_model(self):
+@app.task()
+def run_elm_model():
     sources = pd.read_parquet('https://mastapp.site/parquet/level2/sources')
     sources = sources.loc[sources.name == "spectrometer_visible"]
     all_shots = sources.shot_id.values.tolist()
 
+    random.shuffle(all_shots)
     for shot in all_shots:
         redis_client.lpush("shot_queue", shot)
 
     db = DBClient()
     model = ELMModel(all_shots)
+    sample_counter = 0
+    batch_size = 10
 
     while True:
-        # Block until there is an update from the user
+        # Block until there has been batch_size annotation updates from the user
         print('Waiting for update...')
-        redis_client.blpop('update_queue')
+        while sample_counter < batch_size:
+            redis_client.blpop('update_queue')
+            sample_counter += 1
+            print(f'Update {sample_counter}')
+
+        sample_counter = 0
 
         # Get all annotated items for database
         print('Getting all annotations from DB')

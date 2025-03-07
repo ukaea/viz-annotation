@@ -30,10 +30,11 @@ services:
       dockerfile: Dockerfile.worker
     container_name: model_runner
     environment:
+      REDIS_HOST: "redis"
       DB_URL: "http://db_app:8000"
     volumes:
       - ./services/model_api:/app
-    command: ["celery", "-A", "celery_app.app", "worker", "--loglevel=info"]
+    command: ["celery", "-A", "model_runner.app", "worker", "--loglevel=info"]
     depends_on:
       - redis
     restart: always
@@ -67,6 +68,7 @@ services:
       - mongodb
     environment:
       DB_URL: "http://db_app:8000"
+      REDIS_HOST: "redis"
     volumes:
       - ./services/model_api:/app
     working_dir: /app

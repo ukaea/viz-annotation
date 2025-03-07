@@ -35,7 +35,7 @@ def entropy(probs):
 
 class ELMModel(Model):
     def __init__(self, all_shots):
-        self.epochs = 10
+        self.epochs = 5
         self.device = get_device()
         self.seed = 42
         set_random_seed(self.seed)

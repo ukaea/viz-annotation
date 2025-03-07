@@ -3,7 +3,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from celery.result import AsyncResult
-from celery_app import run_elm_model, redis_client
+from model_runner import run_elm_model, redis_client
 
 app = FastAPI()
 

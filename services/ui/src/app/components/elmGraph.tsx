@@ -31,7 +31,7 @@ type ElmZone = {
 
 const MENU_ID = "zone_context"
 
-export const ElmGraph = ({elms, data, shot_id} : GraphProps) => {
+export const ElmGraph = ({elms, data: payload, shot_id} : GraphProps) => {
 
     // SVG ref needed by D3 to update graph
     const svgRef = useRef(null)
@@ -41,11 +41,11 @@ export const ElmGraph = ({elms, data, shot_id} : GraphProps) => {
     // Set up D3 scale bars - refs to allow useEffects to track and update them
     const width = 1300, height = 400, margin = 50
 
-    const time_extent = d3.extent(data, d => d.time) as [number, number]
+    const time_extent = d3.extent(payload, d => d.time) as [number, number]
     const xScale = useRef(d3.scaleLinear().domain(time_extent).range([margin, width - margin]));
     const xScaleZoomedRef = useRef(xScale.current.copy()) // Copy required for zooming (investigate this)
 
-    const value_extent = d3.extent(data, d => d.value) as [number, number]
+    const value_extent = d3.extent(payload, d => d.value) as [number, number]
     const yScale = useRef(d3.scaleLinear().domain(value_extent).range([height - margin, margin]));
 
     // Tracks the zones that have been added - can be monitored by zone useEffect
@@ -109,11 +109,12 @@ export const ElmGraph = ({elms, data, shot_id} : GraphProps) => {
     }
 
     const saveData = async () => {
-        data = {
+        payload = {
             'shot_id': shot_id,
-            'elms': elms
+            'elms': elms,
+            'regions': spans.current.map(zone => ({'time_min': zone.x0, 'time_max': zone.x1, 'type': zone.type}))
         }
-        data = JSON.stringify(data);
+        payload = JSON.stringify(payload);
 
         const url = `${process.env.NEXT_PUBLIC_API_URL}/db-api/shots`;
         const response = await fetch(url, {
@@ -121,7 +122,7 @@ export const ElmGraph = ({elms, data, shot_id} : GraphProps) => {
             headers: {
             "Content-Type": "application/json",
             },
-            body: data,
+            body: payload,
         });
     }
 
@@ -160,7 +161,7 @@ export const ElmGraph = ({elms, data, shot_id} : GraphProps) => {
             .y(d => yScale.current(d.value));
 
         graphGroup.append("path")
-            .datum(data)
+            .datum(payload)
             .attr("fill", "none")
             .attr("stroke", "blue")
             .attr("stroke-width", 2)
@@ -170,9 +171,9 @@ export const ElmGraph = ({elms, data, shot_id} : GraphProps) => {
             console.log(element);
             graphGroup.append("line")
                 .attr("x1", xScale.current(element.time))
-                .attr("y1", yScale.current(d3.min(data, d => d.value)))
+                .attr("y1", yScale.current(d3.min(payload, d => d.value)))
                 .attr("x2", xScale.current(element.time))
-                .attr("y2", yScale.current(d3.max(data, d => d.value)))
+                .attr("y2", yScale.current(d3.max(payload, d => d.value)))
                 .attr("stroke", "red")
                 .attr("stroke-width", 1)
                 .attr("stroke-dasharray", "4,4"); // Optional: dashed line
@@ -254,7 +255,7 @@ export const ElmGraph = ({elms, data, shot_id} : GraphProps) => {
             document.removeEventListener("keyup", keyupHandler);
         };
 
-    }, [data])
+    }, [payload])
 
     // Zone rendering
     useEffect(() => {

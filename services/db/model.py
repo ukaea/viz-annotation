@@ -11,6 +11,10 @@ class Event(BaseModel):
     time: float
 
 
+class ELMRegion(Region):
+    type: int
+
+
 class ELM(Event):
     height: float
     valid: bool
@@ -19,6 +23,8 @@ class ELM(Event):
 class Shot(BaseModel):
     shot_id: int
     elms: List[ELM]
+    regions: List[ELMRegion]
+
 
 class ShotInDB(Shot):
     id: str

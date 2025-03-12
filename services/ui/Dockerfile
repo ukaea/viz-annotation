@@ -1,17 +1,23 @@
-FROM python:3.12.2
+# Use official Node.js image as base
+FROM node:18-alpine
 
-# Set working directory
+# Set working directory inside the container
 WORKDIR /app
 
-# Copy requirements and install dependencies
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy package.json and yarn.lock first (to optimize caching)
+COPY package.json yarn.lock ./
 
-# Copy the application code
-COPY . ./
+# Install dependencies using Yarn
+RUN yarn install --frozen-lockfile
 
-# Expose port
-EXPOSE 8501
+# Copy the rest of the application files
+COPY . .
 
-# Run streamlit
-CMD ["streamlit", "run", "main.py", "--server.port", "8501"]
+# Build the Next.js application
+# RUN yarn build
+
+# Expose the port Next.js runs on
+EXPOSE 3000
+
+# Start the application
+CMD ["yarn", "dev"]

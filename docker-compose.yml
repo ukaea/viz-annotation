@@ -92,20 +92,20 @@ services:
       - app-network
 
   ui:
-    build: ./services/ui/
     container_name: ui_app
-    restart: always
+    build: ./services/ui/
     ports:
-      - "8501:8501"
+      - "3000:3000"
     environment:
+      NODE_ENV: development
       DB_URL: "http://db_app:8000"
       MODEL_API_URL: "http://model_app:8001"
-    depends_on:
-      - mongodb
+      DATA_API_URL: "http://data_app:8002"
+      NEXT_PUBLIC_API_URL: "http://localhost:3000"
     volumes:
-      - ./services/ui:/app
-    working_dir: /app
-    command: ["streamlit", "run", "main.py", "--server.port", "8501", "--server.runOnSave", "True"]
+      # - ./services/ui/:/app
+      - /app/node_modules
+    restart: always
     networks:
       - app-network
 

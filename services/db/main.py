@@ -13,12 +13,12 @@ app = FastAPI()
 client = MongoDBClient()
 
 
-@app.post("/shots/", response_model=ShotInDB)
+@app.post("/shots", response_model=ShotInDB)
 async def create_item(item: Shot):
     return await client.upsert(item)
 
 
-@app.get("/shots/", response_model=List[ShotInDB])
+@app.get("/shots", response_model=List[ShotInDB])
 async def get_items():
     return await client.list()
 

@@ -102,6 +102,29 @@ export const ElmGraph = ({data, shot_id} : GraphProps) => {
         URL.revokeObjectURL(url);
     }
 
+    const saveData = async () => {
+        // console.log(spans.current)
+        // const data = JSON.stringify(spans.current)
+
+        data = {
+            'shot_id': 30420,
+            'elms': [
+                {'time': 0.0, 'valid': true, 'height': 1.0}
+            ]
+        }
+        data = JSON.stringify(data);
+
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/db-api/shots`;
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+            "Content-Type": "application/json",
+            },
+            body: data,
+        });
+        console.log(await response.json())
+    }
+
     // Main graph rendering
     useEffect(() => {
         const svg = d3.select(svgRef.current)
@@ -296,11 +319,11 @@ export const ElmGraph = ({data, shot_id} : GraphProps) => {
                 <div class='toolbar'>
                     <button class='btn-primary'
                         onClick={downloadData}
-                    >Download Data</button>
+                    >Download Labels</button>
 
                     <button class="btn-primary"
-                        onClick={downloadData}
-                    >Save</button>
+                        onClick={saveData}
+                    >Save Labels</button>
                 </div>
 
             </div>

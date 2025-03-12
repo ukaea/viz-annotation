@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
         source: "/backend-api/:path*",
         destination: "http://data_app:8002/data/:path*",
       },
+      {
+        source: "/db-api/shots/:path*",
+        destination: "http://db_app:8000/shots/:path*",
+      },
     ];
   },
 };

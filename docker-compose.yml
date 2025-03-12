@@ -118,6 +118,7 @@ services:
       DATA_API_URL: "http://data_app:8002"
       NEXT_PUBLIC_API_URL: "http://localhost:3000"
     volumes:
+      - ./services/ui:/app
       - /app/node_modules
     restart: always
     networks:

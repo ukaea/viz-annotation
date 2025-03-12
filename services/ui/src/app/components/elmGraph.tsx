@@ -288,10 +288,23 @@ export const ElmGraph = ({data, shot_id} : GraphProps) => {
 
     return (
         <div style={{ display: "flex" }}>
-            <svg ref={svgRef}></svg>
-            <button
-                onClick={downloadData}
-            >Download Data</button>
+            <div class="flex flex-col items-center space-y-3">
+                <div class="w-full">
+                    <svg ref={svgRef}></svg>
+                </div>
+
+                <div class='toolbar'>
+                    <button class='btn-primary'
+                        onClick={downloadData}
+                    >Download Data</button>
+
+                    <button class="btn-primary"
+                        onClick={downloadData}
+                    >Save</button>
+                </div>
+
+            </div>
+
 
             <Menu id={MENU_ID}>
                 <Item id="delete" onClick={handleDelete}>Delete</Item>

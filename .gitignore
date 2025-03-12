@@ -165,3 +165,5 @@ cython_debug/
 tmp
 # ignore yarn lock file
 *yarn.lock
+services/ui/.next/*
+services/ui/node_modules/*

@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/db-api/shots/:path*",
-        destination: "http://db_app:8000/shots/:path*",
+        destination: "http://event_app:8000/shots/:path*",
       },
     ];
   },

@@ -1,0 +1,6 @@
+flask
+fsspec
+xarray
+s3fs
+zarr<3
+scipy

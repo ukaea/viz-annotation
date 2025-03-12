@@ -24,4 +24,4 @@ Run the application by running the following command:
 docker compose up 
 ```
 
-The UI will be available at `http://localhost:8501/`
+The UI will be available at `http://localhost:3000/`

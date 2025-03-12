@@ -3,11 +3,13 @@ uvicorn
 pymongo
 requests
 torch
+torchmetrics
 numpy
 fsspec
 s3fs
 xarray
 zarr<3
 pyarrow
+scikit-learn
 celery[redis]
 watchdog

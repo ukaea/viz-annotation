@@ -55,7 +55,9 @@ def get_data(shot_id: int = 29495):
 
     peaks = pd.DataFrame(params)
     peaks["time"] = dalpha_detrend.time.values[peak_idx]
-    peaks = peaks[["time"]].to_dict(orient="records")
+    peaks["height"] = dalpha.values[peak_idx]
+    peaks["valid"] = True
+    peaks = peaks[["time", "height", "valid"]].to_dict(orient="records")
 
     # reduced_time = np.arange(dalpha.time.min(), dalpha.time.max(), 0.001)
     # dalpha = dalpha.interp(time=reduced_time)

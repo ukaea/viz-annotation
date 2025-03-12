@@ -7,6 +7,8 @@ import * as d3 from "d3"
 type GraphProps = {
     elms: Array<{
         time: number,
+        height: number,
+        valid: boolean
     }>,
     data: Array<{
         time: number,
@@ -108,10 +110,8 @@ export const ElmGraph = ({elms, data, shot_id} : GraphProps) => {
 
     const saveData = async () => {
         data = {
-            'shot_id': 30420,
-            'elms': [
-                {'time': 0.0, 'valid': true, 'height': 1.0}
-            ]
+            'shot_id': shot_id,
+            'elms': elms
         }
         data = JSON.stringify(data);
 
@@ -123,7 +123,6 @@ export const ElmGraph = ({elms, data, shot_id} : GraphProps) => {
             },
             body: data,
         });
-        console.log(await response.json())
     }
 
     // Main graph rendering
@@ -175,7 +174,7 @@ export const ElmGraph = ({elms, data, shot_id} : GraphProps) => {
                 .attr("x2", xScale.current(element.time))
                 .attr("y2", yScale.current(d3.max(data, d => d.value)))
                 .attr("stroke", "red")
-                .attr("stroke-width", 2)
+                .attr("stroke-width", 1)
                 .attr("stroke-dasharray", "4,4"); // Optional: dashed line
             
         });

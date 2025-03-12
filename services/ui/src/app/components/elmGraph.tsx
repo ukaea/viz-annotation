@@ -1,4 +1,5 @@
 'use client'
+import {useRouter} from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { Menu, Item, Submenu, useContextMenu, ItemParams } from 'react-contexify'
 import 'react-contexify/ReactContexify.css';
@@ -32,6 +33,7 @@ type ElmZone = {
 const MENU_ID = "zone_context"
 
 export const ElmGraph = ({elms, data: payload, shot_id} : GraphProps) => {
+    const router = useRouter();
 
     // SVG ref needed by D3 to update graph
     const svgRef = useRef(null)
@@ -124,6 +126,14 @@ export const ElmGraph = ({elms, data: payload, shot_id} : GraphProps) => {
             },
             body: payload,
         });
+    }
+
+    const nextShot = async () => {
+      router.push(`/${Number(shot_id)+1}`)
+    }
+
+    const previousShot = async () => {
+      router.push(`/${Number(shot_id)-1}`)
     }
 
     // Main graph rendering
@@ -338,6 +348,10 @@ export const ElmGraph = ({elms, data: payload, shot_id} : GraphProps) => {
                 </div>
 
                 <div class='toolbar'>
+                    <button class="btn-primary"
+                        onClick={previousShot}
+                    >Previous Shot</button>
+
                     <button class='btn-primary'
                         onClick={downloadData}
                     >Download Labels</button>
@@ -345,6 +359,10 @@ export const ElmGraph = ({elms, data: payload, shot_id} : GraphProps) => {
                     <button class="btn-primary"
                         onClick={saveData}
                     >Save Labels</button>
+
+                    <button class="btn-primary"
+                        onClick={nextShot}
+                    >Next Shot</button>
                 </div>
 
             </div>

@@ -5,6 +5,9 @@ import 'react-contexify/ReactContexify.css';
 import * as d3 from "d3"
 
 type GraphProps = {
+    elms: Array<{
+        time: number,
+    }>,
     data: Array<{
         time: number,
         value: number 
@@ -26,7 +29,8 @@ type ElmZone = {
 
 const MENU_ID = "zone_context"
 
-export const ElmGraph = ({data, shot_id} : GraphProps) => {
+export const ElmGraph = ({elms, data, shot_id} : GraphProps) => {
+
     // SVG ref needed by D3 to update graph
     const svgRef = useRef(null)
 
@@ -103,9 +107,6 @@ export const ElmGraph = ({data, shot_id} : GraphProps) => {
     }
 
     const saveData = async () => {
-        // console.log(spans.current)
-        // const data = JSON.stringify(spans.current)
-
         data = {
             'shot_id': 30420,
             'elms': [
@@ -165,6 +166,19 @@ export const ElmGraph = ({data, shot_id} : GraphProps) => {
             .attr("stroke", "blue")
             .attr("stroke-width", 2)
             .attr("d", line);
+
+        elms.forEach(element => {
+            console.log(element);
+            graphGroup.append("line")
+                .attr("x1", xScale.current(element.time))
+                .attr("y1", yScale.current(d3.min(data, d => d.value)))
+                .attr("x2", xScale.current(element.time))
+                .attr("y2", yScale.current(d3.max(data, d => d.value)))
+                .attr("stroke", "red")
+                .attr("stroke-width", 2)
+                .attr("stroke-dasharray", "4,4"); // Optional: dashed line
+            
+        });
 
         // Handles the drawing of new zones
         const drag = d3.drag()
@@ -312,6 +326,13 @@ export const ElmGraph = ({data, shot_id} : GraphProps) => {
     return (
         <div style={{ display: "flex" }}>
             <div class="flex flex-col items-center space-y-3">
+
+                <header className="p-6">
+                    <h1 className="text-4xl font-bold text-center text-gray-900">
+                        ELM Tagging Demo
+                    </h1>
+                </header>
+
                 <div class="w-full">
                     <svg ref={svgRef}></svg>
                 </div>

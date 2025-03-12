@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  mongodb:
+  mongo:
     image: mongo:latest
-    container_name: mongodb
+    container_name: mongo
     restart: always
     ports:
       - "27017:27017"
@@ -12,6 +12,21 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: example
     volumes:
       - mongodb_data:/tmp/db
+    networks:
+      - app-network
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongo_express
+    restart: always
+    depends_on:
+      - mongo
+    environment:
+      ME_CONFIG_BASICAUTH_USERNAME: root
+      ME_CONFIG_BASICAUTH_PASSWORD: example
+      ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017
+    ports:
+      - "8081:8081"
     networks:
       - app-network
 
@@ -31,9 +46,9 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - mongodb
+      - mongo
     environment:
-      MONGO_URL: "mongodb://root:example@mongodb:27017"
+      MONGO_URL: "mongodb://root:example@mongo:27017"
     volumes:
       - ./services/db:/app
     working_dir: /app
@@ -83,7 +98,7 @@ services:
     ports:
       - "8002:8002"
     depends_on:
-      - mongodb
+      - mongo
     volumes:
       - ./services/data_api:/app
     working_dir: /app
@@ -103,7 +118,6 @@ services:
       DATA_API_URL: "http://data_app:8002"
       NEXT_PUBLIC_API_URL: "http://localhost:3000"
     volumes:
-      # - ./services/ui/:/app
       - /app/node_modules
     restart: always
     networks:

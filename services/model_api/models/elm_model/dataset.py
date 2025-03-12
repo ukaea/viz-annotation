@@ -7,12 +7,12 @@ from torch.utils.data import DataLoader, Dataset
 
 
 class TimeSeriesDataset(Dataset):
-    def __init__(self, shots, elms = None):
+    def __init__(self, shots, elms=None):
         self.shots = shots
         self.elms = elms
         self.endpoint_url = "https://s3.echo.stfc.ac.uk"
-        self.window_size = 512
-        self.step_size = 256
+        self.window_size = 1024
+        self.step_size = 512
 
     def __len__(self):
         return len(self.shots)
@@ -26,22 +26,23 @@ class TimeSeriesDataset(Dataset):
         dataset = xr.open_zarr(store, group="spectrometer_visible")
         dalpha = dataset.filter_spectrometer_dalpha_voltage.isel(dalpha_channel=2)
         dalpha = dalpha.fillna(0)
+        dalpha = dalpha.sel(time=slice(0, dalpha.time.values.max()))
         dalpha = background_subtract(dalpha)
 
         windows = generate_windows(dalpha.values, self.window_size, self.step_size)
         windows = torch.tensor(windows, dtype=torch.float)
         windows.unsqueeze_(1)
 
-        class_ = np.zeros_like(dalpha.time.values)
-        class_ = xr.DataArray(class_, coords=dict(time=dalpha.time))
-
         if self.elms is not None:
+            class_ = np.zeros_like(dalpha.time.values)
+            class_ = xr.DataArray(class_, coords=dict(time=dalpha.time))
+
             # create labels
             elms = self.elms[idx]
             for item in elms:
-                buffer = 0.001
+                buffer = item["widths"] * 1e-5
                 class_.loc[
-                    dict(time=slice(item['time'] - buffer, item['time'] + buffer))
+                    dict(time=slice(item["time"] - buffer, item["time"] + buffer))
                 ] = 1
 
             labels = generate_windows(class_.values, self.window_size, self.step_size)

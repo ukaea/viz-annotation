@@ -2,6 +2,49 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import torch
+import torch.nn as nn
+
+
+class Conv1dAutoencoder(nn.Module):
+    def __init__(self, input_channels=1, latent_dim=16):
+        super(Conv1dAutoencoder, self).__init__()
+        self.bce_loss = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(0.9))
+
+        # Encoder
+        self.encoder = nn.Sequential(
+            nn.Conv1d(input_channels, 16, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv1d(16, 32, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv1d(32, latent_dim, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+        )
+
+        # Decoder
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose1d(
+                latent_dim, 32, kernel_size=3, stride=2, padding=1, output_padding=1
+            ),
+            nn.ReLU(),
+            nn.ConvTranspose1d(
+                32, 16, kernel_size=3, stride=2, padding=1, output_padding=1
+            ),
+            nn.ReLU(),
+            nn.ConvTranspose1d(
+                16, input_channels, kernel_size=3, stride=2, padding=1, output_padding=1
+            ),
+        )
+
+    def forward(self, x, label=None):
+        encoded = self.encoder(x)
+        out = self.decoder(encoded)
+        probs = torch.sigmoid(out)
+        loss_dict = {}
+        if label is not None:
+            loss_dict["bce_loss"] = self.bce_loss(out, label)
+        return loss_dict, probs
+
 
 class UNet1D(nn.Module):
     def __init__(self, in_channels=1, out_channels=1):

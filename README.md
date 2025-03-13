@@ -20,6 +20,7 @@ Below is a high level overview of the project structure:
 ## Installation
 
 1. Install `docker` and `docker compose`: https://docs.docker.com/engine/install/
+2. Install and setup `git lfs`: https://git-lfs.com/
 
 ## Run
 

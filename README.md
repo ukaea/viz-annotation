@@ -29,4 +29,12 @@ Run the application by running the following command:
 docker compose up 
 ```
 
-The UI will be available at `http://localhost:3000/`
+This will start the following services:
+
+| Service URL                     | Description                |
+|---------------------------------|----------------------------|
+| `http://localhost:3000/`        | User Interface             |
+| `http://localhost:8081/`        | MongoExpress Admin Panel   |
+| `http://localhost:8000/`        | Event Database API         |
+| `http://localhost:8001/`        | Model Runner API           |
+| `http://localhost:8002/`        | Data API                   |

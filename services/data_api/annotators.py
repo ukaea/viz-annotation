@@ -12,9 +12,16 @@ from collections import defaultdict
 from scipy.signal import find_peaks
 from scipy.ndimage import uniform_filter1d
 from torch.utils.data import DataLoader
+from torchmetrics.classification import BinaryF1Score
 
+from utils import RedisModelCache
 from elm_model.model import UNet1D
 from elm_model.dataset import TimeSeriesDataset
+
+
+def entropy(probs):
+    """Compute the entropy of a probability distribution."""
+    return -torch.sum(probs * torch.log(probs + 1e-9), dim=1).mean()
 
 
 def set_random_seed(seed):
@@ -134,7 +141,38 @@ class UnetELMDataAnnotator(DataAnnotator):
             num_workers=0,
         )
         self._train(self.network, train_dataloader)
-        torch.save(self.network.state_dict(), "current_model.pth")
+
+        cache = RedisModelCache()
+        cache.save_state("current_model", self.network.state_dict())
+
+    @torch.no_grad
+    def score(self, shot_ids: list[int]) -> list[float]:
+        test_dataset = TimeSeriesDataset(shot_ids)
+        test_dataloader = DataLoader(
+            test_dataset,
+            batch_size=None,
+            batch_sampler=None,
+            shuffle=True,
+            pin_memory=True,
+            num_workers=0,
+        )
+        entropy_scores, probs = self._score(self.network, test_dataloader)
+        return entropy_scores.tolist()
+
+    @torch.no_grad
+    def _score(self, network, dataloader):
+        self.network.eval()
+
+        scores = []
+        for batch in dataloader:
+            x, t = batch
+            x = x.to(self.device)
+            _, prob = network(x)
+            score = entropy(prob)
+            scores.append(score)
+
+        scores = torch.stack(scores).cpu().numpy()
+        return scores
 
     def _train(self, network, train_dataloader):
         optim = torch.optim.AdamW(network.parameters(), lr=self.learning_rate)
@@ -175,10 +213,11 @@ class UnetELMDataAnnotator(DataAnnotator):
 
     @torch.no_grad
     def get_annotations(self, shot_id: int):
-        model_file = Path("current_model.pth")
-
-        if model_file.exists():
-            self.network.load_state_dict(torch.load(str(model_file)))
+        cache = RedisModelCache()
+        if cache.exists("current_model"):
+            print("Loading model from cache")
+            state = cache.load_state("current_model")
+            self.network.load_state_dict(state)
 
         dataset = TimeSeriesDataset([shot_id], window_size=1024, step_size=1024)
         batch, time = dataset[0]

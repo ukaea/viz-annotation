@@ -39,23 +39,6 @@ services:
     networks:
       - app-network
 
-  event_api:
-    build: ./services/event_api/
-    container_name: event_app
-    restart: always
-    ports:
-      - "8000:8000"
-    depends_on:
-      - mongo
-    environment:
-      MONGO_URL: "mongodb://root:example@mongo:27017"
-    volumes:
-      - ./services/event_api:/app
-    working_dir: /app
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
-    networks:
-      - app-network
-
   model_api:
     build: ./services/model_api/
     container_name: model_app

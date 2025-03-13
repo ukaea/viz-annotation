@@ -1,6 +1,4 @@
-import os
-from fastapi import FastAPI, HTTPException, Depends
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException
 from typing import List
 from model import Shot, ShotInDB
 from client import MongoDBClient

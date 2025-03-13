@@ -1,25 +1,26 @@
-import numpy as np
-import pandas as pd
-from fastapi import FastAPI, HTTPException, Depends
-from pydantic import BaseModel
-from celery.result import AsyncResult
-from model_runner import run_elm_model, redis_client
+from typing import Optional
+from fastapi import FastAPI
+from models.classic_model.tagger import ClassicELMModel
+from db_client import DBClient
 
 app = FastAPI()
 
 
-@app.post("/start")
-async def start_model():
-    task = run_elm_model.delay()
-    return {'task_id': task.id}
+@app.get("/next")
+async def next_shot(shot_id: Optional[int] = None):
+    if shot_id is None:
+        # Query for next shot number
+        next_shot_id = 30420
+    else:
+        next_shot_id = shot_id
 
-@app.post("/update")
-async def update_model():
-    redis_client.lpush('update_queue', '_update_')
+    # Predict labels for next shot
+    model = ClassicELMModel()
+    annotations = model.predict(next_shot_id)
 
-@app.get("/query/{task_id}")
-async def query(task_id: str):
-    item = redis_client.blpop('shot_queue')
-    shot_id= item[1].decode()
-    return {"shot_id": shot_id}
+    # Update annotations in DB
+    db = DBClient()
+    db.set_annotations(annotations)
 
+    # Return next shot number
+    return {"shot_id": next_shot_id}

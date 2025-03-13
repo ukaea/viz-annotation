@@ -118,7 +118,7 @@ export const ElmGraph = ({elms, data: payload, shot_id} : GraphProps) => {
         }
         payload = JSON.stringify(payload);
 
-        const url = `${process.env.NEXT_PUBLIC_API_URL}/db-api/shots`;
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/backend-api/annotations`;
         const response = await fetch(url, {
             method: "POST",
             headers: {
@@ -129,14 +129,18 @@ export const ElmGraph = ({elms, data: payload, shot_id} : GraphProps) => {
     }
 
     const nextShot = async () => {
-      router.push(`/${Number(shot_id)+1}`)
+      saveData();
+      const next_shot_id = await queryNextShot();
+      router.push(`/${Number(next_shot_id)}`)
     }
 
-    const previousShot = async () => {
-      router.push(`/${Number(shot_id)-1}`)
+    const queryNextShot = async () => {
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/backend-api/next`;
+        const response = await fetch(url, {method: "GET"});
+        const data = await response.json();
+        return data['shot_id'];
     }
 
-    // Main graph rendering
     useEffect(() => {
         const svg = d3.select(svgRef.current)
             .attr("width", width)
@@ -178,7 +182,6 @@ export const ElmGraph = ({elms, data: payload, shot_id} : GraphProps) => {
             .attr("d", line);
 
         elms.forEach(element => {
-            console.log(element);
             graphGroup.append("line")
                 .attr("x1", xScale.current(element.time))
                 .attr("y1", yScale.current(d3.min(payload, d => d.value)))
@@ -348,10 +351,6 @@ export const ElmGraph = ({elms, data: payload, shot_id} : GraphProps) => {
                 </div>
 
                 <div class='toolbar'>
-                    <button class="btn-primary"
-                        onClick={previousShot}
-                    >Previous Shot</button>
-
                     <button class='btn-primary'
                         onClick={downloadData}
                     >Download Labels</button>

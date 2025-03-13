@@ -102,6 +102,8 @@ services:
       - mongo
     volumes:
       - ./services/data_api:/app
+    environment:
+      MONGO_URL: "mongodb://root:example@mongo:27017"
     working_dir: /app
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
     networks:

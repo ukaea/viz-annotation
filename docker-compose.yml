@@ -39,53 +39,40 @@ services:
     networks:
       - app-network
 
-  # model_api:
-  #   build: ./services/model_api/
-  #   container_name: model_app
-  #   restart: always
-  #   ports:
-  #     - "8001:8001"
-  #   depends_on:
-  #     - mongo
-  #   environment:
-  #     DB_URL: "http://event_app:8000"
-  #     REDIS_HOST: "redis"
-  #   volumes:
-  #     - ./services/model_api:/app
-  #   working_dir: /app
-  #   command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
-  #   networks:
-  #     - app-network
-
-  # model_runner:
-  #   build:
-  #     context: ./services/model_api/
-  #     dockerfile: Dockerfile.worker
-  #   container_name: model_runner
-  #   environment:
-  #     REDIS_HOST: "redis"
-  #     DB_URL: "http://event_app:8000"
-  #   volumes:
-  #     - ./services/model_api:/app
-  #   command: ["celery", "-A", "model_runner.app", "worker", "--loglevel=info"]
-  #   depends_on:
-  #     - redis
-  #     - model_api
-  #   restart: always
-  #   networks:
-  #     - app-network
+  model_worker:
+    build:
+      context: ./services/data_api/
+      dockerfile: Dockerfile
+    container_name: model_worker
+    environment:
+      REDIS_HOST: "redis"
+      MONGO_URL: "mongodb://root:example@mongo:27017"
+    volumes:
+      - ./services/data_api:/app
+    command: ["celery", "-A", "model_runner.app", "worker", "--loglevel=info"]
+    depends_on:
+      - redis
+      - data_api
+    restart: always
+    working_dir: /app
+    networks:
+      - app-network
 
   data_api:
-    build: ./services/data_api/
+    build:
+      context: ./services/data_api/
+      dockerfile: Dockerfile
     container_name: data_app
     restart: always
     ports:
       - "8002:8002"
     depends_on:
+      - redis
       - mongo
     volumes:
       - ./services/data_api:/app
     environment:
+      REDIS_HOST: "redis"
       MONGO_URL: "mongodb://root:example@mongo:27017"
     working_dir: /app
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
@@ -99,8 +86,6 @@ services:
       - "3000:3000"
     environment:
       NODE_ENV: development
-      DB_URL: "http://event_app:8000"
-      MODEL_API_URL: "http://model_app:8001"
       DATA_API_URL: "http://data_app:8002"
       NEXT_PUBLIC_API_URL: "http://localhost:3000"
     volumes:

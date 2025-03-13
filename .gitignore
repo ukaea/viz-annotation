@@ -167,3 +167,5 @@ tmp
 *yarn.lock
 services/ui/.next/*
 services/ui/node_modules/*
+
+services/data_api/current_model.pth

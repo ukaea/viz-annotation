@@ -1,9 +1,8 @@
 import torch
 import fsspec
 import numpy as np
-import pandas as pd
 import xarray as xr
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset
 
 
 class TimeSeriesDataset(Dataset):
@@ -46,7 +45,8 @@ class TimeSeriesDataset(Dataset):
             # create labels
             elms = self.elms[idx]
             for item in elms:
-                buffer = item["widths"] * 1e-5
+                # buffer = item["widths"] * 1e-5
+                buffer = 14 * 1e-5
                 class_.loc[
                     dict(time=slice(item["time"] - buffer, item["time"] + buffer))
                 ] = 1

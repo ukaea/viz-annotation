@@ -39,41 +39,41 @@ services:
     networks:
       - app-network
 
-  model_api:
-    build: ./services/model_api/
-    container_name: model_app
-    restart: always
-    ports:
-      - "8001:8001"
-    depends_on:
-      - mongo
-    environment:
-      DB_URL: "http://event_app:8000"
-      REDIS_HOST: "redis"
-    volumes:
-      - ./services/model_api:/app
-    working_dir: /app
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
-    networks:
-      - app-network
+  # model_api:
+  #   build: ./services/model_api/
+  #   container_name: model_app
+  #   restart: always
+  #   ports:
+  #     - "8001:8001"
+  #   depends_on:
+  #     - mongo
+  #   environment:
+  #     DB_URL: "http://event_app:8000"
+  #     REDIS_HOST: "redis"
+  #   volumes:
+  #     - ./services/model_api:/app
+  #   working_dir: /app
+  #   command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+  #   networks:
+  #     - app-network
 
-  model_runner:
-    build:
-      context: ./services/model_api/
-      dockerfile: Dockerfile.worker
-    container_name: model_runner
-    environment:
-      REDIS_HOST: "redis"
-      DB_URL: "http://event_app:8000"
-    volumes:
-      - ./services/model_api:/app
-    command: ["celery", "-A", "model_runner.app", "worker", "--loglevel=info"]
-    depends_on:
-      - redis
-      - model_api
-    restart: always
-    networks:
-      - app-network
+  # model_runner:
+  #   build:
+  #     context: ./services/model_api/
+  #     dockerfile: Dockerfile.worker
+  #   container_name: model_runner
+  #   environment:
+  #     REDIS_HOST: "redis"
+  #     DB_URL: "http://event_app:8000"
+  #   volumes:
+  #     - ./services/model_api:/app
+  #   command: ["celery", "-A", "model_runner.app", "worker", "--loglevel=info"]
+  #   depends_on:
+  #     - redis
+  #     - model_api
+  #   restart: always
+  #   networks:
+  #     - app-network
 
   data_api:
     build: ./services/data_api/

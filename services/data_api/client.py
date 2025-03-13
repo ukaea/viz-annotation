@@ -15,25 +15,22 @@ class MongoDBClient:
         self.collection = self.db[collection_name]
 
     async def insert(self, item: Shot):
-        new_item = await self.collection.insert_one(item.model_dump())
-        return {"id": str(new_item.inserted_id), **item.model_dump()}
+        await self.collection.insert_one(item.model_dump())
 
     async def upsert(self, shot: Shot):
-        updated_result = await self.collection.update_one(
+        await self.collection.update_one(
             {"shot_id": shot.shot_id}, {"$set": shot.model_dump()}, upsert=True
         )
-        return {"id": str(updated_result.upserted_id), **shot.model_dump()}
 
     async def list(self):
         items_cursor = self.collection.find()
         items = await items_cursor.to_list()
-        return [{"id": str(item["_id"]), **item} for item in items]
+        return items
 
-    async def find(self, shot_id: int):
-        item = await self.collection.find_one({"shot_id": shot_id})
-        if not item:
-            return None
-        return {"id": str(item["_id"]), **item}
+    async def find(self, shot_id: int) -> Shot:
+        item = await self.collection.find_one({"shot_id": int(shot_id)})
+        item.pop("_id", None)
+        return Shot(**item)
 
     async def delete(self, shot_id: int):
         delete_result = await self.collection.delete_one({"shot_id": shot_id})

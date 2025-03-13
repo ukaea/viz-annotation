@@ -7,3 +7,10 @@ zarr<3
 scipy
 pyarrow
 motor
+pymongo
+requests
+torch
+torchmetrics
+numpy
+scikit-learn
+celery[redis]

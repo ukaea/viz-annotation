@@ -23,9 +23,6 @@ class ELM(Event):
 
 class Shot(BaseModel):
     shot_id: int
+    validated: bool = False
     elms: List[ELM]
     regions: List[ELMRegion]
-
-
-class ShotInDB(Shot):
-    id: str

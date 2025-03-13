@@ -113,6 +113,7 @@ export const ElmGraph = ({elms, data: payload, shot_id} : GraphProps) => {
     const saveData = async () => {
         payload = {
             'shot_id': shot_id,
+            'validated': true,
             'elms': elms,
             'regions': spans.current.map(zone => ({'time_min': zone.x0, 'time_max': zone.x1, 'type': zone.type}))
         }

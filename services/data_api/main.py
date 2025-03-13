@@ -1,79 +1,29 @@
+from enum import Enum
 from typing import List
 import fsspec
 import pandas as pd
 import xarray as xr
 import numpy as np
-from scipy.signal import find_peaks
-from scipy.ndimage import uniform_filter1d
 from fastapi import FastAPI, HTTPException
 
 from client import MongoDBClient
-from model import Shot, ShotInDB
+from model import Shot
+from annotators import ANNOTATORS, AnnotatorType, DataAnnotator
 
 
 class DataPool:
     def __init__(self):
+        self.db = MongoDBClient()
         sources = pd.read_parquet("https://mastapp.site/parquet/level2/sources")
         sources = sources.loc[sources.name == "spectrometer_visible"]
         self.shots = sources.shot_id.values.tolist()
 
+    @property
+    def size(self) -> int:
+        return len(self.shots)
+
     def query(self) -> int:
         return int(np.random.choice(self.shots))
-
-
-class ELMDataAnnotator:
-    def __init__(self):
-        self.file_url = "s3://mast/level2/shots/{shot_id}.zarr"
-        self.endpoint_url = "https://s3.echo.stfc.ac.uk"
-        self.fs = fsspec.filesystem(
-            **dict(
-                protocol="filecache",
-                target_protocol="s3",
-                cache_storage=".cache",
-                target_options=dict(anon=True, endpoint_url=self.endpoint_url),
-            )
-        )
-
-    def get_remote_store(self, path: str):
-        return self.fs.get_mapper(path)
-
-    def background_subtract(
-        self, signal: xr.DataArray, moving_av_length: float
-    ) -> xr.DataArray:
-        dtime = signal.time.values
-        values = signal.values
-        dt = dtime[1] - dtime[0]
-        n = int(moving_av_length / dt)
-        ret = np.cumsum(values, dtype=float)
-        ret[n:] = ret[n:] - ret[:-n]
-        ret = ret[n - 1 :] / n
-        values[n - 1 :] -= ret
-        signal.values = values
-        return signal
-
-    def get_annotations(self, shot_id: int):
-        store = self.get_remote_store(self.file_url.format(shot_id=shot_id))
-
-        dataset = xr.open_zarr(store, group="spectrometer_visible")
-        dalpha: xr.DataArray = dataset.filter_spectrometer_dalpha_voltage
-        dalpha = dalpha.isel(dalpha_channel=2)
-        dalpha = dalpha.dropna(dim="time")
-
-        signal = self.background_subtract(dalpha.copy(), 0.001)
-
-        trend = uniform_filter1d(signal, 1000)
-        dalpha_detrend = signal - trend
-
-        peak_idx, params = find_peaks(
-            dalpha_detrend, prominence=0.2, width=[1, 150], distance=200, height=0.1
-        )
-
-        peaks = pd.DataFrame(params)
-        peaks["time"] = dalpha_detrend.time.values[peak_idx]
-        peaks["height"] = dalpha.values[peak_idx]
-        peaks["valid"] = True
-        peaks = peaks[["time", "height", "valid"]].to_dict(orient="records")
-        return peaks
 
 
 class ELMDataReader:
@@ -114,29 +64,32 @@ app = FastAPI()
 db = MongoDBClient()
 data_pool = DataPool()
 data_reader = ELMDataReader()
-data_annotator = ELMDataAnnotator()
 
 
-@app.post("/annotations", response_model=ShotInDB)
+@app.post("/annotations")
 async def create_item(item: Shot):
     return await db.upsert(item)
 
 
-@app.get("/annotations", response_model=List[ShotInDB])
+@app.get("/annotations", response_model=List[Shot])
 async def get_items():
     return await db.list()
 
 
 @app.get("/annotations/{shot_id}", response_model=Shot)
-async def get_item(shot_id: str):
-    annotations = await db.find(shot_id)
+async def get_item(shot_id: str, method: AnnotatorType = AnnotatorType.UNET):
+    annotation = await db.find(shot_id)
 
-    if annotations is None:
-        peaks = data_annotator.get_annotations(shot_id)
+    if annotation is None:
+        print(f"Using annotator {method}")
+        annotator: DataAnnotator = ANNOTATORS[method]
+        peaks = annotator.get_annotations(shot_id)
+        regions = []  # We currently do not support regions
+        annotation = Shot(shot_id=shot_id, elms=peaks, regions=regions)
     else:
-        peaks = annotations["elms"]
+        print("Using annotation from database")
 
-    return Shot(shot_id=shot_id, elms=peaks, regions=[])
+    return annotation
 
 
 @app.delete("/annotations/{shot_id}")

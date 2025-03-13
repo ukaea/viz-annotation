@@ -7,12 +7,12 @@ from torch.utils.data import DataLoader, Dataset
 
 
 class TimeSeriesDataset(Dataset):
-    def __init__(self, shots, elms=None):
+    def __init__(self, shots, elms=None, window_size: int = 1024, step_size: int = 512):
         self.shots = shots
         self.elms = elms
         self.endpoint_url = "https://s3.echo.stfc.ac.uk"
-        self.window_size = 1024
-        self.step_size = 512
+        self.window_size = window_size
+        self.step_size = step_size
 
     def __len__(self):
         return len(self.shots)
@@ -33,6 +33,12 @@ class TimeSeriesDataset(Dataset):
         windows = torch.tensor(windows, dtype=torch.float)
         windows.unsqueeze_(1)
 
+        time_windows = generate_windows(
+            dalpha.time.values, self.window_size, self.step_size
+        )
+        time_windows = torch.tensor(time_windows, dtype=torch.float)
+        time_windows.unsqueeze_(1)
+
         if self.elms is not None:
             class_ = np.zeros_like(dalpha.time.values)
             class_ = xr.DataArray(class_, coords=dict(time=dalpha.time))
@@ -49,9 +55,9 @@ class TimeSeriesDataset(Dataset):
             labels = torch.tensor(labels, dtype=torch.float)
             labels.unsqueeze_(1)
 
-            return windows, labels
+            return windows, time_windows, labels
         else:
-            return windows
+            return windows, time_windows
 
 
 def generate_windows(data, window_size, step_size):
@@ -59,7 +65,7 @@ def generate_windows(data, window_size, step_size):
     windows = [
         data[i * step_size : i * step_size + window_size] for i in range(num_windows)
     ]
-    return windows
+    return np.stack(windows)
 
 
 def get_remote_store(path: str, endpoint_url: str):

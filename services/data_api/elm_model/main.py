@@ -1,4 +1,3 @@
-import multiprocessing
 from sklearn.model_selection import train_test_split
 import torch
 import time
@@ -6,10 +5,9 @@ import random
 import pandas as pd
 import numpy as np
 from collections import defaultdict
-from torch.utils.data import DataLoader, Subset
-from models.elm_model.model import Network, UNet1D, Conv1dAutoencoder
-from models.elm_model.dataset import TimeSeriesDataset
-from model import Model
+from torch.utils.data import DataLoader
+from model import UNet1D
+from dataset import TimeSeriesDataset
 from torchmetrics.classification import BinaryF1Score
 
 
@@ -39,7 +37,7 @@ def entropy(probs):
     return -torch.sum(probs * torch.log(probs + 1e-9), dim=1).mean()
 
 
-class ELMModel(Model):
+class ELMModel:
     def __init__(self, all_shots):
         self.learning_rate = 0.003
         self.epochs = 30
@@ -91,7 +89,7 @@ class ELMModel(Model):
         scores = []
         probs = []
         for batch in dataloader:
-            x, y = batch
+            x, t, y = batch
             x = x.to(self.device)
             _, prob = network(x)
             f1_score.update(prob.cpu(), y)
@@ -114,7 +112,7 @@ class ELMModel(Model):
 
             time_start = time.time()
             for i, batch in enumerate(train_dataloader):
-                x, labels = batch
+                x, t, labels = batch
                 x = x.to(self.device)
                 labels = labels.to(self.device)
 
@@ -160,6 +158,7 @@ def main():
     model = ELMModel(train_shots)
     model.train(train_annotations)
 
+    s = time.time()
     test_dataset = TimeSeriesDataset(test_shots, test_annotations)
     test_dataloader = DataLoader(
         test_dataset,
@@ -170,10 +169,14 @@ def main():
         num_workers=0,
     )
     entropy_scores, probs = model.inference(model.network, test_dataloader)
+    e = time.time()
+    print(e - s)
 
+    model.network.to("cpu")
+    torch.save(model.network.state_dict(), "model.pth")
     import matplotlib.pyplot as plt
 
-    x, y = next(iter(test_dataloader))
+    x, t, y = next(iter(test_dataloader))
     print(x.shape)
     print(probs[0].shape)
 

@@ -4,8 +4,8 @@ FROM node:18-alpine
 # Set working directory inside the container
 WORKDIR /app
 
-# Copy package.json and yarn.lock first (to optimize caching)
-COPY package.json yarn.lock ./
+# Copy package.json first (to optimize caching)
+COPY package.json ./
 
 # Install dependencies using Yarn
 RUN yarn install --frozen-lockfile

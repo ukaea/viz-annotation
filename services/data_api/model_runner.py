@@ -18,10 +18,12 @@ redis_client.flushdb()
 
 
 @app.task()
-def run_annotator(method: str, shot_ids, annotations):
+def run_annotator(method: str, labelled_shot_ids, annotations, unlabelled_shot_ids):
     print(f"Running annotator training {method}")
     annotator: DataAnnotator = ANNOTATORS[method]()
-    annotator.train(shot_ids, annotations)
+    annotator.train(labelled_shot_ids, annotations)
+    scores = annotator.score(unlabelled_shot_ids)
+    return scores
 
 
 @app.task()
@@ -29,3 +31,10 @@ def run_inference(method: str, shot_id: int):
     print(f"Running annotator inference {method}")
     annotator: DataAnnotator = ANNOTATORS[method]()
     return annotator.get_annotations(shot_id)
+
+
+@app.task()
+def run_score(method: str, shot_ids: list[int]):
+    print(f"Running annotator scoring {method}")
+    annotator: DataAnnotator = ANNOTATORS[method]()
+    return annotator.score(shot_ids)

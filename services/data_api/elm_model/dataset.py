@@ -1,3 +1,4 @@
+import pandas as pd
 import torch
 import fsspec
 import numpy as np
@@ -9,7 +10,7 @@ class TimeSeriesDataset(Dataset):
     def __init__(self, shots, elms=None, window_size: int = 1024, step_size: int = 512):
         self.shots = shots
         self.elms = elms
-        self.endpoint_url = "https://s3.echo.stfc.ac.uk"
+        # self.endpoint_url = "https://s3.echo.stfc.ac.uk"
         self.window_size = window_size
         self.step_size = step_size
 
@@ -19,16 +20,24 @@ class TimeSeriesDataset(Dataset):
     def __getitem__(self, idx):
         shot = self.shots[idx]
 
-        url = f"s3://mast/level2/shots/{shot}.zarr"
-        store = get_remote_store(url, self.endpoint_url)
+        # url = f"s3://mast/level2/shots/{shot}.zarr"
+        # store = get_remote_store(url, self.endpoint_url)
+        store = f"/data/elms/{shot}.parquet"
 
-        dataset = xr.open_zarr(store, group="spectrometer_visible")
-        dalpha = dataset.filter_spectrometer_dalpha_voltage.isel(dalpha_channel=2)
-        dalpha = dalpha.fillna(0)
-        dalpha = dalpha.sel(time=slice(0, dalpha.time.values.max()))
+        # dataset = xr.open_zarr(store, group="spectrometer_visible")
+        # dalpha = dataset.filter_spectrometer_dalpha_voltage.isel(dalpha_channel=2)
+        # dalpha = dalpha.fillna(0)
+        # dalpha = dalpha.sel(time=slice(0, dalpha.time.values.max()))
+
+        dalpha = pd.read_parquet(store)
+        dalpha.fillna(0)
+        dalpha = dalpha.loc[dalpha.time > 0]
+
         dalpha = background_subtract(dalpha)
 
-        windows = generate_windows(dalpha.values, self.window_size, self.step_size)
+        windows = generate_windows(
+            dalpha.dalpha.values, self.window_size, self.step_size
+        )
         windows = torch.tensor(windows, dtype=torch.float)
         windows.unsqueeze_(1)
 
@@ -84,12 +93,12 @@ def background_subtract(
     dalpha: xr.DataArray, moving_av_length: float = 0.001
 ) -> xr.DataArray:
     dtime = dalpha.time.values
-    values = dalpha.values
+    values = dalpha.dalpha.values
     dt = dtime[1] - dtime[0]
     n = int(moving_av_length / dt)
     ret = np.cumsum(values, dtype=float)
     ret[n:] = ret[n:] - ret[:-n]
     ret = ret[n - 1 :] / n
     values[n - 1 :] -= ret
-    dalpha.values = values
+    dalpha.dalpha = values
     return dalpha

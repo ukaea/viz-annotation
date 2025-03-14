@@ -167,3 +167,4 @@ tmp
 *yarn.lock
 services/ui/.next/*
 services/ui/node_modules/*
+data/elms

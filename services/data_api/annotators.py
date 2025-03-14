@@ -1,4 +1,3 @@
-from pathlib import Path
 import time
 import random
 import torch
@@ -12,7 +11,6 @@ from collections import defaultdict
 from scipy.signal import find_peaks
 from scipy.ndimage import uniform_filter1d
 from torch.utils.data import DataLoader
-from torchmetrics.classification import BinaryF1Score
 
 from utils import RedisModelCache
 from elm_model.model import UNet1D
@@ -147,6 +145,8 @@ class UnetELMDataAnnotator(DataAnnotator):
 
     @torch.no_grad
     def score(self, shot_ids: list[int]) -> list[float]:
+        shot_ids = np.random.choice(shot_ids, 10)
+        print(f"Scoring {len(shot_ids)} samples")
         test_dataset = TimeSeriesDataset(shot_ids)
         test_dataloader = DataLoader(
             test_dataset,
@@ -156,8 +156,15 @@ class UnetELMDataAnnotator(DataAnnotator):
             pin_memory=True,
             num_workers=0,
         )
-        entropy_scores, probs = self._score(self.network, test_dataloader)
-        return entropy_scores.tolist()
+
+        entropy_scores = self._score(self.network, test_dataloader)
+        entropy_scores = entropy_scores.tolist()
+        entropy_scores = [float(score) for score in entropy_scores]
+        scores = [
+            {"shot_id": shot, "score": score}
+            for shot, score in zip(shot_ids, entropy_scores)
+        ]
+        return scores
 
     @torch.no_grad
     def _score(self, network, dataloader):

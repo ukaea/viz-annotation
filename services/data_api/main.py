@@ -1,56 +1,13 @@
 from typing import List
 import fsspec
-import pandas as pd
 import xarray as xr
-import numpy as np
 from fastapi import FastAPI, HTTPException
 
 from client import MongoDBClient
 from model import Shot
 from annotators import AnnotatorType
+from data_pool import DataPool
 from model_runner import run_annotator, run_inference
-
-
-class DataPool:
-    def __init__(self):
-        self.batch_size = 3
-        sources = pd.read_parquet("https://mastapp.site/parquet/level2/sources")
-        sources = sources.loc[sources.name == "spectrometer_visible"]
-        self.shots = sources.shot_id.values.tolist()
-        self.training_future = None
-
-    @property
-    def pool_size(self) -> int:
-        return len(self.shots)
-
-    @property
-    def num_validated(self) -> int:
-        return len(self.validated_shots)
-
-    @property
-    def currently_training(self) -> bool:
-        return self.training_future is not None and not self.training_future.ready()
-
-    def retrain(self) -> bool:
-        # Check if we have enough data to retrain
-        if self.num_validated % self.batch_size != 0:
-            return False
-
-        # Check if we have any validated shots yet
-        if self.num_validated == 0:
-            return False
-
-        # Check if we are currently training
-        if self.currently_training:
-            return False
-
-        return True
-
-    def set_validated(self, shot_ids: List[int]):
-        self.validated_shots = shot_ids
-
-    def query(self) -> int:
-        return int(np.random.choice(self.shots))
 
 
 class ELMDataReader:
@@ -89,7 +46,7 @@ class ELMDataReader:
 app = FastAPI()
 
 db = MongoDBClient()
-data_pool = DataPool()
+data_pool = DataPool("/data/elms")
 data_reader = ELMDataReader()
 
 
@@ -110,22 +67,26 @@ async def create_item(item: Shot, method: AnnotatorType = AnnotatorType.UNET):
     # Retrain the model
     print("Retraining model")
     annotations = await db.get_validated_annotations()
-    run_model(method, shot_ids, annotations)
+    unlabelled_shots = data_pool.unlabelled_shots
+    run_model(method, shot_ids, annotations, unlabelled_shots)
 
 
 @app.get("/models/train")
 async def train_model(method: AnnotatorType = AnnotatorType.UNET):
-    shot_ids = await db.get_validated_shot_ids()
+    labelled_shot_ids = await db.get_validated_shot_ids()
     annotations = await db.get_validated_annotations()
-    data_pool.set_validated(shot_ids)
-    return run_model(method, shot_ids, annotations)
+    unlabelled_shot_ids = data_pool.unlabelled_shots
+    data_pool.set_validated(labelled_shot_ids)
+    return run_model(method, labelled_shot_ids, annotations, unlabelled_shot_ids)
 
 
-def run_model(method, shot_ids, annotations):
-    if len(shot_ids) == 0:
+def run_model(method, labelld_shot_ids, annotations, unlabelled_shot_ids):
+    if len(labelld_shot_ids) == 0:
         return {"status": "No labelled data."}
     if not data_pool.currently_training:
-        future = run_annotator.delay(method, shot_ids, annotations)
+        future = run_annotator.delay(
+            method, labelld_shot_ids, annotations, unlabelled_shot_ids
+        )
         data_pool.training_future = future
         return {"status": "Training model"}
     else:
@@ -164,6 +125,7 @@ async def delete_item(shot_id: str):
 
 @app.get("/next")
 def get_next_shot_id():
+    print("Querying next shot")
     shot_id = data_pool.query()
     return {"shot_id": shot_id}
 

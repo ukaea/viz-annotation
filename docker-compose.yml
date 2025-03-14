@@ -48,6 +48,7 @@ services:
       REDIS_HOST: "redis"
       MONGO_URL: "mongodb://root:example@mongo:27017"
     volumes:
+      - ./data:/data
       - ./services/data_api:/app
     command: ["celery", "-A", "model_runner.app", "worker", "--loglevel=info"]
     depends_on:
@@ -70,6 +71,7 @@ services:
       - redis
       - mongo
     volumes:
+      - ./data/:/data
       - ./services/data_api:/app
     environment:
       REDIS_HOST: "redis"

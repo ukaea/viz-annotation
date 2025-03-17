@@ -10,7 +10,6 @@ class TimeSeriesDataset(Dataset):
     def __init__(self, shots, elms=None, window_size: int = 1024, step_size: int = 512):
         self.shots = shots
         self.elms = elms
-        # self.endpoint_url = "https://s3.echo.stfc.ac.uk"
         self.window_size = window_size
         self.step_size = step_size
 
@@ -20,14 +19,7 @@ class TimeSeriesDataset(Dataset):
     def __getitem__(self, idx):
         shot = self.shots[idx]
 
-        # url = f"s3://mast/level2/shots/{shot}.zarr"
-        # store = get_remote_store(url, self.endpoint_url)
         store = f"/data/elms/{shot}.parquet"
-
-        # dataset = xr.open_zarr(store, group="spectrometer_visible")
-        # dalpha = dataset.filter_spectrometer_dalpha_voltage.isel(dalpha_channel=2)
-        # dalpha = dalpha.fillna(0)
-        # dalpha = dalpha.sel(time=slice(0, dalpha.time.values.max()))
 
         dalpha = pd.read_parquet(store)
         dalpha.fillna(0)

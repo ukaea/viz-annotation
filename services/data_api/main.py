@@ -7,7 +7,7 @@ from client import MongoDBClient
 from model import Shot
 from annotators import AnnotatorType
 from data_pool import DataPool
-from model_runner import run_annotator, run_inference
+from model_runner import run_training, run_inference
 
 
 class ELMDataReader:
@@ -84,7 +84,7 @@ def run_model(method, labelld_shot_ids, annotations, unlabelled_shot_ids):
     if len(labelld_shot_ids) == 0:
         return {"status": "No labelled data."}
     if not data_pool.currently_training:
-        future = run_annotator.delay(
+        future = run_training.delay(
             method, labelld_shot_ids, annotations, unlabelled_shot_ids
         )
         data_pool.training_future = future

@@ -343,7 +343,7 @@ export const ElmGraph = ({elms, data: payload, shot_id} : GraphProps) => {
 
                 <header className="p-6">
                     <h1 className="text-4xl font-bold text-center text-gray-900">
-                        ELM Tagging Demo
+                        ELM Tagging
                     </h1>
                 </header>
 

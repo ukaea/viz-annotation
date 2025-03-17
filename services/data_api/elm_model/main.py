@@ -44,7 +44,6 @@ class ELMModel:
         self.device = get_device()
         self.seed = 42
         set_random_seed(self.seed)
-        # self.network = UNet1D()
         self.network = UNet1D()
         self.network = self.network.to(self.device)
         self.all_shots = all_shots[:100]  # for testing

@@ -57,6 +57,16 @@ class DataAnnotator(ABC):
     def train(self, shot_ids: list[int]):
         pass
 
+    @abstractmethod
+    def score(self, shot_ids: list[int]):
+        pass
+
+    def save_model(self):
+        pass
+
+    def load_model(self):
+        pass
+
 
 class ClassicELMDataAnnotator(DataAnnotator):
     def __init__(self):
@@ -127,6 +137,17 @@ class UnetELMDataAnnotator(DataAnnotator):
         self.seed = 42
         set_random_seed(self.seed)
 
+    def save_model(self):
+        cache = RedisModelCache()
+        cache.save_state("current_model", self.network.state_dict())
+
+    def load_model(self):
+        cache = RedisModelCache()
+        if cache.exists("current_model"):
+            print("Loading model from cache")
+            state = cache.load_state("current_model")
+            self.network.load_state_dict(state)
+
     def train(self, shot_ids: list[int], annotations):
         annotations = [item["elms"] for item in annotations]
         train_dataset = TimeSeriesDataset(shot_ids, annotations)
@@ -140,12 +161,9 @@ class UnetELMDataAnnotator(DataAnnotator):
         )
         self._train(self.network, train_dataloader)
 
-        cache = RedisModelCache()
-        cache.save_state("current_model", self.network.state_dict())
-
     @torch.no_grad
     def score(self, shot_ids: list[int]) -> list[float]:
-        shot_ids = np.random.choice(shot_ids, 10)
+        shot_ids = np.random.choice(shot_ids, 1000)
         print(f"Scoring {len(shot_ids)} samples")
         test_dataset = TimeSeriesDataset(shot_ids)
         test_dataloader = DataLoader(

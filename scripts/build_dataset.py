@@ -17,13 +17,17 @@ def build_cache_file(shot, file_url, endpoint_url, cache_storage, output_dir):
     )
     try:
         store = fs.get_mapper(file_url.format(shot_id=shot))
+
+        # Dalpha dataset
         dataset = xr.open_zarr(store, group="spectrometer_visible")
         dalpha: xr.DataArray = dataset.filter_spectrometer_dalpha_voltage
         dalpha = dalpha.isel(dalpha_channel=2)
+
         df = dalpha.to_dataframe()
         df = df.drop("dalpha_channel", axis=1)
         df = df.rename({"filter_spectrometer_dalpha_voltage": "dalpha"}, axis=1)
         df = df.reset_index()
+
         df.to_parquet(output_dir / f"{shot}.parquet")
     except Exception as e:
         print(e)

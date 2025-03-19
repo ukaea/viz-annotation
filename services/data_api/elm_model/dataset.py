@@ -22,7 +22,7 @@ class TimeSeriesDataset(Dataset):
         store = f"/data/elms/{shot}.parquet"
 
         dalpha = pd.read_parquet(store)
-        dalpha.fillna(0)
+        dalpha = dalpha.fillna(0)
         dalpha = dalpha.loc[dalpha.time > 0]
 
         dalpha = background_subtract(dalpha)

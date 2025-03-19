@@ -18,5 +18,9 @@ body {
 }
 
 .toolbar {
-  @apply flex space-x-2 bg-gray-100 p-3 rounded-lg shadow-md;
+  @apply bg-gray-100 p-3 rounded-lg shadow-md;
+}
+
+.js-plotly-plot svg {
+  display: inline;
 }

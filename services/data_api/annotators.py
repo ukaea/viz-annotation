@@ -50,7 +50,7 @@ class AnnotatorType(str, Enum):  # noqa: F821
 
 class DataAnnotator(ABC):
     @abstractmethod
-    def get_annotations(self, shot_id: int):
+    def get_annotations(self, shot_id: int, **kwargs):
         pass
 
     @abstractmethod
@@ -85,12 +85,23 @@ class ClassicELMDataAnnotator(DataAnnotator):
         # No training required for classic annotator
         pass
 
-    def get_annotations(self, shot_id: int):
-        store = self.get_remote_store(self.file_url.format(shot_id=shot_id))
+    def score(self, shot_ids: list[int]):
+        pass
 
-        dataset = xr.open_zarr(store, group="spectrometer_visible")
-        dalpha: xr.DataArray = dataset.filter_spectrometer_dalpha_voltage
-        dalpha = dalpha.isel(dalpha_channel=2)
+    def get_annotations(
+        self,
+        shot_id: int,
+        prominence: float = 0.2,
+        distance: int = 200,
+        height: float = 0.1,
+    ):
+        df_alpha = pd.read_parquet(f"/data/elms/{shot_id}.parquet")
+        dalpha = df_alpha.to_xarray()
+        # store = self.get_remote_store(self.file_url.format(shot_id=shot_id))
+
+        # dataset = xr.open_zarr(store, group="spectrometer_visible")
+        # dalpha: xr.DataArray = dataset.filter_spectrometer_dalpha_voltage
+        # dalpha = dalpha.isel(dalpha_channel=2)
         dalpha = dalpha.dropna(dim="time")
 
         signal = self.background_subtract(dalpha.copy(), 0.001)
@@ -99,13 +110,18 @@ class ClassicELMDataAnnotator(DataAnnotator):
         dalpha_detrend = signal - trend
 
         peak_idx, params = find_peaks(
-            dalpha_detrend, prominence=0.2, width=[1, 150], distance=200, height=0.1
+            dalpha_detrend,
+            prominence=prominence,
+            width=[1, 150],
+            distance=distance,
+            height=height,
         )
 
         peaks = pd.DataFrame(params)
         peaks["time"] = dalpha_detrend.time.values[peak_idx]
         peaks["height"] = dalpha.values[peak_idx]
         peaks["valid"] = True
+        peaks = peaks.loc[peaks.time > 0]
         peaks = peaks[["time", "height", "valid"]].to_dict(orient="records")
         return peaks
 
@@ -237,7 +253,7 @@ class UnetELMDataAnnotator(DataAnnotator):
         print("Done!!!")
 
     @torch.no_grad
-    def get_annotations(self, shot_id: int):
+    def get_annotations(self, shot_id: int, **kwargs):
         cache = RedisModelCache()
         if cache.exists("current_model"):
             print("Loading model from cache")

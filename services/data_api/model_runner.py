@@ -29,8 +29,8 @@ def run_training(method: str, labelled_shot_ids, annotations, unlabelled_shot_id
 
 
 @app.task()
-def run_inference(method: str, shot_id: int):
+def run_inference(method: str, shot_id: int, **params):
     print(f"Running annotator inference {method}")
     annotator: DataAnnotator = ANNOTATORS[method]()
     annotator.load_model()
-    return annotator.get_annotations(shot_id)
+    return annotator.get_annotations(shot_id, **params)

@@ -1,4 +1,6 @@
 from typing import List
+
+import pandas as pd
 import fsspec
 import xarray as xr
 from fastapi import FastAPI, HTTPException
@@ -27,18 +29,18 @@ class ELMDataReader:
         return self.fs.get_mapper(path)
 
     def get_data(self, shot_id: int):
-        store = self.get_remote_store(self.file_url.format(shot_id=shot_id))
+        # store = self.get_remote_store(self.file_url.format(shot_id=shot_id))
 
-        dataset = xr.open_zarr(store, group="spectrometer_visible")
-        dalpha: xr.DataArray = dataset.filter_spectrometer_dalpha_voltage
-        dalpha = dalpha.isel(dalpha_channel=2)
-        dalpha = dalpha.dropna(dim="time")
+        # dataset = xr.open_zarr(store, group="spectrometer_visible")
+        # dalpha: xr.DataArray = dataset.filter_spectrometer_dalpha_voltage
+        # dalpha = dalpha.isel(dalpha_channel=2)
+        # dalpha = dalpha.dropna(dim="time")
 
-        df_alpha = dalpha.to_dataframe().reset_index()
+        # df_alpha = dalpha.to_dataframe().reset_index()
+        df_alpha = pd.read_parquet(f"/data/elms/{shot_id}.parquet")
+        print(df_alpha)
         df_alpha.fillna(0, inplace=True)
-        df_alpha.rename(
-            columns={"filter_spectrometer_dalpha_voltage": "value"}, inplace=True
-        )
+        df_alpha.rename(columns={"dalpha": "value"}, inplace=True)
         data = df_alpha.to_dict(orient="records")
         return data
 
@@ -100,13 +102,24 @@ async def get_items():
 
 
 @app.get("/annotations/{shot_id}", response_model=Shot)
-async def get_item(shot_id: str, method: AnnotatorType = AnnotatorType.UNET):
+async def get_item(
+    shot_id: str,
+    method: AnnotatorType = AnnotatorType.UNET,
+    prominence: float = 0.1,
+    distance: int = 1,
+    force: bool = False,
+):
     annotation = await db.find(shot_id)
 
-    if annotation is None:
+    if annotation is None or force:
         print(f"Using annotator {method}")
-        future = run_inference.delay(method, shot_id)
-        peaks = future.get(timeout=30)
+        params = {
+            "prominence": prominence,
+            "distance": distance,
+            "height": 0.01,
+        }
+        future = run_inference.delay(method, shot_id, **params)
+        peaks = future.get(timeout=45)
         regions = []  # We currently do not support regions
         annotation = Shot(shot_id=shot_id, elms=peaks, regions=regions)
     else:

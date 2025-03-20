@@ -10,7 +10,7 @@ from data_pool import DataPool
 from model_runner import run_training, run_inference
 
 
-class ELMDataReader:
+class S3DataReader:
     def __init__(self):
         self.file_url = "s3://mast/level2/shots/{shot_id}.zarr"
         self.endpoint_url = "https://s3.echo.stfc.ac.uk"
@@ -41,13 +41,26 @@ class ELMDataReader:
         )
         data = df_alpha.to_dict(orient="records")
         return data
+    
+    def get_disruption_data(self, shot_id: int):
+        store = self.get_remote_store(self.file_url.format(shot_id=shot_id))
 
+        magnetics = xr.open_zarr(store, group="magnetics")
+        ip: xr.DataArray = magnetics['ip']
+        ip = ip.dropna(dim="time")
+
+        df_ip = ip.to_dataframe().reset_index()
+        df_ip.fillna(0, inplace=True)
+        df_ip.rename(columns={"ip": "value"}, inplace=True)
+        data = df_ip.to_dict(orient="records")
+        return data
+        
 
 app = FastAPI()
 
 db = MongoDBClient()
 data_pool = DataPool("/data/elms")
-data_reader = ELMDataReader()
+data_reader = S3DataReader()
 
 
 @app.post("/annotations")
@@ -140,3 +153,10 @@ async def get_data(shot_id: int):
     }
 
     return payload
+
+@app.get("/data/disruption/{shot_id}")
+async def get_disruption_data(shot_id: int):
+    return {
+        "ip": data_reader.get_disruption_data(shot_id),
+        "shot_id": shot_id,
+    }

@@ -31,6 +31,20 @@ def background_subtract(signal: xr.DataArray, moving_av_length: float) -> xr.Dat
     signal.values = values
     return signal
 
+def calculate_elm_frequency(elms: list, elm_interval=0.01):
+    elm_times = list(map(lambda elm: elm["time"], elms))
+    freq_t = np.arange(min(elm_times),max(elm_times),elm_interval)
+    frequency_data: list = []
+
+    for index, time in enumerate(freq_t):
+        num = len(np.where((elm_times>time-elm_interval/2)&(elm_times<time+elm_interval/2))[0])
+        frequency_data.append({
+            "time": time,
+            "value": num/elm_interval
+        })
+
+    return frequency_data
+
 
 app = FastAPI()
 
@@ -68,6 +82,7 @@ def get_data(shot_id: int = 29495):
     payload = {
         "dalpha": df_alpha.to_dict(orient="records"),
         "elms": peaks,
+        "frequency": calculate_elm_frequency(peaks),
         "shot_id": shot_id,
     }
     return payload

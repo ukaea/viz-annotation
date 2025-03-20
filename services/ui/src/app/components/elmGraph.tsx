@@ -123,9 +123,9 @@ export const ElmGraph = ({model_elms, elms, data: payload, shot_id} : GraphProps
             const modelElmTrace = {
                 name: 'Model ELMs',
                 x: xModelElmData,
-                y: yModelElmData.fill(0),
+                y: yModelElmData,
                 marker: {
-                    size: 5,
+                    size: 9,
                     symbol: "diamond-open",
                     color: 'purple',
                 },
@@ -178,11 +178,6 @@ export const ElmGraph = ({model_elms, elms, data: payload, shot_id} : GraphProps
                 ],
                 modeBarButtonsToRemove: []}
 
-            // Handle clearing selection of peaks
-            function onClearSelection(eventData) {
-                const colors = elms.fill('green'); 
-                setElmColorData(colors);
-            };
 
             // Handle lasso selection of peaks
             function lassoSelectPeaks(eventData) {
@@ -319,6 +314,8 @@ export const ElmGraph = ({model_elms, elms, data: payload, shot_id} : GraphProps
     }
 
     const handleChangePeakParams = async (event) => {
+        onClearSelection(event);
+
         const prominence = parseFloat(document.getElementById('prominence').value);
         const distance = parseFloat(document.getElementById('distance').value);
 
@@ -330,6 +327,12 @@ export const ElmGraph = ({model_elms, elms, data: payload, shot_id} : GraphProps
 
         setElmXData(elmX);
         setElmYData(elmY);
+    };
+
+    // Handle clearing selection of peaks
+    function onClearSelection(eventData) {
+        const colors = elmColors.fill('green'); 
+        setElmColorData(colors);
     };
 
 

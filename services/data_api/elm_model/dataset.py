@@ -13,18 +13,20 @@ class TimeSeriesDataset(Dataset):
         self.window_size = window_size
         self.step_size = step_size
 
+    def read_shot(self, shot: int):
+        store = f"/data/elms/{shot}.parquet"
+        dalpha = pd.read_parquet(store)
+        dalpha = dalpha.fillna(0)
+        dalpha = dalpha.loc[dalpha.time > 0]
+        return dalpha
+
     def __len__(self):
         return len(self.shots)
 
     def __getitem__(self, idx):
         shot = self.shots[idx]
 
-        store = f"/data/elms/{shot}.parquet"
-
-        dalpha = pd.read_parquet(store)
-        dalpha = dalpha.fillna(0)
-        dalpha = dalpha.loc[dalpha.time > 0]
-
+        dalpha = self.read_shot(shot)
         dalpha = background_subtract(dalpha)
 
         windows = generate_windows(
@@ -46,11 +48,12 @@ class TimeSeriesDataset(Dataset):
             # create labels
             elms = self.elms[idx]
             for item in elms:
-                # buffer = item["widths"] * 1e-5
-                buffer = 14 * 1e-5
-                class_.loc[
-                    dict(time=slice(item["time"] - buffer, item["time"] + buffer))
-                ] = 1
+                if item["valid"]:
+                    # buffer = item["widths"] * 1e-5
+                    buffer = 14 * 1e-5
+                    class_.loc[
+                        dict(time=slice(item["time"] - buffer, item["time"] + buffer))
+                    ] = 1
 
             labels = generate_windows(class_.values, self.window_size, self.step_size)
             labels = torch.tensor(labels, dtype=torch.float)
@@ -62,6 +65,9 @@ class TimeSeriesDataset(Dataset):
 
 
 def generate_windows(data, window_size, step_size):
+    if len(data) % window_size != 0:
+        data = np.pad(data, (0, window_size - len(data) % window_size))
+
     num_windows = (len(data) - window_size) // step_size + 1
     windows = [
         data[i * step_size : i * step_size + window_size] for i in range(num_windows)

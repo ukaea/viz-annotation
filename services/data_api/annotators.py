@@ -95,14 +95,14 @@ class ClassicELMDataAnnotator(DataAnnotator):
         distance: int = 200,
         height: float = 0.1,
     ):
-        df_alpha = pd.read_parquet(f"/data/elms/{shot_id}.parquet")
-        dalpha = df_alpha.to_xarray()
+        dalpha = pd.read_parquet(f"/data/elms/{shot_id}.parquet")
+        # dalpha = df_alpha.to_xarray()
         # store = self.get_remote_store(self.file_url.format(shot_id=shot_id))
 
         # dataset = xr.open_zarr(store, group="spectrometer_visible")
         # dalpha: xr.DataArray = dataset.filter_spectrometer_dalpha_voltage
         # dalpha = dalpha.isel(dalpha_channel=2)
-        dalpha = dalpha.dropna(dim="time")
+        dalpha = dalpha.dropna()
 
         signal = self.background_subtract(dalpha.copy(), 0.001)
 
@@ -118,8 +118,8 @@ class ClassicELMDataAnnotator(DataAnnotator):
         )
 
         peaks = pd.DataFrame(params)
-        peaks["time"] = dalpha_detrend.time.values[peak_idx]
-        peaks["height"] = dalpha.values[peak_idx]
+        peaks["time"] = dalpha.time.values[peak_idx]
+        peaks["height"] = dalpha.dalpha.values[peak_idx]
         peaks["valid"] = True
         peaks = peaks.loc[peaks.time > 0]
         peaks = peaks[["time", "height", "valid"]].to_dict(orient="records")
@@ -132,14 +132,16 @@ class ClassicELMDataAnnotator(DataAnnotator):
         self, signal: xr.DataArray, moving_av_length: float
     ) -> xr.DataArray:
         dtime = signal.time.values
-        values = signal.values
+        values = signal.dalpha.values
+        # dtime = signal.time.values
+        # values = signal.values
         dt = dtime[1] - dtime[0]
         n = int(moving_av_length / dt)
         ret = np.cumsum(values, dtype=float)
         ret[n:] = ret[n:] - ret[:-n]
         ret = ret[n - 1 :] / n
         values[n - 1 :] -= ret
-        signal.values = values
+        signal = values
         return signal
 
 
@@ -179,7 +181,7 @@ class UnetELMDataAnnotator(DataAnnotator):
 
     @torch.no_grad
     def score(self, shot_ids: list[int]) -> list[float]:
-        shot_ids = np.random.choice(shot_ids, 1000)
+        shot_ids = np.random.choice(shot_ids, 100)
         print(f"Scoring {len(shot_ids)} samples")
         test_dataset = TimeSeriesDataset(shot_ids)
         test_dataloader = DataLoader(
@@ -262,13 +264,18 @@ class UnetELMDataAnnotator(DataAnnotator):
 
         dataset = TimeSeriesDataset([shot_id], window_size=1024, step_size=1024)
         batch, time = dataset[0]
-        loss, probs = self.network(batch)
+        _, probs = self.network(batch)
 
-        df = pd.DataFrame(
-            dict(probs=probs.flatten(), time=time.flatten(), values=batch.flatten())
-        )
+        df_data = dataset.read_shot(shot_id)
+        values = df_data.dalpha.values
+        n = len(values)
+        probs = probs.flatten()[:n]
+        time = time.flatten()[:n]
 
+        print(probs.shape, time.shape, values.shape)
+        df = pd.DataFrame(dict(probs=probs, time=time, values=values))
         peaks = self.segment_max_values(df["values"], df["time"], df["probs"] > 0.5)
+
         return peaks
 
     def segment_max_values(self, data, time, segmentation):

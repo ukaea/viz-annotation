@@ -15,23 +15,51 @@ type GraphProps = {
 export const DisruptionGraph = ({ data, shot_id }: GraphProps) => {
 
     useEffect(() => {
-        const plotElement: HTMLElement = document.getElementById('testPlot')!;
+        interface PlotHTMLElement extends HTMLElement {
+            on(eventName: string, handler: Function): void;
+        }
+        const plotElement = document.getElementById('testPlot')! as PlotHTMLElement;
 
-        Plotly.newPlot(plotElement, [{
+        const plotData = [{
             x: data.map(({ time }) => time),
             y: data.map(({ value }) => value)
-        }], {
-            margin: { t: 0 }
+        }];
+
+        const plotLayout = {
+            title: {
+                text: `Plasma current (${shot_id})`
+            },
+            xaxis: {
+                title: {
+                    text: 'Time [s]'
+                }
+            },
+            yaxis: {
+                title: {
+                    text: 'ip [A]'
+                }
+            },
+            margin: { t: 100 }
+        };
+
+        const plotConfig = {
+            displaylogo: false
+        };
+
+        Plotly.newPlot(plotElement, plotData, plotLayout, plotConfig);
+
+        plotElement.on('plotly_click', () => {
+            alert("You clicked the plot!");
         });
     });
 
     return (
         <div>
-            <h2>Disruption ({shot_id})</h2>
+            {/* <h2>Disruption ({shot_id})</h2> */}
             <div id="testPlot"></div>
-            <p style={{ whiteSpace: 'pre-line' }}>
+            {/* <p style={{ whiteSpace: 'pre-line' }}>
                 {data.map(({ time, value }) => `time: ${time}, value: ${value}`).join('\n')}
-            </p>
+            </p> */}
         </div>
     )
 };

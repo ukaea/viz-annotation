@@ -1,13 +1,5 @@
-import random
-import torch
-import numpy as np
-import fsspec
-import pandas as pd
-import xarray as xr
 from enum import Enum
 from abc import ABC, abstractmethod
-from scipy.signal import find_peaks
-from scipy.ndimage import uniform_filter1d
 
 
 class AnnotatorType(str, Enum):  # noqa: F821
@@ -21,7 +13,11 @@ class DataAnnotator(ABC):
         pass
 
     @abstractmethod
-    def train(self, shot_ids: list[int]):
+    def train(self, shot_ids: list[int], annotations):
+        pass
+
+    @abstractmethod
+    def evaluate(self, shot_ids: list[int], annotations):
         pass
 
     @abstractmethod

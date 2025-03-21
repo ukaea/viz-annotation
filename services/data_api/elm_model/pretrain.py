@@ -37,7 +37,8 @@ def main():
 
     model = UnetELMDataAnnotator(epochs=epochs, data_path=data_path)
     model.train(train_shots, train_annotations)
-    model.evaluate(test_shots, test_annotations)
+    score = model.evaluate(test_shots, test_annotations)
+    print(score)
     model.network.to("cpu")
     torch.save(model.network.state_dict(), "elm_model/model.pth")
 

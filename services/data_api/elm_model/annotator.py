@@ -58,15 +58,15 @@ class UnetELMDataAnnotator(DataAnnotator):
         cache.save_state("current_model", self.network.state_dict())
 
     def load_model(self):
-        cache = RedisModelCache()
-        if cache.exists("current_model"):
-            print("Loading model from cache")
-            state = cache.load_state("current_model")
-            self.network.load_state_dict(state)
-        else:
-            # Default model initialization
-            state = torch.load("elm_model/model.pth")
-            self.network.load_state_dict(state)
+        # cache = RedisModelCache()
+        # if cache.exists("current_model"):
+        #     print("Loading model from cache")
+        #     state = cache.load_state("current_model")
+        #     self.network.load_state_dict(state)
+        # else:
+        # Default model initialization
+        state = torch.load("elm_model/model.pth")
+        self.network.load_state_dict(state)
 
     def train(self, shot_ids: list[int], annotations):
         annotations = [item["elms"] for item in annotations]
@@ -84,7 +84,7 @@ class UnetELMDataAnnotator(DataAnnotator):
         self._train(self.network, train_dataloader)
 
     @torch.no_grad
-    def evaluate(self, shot_ids: int, annotations):
+    def evaluate(self, shot_ids: list[int], annotations):
         annotations = [item["elms"] for item in annotations]
         dataset = TimeSeriesDataset(shot_ids, annotations, data_path=self.data_path)
         dataloader = DataLoader(
@@ -95,7 +95,7 @@ class UnetELMDataAnnotator(DataAnnotator):
             pin_memory=True,
             num_workers=0,
         )
-        self._evaluate(dataloader)
+        return self._evaluate(dataloader)
 
     def _evaluate(self, dataloader):
         scorer = BinaryF1Score()
@@ -111,11 +111,11 @@ class UnetELMDataAnnotator(DataAnnotator):
             _, probs = self.network(x)
             scorer(probs, labels)
 
-        print("score", scorer.compute())
+        return {"f1": scorer.compute()}
 
     @torch.no_grad
     def score(self, shot_ids: list[int]) -> list[float]:
-        shot_ids = np.random.choice(shot_ids, 100)
+        shot_ids = np.random.choice(shot_ids, min(100, len(shot_ids)))
         print(f"Scoring {len(shot_ids)} samples")
         test_dataset = TimeSeriesDataset(shot_ids, data_path=self.data_path)
         test_dataloader = DataLoader(

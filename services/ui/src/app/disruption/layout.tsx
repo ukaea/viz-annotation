@@ -24,17 +24,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <div className="grid grid-cols-[200pt_1fr] gap-5 h-screen">
-          <div className="bg-slate-200 p-5">
-            <ShotInput />
-          </div>
-          <div>{children}</div>
-        </div>
-      </body>
-    </html>
+    <div className="grid grid-cols-[200pt_1fr] gap-5 h-screen w-screen">
+      <div className="bg-slate-200 p-5">
+        <ShotInput />
+      </div>
+      <div>{children}</div>
+    </div>
   );
 }

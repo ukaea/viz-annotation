@@ -1,6 +1,8 @@
 'use client'
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, use } from 'react';
 import * as Plotly from "plotly.js";
+import * as d3 from 'd3';
+import { off } from 'process';
 
 type GraphProps = {
 
@@ -10,6 +12,13 @@ type GraphProps = {
     }>,
 
     shot_id: string
+}
+
+type GraphRange = {
+    xMin: number,
+    xMax: number,
+    yMin: number,
+    yMax: number
 }
 
 enum ZoneType {
@@ -27,16 +36,14 @@ export const DisruptionGraph = ({ data, shot_id }: GraphProps) => {
 
     const time: number[] = data.map(({ time }) => time);
     const value: number[] = data.map(({ value }) => value);
-    const rectMargin = 1.05;
 
-    const tMin = Math.min(...time);
-    const tMax = Math.max(...time);
-    const vMin = Math.min(...value);
-    const vMax = Math.max(...value);
-
-    const [rampUp, setRampUp] = useState<Zone>({ x0: 0.2 * tMax, x1: 0.3 * tMax, type: ZoneType.RampUp });
-    const [flatTop, setFlatTop] = useState<Zone>({ x0: 0.5 * tMax, x1: 0.6 * tMax, type: ZoneType.FlatTop });
-    const [disruptPoint, setDisruptPoint] = useState<number>(0.75 * tMax);
+    const [rampUp, setRampUp] = useState<Zone>({ x0: 0, x1: 0.05, type: ZoneType.RampUp });
+    const [flatTop, setFlatTop] = useState<Zone>({ x0: 0.1, x1: 0.15, type: ZoneType.FlatTop });
+    const [disruptPoint, setDisruptPoint] = useState<number>(0.2);
+    const [isDragging, setIsDragging] = useState<boolean>(false);
+    const [isResizingLeft, setIsResizingLeft] = useState<boolean>(false);
+    const [isResizingRight, setIsResizingRight] = useState<boolean>(false);
+    const [offsetX, setOffsetX] = useState<number>(0);
 
     useEffect(() => {
         interface PlotHTMLElement extends HTMLElement {
@@ -73,56 +80,146 @@ export const DisruptionGraph = ({ data, shot_id }: GraphProps) => {
             modeBarButtonsToRemove: ['toImage', 'zoom2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d'],
         }
 
-        Plotly.newPlot(plotElement, plotData, plotLayout, plotConfig);
+        Plotly.newPlot(plotElement, plotData, plotLayout, plotConfig).then(
+            (plot: any) => {
+                const overplot = plotElement.querySelector('.overplot')! as HTMLElement;
+                const overplot_xy = overplot.querySelector('.xy')! as HTMLElement;
 
-        plotElement.on('plotly_click', () => {
-            alert("You clicked the plot!");
-        });
+                var d3group: SVGGElement;
+                if (document.getElementsByClassName('d3zone_overplot').length > 0) {
+                    d3group = document.getElementsByClassName('d3zone_overplot')[0] as SVGGElement;
+                } else {
+                    d3group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    d3group.setAttribute('class', 'd3zone_overplot');
+                    d3group.setAttribute('fill', 'none');
+                    d3group.setAttribute('stroke', 'red');
+                    d3group.setAttribute('stroke-width', '2');
+                    overplot_xy.appendChild(d3group);
+                }
 
-        const update: Partial<Plotly.Layout> = {};
-        update.shapes = [];
-        update.shapes.push({
-            opacity: 0.5,
-            type: 'rect',
-            x0: rampUp.x0,
-            x1: rampUp.x1,
-            y0: vMin * rectMargin,
-            y1: vMax * rectMargin,
-            fillcolor: 'rgb(76, 171, 235)',
-            line: {
-                width: 0,
-            }
-        })
-        update.shapes.push({
-            opacity: 0.5,
-            type: 'rect',
-            x0: flatTop.x0,
-            x1: flatTop.x1,
-            y0: vMin * rectMargin,
-            y1: vMax * rectMargin,
-            fillcolor: 'rgb(121, 236, 173)',
-            line: {
-                width: 0,
-            }
-        })
-        update.shapes.push({
-            opacity: 0.5,
-            type: 'line',
-            x0: disruptPoint,
-            x1: disruptPoint,
-            y0: vMin * rectMargin,
-            y1: vMax * rectMargin,
-            line: {
-                color: 'rgb(211, 29, 22)',
-                width: 2,
-            }
-        })
+                const svg = d3.select(d3group);
+                svg.selectAll("*").remove();
 
-        Plotly.relayout(plotElement, update);
+                const rampUpRect = svg.append("rect").attr("class", "rampup-zone");
+                const rampUpRectL = svg.append("line").attr("class", "rampup-zone-l");
+                const rampUpRectR = svg.append("line").attr("class", "rampup-zone-r");
+                const rampUpEl = rampUpRect.node() as SVGRectElement;
+                const rampUpElL = rampUpRectL.node() as SVGLineElement;
+                const rampUpElR = rampUpRectR.node() as SVGLineElement;
+                rampUpEl.style.pointerEvents = 'all';
+                rampUpElL.style.pointerEvents = 'all';
+                rampUpElR.style.pointerEvents = 'all';
+
+
+                const updateZone = (zone: Zone,
+                    rect: d3.Selection<SVGRectElement, unknown, null, undefined>,
+                    left: d3.Selection<SVGLineElement, unknown, null, undefined>,
+                    right: d3.Selection<SVGLineElement, unknown, null, undefined>) => {
+                    const xRange = plot._fullLayout.xaxis.range;
+                    const xScale = plot._fullLayout.xaxis._length / (xRange[1] - xRange[0]);
+
+                    // Margin or padding on the left can shift the zone in screen coords
+                    const marginLeft = plot._fullLayout._size.l;
+                    // We'll stretch the zone vertically across the entire y-axis area
+                    const marginTop = plot._fullLayout._size.t;
+                    const totalHeight = plot._fullLayout.yaxis._length;
+
+                    // Convert zone.x0 / zone.x1 from data coords to screen coords
+                    const x0px = (zone.x0 - xRange[0]) * xScale + marginLeft;
+                    const widthPx = (zone.x1 - zone.x0) * xScale;
+
+                    // Position the rectangle to cover the full y-axis area top-to-bottom
+                    const y = marginTop - totalHeight;
+                    const rectHeight = 2 * totalHeight; // adjust as needed
+
+                    rect
+                        .attr("x", x0px)
+                        .attr("y", y)
+                        .attr("width", widthPx)
+                        .attr("height", rectHeight)
+                        .attr("fill", "rgb(76, 171, 235)")
+                        .attr("opacity", 0.5)
+                        .style("cursor", "move");
+
+                    left
+                        .attr("x1", x0px)
+                        .attr("x2", x0px)
+                        .attr("y1", y)
+                        .attr("y2", y + rectHeight)
+                        .attr("stroke", "black")
+                        .attr("stroke-width", 3)
+                        .style("cursor", "ew-resize");
+
+                    right
+                        .attr("x1", x0px + widthPx)
+                        .attr("x2", x0px + widthPx)
+                        .attr("y1", y)
+                        .attr("y2", y + rectHeight)
+                        .attr("stroke", "black")
+                        .attr("stroke-width", 3)
+                        .style("cursor", "ew-resize");
+                }
+
+                updateZone(rampUp, rampUpRect, rampUpRectL, rampUpRectR);
+
+                const mouseDownHandlerDragging = (event: MouseEvent) => {
+                    setIsDragging(true);
+                    setOffsetX(event.clientX - parseFloat(rampUpEl.getAttribute('x')!));
+                }
+                const mouseDownHandlerResizingLeft = (event: MouseEvent) => {
+                    setIsResizingLeft(true);
+                    setOffsetX(event.clientX - parseFloat(rampUpElL.getAttribute('x1')!));
+                }
+                const mouseDownHandlerResizingRight = (event: MouseEvent) => {
+                    setIsResizingRight(true);
+                    setOffsetX(event.clientX - parseFloat(rampUpElR.getAttribute('x1')!));
+                }
+                const mouseMoveHandler = (event: MouseEvent) => {
+                    const xScale = plot._fullLayout.xaxis._length / (plot._fullLayout.xaxis.range[1] - plot._fullLayout.xaxis.range[0]);
+                    const mouseX = event.clientX - offsetX;
+
+                    if (isDragging) {
+                        const currentWidth = rampUp.x1 - rampUp.x0;
+                        const newX0 = plot._fullLayout.xaxis.range[0] + (mouseX - plot._fullLayout.margin.l) / xScale;
+                        setRampUp({ x0: newX0, x1: newX0 + currentWidth, type: ZoneType.RampUp });
+                        updateZone({ x0: newX0, x1: newX0 + currentWidth, type: ZoneType.RampUp }, rampUpRect, rampUpRectL, rampUpRectR);
+                    }
+                    if (isResizingLeft) {
+                        const newX0 = plot._fullLayout.xaxis.range[0] + (mouseX - plot._fullLayout.margin.l) / xScale;
+                        setRampUp({ x0: newX0, x1: rampUp.x1, type: ZoneType.RampUp });
+                        updateZone({ x0: newX0, x1: rampUp.x1, type: ZoneType.RampUp }, rampUpRect, rampUpRectL, rampUpRectR);
+                    }
+                    if (isResizingRight) {
+                        const newX1 = plot._fullLayout.xaxis.range[0] + (mouseX - plot._fullLayout.margin.l) / xScale;
+                        setRampUp({ x0: rampUp.x0, x1: newX1, type: ZoneType.RampUp });
+                        updateZone({ x0: rampUp.x0, x1: newX1, type: ZoneType.RampUp }, rampUpRect, rampUpRectL, rampUpRectR);
+                    }
+
+                    document.removeEventListener('mousemove', mouseMoveHandler);
+                }
+                const mouseUpHandler = () => {
+                    setIsDragging(false);
+                    setIsResizingLeft(false);
+                    setIsResizingRight(false);
+                }
+
+                rampUpEl.addEventListener('mousedown', mouseDownHandlerDragging);
+                rampUpElL.addEventListener('mousedown', mouseDownHandlerResizingLeft);
+                rampUpElR.addEventListener('mousedown', mouseDownHandlerResizingRight);
+                document.addEventListener('mousemove', mouseMoveHandler);
+                document.addEventListener('mouseup', mouseUpHandler);
+
+                plotElement.on('plotly_relayout', () => {
+                    updateZone(rampUp, rampUpRect, rampUpRectL, rampUpRectR);
+                });
+            }
+        );
     });
 
     return (
-        <div id="plot"></div>
+        <div>
+            <div id="plot" className="h-100"></div>
+        </div>
     )
 };
 

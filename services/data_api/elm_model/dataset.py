@@ -1,3 +1,4 @@
+from pathlib import Path
 import pandas as pd
 import torch
 import fsspec
@@ -7,14 +8,22 @@ from torch.utils.data import Dataset
 
 
 class TimeSeriesDataset(Dataset):
-    def __init__(self, shots, elms=None, window_size: int = 1024, step_size: int = 512):
+    def __init__(
+        self,
+        shots,
+        elms=None,
+        window_size: int = 1024,
+        step_size: int = 512,
+        data_path: str = "/data/elms",
+    ):
         self.shots = shots
         self.elms = elms
         self.window_size = window_size
         self.step_size = step_size
+        self.data_path = data_path
 
     def read_shot(self, shot: int):
-        store = f"/data/elms/{shot}.parquet"
+        store = Path(self.data_path) / f"{shot}.parquet"
         dalpha = pd.read_parquet(store)
         dalpha = dalpha.fillna(0)
         dalpha = dalpha.loc[dalpha.time > 0]
@@ -29,11 +38,21 @@ class TimeSeriesDataset(Dataset):
         dalpha = self.read_shot(shot)
         dalpha = background_subtract(dalpha)
 
+        dalpha.ip = dalpha.ip / 1e6
+
         windows = generate_windows(
             dalpha.dalpha.values, self.window_size, self.step_size
         )
         windows = torch.tensor(windows, dtype=torch.float)
         windows.unsqueeze_(1)
+
+        ip_windows = generate_windows(
+            dalpha.ip.values, self.window_size, self.step_size
+        )
+        ip_windows = torch.tensor(ip_windows, dtype=torch.float)
+        ip_windows.unsqueeze_(1)
+
+        windows = torch.cat([windows, ip_windows], dim=1)
 
         time_windows = generate_windows(
             dalpha.time.values, self.window_size, self.step_size

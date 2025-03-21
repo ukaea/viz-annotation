@@ -23,7 +23,12 @@ def build_cache_file(shot, file_url, endpoint_url, cache_storage, output_dir):
         dalpha: xr.DataArray = dataset.filter_spectrometer_dalpha_voltage
         dalpha = dalpha.isel(dalpha_channel=2)
 
+        dataset = xr.open_zarr(store, group="summary")
+        ip: xr.DataArray = dataset.ip
+        ip = ip.interp_like(dalpha)
+
         df = dalpha.to_dataframe()
+        df["ip"] = ip.values
         df = df.drop("dalpha_channel", axis=1)
         df = df.rename({"filter_spectrometer_dalpha_voltage": "dalpha"}, axis=1)
         df = df.reset_index()
@@ -44,14 +49,14 @@ def main():
     sources = sources.loc[sources.name == "spectrometer_visible"]
     shots = sources.shot_id.values.tolist()
 
-    output_dir = Path("./data/elms")
+    output_dir = Path("./data/elms1")
     output_dir.mkdir(exist_ok=True, parents=True)
 
     tasks = [
         delayed(build_cache_file)(
             shot, file_url, endpoint_url, cache_storage, output_dir
         )
-        for shot in shots
+        for shot in reversed(shots)
     ]
     pool = Parallel(n_jobs=16, return_as="generator")
     results = pool(tasks)

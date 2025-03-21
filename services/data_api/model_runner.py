@@ -1,7 +1,13 @@
 import os
 import redis
 from celery import Celery
-from annotators import ANNOTATORS, DataAnnotator
+from annotators import DataAnnotator, AnnotatorType
+from elm_model.annotator import UnetELMDataAnnotator, ClassicELMDataAnnotator
+
+ANNOTATORS = {
+    AnnotatorType.CLASSIC: ClassicELMDataAnnotator,
+    AnnotatorType.UNET: UnetELMDataAnnotator,
+}
 
 
 REDIS_HOST = os.environ["REDIS_HOST"]

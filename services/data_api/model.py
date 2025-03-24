@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import Enum
 from typing import Dict, List
 from pydantic import BaseModel
@@ -22,6 +23,7 @@ class ELM(Event):
 
 
 class Shot(BaseModel):
+    created: str = datetime.now().isoformat()
     shot_id: int
     validated: bool = False
     elms: List[ELM]

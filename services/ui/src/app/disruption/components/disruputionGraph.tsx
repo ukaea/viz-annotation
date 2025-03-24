@@ -118,17 +118,12 @@ export const DisruptionGraph = ({ data, shot_id }: GraphProps) => {
                     const xRange = plot._fullLayout.xaxis.range;
                     const xScale = plot._fullLayout.xaxis._length / (xRange[1] - xRange[0]);
 
-                    // Margin or padding on the left can shift the zone in screen coords
-                    const marginLeft = plot._fullLayout._size.l;
-                    // We'll stretch the zone vertically across the entire y-axis area
                     const marginTop = plot._fullLayout._size.t;
                     const totalHeight = plot._fullLayout.yaxis._length;
 
-                    // Convert zone.x0 / zone.x1 from data coords to screen coords
-                    const x0px = (zone.x0 - xRange[0]) * xScale + marginLeft;
+                    const x0px = (zone.x0 - xRange[0]) * xScale;
                     const widthPx = (zone.x1 - zone.x0) * xScale;
 
-                    // Position the rectangle to cover the full y-axis area top-to-bottom
                     const y = marginTop - totalHeight;
                     const rectHeight = 2 * totalHeight; // adjust as needed
 
@@ -180,17 +175,17 @@ export const DisruptionGraph = ({ data, shot_id }: GraphProps) => {
 
                     if (isDragging) {
                         const currentWidth = rampUp.x1 - rampUp.x0;
-                        const newX0 = plot._fullLayout.xaxis.range[0] + (mouseX - plot._fullLayout.margin.l) / xScale;
+                        const newX0 = plot._fullLayout.xaxis.range[0] + mouseX / xScale;
                         setRampUp({ x0: newX0, x1: newX0 + currentWidth, type: ZoneType.RampUp });
                         updateZone({ x0: newX0, x1: newX0 + currentWidth, type: ZoneType.RampUp }, rampUpRect, rampUpRectL, rampUpRectR);
                     }
                     if (isResizingLeft) {
-                        const newX0 = plot._fullLayout.xaxis.range[0] + (mouseX - plot._fullLayout.margin.l) / xScale;
+                        const newX0 = plot._fullLayout.xaxis.range[0] + mouseX / xScale;
                         setRampUp({ x0: newX0, x1: rampUp.x1, type: ZoneType.RampUp });
                         updateZone({ x0: newX0, x1: rampUp.x1, type: ZoneType.RampUp }, rampUpRect, rampUpRectL, rampUpRectR);
                     }
                     if (isResizingRight) {
-                        const newX1 = plot._fullLayout.xaxis.range[0] + (mouseX - plot._fullLayout.margin.l) / xScale;
+                        const newX1 = plot._fullLayout.xaxis.range[0] + mouseX / xScale;
                         setRampUp({ x0: rampUp.x0, x1: newX1, type: ZoneType.RampUp });
                         updateZone({ x0: rampUp.x0, x1: newX1, type: ZoneType.RampUp }, rampUpRect, rampUpRectL, rampUpRectR);
                     }
@@ -219,6 +214,9 @@ export const DisruptionGraph = ({ data, shot_id }: GraphProps) => {
     return (
         <div>
             <div id="plot" className="h-100"></div>
+            <br />
+            <p>Ramp Up: x0 = {rampUp.x0}</p>
+            <p>Ramp Up: x1 = {rampUp.x1}</p>
         </div>
     )
 };

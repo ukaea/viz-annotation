@@ -149,14 +149,14 @@ export const ElmGraph = ({model_elms, elms, data: payload, shot_id} : GraphProps
                     },
                   },
                 yaxis: {
-                title: {
-                    text: 'Dalpha [V]',
-                    font: {
-                    family: 'Courier New, monospace',
-                    size: 12,
-                    color: '#7f7f7f'
-                    }
-                }
+                    title: {
+                        text: 'Dalpha [V]',
+                        font: {
+                        family: 'Courier New, monospace',
+                        size: 12,
+                        color: '#7f7f7f'
+                        }
+                    },
                 }
             };
 
@@ -191,13 +191,13 @@ export const ElmGraph = ({model_elms, elms, data: payload, shot_id} : GraphProps
                 selectedIndices.forEach(index => {
                     colors[index] = 'red'; // Change selected points to red
                 });
+
                 setElmColorData(colors);
             };
 
 
             Plotly.newPlot(plotRef.current, [dataTrace, elmTrace, modelElmTrace], layout, config);
             plotRef.current.on('plotly_selected', lassoSelectPeaks);
-            // plotRef.current.addEventListener("mousedown", handleMouseDown);
 
         }
       }, [xElmData, yElmData, colorElmData, xModelElmData, yModelElmData, shapes]);

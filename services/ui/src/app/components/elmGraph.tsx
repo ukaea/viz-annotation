@@ -30,6 +30,12 @@ enum ZoneType {
     Type3
 }
 
+type ShotMetadata = {
+    timestamp: str,
+    pre_description: str,
+    post_description: str,
+}
+
 type ElmZone = {
     x0: number,
     x1: number,
@@ -39,7 +45,7 @@ type ElmZone = {
 
 const MENU_ID = "zone_context"
 
-export const ElmGraph = ({model_elms, elms, data: payload, shot_id} : GraphProps) => {
+export const ElmGraph = ({metadata, model_elms, elms, data: payload, shot_id} : GraphProps) => {
     const router = useRouter();
 
     // SVG ref needed by D3 to update graph
@@ -202,25 +208,29 @@ export const ElmGraph = ({model_elms, elms, data: payload, shot_id} : GraphProps
 
 
     // Handles the downloading of the zoning data
-    const downloadData = () => {
-        if (spans.current.length === 0) return;
+    const downloadData = async () => {
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/backend-api/annotations/`;
 
-        const csvContent = [
-            "x0, x1, type",
-            ...spans.current.map(zone => `${zone.x0},${zone.x1},${zone.type}`)
-        ].join("\n");
-
-        const blob = new Blob([csvContent], {type: "text/csv"});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a")
-
-        a.href = url
-        a.download = `zone_data_${shot_id}.csv`;
-        document.body.appendChild(a)
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        try {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error('Network response was not ok');
+    
+          const data = await response.json();
+    
+          // Convert JSON to blob and trigger download
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = 'annotations.json';
+          link.click();
+    
+          // Optional: Cleanup
+          URL.revokeObjectURL(link.href);
+        } catch (error) {
+          console.error('Error downloading JSON:', error);
+        }
     }
+
 
     const saveData = async () => {
 
@@ -303,18 +313,8 @@ export const ElmGraph = ({model_elms, elms, data: payload, shot_id} : GraphProps
                 <div class='grid grid-cols-3 space-x-2'>
 
                     <div class="grid grid-cols-1 toolbar">
-                            <span class='text-center font-bold'>Peak Params</span>
-                            <label for="prominence">Prominence:</label>
-                            <input type="range" id="prominence" min="0.001" max="1.0" step="0.1" defaultValue={.5} onMouseUp={handleChangePeakParams}/>
-
-                            <label for="distance">Distance:</label>
-                            <input type="range" id="distance" min="1" max="500" step="10" defaultValue={100} onMouseUp={handleChangePeakParams}/>
-
-                    </div>
-
-                    <div class="grid grid-cols-1 toolbar">
                         <fieldset>
-                            <legend class='text-center font-bold'>ELM Types:</legend>
+                            <legend class='text-center font-bold'>ELM Type:</legend>
 
                             <div class='space-x-2'>
                                 <input type="radio" id="type-none" name="elm-type" value="None" onChange={handleELMTypeChange}/>
@@ -341,6 +341,17 @@ export const ElmGraph = ({model_elms, elms, data: payload, shot_id} : GraphProps
                         </fieldset>
                     </div>
 
+
+                    <div class="grid grid-cols-1 toolbar">
+                            <span class='text-center font-bold'>Peak Params</span>
+                            <label for="prominence">Prominence:</label>
+                            <input type="range" id="prominence" min="0.001" max="1.0" step="0.1" defaultValue={.5} onMouseUp={handleChangePeakParams}/>
+
+                            <label for="distance">Distance:</label>
+                            <input type="range" id="distance" min="1" max="500" step="10" defaultValue={100} onMouseUp={handleChangePeakParams}/>
+
+                    </div>
+
                     <div class='grid grid-cols-1 space-y-2 toolbar'>
                         <button class='btn-primary'
                             onClick={downloadData}
@@ -355,13 +366,20 @@ export const ElmGraph = ({model_elms, elms, data: payload, shot_id} : GraphProps
                         >Next Shot</button>
                     </div>
 
-                </div>
 
+                </div>
 
                 <div>
                     <div ref={plotRef} class="w-full">
                     </div>
                 </div>
+
+                <div class='grid grid-cols-1 text-xs space-y-2 w-[500px]'>
+                    <span class='font-bold text-center'>Post-shot Comment</span>
+                    <span class=''>{metadata.post_description}</span>
+                </div>
+
+
 
             </div>
         </div>

@@ -251,7 +251,7 @@ export const ElmGraph = ({metadata, model_elms, elms, elm_type, data: payload, s
 
         payload = JSON.stringify(payload);
 
-        const url = `${process.env.NEXT_PUBLIC_API_URL}/backend-api/annotations`;
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/backend-api/annotations/${shot_id}`;
         const response = await fetch(url, {
             method: "POST",
             headers: {

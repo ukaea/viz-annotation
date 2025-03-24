@@ -28,9 +28,11 @@ data_pool = DataPool("/data/elms")
 data_reader = ELMDataReader()
 
 
-@app.post("/annotations")
-async def create_item(item: Shot, method: AnnotatorType = AnnotatorType.UNET):
-    print(f"Updating annotations for {item.shot_id}")
+@app.post("/annotations/{shot_id}")
+async def create_item(
+    shot_id: int, item: Shot, method: AnnotatorType = AnnotatorType.UNET
+):
+    print(f"Updating annotations for {shot_id}")
     # Insert or update annotation in database
     new_annotation: bool = await db.upsert(item)
 
@@ -47,29 +49,6 @@ async def create_item(item: Shot, method: AnnotatorType = AnnotatorType.UNET):
     annotations = await db.get_validated_annotations()
     unlabelled_shots = data_pool.unlabelled_shots
     run_model(method, shot_ids, annotations, unlabelled_shots)
-
-
-@app.get("/models/train")
-async def train_model(method: AnnotatorType = AnnotatorType.UNET):
-    labelled_shot_ids = await db.get_validated_shot_ids()
-    annotations = await db.get_validated_annotations()
-    unlabelled_shot_ids = data_pool.unlabelled_shots
-    data_pool.set_validated(labelled_shot_ids)
-    return run_model(method, labelled_shot_ids, annotations, unlabelled_shot_ids)
-
-
-def run_model(method, labelld_shot_ids, annotations, unlabelled_shot_ids):
-    if len(labelld_shot_ids) == 0:
-        return {"status": "No labelled data."}
-    if not data_pool.currently_training:
-        future = run_training.delay(
-            method, labelld_shot_ids, annotations, unlabelled_shot_ids
-        )
-        data_pool.training_future = future
-        return {"status": "Training model"}
-    else:
-        print(data_pool.training_future.state)
-        return {"status": "Model already training"}
 
 
 @app.get("/annotations", response_model=List[Shot])
@@ -104,12 +83,27 @@ async def get_item(
     return annotation
 
 
-@app.delete("/annotations/{shot_id}")
-async def delete_item(shot_id: str):
-    try:
-        return db.delete(shot_id)
-    except RuntimeError:
-        raise HTTPException(status_code=404, detail="Item not found")
+@app.get("/models/train")
+async def train_model(method: AnnotatorType = AnnotatorType.UNET):
+    labelled_shot_ids = await db.get_validated_shot_ids()
+    annotations = await db.get_validated_annotations()
+    unlabelled_shot_ids = data_pool.unlabelled_shots
+    data_pool.set_validated(labelled_shot_ids)
+    return run_model(method, labelled_shot_ids, annotations, unlabelled_shot_ids)
+
+
+def run_model(method, labelld_shot_ids, annotations, unlabelled_shot_ids):
+    if len(labelld_shot_ids) == 0:
+        return {"status": "No labelled data."}
+    if not data_pool.currently_training:
+        future = run_training.delay(
+            method, labelld_shot_ids, annotations, unlabelled_shot_ids
+        )
+        data_pool.training_future = future
+        return {"status": "Training model"}
+    else:
+        print(data_pool.training_future.state)
+        return {"status": "Model already training"}
 
 
 @app.get("/next")

@@ -13,32 +13,8 @@ from model_runner import run_training, run_inference
 
 
 class ELMDataReader:
-    def __init__(self):
-        self.file_url = "s3://mast/level2/shots/{shot_id}.zarr"
-        self.endpoint_url = "https://s3.echo.stfc.ac.uk"
-        self.fs = fsspec.filesystem(
-            **dict(
-                protocol="filecache",
-                target_protocol="s3",
-                cache_storage=".cache",
-                target_options=dict(anon=True, endpoint_url=self.endpoint_url),
-            )
-        )
-
-    def get_remote_store(self, path: str):
-        return self.fs.get_mapper(path)
-
     def get_data(self, shot_id: int):
-        # store = self.get_remote_store(self.file_url.format(shot_id=shot_id))
-
-        # dataset = xr.open_zarr(store, group="spectrometer_visible")
-        # dalpha: xr.DataArray = dataset.filter_spectrometer_dalpha_voltage
-        # dalpha = dalpha.isel(dalpha_channel=2)
-        # dalpha = dalpha.dropna(dim="time")
-
-        # df_alpha = dalpha.to_dataframe().reset_index()
         df_alpha = pd.read_parquet(f"/data/elms/{shot_id}.parquet")
-        print(df_alpha)
         df_alpha.fillna(0, inplace=True)
         df_alpha.rename(columns={"dalpha": "value"}, inplace=True)
         data = df_alpha.to_dict(orient="records")

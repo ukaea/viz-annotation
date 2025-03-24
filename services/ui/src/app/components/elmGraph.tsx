@@ -42,9 +42,6 @@ const MENU_ID = "zone_context"
 export const ElmGraph = ({model_elms, elms, data: payload, shot_id} : GraphProps) => {
     const router = useRouter();
 
-    const ipPlotRef = useRef(null);
-    let isSyncing = false;
-
     // SVG ref needed by D3 to update graph
     const plotRef = useRef(null);
 
@@ -66,7 +63,7 @@ export const ElmGraph = ({model_elms, elms, data: payload, shot_id} : GraphProps
     const [xModelElmData, setModelElmXData] = useState(modelElmX);
     const [yModelElmData, setModelElmYData] = useState(modelElmY);
 
-    const [shapes, setShapes] = useState([]);
+    const [elmType, setElmType] = useState('');
 
     useEffect(() => {
         if (plotRef.current) {
@@ -115,7 +112,6 @@ export const ElmGraph = ({model_elms, elms, data: payload, shot_id} : GraphProps
 
             const layout = {
                 grid: {rows: 2, columns: 1, pattern: 'independent'},
-                shapes: shapes,
                 dragmode: false,  // Disable default drag behavior
                 width: 1500,
                 xaxis: {
@@ -201,7 +197,7 @@ export const ElmGraph = ({model_elms, elms, data: payload, shot_id} : GraphProps
             plotRef.current.on('plotly_selected', lassoSelectPeaks);
 
         }
-      }, [xElmData, yElmData, colorElmData, xModelElmData, yModelElmData, shapes]);
+      }, [xElmData, yElmData, colorElmData, xModelElmData, yModelElmData]);
 
 
 
@@ -233,14 +229,15 @@ export const ElmGraph = ({model_elms, elms, data: payload, shot_id} : GraphProps
             height: yElmData[index],
             valid: colorElmData[index] == 'red' ? false : true
         }));
-        console.log(elmData);
-        
+
         payload = {
             'shot_id': shot_id,
             'validated': true,
             'elms': elmData,
-            'regions': spans.current.map(zone => ({'time_min': zone.x0, 'time_max': zone.x1, 'type': zone.type}))
+            'elm_type': elmType,
+            'regions': [],
         }
+
         payload = JSON.stringify(payload);
 
         const url = `${process.env.NEXT_PUBLIC_API_URL}/backend-api/annotations`;
@@ -282,6 +279,11 @@ export const ElmGraph = ({model_elms, elms, data: payload, shot_id} : GraphProps
         setElmYData(elmY);
     };
 
+    // Handle user selecting a radio button
+    const handleELMTypeChange = (e) => {
+        setElmType(e.target.value);
+    };
+
     // Handle clearing selection of peaks
     function onClearSelection(eventData) {
         const colors = elmColors.fill('green'); 
@@ -293,33 +295,13 @@ export const ElmGraph = ({model_elms, elms, data: payload, shot_id} : GraphProps
             <div class="flex flex-col items-center space-y-3">
 
                 <header className="p-6">
-                    <h1 className="text-4xl font-bold text-center text-gray-900">
-                        ELM Tagging
+                    <h1 className="text-3xl font-bold text-center text-gray-900">
+                        MAST Shot #{shot_id}
                     </h1>
                 </header>
 
-                <div class='toolbar space-x-2'>
-                    <button class='btn-primary'
-                        onClick={downloadData}
-                    >Download Labels</button>
+                <div class='grid grid-cols-3 space-x-2'>
 
-                    <button class="btn-primary"
-                        onClick={saveData}
-                    >Save Labels</button>
-
-                    <button class="btn-primary"
-                        onClick={nextShot}
-                    >Next Shot</button>
-                </div>
-
-
-                <div ref={plotRef} class="w-full">
-                </div>
-                <div ref={ipPlotRef} class="w-full">
-                </div>
-
-
-                <div class='grid grid-cols-2 space-x-2'>
                     <div class="grid grid-cols-1 toolbar">
                             <span class='text-center font-bold'>Peak Params</span>
                             <label for="prominence">Prominence:</label>
@@ -335,46 +317,53 @@ export const ElmGraph = ({model_elms, elms, data: payload, shot_id} : GraphProps
                             <legend class='text-center font-bold'>ELM Types:</legend>
 
                             <div class='space-x-2'>
-                                <input type="radio" id="type-none" name="elm-type" />
+                                <input type="radio" id="type-none" name="elm-type" value="None" onChange={handleELMTypeChange}/>
                                 <label for="type-none">No ELMs</label>
                             </div>
 
                             <div class='space-x-2'>
-                                <input type="radio" id="type-1" name="elm-type" />
+                                <input type="radio" id="type-1" name="elm-type" value="Type I" onChange={handleELMTypeChange}/>
                                 <label for="type-1">Type I</label>
                             </div>
 
                             <div class='space-x-2'>
-                                <input type="radio" id="type-2" name="elm-type" />
+                                <input type="radio" id="type-2" name="elm-type" value="Type II" onChange={handleELMTypeChange}/>
                                 <label for="type-2">Type II</label>
                             </div>
                             <div class='space-x-2'>
-                                <input type="radio" id="type-3" name="elm-type" />
+                                <input type="radio" id="type-3" name="elm-type" value="Type III" onChange={handleELMTypeChange} />
                                 <label for="type-3">Type III</label>
                             </div>
                             <div class='space-x-2'>
-                                <input type="radio" id="type-mixed" name="elm-type"  />
+                                <input type="radio" id="type-mixed" name="elm-type" value="Mixed" onChange={handleELMTypeChange} />
                                 <label for="type-mixed">Mixed</label>
                             </div>
                         </fieldset>
                     </div>
 
+                    <div class='grid grid-cols-1 space-y-2 toolbar'>
+                        <button class='btn-primary'
+                            onClick={downloadData}
+                        >Download Labels</button>
+
+                        <button class="btn-primary"
+                            onClick={saveData}
+                        >Save Labels</button>
+
+                        <button class="btn-primary"
+                            onClick={nextShot}
+                        >Next Shot</button>
+                    </div>
+
+                </div>
+
+
+                <div>
+                    <div ref={plotRef} class="w-full">
+                    </div>
                 </div>
 
             </div>
-
-
-            <Menu id={MENU_ID}>
-                {/* <Item id="delete" onClick={handleDelete}>Delete</Item> */}
-                <Submenu label="Set type">
-                    <Item id="zone1" onClick={({props}: ItemParams) => {
-                        handleTypeSetting(props.zone, ZoneType.Type1)
-                    }}>Zone I</Item>
-                    <Item id="zone3" onClick={({props}: ItemParams) => {
-                        handleTypeSetting(props.zone, ZoneType.Type3)
-                    }}>Zone III</Item>
-                </Submenu>
-            </Menu>
         </div>
     )
 }

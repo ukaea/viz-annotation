@@ -25,4 +25,5 @@ class Shot(BaseModel):
     shot_id: int
     validated: bool = False
     elms: List[ELM]
+    elm_type: str = ""
     regions: List[ELMRegion]

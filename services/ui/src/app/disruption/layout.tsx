@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import ShotInput from "./components/shotInput";
+import ShotInput from "../components/shotInput";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,7 +26,7 @@ export default function RootLayout({
   return (
     <div className="grid grid-cols-[200pt_1fr] gap-5 h-screen w-screen">
       <div className="bg-slate-200 p-5">
-        <ShotInput />
+        <ShotInput endpoint="disruption" />
       </div>
       <div>{children}</div>
     </div>

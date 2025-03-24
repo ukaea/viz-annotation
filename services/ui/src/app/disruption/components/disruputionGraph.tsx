@@ -214,9 +214,51 @@ export const DisruptionGraph = ({ data, shot_id }: GraphProps) => {
     return (
         <div>
             <div id="plot" className="h-100"></div>
-            <br />
-            <p>Ramp Up: x0 = {rampUp.x0}</p>
-            <p>Ramp Up: x1 = {rampUp.x1}</p>
+            <div className="overflow-x-auto bg-white">
+                <table className="min-w-full text-left text-sm whitespace-nowrap">
+
+                    <thead className="uppercase tracking-wider border-b-2">
+                        <tr>
+                            <th scope="col" className="px-6 py-4 w-1/3">
+                                Zone
+                            </th>
+                            <th scope="col" className="px-6 py-4 w-1/3">
+                                t0 [s]
+                            </th>
+                            <th scope="col" className="px-6 py-4 w-1/3">
+                                t1 [s]
+                            </th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <tr className="border-b">
+                            <th scope="row" className="px-6 py-4">
+                                Ramp up
+                            </th>
+                            <td className="px-6 py-4">{rampUp.x0}</td>
+                            <td className="px-6 py-4">{rampUp.x1}</td>
+                        </tr>
+
+                        <tr className="border-b">
+                            <th scope="row" className="px-6 py-4">
+                                Flat top
+                            </th>
+                            <td className="px-6 py-4">{flatTop.x0}</td>
+                            <td className="px-6 py-4">{flatTop.x1}</td>
+                        </tr>
+
+                        <tr className="border-b">
+                            <th scope="row" className="px-6 py-4">
+                                Disruption
+                            </th>
+                            <td className="px-6 py-4">{disruptPoint}</td>
+                            <td className="px-6 py-4">-</td>
+                        </tr>
+
+                    </tbody>
+                </table>
+            </div>
         </div>
     )
 };

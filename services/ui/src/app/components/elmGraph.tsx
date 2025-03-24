@@ -17,6 +17,7 @@ type GraphProps = {
         height: number,
         valid: boolean
     }>,
+    elm_type: string,
     data: Array<{
         time: number,
         value: number,
@@ -45,7 +46,7 @@ type ElmZone = {
 
 const MENU_ID = "zone_context"
 
-export const ElmGraph = ({metadata, model_elms, elms, data: payload, shot_id} : GraphProps) => {
+export const ElmGraph = ({metadata, model_elms, elms, elm_type, data: payload, shot_id} : GraphProps) => {
     const router = useRouter();
 
     // SVG ref needed by D3 to update graph
@@ -69,7 +70,7 @@ export const ElmGraph = ({metadata, model_elms, elms, data: payload, shot_id} : 
     const [xModelElmData, setModelElmXData] = useState(modelElmX);
     const [yModelElmData, setModelElmYData] = useState(modelElmY);
 
-    const [elmType, setElmType] = useState('');
+    const [elmType, setElmType] = useState(elm_type);
 
     useEffect(() => {
         if (plotRef.current) {
@@ -317,25 +318,25 @@ export const ElmGraph = ({metadata, model_elms, elms, data: payload, shot_id} : 
                             <legend class='text-center font-bold'>ELM Type:</legend>
 
                             <div class='space-x-2'>
-                                <input type="radio" id="type-none" name="elm-type" value="None" onChange={handleELMTypeChange}/>
+                                <input type="radio" id="type-none" name="elm-type" value="None"  checked={elmType === 'None'} onChange={handleELMTypeChange}/>
                                 <label for="type-none">No ELMs</label>
                             </div>
 
                             <div class='space-x-2'>
-                                <input type="radio" id="type-1" name="elm-type" value="Type I" onChange={handleELMTypeChange}/>
+                                <input type="radio" id="type-1" name="elm-type" value="Type I" checked={elmType === 'Type I'} onChange={handleELMTypeChange}/>
                                 <label for="type-1">Type I</label>
                             </div>
 
                             <div class='space-x-2'>
-                                <input type="radio" id="type-2" name="elm-type" value="Type II" onChange={handleELMTypeChange}/>
+                                <input type="radio" id="type-2" name="elm-type" value="Type II" checked={elmType === 'Type II'} onChange={handleELMTypeChange}/>
                                 <label for="type-2">Type II</label>
                             </div>
                             <div class='space-x-2'>
-                                <input type="radio" id="type-3" name="elm-type" value="Type III" onChange={handleELMTypeChange} />
+                                <input type="radio" id="type-3" name="elm-type" value="Type III" checked={elmType === 'Type III'} onChange={handleELMTypeChange} />
                                 <label for="type-3">Type III</label>
                             </div>
                             <div class='space-x-2'>
-                                <input type="radio" id="type-mixed" name="elm-type" value="Mixed" onChange={handleELMTypeChange} />
+                                <input type="radio" id="type-mixed" name="elm-type" value="Mixed" checked={elmType === 'Mixed'} onChange={handleELMTypeChange} />
                                 <label for="type-mixed">Mixed</label>
                             </div>
                         </fieldset>

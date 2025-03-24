@@ -267,6 +267,11 @@ class ClassicELMDataAnnotator(DataAnnotator):
         # No training required for classic annotator
         pass
 
+    @torch.no_grad
+    def evaluate(self, shot_ids: list[int], annotations):
+        # No evaluation required for classic annotator
+        pass
+
     def score(self, shot_ids: list[int]):
         # No scoring available for classic annotator
         pass

@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, useCallback } from "react"
 import { Menu, Item, Submenu, useContextMenu, ItemParams } from 'react-contexify'
 import 'react-contexify/ReactContexify.css';
 import Plotly from "plotly.js-dist";
-import * as d3 from "d3"
 
+var firstDraw = true;
 type GraphProps = {
     model_elms: Array<{
         time: number,
@@ -26,33 +26,13 @@ type GraphProps = {
     shot_id: string
 }
 
-enum ZoneType {
-    Type1,
-    Type3
-}
-
-type ShotMetadata = {
-    timestamp: str,
-    pre_description: str,
-    post_description: str,
-}
-
-type ElmZone = {
-    x0: number,
-    x1: number,
-    start: number,
-    type: ZoneType
-}
-
-const MENU_ID = "zone_context"
-
-export const ElmGraph = ({metadata, model_elms, elms, elm_type, data: payload, shot_id} : GraphProps) => {
+export const ElmGraph = ({model_elms, elms, elm_type, data: payload, shot_id} : GraphProps) => {
     const router = useRouter();
+    const plotRef = useRef(() => {
+        Plotly.newPlot(plotRef.current, [dataTrace, elmTrace, modelElmTrace, ipTrace], layout, config);
+        plotRef.current.on('plotly_selected', lassoSelectPeaks);
+    });
 
-    // SVG ref needed by D3 to update graph
-    const plotRef = useRef(null);
-
-    // Setup x and y data
     const x = payload.map(item => item.time);
     const y = payload.map(item => item.value)
 
@@ -63,151 +43,154 @@ export const ElmGraph = ({metadata, model_elms, elms, elm_type, data: payload, s
     const modelElmX = model_elms.map(item => item.time);
     const modelElmY = model_elms.map(item => item.height);
 
-    const [xElmData, setElmXData] = useState(elmX);
-    const [yElmData, setElmYData] = useState(elmY);
-    const [colorElmData, setElmColorData] = useState(elmColors);
+    var [xElmData, setElmXData] = useState(elmX);
+    var [yElmData, setElmYData] = useState(elmY);
+    var [colorElmData, setElmColorData] = useState(elmColors);
+    var [elmType, setElmType] = useState(elm_type);
 
-    const [xModelElmData, setModelElmXData] = useState(modelElmX);
-    const [yModelElmData, setModelElmYData] = useState(modelElmY);
+    var dataTrace = {
+        name: 'Dalpha',
+        x: x,
+        y: y,
+        mode: 'lines',
+    };
 
-    const [elmType, setElmType] = useState(elm_type);
+    var elmTrace = {
+        name: 'ELMs',
+        x: xElmData,
+        y: yElmData,
+        marker: {
+            size: 5,
+            color: colorElmData,
+        },
+        mode: 'markers',
+        type: 'scatter'
+    };
+
+    var modelElmTrace = {
+        name: 'Model ELMs',
+        x: modelElmX,
+        y: modelElmY,
+        marker: {
+            size: 9,
+            symbol: "diamond-open",
+            color: 'purple',
+        },
+        mode: 'markers',
+        type: 'scatter',
+        clickmode: 'select'
+    };
+
+    var ipTrace = {
+        name: 'Ip',
+        x: payload.map(item => item.time),
+        y: payload.map(item => item.ip),
+        xaxis: "x2",
+        yaxis: "y2",
+        mode: 'lines',
+    };
+
+    var layout = {
+        uirevision: 'true',
+        grid: {rows: 2, columns: 1, pattern: 'independent'},
+        dragmode: false,  // Disable default drag behavior
+        width: 1500,
+        xaxis: {
+            title: {
+                text: 'Time [s]',
+                font: {
+                family: 'Courier New, monospace',
+                size: 12,
+                color: '#7f7f7f'
+                }
+            },
+            },
+        yaxis: {
+            title: {
+                text: 'Dalpha [V]',
+                font: {
+                family: 'Courier New, monospace',
+                size: 12,
+                color: '#7f7f7f'
+                }
+            },
+        },
+        xaxis2: {
+            matches:'x',
+            title: {
+                text: 'Time [s]',
+                font: {
+                family: 'Courier New, monospace',
+                size: 12,
+                color: '#7f7f7f'
+                }
+            },
+            },
+        yaxis2: {
+            title: {
+                text: 'Ip [kA]',
+                font: {
+                family: 'Courier New, monospace',
+                size: 12,
+                color: '#7f7f7f'
+                }
+            },
+        },
+    };
+
+    const clearSelectionIcon = {
+        'width': 500,
+        'height': 600,
+        'path': "M290.7 57.4L57.4 290.7c-25 25-25 65.5 0 90.5l80 80c12 12 28.3 18.7 45.3 18.7L288 480l9.4 0L512 480c17.7 0 32-14.3 32-32s-14.3-32-32-32l-124.1 0L518.6 285.3c25-25 25-65.5 0-90.5L381.3 57.4c-25-25-65.5-25-90.5 0zM297.4 416l-9.4 0-105.4 0-80-80L227.3 211.3 364.7 348.7 297.4 416z"
+    };
+
+    const config = {
+        displayModeBar: true,
+        modeBarButtonsToAdd: [
+            {
+            name: 'Clear Peak Selection',
+            icon: clearSelectionIcon,
+            direction: 'up',
+            click: onClearSelection,
+            },
+        ],
+        modeBarButtonsToRemove: []}
+
+
+    // Handle lasso selection of peaks
+    function lassoSelectPeaks(eventData) {
+        if (!eventData) return; // Ignore if no selection
+
+        let points = eventData.points.filter(p => p.curveNumber == 1);
+        let selectedIndices = points.map(p => p.pointIndex);
+        let colors = [...colorElmData]; 
+
+        console.log(selectedIndices);
+
+        selectedIndices.forEach(index => {
+            colors[index] = 'red'; // Change selected points to red
+        });
+
+        setElmColorData(colors);
+    };
+
+    if (plotRef.current) {
+    }
 
     useEffect(() => {
-        if (plotRef.current) {
-            
-            const dataTrace = {
-                name: 'Dalpha',
-                x: x,
-                y: y,
-                mode: 'lines',
-            };
+        if (!plotRef.current) return;
+        layout.uirevision = 'true';
+        Plotly.react(plotRef.current, [dataTrace, elmTrace, modelElmTrace, ipTrace], layout, config);
+        plotRef.current.on('plotly_selected', lassoSelectPeaks);
 
-            const elmTrace = {
-                name: 'ELMs',
-                x: xElmData,
-                y: yElmData,
-                marker: {
-                    size: 5,
-                    color: colorElmData,
-                },
-                mode: 'markers',
-                type: 'scatter'
-            };
+        return () => {
+            if (plotRef.current) {
+              plotRef.current.removeAllListeners(); // Clean up event listeners
+            }
+          };
 
-            const modelElmTrace = {
-                name: 'Model ELMs',
-                x: xModelElmData,
-                y: yModelElmData,
-                marker: {
-                    size: 9,
-                    symbol: "diamond-open",
-                    color: 'purple',
-                },
-                mode: 'markers',
-                type: 'scatter',
-                clickmode: 'select'
-            };
-
-            const ipTrace = {
-                name: 'Ip',
-                x: payload.map(item => item.time),
-                y: payload.map(item => item.ip),
-                xaxis: "x2",
-                yaxis: "y2",
-                mode: 'lines',
-            };
-
-            const layout = {
-                grid: {rows: 2, columns: 1, pattern: 'independent'},
-                dragmode: false,  // Disable default drag behavior
-                width: 1500,
-                xaxis: {
-                    title: {
-                      text: 'Time [s]',
-                      font: {
-                        family: 'Courier New, monospace',
-                        size: 12,
-                        color: '#7f7f7f'
-                      }
-                    },
-                  },
-                yaxis: {
-                    title: {
-                        text: 'Dalpha [V]',
-                        font: {
-                        family: 'Courier New, monospace',
-                        size: 12,
-                        color: '#7f7f7f'
-                        }
-                    },
-                },
-                xaxis2: {
-                    matches:'x',
-                    title: {
-                      text: 'Time [s]',
-                      font: {
-                        family: 'Courier New, monospace',
-                        size: 12,
-                        color: '#7f7f7f'
-                      }
-                    },
-                  },
-                yaxis2: {
-                    title: {
-                        text: 'Ip [kA]',
-                        font: {
-                        family: 'Courier New, monospace',
-                        size: 12,
-                        color: '#7f7f7f'
-                        }
-                    },
-                },
-            };
-
-            const clearSelectionIcon = {
-                'width': 500,
-                'height': 600,
-                'path': "M290.7 57.4L57.4 290.7c-25 25-25 65.5 0 90.5l80 80c12 12 28.3 18.7 45.3 18.7L288 480l9.4 0L512 480c17.7 0 32-14.3 32-32s-14.3-32-32-32l-124.1 0L518.6 285.3c25-25 25-65.5 0-90.5L381.3 57.4c-25-25-65.5-25-90.5 0zM297.4 416l-9.4 0-105.4 0-80-80L227.3 211.3 364.7 348.7 297.4 416z"
-            };
-
-            const config = {
-                displayModeBar: true,
-                modeBarButtonsToAdd: [
-                  {
-                    name: 'Clear Peak Selection',
-                    icon: clearSelectionIcon,
-                    direction: 'up',
-                    click: onClearSelection,
-                  },
-                ],
-                modeBarButtonsToRemove: []}
-
-
-            // Handle lasso selection of peaks
-            function lassoSelectPeaks(eventData) {
-                if (!eventData) return; // Ignore if no selection
-
-                console.log(eventData);
-                let points = eventData.points.filter(p => p.curveNumber == 1);
-                let selectedIndices = points.map(p => p.pointIndex);
-                let colors = [...colorElmData]; 
-
-                selectedIndices.forEach(index => {
-                    colors[index] = 'red'; // Change selected points to red
-                });
-
-                setElmColorData(colors);
-            };
-
-
-            Plotly.newPlot(plotRef.current, [dataTrace, elmTrace, modelElmTrace, ipTrace], layout, config);
-            plotRef.current.on('plotly_selected', lassoSelectPeaks);
-
-        }
-      }, [xElmData, yElmData, colorElmData, xModelElmData, yModelElmData]);
-
-
-
+    }, [xElmData, yElmData, colorElmData]);
+    
     // Handles the downloading of the zoning data
     const downloadData = async () => {
         const url = `${process.env.NEXT_PUBLIC_API_URL}/backend-api/annotations/`;
@@ -374,13 +357,6 @@ export const ElmGraph = ({metadata, model_elms, elms, elm_type, data: payload, s
                     <div ref={plotRef} class="w-full">
                     </div>
                 </div>
-
-                <div class='grid grid-cols-1 text-xs space-y-2 w-[500px]'>
-                    <span class='font-bold text-center'>Post-shot Comment</span>
-                    <span class=''>{metadata.post_description}</span>
-                </div>
-
-
 
             </div>
         </div>

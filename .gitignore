@@ -168,3 +168,4 @@ tmp
 services/ui/.next/*
 services/ui/node_modules/*
 data/elms
+data/elm-events

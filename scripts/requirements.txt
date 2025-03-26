@@ -3,3 +3,6 @@ s3fs
 xarray
 pandas
 joblib
+zarr<3
+netCDF4
+pyarrow

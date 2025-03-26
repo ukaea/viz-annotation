@@ -1,3 +1,4 @@
+from pathlib import Path
 import torch
 import time
 import fsspec
@@ -16,6 +17,7 @@ from annotators import DataAnnotator
 from elm_model.model import UNet1D
 from elm_model.dataset import TimeSeriesDataset
 
+DATA_PATH = Path('/data/elms')
 
 def entropy(probs):
     """Compute the entropy of a probability distribution."""
@@ -44,7 +46,7 @@ def get_device():
 
 
 class UnetELMDataAnnotator(DataAnnotator):
-    def __init__(self, epochs: int = 5, data_path: str = "/data/elms"):
+    def __init__(self, epochs: int = 5, data_path: str = DATA_PATH):
         self.data_path = data_path
         self.network = UNet1D(in_channels=3)
         self.learning_rate = 0.003
@@ -283,7 +285,8 @@ class ClassicELMDataAnnotator(DataAnnotator):
         distance: int = 200,
         height: float = 0.1,
     ):
-        dalpha = pd.read_parquet(f"/data/elms/{shot_id}.parquet")
+        dalpha = pd.read_parquet(DATA_PATH / f"{shot_id}.parquet")
+        dalpha = dalpha.reset_index()
         dalpha = dalpha.dropna()
 
         signal = self.background_subtract(dalpha.copy(), 0.001)

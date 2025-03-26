@@ -25,6 +25,7 @@ class TimeSeriesDataset(Dataset):
     def read_shot(self, shot: int):
         store = Path(self.data_path) / f"{shot}.parquet"
         dalpha = pd.read_parquet(store)
+        dalpha = dalpha.reset_index()
         dalpha = dalpha.fillna(0)
         dalpha = dalpha.loc[dalpha.time > 0]
         return dalpha

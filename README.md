@@ -28,8 +28,8 @@ Build the relevant dataset for the ML model locally
 ```sh
 uv venv --python 3.12.6 
 source .venv/bin/activate
-uv pip install -r requirements.txt
-python -m scripts.build_dataset
+uv pip install -r ./scripts/requirements.txt
+python -m scripts.build_dataset scripts/shots.csv
 ```
 
 ## Run

@@ -1,6 +1,7 @@
-from typing import List
-
 import pandas as pd
+from typing import List
+from pathlib import Path
+from scipy.signal import savgol_filter
 from fastapi import FastAPI
 
 from client import MongoDBClient
@@ -9,15 +10,18 @@ from annotators import AnnotatorType
 from data_pool import DataPool
 from model_runner import run_training, run_inference
 
+DATA_PATH = Path('/data/elms')
 
 class ELMDataReader:
     def get_data(self, shot_id: int):
-        df_alpha = pd.read_parquet(f"/data/elms/{shot_id}.parquet")
+        df_alpha = pd.read_parquet(DATA_PATH / f"{shot_id}.parquet")
         df_alpha.fillna(0, inplace=True)
+        df_alpha = df_alpha.reset_index()
         df_alpha["time"] = pd.to_timedelta(df_alpha.time, "s")
         df_alpha = df_alpha.set_index("time")
         df_alpha = df_alpha.resample("0.1ms").max()
         df_alpha = df_alpha.reset_index()
+        df_alpha.density_gradient = savgol_filter(df_alpha.density_gradient, 100, 2)
         df_alpha.rename(columns={"dalpha": "value"}, inplace=True)
         data = df_alpha.to_dict(orient="records")
         return data
@@ -26,7 +30,7 @@ class ELMDataReader:
 app = FastAPI()
 
 db = MongoDBClient()
-data_pool = DataPool("/data/elms")
+data_pool = DataPool(DATA_PATH)
 data_reader = ELMDataReader()
 
 

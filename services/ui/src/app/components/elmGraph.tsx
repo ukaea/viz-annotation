@@ -22,6 +22,9 @@ type GraphProps = {
         time: number,
         value: number,
         ip: number,
+        power_nbi: number,
+        density_gradient: number
+        t_e_core: number,
     }>,
     shot_id: string
 }
@@ -90,11 +93,41 @@ export const ElmGraph = ({model_elms, elms, elm_type, data: payload, shot_id} : 
         mode: 'lines',
     };
 
+    var powerNBITrace = {
+        name: 'powerNBI',
+        x: payload.map(item => item.time),
+        y: payload.map(item => item.power_nbi),
+        xaxis: "x3",
+        yaxis: "y3",
+        mode: 'lines',
+    };
+
+    var densityGradientTrace = {
+        name: 'densityGradient',
+        x: payload.map(item => item.time),
+        y: payload.map(item => item.density_gradient),
+        xaxis: "x4",
+        yaxis: "y4",
+        mode: 'lines',
+    };
+
+    var t_eCore = {
+        name: 't_eCore',
+        x: payload.map(item => item.time),
+        y: payload.map(item => item.t_e_core),
+        xaxis: "x5",
+        yaxis: "y5",
+        mode: 'lines',
+    };
+
+
+
     var layout = {
         uirevision: 'true',
-        grid: {rows: 2, columns: 1, pattern: 'independent'},
+        grid: {rows: 5, columns: 1, pattern: 'independent'},
         dragmode: false,  // Disable default drag behavior
         width: 1500,
+        height: 800,
         xaxis: {
             title: {
                 text: 'Time [s]',
@@ -125,10 +158,73 @@ export const ElmGraph = ({model_elms, elms, elm_type, data: payload, shot_id} : 
                 color: '#7f7f7f'
                 }
             },
-            },
+        },
         yaxis2: {
             title: {
                 text: 'Ip [kA]',
+                font: {
+                family: 'Courier New, monospace',
+                size: 12,
+                color: '#7f7f7f'
+                }
+            },
+        },
+        xaxis3: {
+            matches:'x',
+            title: {
+                text: 'Time [s]',
+                font: {
+                family: 'Courier New, monospace',
+                size: 12,
+                color: '#7f7f7f'
+                }
+            },
+        },
+        yaxis3: {
+            title: {
+                text: 'NBI Power [W]',
+                font: {
+                family: 'Courier New, monospace',
+                size: 12,
+                color: '#7f7f7f'
+                }
+            },
+        },
+        xaxis4: {
+            matches:'x',
+            title: {
+                text: 'Time [s]',
+                font: {
+                family: 'Courier New, monospace',
+                size: 12,
+                color: '#7f7f7f'
+                }
+            },
+        },
+        yaxis4: {
+            title: {
+                text: 'Density Gradient []',
+                font: {
+                family: 'Courier New, monospace',
+                size: 12,
+                color: '#7f7f7f'
+                }
+            },
+        },
+        xaxis5: {
+            matches:'x',
+            title: {
+                text: 'Time [s]',
+                font: {
+                family: 'Courier New, monospace',
+                size: 12,
+                color: '#7f7f7f'
+                }
+            },
+        },
+        yaxis5: {
+            title: {
+                text: 'T_e Core [eV]',
                 font: {
                 family: 'Courier New, monospace',
                 size: 12,
@@ -180,7 +276,7 @@ export const ElmGraph = ({model_elms, elms, elm_type, data: payload, shot_id} : 
     useEffect(() => {
         if (!plotRef.current) return;
         layout.uirevision = 'true';
-        Plotly.react(plotRef.current, [dataTrace, elmTrace, modelElmTrace, ipTrace], layout, config);
+        Plotly.react(plotRef.current, [dataTrace, elmTrace, modelElmTrace, ipTrace, powerNBITrace, densityGradientTrace, t_eCore], layout, config);
         plotRef.current.on('plotly_selected', lassoSelectPeaks);
 
         return () => {

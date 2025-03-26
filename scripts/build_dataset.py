@@ -1,71 +1,93 @@
+from argparse import ArgumentParser
 from pathlib import Path
-import fsspec
-from joblib import Parallel, delayed
 import pandas as pd
 import xarray as xr
-import time
+import fsspec
+from joblib import Parallel, delayed
 
-
-def build_cache_file(shot, file_url, endpoint_url, cache_storage, output_dir):
+def get_remote_store(path: str, endpoint_url: str):
     fs = fsspec.filesystem(
         **dict(
             protocol="filecache",
             target_protocol="s3",
-            cache_storage=cache_storage,
+            cache_storage=".cache",
             target_options=dict(anon=True, endpoint_url=endpoint_url),
         )
     )
+    return fs.get_mapper(path)
+
+def process_shot(shot_id: int):
+    store = get_remote_store(
+        f"s3://mast/level2/shots/{shot_id}.zarr",
+        endpoint_url="https://s3.echo.stfc.ac.uk",
+    )
+
+    spec = xr.open_zarr(store, group="spectrometer_visible")
+    dalpha = spec.filter_spectrometer_dalpha_voltage
+    dalpha = dalpha.isel(dalpha_channel=2)
+    dalpha = dalpha.dropna(dim="time")
+    dalpha = dalpha.squeeze(drop=True)
+    dalpha = dalpha.drop_vars("dalpha_channel")
+    dalpha.name = "D$\\alpha$"
+
+    density_gradient = spec["density_gradient"]
+    density_gradient = density_gradient.interp_like(dalpha)
+
+    ds = xr.open_zarr(store, group="summary")
+    power_nbi = ds["power_nbi"]
+    power_nbi = power_nbi.interp_like(dalpha)
+
+    ip = ds["ip"]
+    ip = ip.interp_like(dalpha)
+
+    ts = xr.open_zarr(store, group="thomson_scattering")
+    t_e_core = ts["t_e_core"]
+    t_e_core = t_e_core.interp_like(dalpha)
+    n_e_core = ts["n_e_core"]
+    n_e_core = n_e_core.interp_like(dalpha)
+
+    ds = xr.Dataset(
+        dict(
+            ip=ip,
+            power_nbi=power_nbi,
+            density_gradient=density_gradient,
+            t_e_core=t_e_core,
+            n_e_core=n_e_core,
+            dalpha=dalpha,
+        )
+    )
+    file_name = f"data/elms/{shot_id}.nc"
+    ds.to_netcdf(file_name, group="summary", mode="a")
+    ts.to_netcdf(file_name, group="thomson_scattering", mode="a")
+
+    frame = ds.to_dataframe()
+    frame.to_parquet(Path(file_name).with_suffix(".parquet"))
+    return shot_id
+
+
+def safe_process_shot(shot_id: int):
     try:
-        store = fs.get_mapper(file_url.format(shot_id=shot))
-
-        # Dalpha dataset
-        dataset = xr.open_zarr(store, group="spectrometer_visible")
-        dalpha: xr.DataArray = dataset.filter_spectrometer_dalpha_voltage
-        dalpha = dalpha.isel(dalpha_channel=2)
-
-        dataset = xr.open_zarr(store, group="summary")
-        ip: xr.DataArray = dataset.ip
-        ip = ip.interp_like(dalpha)
-
-        df = dalpha.to_dataframe()
-        df["ip"] = ip.values
-        df = df.drop("dalpha_channel", axis=1)
-        df = df.rename({"filter_spectrometer_dalpha_voltage": "dalpha"}, axis=1)
-        df = df.reset_index()
-
-        df.to_parquet(output_dir / f"{shot}.parquet")
+        return process_shot(shot_id)
     except Exception as e:
-        print(e)
-        return None
-    return shot
+        print(f"Skipping {shot_id}", e)
+        return shot_id
 
 
 def main():
-    endpoint_url = "https://s3.echo.stfc.ac.uk"
-    file_url = "s3://mast/level2/shots/{shot_id}.zarr"
-    cache_storage = ".cache"
+    parser = ArgumentParser()
+    parser.add_argument("shot_file", type=str)
+    args = parser.parse_args()
+    df = pd.read_csv(args.shot_file, index_col=0)
+    df = df.sort_index(ascending=False)
+    shots = df.index.values
 
-    sources = pd.read_parquet("https://mastapp.site/parquet/level2/sources")
-    sources = sources.loc[sources.name == "spectrometer_visible"]
-    shots = sources.shot_id.values.tolist()
+    Path('data/elms').mkdir(exist_ok=True, parents=True)
 
-    output_dir = Path("./data/elms1")
-    output_dir.mkdir(exist_ok=True, parents=True)
-
-    tasks = [
-        delayed(build_cache_file)(
-            shot, file_url, endpoint_url, cache_storage, output_dir
-        )
-        for shot in reversed(shots)
-    ]
+    tasks = [delayed(safe_process_shot)(shot) for shot in shots]
     pool = Parallel(n_jobs=16, return_as="generator")
     results = pool(tasks)
-    s = time.time()
     for result in results:
         print(result)
-        pass
-    e = time.time()
-    print("total", e - s)
 
 
 if __name__ == "__main__":

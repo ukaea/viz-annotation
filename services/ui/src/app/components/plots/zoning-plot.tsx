@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import * as Plotly from "plotly.js"
 
 import { useZoneContext } from "../providers/zoning"
+import { ZoneTable } from "../core/zone";
 
 type PlotInfo = {
     data: Plotly.Data[];
@@ -12,6 +13,8 @@ type PlotInfo = {
 
 export const ZoningPlot = (info: PlotInfo) => {
     const zoneCtx = useZoneContext()
+
+    const [shouldUpdate, setShouldUpdate] = useState(true)
 
     useEffect(() => {
         const root = document.getElementById("plot")!;
@@ -24,14 +27,14 @@ export const ZoningPlot = (info: PlotInfo) => {
             plot.on("plotly_relayout", () => {
                 zoneCtx.updateZones(plot)
             })
+            setShouldUpdate(false)
         })
-
-
-    }, [info]);
+    }, [info, zoneCtx]);
 
     return (
-        <div>
-            <div id="plot" className="w-100 h-100" />
+        <div className="w-full px-6 py-3 space-y-3 flex-col">
+            <div id="plot" className="" />
+            {!shouldUpdate && <ZoneTable zones={zoneCtx.zones.current} />}
         </div>
     )
 }

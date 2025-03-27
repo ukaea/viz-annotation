@@ -1,6 +1,6 @@
 "use client"
 
-import { ZoneCategory, ZoneShape } from "@/app/components/core/zone";
+import { ZoneCategory, ZoneShape, ZoneTable } from "@/app/components/core/zone";
 import { ZoningPlot } from "@/app/components/plots/zoning-plot";
 import { ZoneProvider } from "@/app/components/providers/zoning";
 
@@ -22,13 +22,14 @@ export const DisruptionPlot = ({ data, shot_id }: DisruptionInfo) => {
 
     const plotData: Plotly.Data[] = [{
         x: time,
-        y: value
+        y: value,
+        line: {
+            color: "black"
+        },
+        name: "ip"
     }];
 
     const plotLayout: Partial<Plotly.Layout> = {
-        title: {
-            text: `Plasma current (${shot_id})`
-        },
         xaxis: {
             title: {
                 text: 'Time [s]'
@@ -36,9 +37,10 @@ export const DisruptionPlot = ({ data, shot_id }: DisruptionInfo) => {
         },
         yaxis: {
             title: {
-                text: 'ip [A]'
+                text: 'Plasma current, ip [A]'
             },
         },
+        showlegend: true,
         dragmode: 'pan',
     };
 
@@ -56,7 +58,12 @@ export const DisruptionPlot = ({ data, shot_id }: DisruptionInfo) => {
     ]
 
     return (
-        <div className="w-100 h-100">
+        <div className="flex flex-col items-center space-y-3">
+            <header className="p-6">
+                <h1 className="text-4xl font-bold text-center text-gray-900">
+                    Ramp-up / Flat-top / Disruption point Demo
+                </h1>
+            </header>
             <ZoneProvider categories={zoneCategories}>
                 <ZoningPlot data={plotData} layout={plotLayout} config={plotConfig} />
             </ZoneProvider>

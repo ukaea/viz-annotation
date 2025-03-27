@@ -2,10 +2,11 @@ import React, { useContext, createContext, useRef } from "react";
 
 import * as d3 from "d3";
 
-import { Zone, ZoneCategory, ZoneShape } from "../core/zone";
+import { Zone, ZoneCategory, ZoneShape, ZoneTable } from "../core/zone";
 
 interface ZoneContextInfo {
-    zones: Zone[]
+    zones: React.RefObject<Zone[]>
+
     categories: ZoneCategory[]
 
     group: SVGGElement | null
@@ -29,7 +30,6 @@ export const useZoneContext = () => {
 export const ZoneProvider = ({ categories, children }: { categories: ZoneCategory[], children: React.ReactNode }) => {
     const zones = useRef<Zone[]>([])
     const group = useRef<SVGGElement | null>(null)
-    const cat = useRef<ZoneCategory[]>(categories)
     const mouseOffsetX = useRef<number>(0)
 
     const init = (plot: HTMLElement) => {
@@ -44,7 +44,7 @@ export const ZoneProvider = ({ categories, children }: { categories: ZoneCategor
 
             zones.current = []
             var offset = 0.1;
-            for (const category of cat.current) {
+            for (const category of categories) {
                 zones.current.push({
                     category: category,
                     x0: offset,
@@ -239,8 +239,8 @@ export const ZoneProvider = ({ categories, children }: { categories: ZoneCategor
 
     return (
         <ZoneContext.Provider value={{
-            zones: zones.current,
-            categories: cat.current,
+            zones,
+            categories,
             group: group.current,
             init,
             createZones,

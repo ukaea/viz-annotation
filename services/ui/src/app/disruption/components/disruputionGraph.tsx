@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef, use } from 'react';
 import * as Plotly from "plotly.js";
 import * as d3 from 'd3';
-import { off } from 'process';
 
 type GraphProps = {
 
@@ -14,41 +13,118 @@ type GraphProps = {
     shot_id: string
 }
 
-type GraphRange = {
-    xMin: number,
-    xMax: number,
-    yMin: number,
-    yMax: number
-}
-
 enum ZoneType {
-    RampUp,
-    FlatTop
+    Rect,
+    Line
 }
 
 type Zone = {
+    type: ZoneType,
     x0: number,
-    x1: number,
-    type: ZoneType
+    x1?: number,
+    isDragging: boolean,
+    isResizingLeft?: boolean,
+    isResizingRight?: boolean,
+    dragElement: SVGRectElement | SVGLineElement | null,
+    resizeElements?: SVGLineElement[] | null,
 }
+
+const zoneDragHandler = (zone: Zone, clientX: number) => {
+    zone.isDragging = true;
+    const newOffsetX = clientX - parseFloat(zone.dragElement!.getAttribute('x')!);
+    return {
+        zone: zone,
+        offsetX: newOffsetX
+    }
+}
+
+function guidGenerator() {
+    var S4 = function () {
+        return (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
+    };
+    return (S4() + S4() + "-" + S4() + "-" + S4() + "-" + S4() + "-" + S4() + S4() + S4());
+}
+
+interface PlotHTMLElement extends HTMLElement {
+    on(eventName: string, handler: Function): void;
+}
+
+type PlotInfo = {
+    id: string,
+    root: Plotly.Root,
+    data: Plotly.Data[],
+    layout?: Partial<Plotly.Layout>,
+    config?: Partial<Plotly.Config>
+}
+
+const plotWithZones = (info: PlotInfo, zones: Zone[]) => {
+    const plotElement = document.getElementById(info.id)! as PlotHTMLElement;
+
+    Plotly.newPlot(plotElement, info.data, info.layout, info.config).then((plot: any) => {
+        const overplot = plotElement.querySelector('.overplot')! as HTMLElement;
+        const overplot_xy = overplot.querySelector('.xy')! as HTMLElement;
+
+        var d3group: SVGGElement;
+        if (document.getElementsByClassName('d3zone_overplot').length > 0) {
+            d3group = document.getElementsByClassName('d3zone_overplot')[0] as SVGGElement;
+        } else {
+            d3group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            d3group.setAttribute('class', 'd3zone_overplot');
+            d3group.setAttribute('fill', 'none');
+            d3group.setAttribute('stroke', 'red');
+            d3group.setAttribute('stroke-width', '2');
+            overplot_xy.appendChild(d3group);
+        }
+
+        const svg = d3.select(d3group);
+        svg.selectAll("*").remove();
+
+        const setupZone = (zone: Zone) => {
+            const guid = guidGenerator();
+            const zoneRect = svg.append("rect").attr("class", "zone-" + guid);
+            const zoneRectElement = zoneRect.node() as SVGRectElement;
+            zoneRectElement.style.pointerEvents = 'all';
+
+            zone.dragElement = zoneRectElement;
+
+            if (zone.type === ZoneType.Rect) {
+                const zoneLeft = svg.append("line").attr("class", "zone-" + guid + "-l");
+                const zoneLeftElement = zoneLeft.node() as SVGLineElement;
+                zoneLeftElement.style.pointerEvents = 'all';
+
+                const zoneRight = svg.append("line").attr("class", "zone-" + guid + "-r");
+                const zoneRightElement = zoneRight.node() as SVGLineElement;
+                zoneRightElement.style.pointerEvents = 'all';
+
+                zone.resizeElements = [zoneLeftElement, zoneRightElement];
+            }
+
+            return zone;
+        }
+        for (var zone of zones) {
+            zone = setupZone(zone);
+        }
+
+        const updateZone = (zone: Zone) => {
+
+            return zone
+        }
+    });
+}
+
 
 export const DisruptionGraph = ({ data, shot_id }: GraphProps) => {
 
     const time: number[] = data.map(({ time }) => time);
     const value: number[] = data.map(({ value }) => value);
 
-    const [rampUp, setRampUp] = useState<Zone>({ x0: 0, x1: 0.05, type: ZoneType.RampUp });
-    const [flatTop, setFlatTop] = useState<Zone>({ x0: 0.1, x1: 0.15, type: ZoneType.FlatTop });
-    const [disruptPoint, setDisruptPoint] = useState<number>(0.2);
-    const [isDragging, setIsDragging] = useState<boolean>(false);
-    const [isResizingLeft, setIsResizingLeft] = useState<boolean>(false);
-    const [isResizingRight, setIsResizingRight] = useState<boolean>(false);
-    const [offsetX, setOffsetX] = useState<number>(0);
+    const [rampUp, setRampUp] = useState<Zone>({ type: ZoneType.Rect, x0: 0, x1: 0.05, isDragging: false, isResizingLeft: false, isResizingRight: false, dragElement: null, resizeElements: null });
+    const [flatTop, setFlatTop] = useState<Zone>({ type: ZoneType.Rect, x0: 0.1, x1: 0.15, isDragging: false, isResizingLeft: false, isResizingRight: false, dragElement: null, resizeElements: null });
+    const [disruption, setDisruption] = useState<Zone>({ type: ZoneType.Line, x0: 0.2, isDragging: false, dragElement: null });
+
+    const [mouseOffsetX, setMouseOffsetX] = useState<number>(0);
 
     useEffect(() => {
-        interface PlotHTMLElement extends HTMLElement {
-            on(eventName: string, handler: Function): void;
-        }
         const plotElement = document.getElementById('plot')! as PlotHTMLElement;
 
         const plotData: Plotly.Data[] = [{
@@ -171,7 +247,7 @@ export const DisruptionGraph = ({ data, shot_id }: GraphProps) => {
                 }
                 const mouseMoveHandler = (event: MouseEvent) => {
                     const xScale = plot._fullLayout.xaxis._length / (plot._fullLayout.xaxis.range[1] - plot._fullLayout.xaxis.range[0]);
-                    const mouseX = event.clientX - offsetX;
+                    const mouseX = event.clientX - mouseOffsetX;
 
                     if (isDragging) {
                         const currentWidth = rampUp.x1 - rampUp.x0;

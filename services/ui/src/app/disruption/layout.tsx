@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import ShotInput from "../components/shotInput";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,14 +24,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <div className="flex items-center justify-center h-screen">
-          {children}
-        </div>
-      </body>
-    </html>
+    <div className="grid grid-cols-[200pt_1fr] gap-5 h-screen w-screen">
+      <div className="bg-slate-200 p-5">
+        <ShotInput endpoint="disruption" />
+      </div>
+      <div>{children}</div>
+    </div>
   );
 }

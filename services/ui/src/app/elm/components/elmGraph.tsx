@@ -1,6 +1,6 @@
 'use client'
-import {useRouter} from "next/navigation"
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useRouter } from "next/navigation"
+import { useEffect, useRef, useState } from "react"
 import { Menu, Item, Submenu, useContextMenu, ItemParams } from 'react-contexify'
 import 'react-contexify/ReactContexify.css';
 import Plotly from "plotly.js-dist";
@@ -334,21 +334,21 @@ export const ElmGraph = ({model_elms, elms, elm_type, data: payload, shot_id} : 
         const response = await fetch(url, {
             method: "POST",
             headers: {
-            "Content-Type": "application/json",
+                "Content-Type": "application/json",
             },
             body: payload,
         });
     }
 
     const nextShot = async () => {
-      saveData();
-      const next_shot_id = await queryNextShot();
-      router.push(`/${Number(next_shot_id)}`)
+        saveData();
+        const next_shot_id = await queryNextShot();
+        router.push(`/elm/${Number(next_shot_id)}`)
     }
 
     const queryNextShot = async () => {
         const url = `${process.env.NEXT_PUBLIC_API_URL}/backend-api/next`;
-        const response = await fetch(url, {method: "GET"});
+        const response = await fetch(url, { method: "GET" });
         const data = await response.json();
         return data['shot_id'];
     }

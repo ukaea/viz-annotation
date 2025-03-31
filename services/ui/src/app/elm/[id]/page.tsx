@@ -1,7 +1,7 @@
-import {ElmGraph} from "../components/elmGraph";
+import { ElmGraph } from "../components/elmGraph";
 
-export default async function ShotPage({params} : { params: Promise<{id: string}> }) {
-  const {id} = await params
+export default async function ShotPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const data = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/backend-api/data/${id}`)
   const annotations = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/backend-api/annotations/${id}?method=classic`)
   const modelAnnotations = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/backend-api/annotations/${id}?method=unet&force=true`);

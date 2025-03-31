@@ -1,16 +1,20 @@
 'use client'
 
-import {useRouter} from "next/navigation"
-import {FormEvent, useState} from "react"
+import { useRouter } from "next/navigation"
+import { FormEvent, useState } from "react"
 
-export default function ShotInput() {
+type ShotInputProps = {
+  endpoint: string;
+}
+
+export default function ShotInput({ endpoint }: ShotInputProps) {
   const router = useRouter();
   const [shotId, setShotId] = useState("");
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (shotId) {
-      router.push(`/${shotId}`)
+      router.push(`/${endpoint}/${shotId}`)
     }
   };
 
@@ -20,7 +24,7 @@ export default function ShotInput() {
         Enter a shot ID
       </h1>
       <form onSubmit={handleSubmit} className="flex space-x-1">
-        <input 
+        <input
           type="number"
           value={shotId}
           onChange={(e) => setShotId(e.target.value)}

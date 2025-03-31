@@ -24,6 +24,12 @@ Below is a high level overview of the project structure:
 
 ## Setup
 
+Configure git LFS and pull the model
+```sh
+git lfs install
+git lfs pull
+```
+
 Build the relevant dataset for the ML model locally
 ```sh
 uv venv --python 3.12.6 

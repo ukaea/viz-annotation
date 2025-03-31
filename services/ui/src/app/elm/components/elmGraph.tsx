@@ -390,9 +390,9 @@ export const ElmGraph = ({model_elms, elms, elm_type, data: payload, shot_id} : 
                     </h1>
                 </header>
 
-                <div class='grid grid-cols-3 space-x-2'>
+                <div class='flex space-x-2'>
 
-                    <div class="grid grid-cols-1 toolbar">
+                    <div class="flex-col toolbar">
                         <fieldset>
                             <legend class='text-center font-bold'>ELM Type:</legend>
 
@@ -422,28 +422,19 @@ export const ElmGraph = ({model_elms, elms, elm_type, data: payload, shot_id} : 
                     </div>
 
 
-                    <div class="grid grid-cols-1 toolbar">
-                            <span class='text-center font-bold'>Peak Params</span>
-                            <label for="prominence">Prominence:</label>
-                            <input type="range" id="prominence" min="0.001" max="1.0" step="0.1" defaultValue={.5} onMouseUp={handleChangePeakParams}/>
+                    <div class="flex-col toolbar">
+                        <span class='text-center font-bold'>Peak Params</span>
+                        <label for="prominence">Prominence:</label>
+                        <input type="range" id="prominence" min="0.001" max="1.0" step="0.1" defaultValue={.5} onMouseUp={handleChangePeakParams}/>
 
-                            <label for="distance">Distance:</label>
-                            <input type="range" id="distance" min="1" max="500" step="10" defaultValue={100} onMouseUp={handleChangePeakParams}/>
-
+                        <label for="distance">Distance:</label>
+                        <input type="range" id="distance" min="1" max="500" step="10" defaultValue={100} onMouseUp={handleChangePeakParams}/>
                     </div>
 
-                    <div class='grid grid-cols-1 space-y-2 toolbar'>
-                        <button class='btn-primary'
-                            onClick={downloadData}
-                        >Download Labels</button>
-
-                        <button class="btn-primary"
-                            onClick={saveData}
-                        >Save Labels</button>
-
-                        <button class="btn-primary"
-                            onClick={nextShot}
-                        >Next Shot</button>
+                    <div class='flex-col items-center space-y-2 toolbar'>
+                        <button class='btn-primary' onClick={downloadData}>Download Labels</button>
+                        <button class="btn-primary" onClick={saveData}>Save Labels</button>
+                        <button class="btn-primary" onClick={nextShot}>Next Shot</button>
                     </div>
 
 

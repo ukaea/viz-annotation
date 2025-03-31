@@ -1,6 +1,6 @@
 "use client"
 
-import { ZoneCategory, ZoneShape, ZoneTable } from "@/app/components/core/zone";
+import { ZoneCategory, ZoneShape } from "@/app/components/core/zone";
 import { ZoningPlot } from "@/app/components/plots/zoning-plot";
 import { ZoneProvider } from "@/app/components/providers/zoning";
 
@@ -54,7 +54,8 @@ export const DisruptionPlot = ({ data, shot_id }: DisruptionInfo) => {
     const zoneCategories: ZoneCategory[] = [
         { name: "RampUp", shape: ZoneShape.Rect, color: 'rgb(233, 170, 98)' },
         { name: "FlatTop", shape: ZoneShape.Rect, color: 'rgb(120, 167, 85)' },
-        { name: "Disruption", shape: ZoneShape.Line, color: 'rgb(210, 105, 105)' }
+        { name: "Disruption", shape: ZoneShape.Line, color: 'rgb(210, 105, 105)' },
+        { name: "RampDown", shape: ZoneShape.Rect, color: 'rgb(108, 189, 224)' }
     ]
 
     return (

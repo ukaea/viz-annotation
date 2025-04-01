@@ -6,3 +6,4 @@ joblib
 zarr<3
 netCDF4
 pyarrow
+scipy

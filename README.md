@@ -43,15 +43,15 @@ python -m scripts.build_dataset scripts/shots.csv
 Run the application by running the following command:
 
 ```sh
-docker compose up 
+docker compose --env-file .env.dev up 
 ```
 
 This will start the following services:
 
 | Service URL                     | Description                |
 |---------------------------------|----------------------------|
-| `http://localhost:3000/`        | User Interface             |
-| `http://localhost:8081/`        | MongoExpress Admin Panel   |
+| `http://localhost:3001/`        | User Interface             |
+| `http://localhost:8082/`        | MongoExpress Admin Panel   |
 | `http://localhost:8000/`        | Event Database API         |
 | `http://localhost:8001/`        | Model Runner API           |
 | `http://localhost:8002/`        | Data API                   |

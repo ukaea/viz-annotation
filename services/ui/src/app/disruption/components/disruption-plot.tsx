@@ -1,74 +1,186 @@
 "use client"
 
-import { ZoneCategory, ZoneShape } from "@/app/components/core/zone";
-import { ZoningPlot } from "@/app/components/plots/zoning-plot";
-import { ZoneProvider } from "@/app/components/providers/zoning";
+import { useVSpanContext } from "@/app/components/providers/vpsan-provider"
+import { useZoneContext } from "@/app/components/providers/zone-provider"
+import { VSpans } from "@/app/components/tools/vspans"
+import { Zones } from "@/app/components/tools/zones"
+import { Category, TimeSeriesData } from "@/types"
+import { useEffect, useRef, useState } from "react"
+import { Item, Menu, Submenu, useContextMenu } from "react-contexify"
 
-type DisruptionInfo = {
-
-    data: Array<{
-        time: number,
-        value: number
-    }>,
-
-    shot_id: string
+type DisruptionPlotProps = {
+    plotId?: string;
+    data: TimeSeriesData;
+    zoneCategories: Category[];
+    disruptionCategory: Category;
 }
 
+/**
+ * Component that handles the plotly and context menu rendering
+ * 
+ * @param data Disruption time series data
+ * @param plotId Set plot id externally in case multiple plots are used
+ * @param zoneCategories Zone categories to display in context menu
+ * @param disruptionCategory Category relating to disruption
+ */
+export const DisruptionPlot = ({data, plotId: externalId, zoneCategories, disruptionCategory} : DisruptionPlotProps) => {
+    const [updateTools, setUpdateTools] = useState(0)
+    const [plotReady, setPlotReady] = useState(false)
 
-export const DisruptionPlot = ({ data, shot_id }: DisruptionInfo) => {
+    const MENU_ID = "disruption-menu"
 
-    const time: number[] = data.map(({ time }) => time);
-    const value: number[] = data.map(({ value }) => value);
+    const plotId =  externalId || "disruption" // Facilitate an external or default ID
+    const time = useRef(data.map(({ time }) => time));
+    const value = useRef(data.map(({ value }) => value));
 
-    const plotData: Plotly.Data[] = [{
-        x: time,
-        y: value,
-        line: {
-            color: "black"
-        },
-        name: "ip"
-    }];
+    const {addZone} = useZoneContext()
+    const {addVSpan} = useVSpanContext()
 
-    const plotLayout: Partial<Plotly.Layout> = {
-        xaxis: {
-            title: {
-                text: 'Time [s]'
-            },
-        },
-        yaxis: {
-            title: {
-                text: 'Plasma current, ip [A]'
-            },
-        },
-        showlegend: true,
-        dragmode: 'pan',
-    };
+    const addZoneItems = zoneCategories.map((category, index) => {
+        return (
+            <Item key={`add${index}`} id={`add${index}`} onClick={({props}) => {
+                addZone(props.x0, props.x1, category)
+            }}>
+                {category.name}
+            </Item>
+        )
+    })
 
-    const plotConfig: Partial<Plotly.Config> = {
-        displaylogo: false,
-        displayModeBar: true,
-        scrollZoom: true,
-        modeBarButtonsToRemove: ['toImage', 'zoom2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d'],
+    const triggerToolUpdate = () => {
+        setUpdateTools((current) => (current + 1) % 100)
     }
 
-    const zoneCategories: ZoneCategory[] = [
-        { name: "RampUp", shape: ZoneShape.Rect, color: 'rgb(233, 170, 98)' },
-        { name: "FlatTop", shape: ZoneShape.Rect, color: 'rgb(120, 167, 85)' },
-        { name: "Disruption", shape: ZoneShape.Line, color: 'rgb(210, 105, 105)' },
-        { name: "RampDown", shape: ZoneShape.Rect, color: 'rgb(108, 189, 224)' }
-    ]
+    const {show} = useContextMenu({
+        id: `${MENU_ID}`
+    })
+    const showMenu = useRef(show) // Reference to prevent excessive updates
+
+    // Main plotly rendering
+    useEffect(() => {
+        const root = document.getElementById(plotId)
+
+        if (!root) {
+            console.error("Cannot locate disruption element")
+            return
+        }
+
+        const plotData: Plotly.Data[] = [{
+            x: time.current,
+            y: value.current,
+            line: {
+                color: "black"
+            },
+            name: "ip"
+        }];
+    
+        const plotLayout: Partial<Plotly.Layout> = {
+            xaxis: {
+                title: {
+                    text: 'Time [s]'
+                },
+            },
+            yaxis: {
+                title: {
+                    text: 'Plasma current, ip [A]'
+                },
+            },
+            showlegend: true,
+            dragmode: 'pan',
+        };
+    
+        const plotConfig: Partial<Plotly.Config> = {
+            displaylogo: false,
+            displayModeBar: true,
+            scrollZoom: true,
+            modeBarButtonsToRemove: ['toImage', 'zoom2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d'],
+        }
+
+        const initGraph = async () => {
+            const { react } = await import('plotly.js') // Annoyingly there seems to be an issue with plotly so dynamic import is needed
+
+            react(root, plotData, plotLayout, plotConfig).then((plot: Plotly.PlotlyHTMLElement) => {
+                const subplot = plot.querySelector(".overplot")?.querySelector(".xy") as HTMLElement
+                if (!subplot) {
+                    console.error("Cannot locate disruption plotly subplot")
+                    return
+                }
+
+                if (document.getElementsByClassName(`${plotId}-overplot`).length === 0) {
+                    const svg = document.createElementNS("http://www.w3.org/2000/svg", "g")
+                    svg.setAttribute("class", `${plotId}-overplot`)
+                    svg.setAttribute("fill", "none");
+                    subplot.appendChild(svg)
+                }
+
+                setPlotReady(true)
+
+                plot.on("plotly_relayout", () => {
+                    triggerToolUpdate()
+                })
+            })
+        }
+        initGraph()
+        
+    }, [plotId])
+
+    // Handles context menu creation
+    useEffect(() => {
+        if (!plotReady) {
+            // Plot may not have loaded yet - this will rerun after loading
+            return
+        }
+
+        const plot = document.getElementById(plotId)
+
+        if (!plot) {
+            console.error("Could not locate plot to assign context menu")
+            return
+        }
+
+        function handleContextMenu(event, plot) {
+            const xaxis = plot._fullLayout.xaxis;
+            const bb = event.target.getBoundingClientRect();
+            const x0 = xaxis.p2d(event.clientX - bb.left);
+            const x1 = xaxis.p2d(event.clientX - bb.left + 100);
+
+            showMenu.current({
+                event,
+                props: {
+                    x0,
+                    x1
+                }
+            })
+        }
+
+        const dragElement = plot.querySelector(".drag")
+
+        if (!dragElement) {
+            console.error("Could not locate drag element to assign context menu")
+            return
+        }
+
+        dragElement.addEventListener("contextmenu", (event) => {
+            handleContextMenu(event, plot)
+        })
+
+    }, [plotId, plotReady])
 
     return (
-        <div className="flex flex-col items-center space-y-3">
-            <header className="p-6">
-                <h1 className="text-4xl font-bold text-center text-gray-900">
-                    Ramp-up / Flat-top / Disruption point Demo
-                </h1>
-            </header>
-            <ZoneProvider categories={zoneCategories}>
-                <ZoningPlot data={plotData} layout={plotLayout} config={plotConfig} />
-            </ZoneProvider>
+        <div className="w-full px-6 py-3 space-y-3 flex-col">
+            {/* Div where plot is inserted */}
+            <div id={plotId} className="" />
+            <Zones plotId={plotId} plotReady={plotReady} forceUpdate={updateTools} />
+            <VSpans plotId={plotId} plotReady={plotReady} forceUpdate={updateTools} />
+            <Menu id={`${MENU_ID}`}>
+                <Submenu label="Add zone">
+                    {addZoneItems}
+                </Submenu>
+                <Item id="add-disruption" onClick={({props}) => {
+                    addVSpan(props.x0, disruptionCategory)
+                }}>
+                    Add disruption
+                </Item>
+            </Menu>
         </div>
     )
-};
-
+}

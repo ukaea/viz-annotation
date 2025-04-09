@@ -8,8 +8,8 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
     volumes:
       - mongodb_data:/tmp/db
     networks:
@@ -22,11 +22,11 @@ services:
     depends_on:
       - mongo
     environment:
-      ME_CONFIG_BASICAUTH_USERNAME: root
-      ME_CONFIG_BASICAUTH_PASSWORD: example
-      ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_EXPRESS_USERNAME}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_PASSWORD}
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017
     ports:
-      - "8081:8081"
+      - "8082:8081"
     networks:
       - app-network
 
@@ -46,7 +46,7 @@ services:
     container_name: model_worker
     environment:
       REDIS_HOST: "redis"
-      MONGO_URL: "mongodb://root:example@mongo:27017"
+      MONGO_URL: "mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017"
     volumes:
       - ./data:/data
       - ./services/data_api:/app
@@ -75,7 +75,7 @@ services:
       - ./services/data_api:/app
     environment:
       REDIS_HOST: "redis"
-      MONGO_URL: "mongodb://root:example@mongo:27017"
+      MONGO_URL: "mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017"
     working_dir: /app
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
     networks:
@@ -85,7 +85,7 @@ services:
     container_name: ui_app
     build: ./services/ui/
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       NODE_ENV: development
       DATA_API_URL: "http://data_app:8002"

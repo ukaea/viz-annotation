@@ -17,7 +17,7 @@ COPY . .
 # RUN yarn build
 
 # Expose the port Next.js runs on
-EXPOSE 3000
+EXPOSE 3001
 
 # Start the application
 CMD ["yarn", "dev"]

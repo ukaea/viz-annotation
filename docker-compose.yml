@@ -24,7 +24,7 @@ services:
     environment:
       ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_EXPRESS_USERNAME}
       ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_PASSWORD}
-      ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017
     ports:
       - "8082:8081"
     networks:
@@ -46,7 +46,7 @@ services:
     container_name: model_worker
     environment:
       REDIS_HOST: "redis"
-      MONGO_URL: "mongodb://root:example@mongo:27017"
+      MONGO_URL: "mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017"
     volumes:
       - ./data:/data
       - ./services/data_api:/app
@@ -75,7 +75,7 @@ services:
       - ./services/data_api:/app
     environment:
       REDIS_HOST: "redis"
-      MONGO_URL: "mongodb://root:example@mongo:27017"
+      MONGO_URL: "mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017"
     working_dir: /app
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
     networks:
@@ -89,7 +89,7 @@ services:
     environment:
       NODE_ENV: development
       DATA_API_URL: "http://data_app:8002"
-      NEXT_PUBLIC_API_URL: "http://localhost:3001"
+      NEXT_PUBLIC_API_URL: "http://localhost:3000"
     volumes:
       - ./services/ui:/app
       - /app/node_modules

@@ -85,11 +85,12 @@ services:
     container_name: ui_app
     build: ./services/ui/
     ports:
-      - "3001:3000"
+      - "3001:3001"
     environment:
+      PORT: 3001
       NODE_ENV: development
       DATA_API_URL: "http://data_app:8002"
-      NEXT_PUBLIC_API_URL: "http://localhost:3000"
+      NEXT_PUBLIC_API_URL: "http://localhost:3001"
     volumes:
       - ./services/ui:/app
       - /app/node_modules

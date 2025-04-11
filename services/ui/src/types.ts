@@ -3,6 +3,12 @@ export type TimeSeriesData = Array<{
   value: number;
 }>;
 
+export type SpectrogramData = Array<{
+  time: number;
+  frequency: number;
+  amplitude: number;
+}>;
+
 export type Category = {
   name: string;
   color: string;

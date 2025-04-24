@@ -75,14 +75,19 @@ export const ZoneProvider = ({categories, initialData, children} : {
     }
 
     // Initialisation of data - this should only run once
+    // Effect: run ONCE per mount to populate from initialData
+    // – overwrites instead of pushing; cleans on unmount
     useEffect(() => {
-        if (!initialData) return
-
-        for (const zone of initialData) {
-            zones.current.push(zone)
-        }
-        triggerZoneUpdate()
-    }, [initialData])
+        if (!initialData) return;
+    
+        zones.current = [...initialData]; 
+        triggerZoneUpdate();
+    
+        /* remove stale copy when Strict-Mode unmounts the first render */
+        return () => {
+          zones.current = [];
+        };
+      }, [initialData]);
 
     // Provides an array of the categories for the context menu
     const updateTypeItems = categories.map((category, index) => {

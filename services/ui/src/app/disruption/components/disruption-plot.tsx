@@ -128,9 +128,8 @@ export const DisruptionPlot = ({data, plotId: externalId, zoneCategories, disrup
         
         return () => { // cleanup on unmount / Fast-Refresh
             plotElement?.removeAllListeners?.("plotly_relayout"); // detach relayout listener
-            (window as any).Plotly?.purge?.(root);                // fully purge plotly figure
-            root?.querySelector(`.${plotId}-overplot`)?.remove() // remove custom overlay group
-            setPlotReady(false) // reset ready state
+            root?.querySelector(`.${plotId}-overplot`)?.remove(); // remove custom overlay group
+            setPlotReady(false); // reset ready state
         } 
     }, [plotId])
 

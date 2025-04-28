@@ -91,8 +91,7 @@ export const DisruptionPlot = ({data, plotId: externalId, zoneCategories, disrup
         const plotConfig: Partial<Plotly.Config> = {
             displaylogo: false,
             displayModeBar: true,
-            scrollZoom: true,
-            modeBarButtonsToRemove: ['toImage', 'zoom2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d'],
+            scrollZoom: false,
         }
 
         let plotElement: Plotly.PlotlyHTMLElement | null = null // holds the created plot for later cleanup

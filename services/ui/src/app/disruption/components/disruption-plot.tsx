@@ -95,17 +95,21 @@ export const DisruptionPlot = ({data, plotId: externalId, zoneCategories, disrup
             modeBarButtonsToRemove: ['toImage', 'zoom2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d'],
         }
 
+        let plotElement: Plotly.PlotlyHTMLElement | null = null // holds the created plot for later cleanup
+
         const initGraph = async () => {
             const { react } = await import('plotly.js') // Annoyingly there seems to be an issue with plotly so dynamic import is needed
 
             react(root, plotData, plotLayout, plotConfig).then((plot: Plotly.PlotlyHTMLElement) => {
+                plotElement = plot // save reference to remove listeners later
+
                 const subplot = plot.querySelector(".overplot")?.querySelector(".xy") as HTMLElement
                 if (!subplot) {
                     console.error("Cannot locate disruption plotly subplot")
                     return
                 }
 
-                if (document.getElementsByClassName(`${plotId}-overplot`).length === 0) {
+                if (!subplot.querySelector(`.${plotId}-overplot`)) { // ensure only one custom overlay group is present
                     const svg = document.createElementNS("http://www.w3.org/2000/svg", "g")
                     svg.setAttribute("class", `${plotId}-overplot`)
                     svg.setAttribute("fill", "none");
@@ -114,13 +118,19 @@ export const DisruptionPlot = ({data, plotId: externalId, zoneCategories, disrup
 
                 setPlotReady(true)
 
-                plot.on("plotly_relayout", () => {
+                const relayoutHandler = () => { // triggers re-render of overlay tools when axes change
                     triggerToolUpdate()
-                })
+                } 
+                plot.on("plotly_relayout", relayoutHandler) // attach listener so it can be removed
             })
         }
         initGraph()
         
+        return () => { // cleanup on unmount / Fast-Refresh
+            plotElement?.removeAllListeners?.("plotly_relayout"); // detach relayout listener
+            root?.querySelector(`.${plotId}-overplot`)?.remove(); // remove custom overlay group
+            setPlotReady(false); // reset ready state
+        } 
     }, [plotId])
 
     // Handles context menu creation
@@ -159,9 +169,15 @@ export const DisruptionPlot = ({data, plotId: externalId, zoneCategories, disrup
             return
         }
 
-        dragElement.addEventListener("contextmenu", (event) => {
+        const contextHandler = (event) => { //  wrap handler so we can remove it
             handleContextMenu(event, plot)
-        })
+        } 
+
+        dragElement.addEventListener("contextmenu", contextHandler) // add context-menu listener
+
+        return () => { // remove listener on effect cleanup
+            dragElement.removeEventListener("contextmenu", contextHandler) 
+        }
 
     }, [plotId, plotReady])
 

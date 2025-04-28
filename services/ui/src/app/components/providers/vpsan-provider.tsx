@@ -72,13 +72,16 @@ export const VSpanProvider = ({categories, initialData, children} : {
 
     // Initialisation of data - this should only run once
     useEffect(() => {
-        if (!initialData) return
-
-        for (const span of initialData) {
-            spans.current.push(span)
-        }
-        triggerVSpanUpdate()
-    }, [initialData])
+        if (!initialData) return;
+    
+        spans.current = [...initialData]; 
+        triggerVSpanUpdate();
+    
+        /* cleanup runs when the first (discarded) mount unmounts */
+        return () => {
+          spans.current = [];
+        };
+      }, [initialData]);
 
     // Provides an array of the categories for the context menu
     const updateTypeItems = categories.map((category, index) => {

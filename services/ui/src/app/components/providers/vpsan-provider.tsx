@@ -3,6 +3,7 @@
 import { Category, VSpan } from "@/types"
 import React, { createContext, useContext, useEffect, useRef, useState } from "react"
 import { Item, ItemParams, Menu, Submenu } from "react-contexify"
+import { useContextMenuProvider } from "./context-menu-provider";
 
 interface VSpanContextInfo {
     vspans: VSpan[];
@@ -37,6 +38,8 @@ export const VSpanProvider = ({categories, initialData, children} : {
     const spans = useRef<VSpan[]>([])
     const [triggerUpdate, setTriggerUpdate] = useState(0) // Value should be changed to trigger refresh
 
+    const {registerMenuItem} = useContextMenuProvider()
+
     // It is necessary for the context to trigger child refreshes
     const triggerVSpanUpdate = () => {
         setTriggerUpdate((current) => (current+1)%10)
@@ -69,6 +72,33 @@ export const VSpanProvider = ({categories, initialData, children} : {
         })
         triggerVSpanUpdate()
     }
+
+    // On initialisation the tool registers a menu item with the general context menu
+    useEffect(() => {
+        const add = (x: number, category: Category) => {
+            spans.current.push({
+                category,
+                x
+            })
+            triggerVSpanUpdate()
+        }
+
+        const addVSpanItems = categories.map((category, index) => {
+            return (
+                <Item key={`add${index}`} id={`add${index}`} onClick={({props}) => {
+                    add(props.x0, category)
+                }}>
+                    {category.name}
+                </Item>
+            )
+        })
+
+        registerMenuItem("vspan", (
+            <Submenu key="vspan-submenu" label="Add VSpan">
+                {addVSpanItems}
+            </Submenu>
+        ))
+    }, [categories, registerMenuItem])
 
     // Initialisation of data - this should only run once
     useEffect(() => {

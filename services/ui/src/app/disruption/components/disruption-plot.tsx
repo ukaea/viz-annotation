@@ -1,12 +1,10 @@
 "use client"
 
-import { useVSpanContext } from "@/app/components/providers/vpsan-provider"
-import { useZoneContext } from "@/app/components/providers/zone-provider"
+import { useContextMenuProvider } from "@/app/components/providers/context-menu-provider"
 import { VSpans } from "@/app/components/tools/vspans"
 import { Zones } from "@/app/components/tools/zones"
 import { Category, TimeSeriesData } from "@/types"
 import { useEffect, useRef, useState } from "react"
-import { Item, Menu, Submenu, useContextMenu } from "react-contexify"
 
 type DisruptionPlotProps = {
     plotId?: string;
@@ -23,37 +21,20 @@ type DisruptionPlotProps = {
  * @param zoneCategories Zone categories to display in context menu
  * @param disruptionCategory Category relating to disruption
  */
-export const DisruptionPlot = ({data, plotId: externalId, zoneCategories, disruptionCategory} : DisruptionPlotProps) => {
+export const DisruptionPlot = ({data, plotId: externalId} : DisruptionPlotProps) => {
     const [updateTools, setUpdateTools] = useState(0)
     const [plotReady, setPlotReady] = useState(false)
-
-    const MENU_ID = "disruption-menu"
 
     const plotId =  externalId || "disruption" // Facilitate an external or default ID
     const time = useRef(data.map(({ time }) => time));
     const value = useRef(data.map(({ value }) => value));
 
-    const {addZone} = useZoneContext()
-    const {addVSpan} = useVSpanContext()
-
-    const addZoneItems = zoneCategories.map((category, index) => {
-        return (
-            <Item key={`add${index}`} id={`add${index}`} onClick={({props}) => {
-                addZone(props.x0, props.x1, category)
-            }}>
-                {category.name}
-            </Item>
-        )
-    })
+    const {show: showContextMenu} = useContextMenuProvider()
+    const showContextMenuRef = useRef(showContextMenu)
 
     const triggerToolUpdate = () => {
         setUpdateTools((current) => (current + 1) % 100)
     }
-
-    const {show} = useContextMenu({
-        id: `${MENU_ID}`
-    })
-    const showMenu = useRef(show) // Reference to prevent excessive updates
 
     // Main plotly rendering
     useEffect(() => {
@@ -152,7 +133,7 @@ export const DisruptionPlot = ({data, plotId: externalId, zoneCategories, disrup
             const x0 = xaxis.p2d(event.clientX - bb.left);
             const x1 = xaxis.p2d(event.clientX - bb.left + 100);
 
-            showMenu.current({
+            showContextMenuRef.current({
                 event,
                 props: {
                     x0,
@@ -186,16 +167,6 @@ export const DisruptionPlot = ({data, plotId: externalId, zoneCategories, disrup
             <div id={plotId} className="" />
             <Zones plotId={plotId} plotReady={plotReady} forceUpdate={updateTools} />
             <VSpans plotId={plotId} plotReady={plotReady} forceUpdate={updateTools} />
-            <Menu id={`${MENU_ID}`}>
-                <Submenu label="Add zone">
-                    {addZoneItems}
-                </Submenu>
-                <Item id="add-disruption" onClick={({props}) => {
-                    addVSpan(props.x0, disruptionCategory)
-                }}>
-                    Add disruption
-                </Item>
-            </Menu>
         </div>
     )
 }

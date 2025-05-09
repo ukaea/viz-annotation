@@ -48,15 +48,4 @@ class DataPool:
         self.validated_shots = shot_ids
 
     def query(self) -> int:
-        if self.training_future is not None and self.training_future.ready():
-            self.scores = self.training_future.get(timeout=10)
-
-        if len(self.scores) > 0:
-            print("Getting sample from scores")
-            scores = pd.DataFrame(self.scores)
-            shot_id = scores.max().shot_id
-            idx = scores.idxmax().values[0]
-            self.scores.pop(idx)
-            return shot_id
-        else:
-            return int(np.random.choice(self.shots))
+        return int(np.random.choice(self.unlabelled_shots))

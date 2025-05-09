@@ -17,7 +17,8 @@ from annotators import DataAnnotator
 from elm_model.model import UNet1D
 from elm_model.dataset import TimeSeriesDataset
 
-DATA_PATH = Path('/data/elms')
+DATA_PATH = Path("/data/elms")
+
 
 def entropy(probs):
     """Compute the entropy of a probability distribution."""

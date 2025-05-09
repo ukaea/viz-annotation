@@ -26,7 +26,7 @@ services:
       ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_PASSWORD}
       ME_CONFIG_MONGODB_URL: mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017
     ports:
-      - "8082:8081"
+      - "8081:8081"
     networks:
       - app-network
 

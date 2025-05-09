@@ -7,11 +7,6 @@ import Plotly from "plotly.js-dist";
 
 var firstDraw = true;
 type GraphProps = {
-    model_elms: Array<{
-        time: number,
-        height: number,
-        valid: boolean
-    }>,
     elms: Array<{
         time: number,
         height: number,
@@ -29,10 +24,10 @@ type GraphProps = {
     shot_id: string
 }
 
-export const ElmGraph = ({model_elms, elms, elm_type, data: payload, shot_id} : GraphProps) => {
+export const ElmGraph = ({elms, elm_type, data: payload, shot_id} : GraphProps) => {
     const router = useRouter();
     const plotRef = useRef(() => {
-        Plotly.newPlot(plotRef.current, [dataTrace, elmTrace, modelElmTrace, ipTrace], layout, config);
+        Plotly.newPlot(plotRef.current, [dataTrace, elmTrace, ipTrace], layout, config);
         plotRef.current.on('plotly_selected', lassoSelectPeaks);
     });
 
@@ -42,9 +37,6 @@ export const ElmGraph = ({model_elms, elms, elm_type, data: payload, shot_id} : 
     const elmX = elms.map(item => item.time);
     const elmY = elms.map(item => item.height);
     const elmColors = elms.map(item => item.valid ? 'green' : 'red'); 
-
-    const modelElmX = model_elms.map(item => item.time);
-    const modelElmY = model_elms.map(item => item.height);
 
     var [xElmData, setElmXData] = useState(elmX);
     var [yElmData, setElmYData] = useState(elmY);
@@ -67,21 +59,12 @@ export const ElmGraph = ({model_elms, elms, elm_type, data: payload, shot_id} : 
             color: colorElmData,
         },
         mode: 'markers',
-        type: 'scatter'
-    };
-
-    var modelElmTrace = {
-        name: 'Model ELMs',
-        x: modelElmX,
-        y: modelElmY,
-        marker: {
-            size: 9,
-            symbol: "diamond-open",
-            color: 'purple',
-        },
-        mode: 'markers',
         type: 'scatter',
-        clickmode: 'select'
+        unselected: {
+            marker: {
+                opacity: 1
+            }
+        }
     };
 
     var ipTrace = {
@@ -94,7 +77,7 @@ export const ElmGraph = ({model_elms, elms, elm_type, data: payload, shot_id} : 
     };
 
     var powerNBITrace = {
-        name: 'powerNBI',
+        name: 'NBI Power',
         x: payload.map(item => item.time),
         y: payload.map(item => item.power_nbi),
         xaxis: "x3",
@@ -103,7 +86,7 @@ export const ElmGraph = ({model_elms, elms, elm_type, data: payload, shot_id} : 
     };
 
     var densityGradientTrace = {
-        name: 'densityGradient',
+        name: 'Density Gradient',
         x: payload.map(item => item.time),
         y: payload.map(item => item.density_gradient),
         xaxis: "x4",
@@ -112,7 +95,7 @@ export const ElmGraph = ({model_elms, elms, elm_type, data: payload, shot_id} : 
     };
 
     var t_eCore = {
-        name: 't_eCore',
+        name: 'Te Core',
         x: payload.map(item => item.time),
         y: payload.map(item => item.t_e_core),
         xaxis: "x5",
@@ -261,8 +244,6 @@ export const ElmGraph = ({model_elms, elms, elm_type, data: payload, shot_id} : 
         let selectedIndices = points.map(p => p.pointIndex);
         let colors = [...colorElmData]; 
 
-        console.log(selectedIndices);
-
         selectedIndices.forEach(index => {
             colors[index] = 'red'; // Change selected points to red
         });
@@ -270,13 +251,10 @@ export const ElmGraph = ({model_elms, elms, elm_type, data: payload, shot_id} : 
         setElmColorData(colors);
     };
 
-    if (plotRef.current) {
-    }
-
     useEffect(() => {
         if (!plotRef.current) return;
         layout.uirevision = 'true';
-        Plotly.react(plotRef.current, [dataTrace, elmTrace, modelElmTrace, ipTrace, powerNBITrace, densityGradientTrace, t_eCore], layout, config);
+        Plotly.react(plotRef.current, [dataTrace, elmTrace, ipTrace, powerNBITrace, densityGradientTrace, t_eCore], layout, config);
         plotRef.current.on('plotly_selected', lassoSelectPeaks);
 
         return () => {
@@ -380,12 +358,32 @@ export const ElmGraph = ({model_elms, elms, elm_type, data: payload, shot_id} : 
         setElmColorData(colors);
     };
 
+    const handleClearPeaks = async (e) => {
+        if (e.target.checked) {
+            setElmXData([]);
+            setElmYData([]);
+
+        } else {
+            const prominence = parseFloat(document.getElementById('prominence').value);
+            const distance = parseFloat(document.getElementById('distance').value);
+
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/backend-api/annotations/${shot_id}?method=classic&prominence=${prominence}&distance=${distance}&force=${true}`)
+            const annotationData = await response.json();
+
+            const elmX = annotationData.elms.map(item => item.time);
+            const elmY = annotationData.elms.map(item => item.height);
+
+            setElmXData(elmX);
+            setElmYData(elmY);
+        }
+    };
+
     return (
         <div style={{ display: "flex" }}>
             <div class="flex flex-col items-center space-y-3">
 
                 <header className="p-6">
-                    <h1 className="text-3xl font-bold text-center text-gray-900">
+                    <h1 className="text-3xl font-bold text-gray-900">
                         MAST Shot #{shot_id}
                     </h1>
                 </header>
@@ -429,6 +427,11 @@ export const ElmGraph = ({model_elms, elms, elm_type, data: payload, shot_id} : 
 
                         <label for="distance">Distance:</label>
                         <input type="range" id="distance" min="1" max="500" step="10" defaultValue={100} onMouseUp={handleChangePeakParams}/>
+
+                        <div class='flex-row space-x-2'> 
+                            <label for="clear">Clear Peaks:</label>
+                            <input type="checkbox" id='clear' onChange={handleClearPeaks}></input>
+                        </div>
                     </div>
 
                     <div class='flex-col items-center space-y-2 toolbar'>

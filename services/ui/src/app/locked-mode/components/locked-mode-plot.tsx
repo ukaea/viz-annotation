@@ -3,7 +3,7 @@
 import { Category, SpectrogramData } from "@/types"
 import { useEffect, useRef, useState } from "react"
 import { VSpans } from "@/app/components/tools/vspans"
-import { useVSpanContext } from "@/app/components/providers/vpsan-provider"
+import { Zones } from "@/app/components/tools/zones"
 
 type LockedModePlotProps = {
     plotId?: string;
@@ -299,8 +299,6 @@ export const LockedModePlot = ({ data, plotId: externalId, lockedModeCategory }:
     const freq = useRef(data.map(({ frequency }) => frequency));
     const ampl = useRef(data.map(({ amplitude }) => amplitude));
 
-    const { addVSpan } = useVSpanContext()
-
     const triggerToolUpdate = () => {
         setUpdateTools((current) => (current + 1) % 100)
     }
@@ -322,6 +320,10 @@ export const LockedModePlot = ({ data, plotId: externalId, lockedModeCategory }:
         const logvals = linspace(vMin, vMax, 10)
         const logvalsMapped = logvals.map((x) => (9 / (Math.max(...logvals) - Math.min(...logvals))) * (x - Math.min(...logvals)) + 1.0)
         const tickvals = logvalsMapped.map((x) => Math.log10(x))
+        console.log(logvals)
+        console.log(logvalsMapped)
+        console.log(tickvals)
+        console.log(logvals.map((x) => x.toExponential(1)))
 
         const zdata = () => {
             let zdata: number[] = []
@@ -361,6 +363,8 @@ export const LockedModePlot = ({ data, plotId: externalId, lockedModeCategory }:
                 },
             },
             coloraxis: {
+                cmin: 0,
+                cmax: 1,
                 colorscale: [
                     [0, civids(0)],
                     [0.1, civids(0.1)],
@@ -446,6 +450,7 @@ export const LockedModePlot = ({ data, plotId: externalId, lockedModeCategory }:
         <div className="w-full px-6 py-3 space-y-3 flex-col">
             {/* Div where plot is inserted */}
             <div id={plotId} className="" />
+            <Zones plotId={plotId} plotReady={plotReady} forceUpdate={updateTools} />
             <VSpans plotId={plotId} plotReady={plotReady} forceUpdate={updateTools} />
         </div>
     )

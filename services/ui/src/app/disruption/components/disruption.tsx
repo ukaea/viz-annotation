@@ -3,6 +3,7 @@ import { DisruptionPlot } from "./disruption-plot"
 import { ZoneProvider } from "@/app/components/providers/zone-provider"
 import { VSpanProvider } from "@/app/components/providers/vpsan-provider"
 import { DisruptionTable } from "./disruption-table"
+import { ContextMenuProvider } from "@/app/components/providers/context-menu-provider"
 
 type DisruptionInfo = {
 
@@ -45,12 +46,14 @@ export const Disruption = ({ data }: DisruptionInfo) => {
                     Ramp-up / Flat-top / Disruption point Demo
                 </h1>
             </header>
-            <VSpanProvider categories={disruptionCategories} initialData={initialDisruption}>
-                <ZoneProvider categories={zoneCategories} initialData={initialZones}>
-                    <DisruptionPlot data={data} zoneCategories={zoneCategories} disruptionCategory={disruptionCategories[0]}/>
-                    <DisruptionTable />
-                </ZoneProvider>
-            </VSpanProvider>
+            <ContextMenuProvider menuId="disruption-menu">
+                <VSpanProvider categories={disruptionCategories} initialData={initialDisruption}>
+                    <ZoneProvider categories={zoneCategories} initialData={initialZones}>
+                        <DisruptionPlot data={data} zoneCategories={zoneCategories} disruptionCategory={disruptionCategories[0]}/>
+                        <DisruptionTable />
+                    </ZoneProvider>
+                </VSpanProvider>
+            </ContextMenuProvider>
         </div>
     )
 }

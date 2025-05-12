@@ -4,6 +4,7 @@ import { Zone, Category } from "@/types";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Item, ItemParams, Menu, Submenu } from "react-contexify";
 import 'react-contexify/ReactContexify.css'
+import { useContextMenuProvider } from "./context-menu-provider";
 
 interface ZoneContextInfo {
     zones: Zone[];
@@ -38,6 +39,8 @@ export const ZoneProvider = ({categories, initialData, children} : {
     const zones = useRef<Zone[]>([])
     const [triggerUpdate, setTriggerUpdate] = useState(0) // Value should be changed to trigger refresh
 
+    const {registerMenuItem} = useContextMenuProvider()
+    
     // It is necessary for the context to trigger child refreshes
     const triggerZoneUpdate = () => {
         setTriggerUpdate((current) => (current+1)%10)
@@ -74,15 +77,50 @@ export const ZoneProvider = ({categories, initialData, children} : {
         triggerZoneUpdate()
     }
 
-    // Initialisation of data - this should only run once
+    // On initialisation the tool registers a menu item with the general context menu
     useEffect(() => {
-        if (!initialData) return
-
-        for (const zone of initialData) {
-            zones.current.push(zone)
+        const add = (x0: number, x1: number, category: Category) => {
+            zones.current.push(
+                {
+                    category,
+                    x0,
+                    x1
+                }
+            )
+            triggerZoneUpdate()
         }
-        triggerZoneUpdate()
-    }, [initialData])
+    
+            const addZoneItems = categories.map((category, index) => {
+                return (
+                    <Item key={`add${index}`} id={`add${index}`} onClick={({props}) => {
+                        add(props.x0, props.x1, category)
+                    }}>
+                        {category.name}
+                    </Item>
+                )
+            })
+    
+            registerMenuItem("zone", (
+                <Submenu key="zone-submenu" label="Add zone">
+                    {addZoneItems}
+                </Submenu>
+            ))
+        }, [categories, registerMenuItem])
+
+    // Initialisation of data - this should only run once
+    // Effect: run ONCE per mount to populate from initialData
+    // – overwrites instead of pushing; cleans on unmount
+    useEffect(() => {
+        if (!initialData) return;
+    
+        zones.current = [...initialData]; 
+        triggerZoneUpdate();
+    
+        /* remove stale copy when Strict-Mode unmounts the first render */
+        return () => {
+          zones.current = [];
+        };
+      }, [initialData]);
 
     // Provides an array of the categories for the context menu
     const updateTypeItems = categories.map((category, index) => {

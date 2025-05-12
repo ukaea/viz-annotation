@@ -22,6 +22,14 @@ export default function Home() {
               Disruption analysis
             </a>
           </li>
+          <li>
+            <a
+              href="/locked-mode"
+              className="inline-block px-4 py-2 bg-white/60 text-gray-800 font-semibold rounded hover:bg-white/80"
+            >
+              Locked mode analysis
+            </a>
+          </li>
         </ul>
       </div>
     </div>

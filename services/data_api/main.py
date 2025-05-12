@@ -1,9 +1,10 @@
 import fsspec
 import xarray as xr
 import pandas as pd
+import numpy as np
 from typing import List
 from pathlib import Path
-from scipy.signal import savgol_filter
+from scipy.signal import savgol_filter, stft
 from fastapi import FastAPI
 
 from client import MongoDBClient
@@ -13,6 +14,19 @@ from data_pool import DataPool
 from model_runner import run_training, run_inference
 
 DATA_PATH = Path('/data/elms')
+
+def get_saddle_coil_channel_fft(data, nperseg=128):
+    ds = data
+    # Compute the Short-Time Fourier Transform (STFT)
+    sample_rate = 1 / (ds.time[1] - ds.time[0])
+    f, t, Zxx = stft(ds, fs=int(sample_rate), nperseg=nperseg, noverlap=nperseg // 5)
+
+    t = t + ds.time.values[0]
+    x = xr.DataArray(np.abs(Zxx), coords=dict(frequency=f, time=t))
+    phi = xr.DataArray(np.angle(Zxx, deg=True), coords=dict(frequency=f, time=t))
+    dataset = xr.Dataset(dict(amplitude=x, phase=phi))
+
+    return dataset
 
 class S3DataReader:
     def __init__(self):
@@ -55,6 +69,35 @@ class S3DataReader:
         df_ip.rename(columns={"ip": "value"}, inplace=True)
         data = df_ip.to_dict(orient="records")
         return data
+
+    def get_locked_mode_data(self, shot_id: int, transform: bool = True):
+        store = self.get_remote_store(self.file_url.format(shot_id=shot_id))
+
+        magnetics = xr.open_zarr(store, group="magnetics")
+        saddle_coils = magnetics["b_field_tor_probe_saddle_voltage"]
+        saddle_coils = saddle_coils.rename(
+            dict(time_saddle="time", b_field_tor_probe_saddle_voltage_channel="channel")
+        )
+
+        amps = []
+        for i in range(len(saddle_coils.channel)):
+            saddle_coil = saddle_coils.isel(channel=i)
+            spec = get_saddle_coil_channel_fft(saddle_coil, nperseg=256)
+            amps.append(spec.amplitude)
+
+        coil_fft = sum([coil_fft for coil_fft in amps])
+        coil_fft = coil_fft.sel(frequency=coil_fft.frequency > 2000)
+        coil_fft = coil_fft.sel(
+            time=slice(coil_fft.time.min() + 0.02, coil_fft.time.max() - 0.02)
+        )
+        if transform:
+            coil_fft = xr.ufuncs.log10(coil_fft)
+            coil_fft = (coil_fft - coil_fft.min()) / (coil_fft.max() - coil_fft.min())
+
+        df = coil_fft.to_dataframe().reset_index()
+        return df.to_dict(orient="records")
+
+
         
 
 
@@ -164,5 +207,19 @@ async def get_data(shot_id: int):
 async def get_disruption_data(shot_id: int):
     return {
         "ip": data_reader.get_disruption_data(shot_id),
+        "shot_id": shot_id,
+    }
+
+@app.get("/data/locked-mode/{shot_id}")
+async def get_locked_mode_data(shot_id: int):
+    return {
+        "saddle_coil_fft": data_reader.get_locked_mode_data(shot_id),
+        "shot_id": shot_id,
+    }
+
+@app.get("/data/locked-mode-raw/{shot_id}")
+async def get_locked_mode_data(shot_id: int):
+    return {
+        "saddle_coil_fft": data_reader.get_locked_mode_data(shot_id, False),
         "shot_id": shot_id,
     }

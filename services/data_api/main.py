@@ -70,7 +70,7 @@ class S3DataReader:
         data = df_ip.to_dict(orient="records")
         return data
 
-    def get_locked_mode_data(self, shot_id: int):
+    def get_locked_mode_data(self, shot_id: int, transform: bool = True):
         store = self.get_remote_store(self.file_url.format(shot_id=shot_id))
 
         magnetics = xr.open_zarr(store, group="magnetics")
@@ -90,8 +90,9 @@ class S3DataReader:
         coil_fft = coil_fft.sel(
             time=slice(coil_fft.time.min() + 0.02, coil_fft.time.max() - 0.02)
         )
-        coil_fft = xr.ufuncs.log10(coil_fft)
-        coil_fft = (coil_fft - coil_fft.min()) / (coil_fft.max() - coil_fft.min())
+        if transform:
+            coil_fft = xr.ufuncs.log10(coil_fft)
+            coil_fft = (coil_fft - coil_fft.min()) / (coil_fft.max() - coil_fft.min())
 
         df = coil_fft.to_dataframe().reset_index()
         return df.to_dict(orient="records")
@@ -213,5 +214,12 @@ async def get_disruption_data(shot_id: int):
 async def get_locked_mode_data(shot_id: int):
     return {
         "saddle_coil_fft": data_reader.get_locked_mode_data(shot_id),
+        "shot_id": shot_id,
+    }
+
+@app.get("/data/locked-mode-raw/{shot_id}")
+async def get_locked_mode_data(shot_id: int):
+    return {
+        "saddle_coil_fft": data_reader.get_locked_mode_data(shot_id, False),
         "shot_id": shot_id,
     }

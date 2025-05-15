@@ -1,9 +1,6 @@
-from datetime import datetime
-from typing import Tuple, List
+from typing import List
 from pydantic import BaseModel
 from enum import Enum
-
-from services.api.schemas.events import Event
 
 class DataTypes(Enum):
     TIME_SERIES = "time_series"

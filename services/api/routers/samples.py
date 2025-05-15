@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from typing import Tuple
 from services.api.schemas.samples import Sample
 
@@ -22,10 +22,4 @@ async def remove_samples(project_id: str, samples: Tuple[int, int]):
     # Remove samples from the range specified from the project
     # Dont envisage this actually deleting the data stored about these samples
     # But do we need a separate method for that?
-    pass
-
-@router.get("/{sample_id}/data")
-async def get_data(project_id: str, sample_id: int, params: Sample):
-    # Not sure whether we gain anything by having params as a BaseModel
-    # But params should contain different things depending on project (ie task) being labelled
     pass

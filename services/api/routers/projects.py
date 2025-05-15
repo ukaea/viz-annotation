@@ -15,4 +15,20 @@ async def create_project(project: Project):
     # In the future, should be able to specify eg dataloader, data type, query strategy etc
     pass
 
+@router.get("/{project_id}")
+async def get_project(project_id: str):
+    # Return information about a specific project
+    # Have put project_id as a string for now, but might want to use ShortUUID?
+    pass
     
+@router.put("/{project_id}")
+async def update_project(project_id: str, project: Project):
+    # Update a project with new information
+    # Eg, change the name, change the machine its targeting, etc
+    # Are there any things we dont want the user to be able to change once a project is created?
+    pass
+    
+@router.delete("/{project_id}")
+async def delete_project(project_id: str):
+    # Delete this specific project
+    pass

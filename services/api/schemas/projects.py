@@ -14,4 +14,3 @@ class Project(BaseModel):
     samples: Tuple[int, int]
     task: Task = None
     events: List[Event] = None
-    

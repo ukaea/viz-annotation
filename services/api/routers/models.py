@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request
 from services.api.schemas.models import Model
-
+from services.api.schemas.filters import Filters
 router = APIRouter(prefix="/projects/{project_id}/models")
 
 @router.get("")
@@ -48,3 +48,28 @@ async def train_model(project_id: str, model_id: str):
 async def stop_model_training(project_id: str, model_id: str):
     # Stop training of this model
     pass
+
+@router.post("/{model_id}/predict")
+async def predict(project_id: str, model_id: str, filters: Filters):
+    # Create predictions using the given model for this project
+    # Predict on samples as specified by filters
+    # Stores results in the database with validated=False
+    pass
+    
+@router.get("/{model_id}/predict")
+async def get_predictions(project_id: str, model_id: str, filters: Filters):
+    # Get predictions made using the given model for this project
+    # Predict on samples as specified by filters
+    pass
+
+@router.delete("/{model_id}/predict")
+async def delete_predictions(project_id: str, model_id: str, filters: Filters):
+    # Delete predictions using the given model for this project
+    # Predict on samples as specified by filters
+    pass
+
+@router.get("/{model_id}/evaluate")
+async def evaluate(project_id: str, model_id: str, filters: Filters):
+    # Get evaluation of model by comparing model predictions to human evaluations
+    # Specify samples to use via filters
+    # Return overall statistics, as well as correct/incorrect for each sample ID

@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+// Synchronizes semi-transparent rectangular “zones” across all subplots of a Plotly figure.
+// Rebuilds the full set of shapes on provider updates and mirrors drag/resize events back to the ZoneProvider.
 'use client'
 
 import { useEffect, useRef } from 'react'

@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+// Synchronizes vertical span markers across all subplots of a Plotly figure.
+// Rebuilds the full set of line shapes on provider updates and mirrors drag events back to the VSpanProvider.
 'use client'
 
 import { useEffect, useRef } from 'react'

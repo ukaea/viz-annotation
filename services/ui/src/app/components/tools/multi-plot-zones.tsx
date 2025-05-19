@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* services/ui/src/app/components/tools/multi-plot-zones.tsx */
 'use client'
 
 import { useEffect, useRef } from 'react'

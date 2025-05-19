@@ -169,3 +169,4 @@ services/ui/.next/*
 services/ui/node_modules/*
 data/elms
 data/elm-events
+services/ui/src/app/subplot-demo/page.tsx

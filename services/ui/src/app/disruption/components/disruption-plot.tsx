@@ -127,38 +127,50 @@ export const DisruptionPlot = ({data, plotId: externalId} : DisruptionPlotProps)
             return
         }
 
-        function handleContextMenu(event, plot) {
-            const xaxis = plot._fullLayout.xaxis;
-            const bb = event.target.getBoundingClientRect();
-            const x0 = xaxis.p2d(event.clientX - bb.left);
-            const x1 = xaxis.p2d(event.clientX - bb.left + 100);
+        /**
+         * Builds the props packet for the Context-Menu.
+         * We now include BOTH:
+         *   – the new generic fields  { x, y, xScale, yScale }
+         *   – the legacy helpers      { x0, x1 }  (100-px wide slice)
+         * so that pre-existing menu items that still expect x0/x1 keep working.
+         */
+        function handleContextMenu(event: MouseEvent, plot) {
+            const xaxis = plot._fullLayout.xaxis
+            const yaxis = plot._fullLayout.yaxis
+
+            const bb    = (event.target as HTMLElement).getBoundingClientRect()
+            const relX  = event.clientX - bb.left
+            const relY  = event.clientY - bb.top
+
+            const x      = xaxis.p2d(relX)
+            const y      = yaxis.p2d(relY)
+            const xScale = Math.abs(xaxis.d2p(1) - xaxis.d2p(0))   // px / unit
+            const yScale = Math.abs(yaxis.d2p(1) - yaxis.d2p(0))
+
+            /* legacy helpers – 100-pixel-wide default zone */
+            const unitWidth = 100 / xScale
+            const x0 = x
+            const x1 = x + unitWidth
 
             showContextMenuRef.current({
                 event,
-                props: {
-                    x0,
-                    x1
-                }
+                props: { x, y, xScale, yScale, x0, x1 }            // merged packet
             })
         }
 
-        const dragElement = plot.querySelector(".drag")
 
+        const dragElement = plot.querySelector(".drag")
         if (!dragElement) {
             console.error("Could not locate drag element to assign context menu")
             return
         }
 
-        const contextHandler = (event) => { //  wrap handler so we can remove it
-            handleContextMenu(event, plot)
-        } 
+        const contextHandler = (event: MouseEvent) => handleContextMenu(event, plot)
+        dragElement.addEventListener("contextmenu", contextHandler)
 
-        dragElement.addEventListener("contextmenu", contextHandler) // add context-menu listener
-
-        return () => { // remove listener on effect cleanup
-            dragElement.removeEventListener("contextmenu", contextHandler) 
+        return () => {
+            dragElement.removeEventListener("contextmenu", contextHandler)
         }
-
     }, [plotId, plotReady])
 
     return (

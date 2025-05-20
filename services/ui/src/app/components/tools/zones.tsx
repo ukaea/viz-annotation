@@ -7,6 +7,7 @@ import { Zone } from "@/types";
 
 type ZoneProps = {
     plotId: string;
+    subplotId?: string;
     plotReady: boolean;
     forceUpdate: number;
 }
@@ -17,7 +18,12 @@ type ZoneProps = {
  * @param plotId Used to identify the plot that the tooling should be rendered on
  * @param plotReady Signal from main plot that tooling can be drawn
  */
-export const Zones = ({plotId, plotReady, forceUpdate} : ZoneProps) => {
+export const Zones = ({
+    plotId, 
+    subplotId = "xy", 
+    plotReady, 
+    forceUpdate
+} : ZoneProps) => {
     const dragOffset = useRef(0)
 
     // Hook to trigger the context provider to render context menu
@@ -37,7 +43,7 @@ export const Zones = ({plotId, plotReady, forceUpdate} : ZoneProps) => {
 
         // Grab the handle set up in the main plot for D3 rendering
         const plot = document.getElementById(plotId)
-        const overplot = document.getElementsByClassName(`${plotId}-overplot`)[0]
+        const overplot = document.getElementsByClassName(`${plotId}-overplot-${subplotId}`)[0]
 
         // Rendering should not be attempted if the required handles are not found
         if (!plot) {

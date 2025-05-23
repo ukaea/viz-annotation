@@ -77,10 +77,9 @@ export const Zones = ({
             }
             // Use the axis information to calculate the upper and lower limits of the zone
             const axis = plot._fullLayout[`yaxis${yAxisID}`]
-            const limits = axis.range
-            const range = limits[1]-limits[0]
-            const upperLimit = axis.d2p(limits[1] + 2*range)
-            const lowerLimit =  axis.d2p(limits[0] - 2*range)
+            const range = axis._tmax - axis._tmin
+            const upperLimit = axis.d2p(axis._tmax + 2*range)
+            const lowerLimit =  axis.d2p(axis._tmin - 2*range)
             const height = lowerLimit - upperLimit
 
             const xaxis = plot._fullLayout.xaxis;

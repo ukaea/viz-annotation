@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request
-from typing import Tuple
 from services.api.schemas.samples import Sample
 
 router = APIRouter(prefix="/projects/{project_id}/samples/{sample_id}/data")
@@ -12,12 +11,14 @@ async def get_data(project_id: str, sample_id: int, params: Sample = None):
     # But params should contain different things depending on project (ie task) being labelled
     pass
 
+
 @router.put("")
 async def add_data(project_id: str, sample_id: int, request: Request):
     # Add some data for this sample for a given project
     # Eg, could upload a CSV of time trace data for a certain pulse via the web UI
     # Have set the request as just a Request body, because I dont (yet) know what format that needs to be
     pass
+
 
 @router.delete("")
 async def delete_data(project_id: str, sample_id: int, params: Sample = None):

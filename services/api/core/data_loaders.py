@@ -2,6 +2,7 @@ import pandas as pd
 import pyuda
 from abc import ABC, abstractmethod
 
+from services.api.schemas.data import MultiVariateTimeSeriesData
 from services.api.schemas.samples import FileData, Sample, ShotData
 
 
@@ -24,12 +25,13 @@ class ParquetDataLoader(DataLoader):
     def __len__(self) -> int:
         return len(self.data_items)
 
-    def __getitem__(self, index) -> list[dict[str, list]]:
+    def __getitem__(self, index) -> MultiVariateTimeSeriesData:
         item: FileData = self.data_items[index]
         df = pd.read_parquet(item.file_name)
         df = df[item.column_names]
         data = df.to_dict("records")
-        return data
+        time = df.index.values
+        return MultiVariateTimeSeriesData(time=time, values=data)
 
 
 class UDADataLoader(DataLoader):
@@ -49,5 +51,6 @@ class UDADataLoader(DataLoader):
         for name in item.signal_names:
             signal = self.client.get(item.shot_id, name)
             results[name] = signal.data
+            time = signal.time.data
 
-        return results
+        return MultiVariateTimeSeriesData(time=time, values=results)

@@ -89,9 +89,9 @@ export const DisruptionPlot = ({data, plotId: externalId} : DisruptionPlotProps)
                     return
                 }
 
-                if (!subplot.querySelector(`.${plotId}-overplot`)) { // ensure only one custom overlay group is present
+                if (!subplot.querySelector(`.${plotId}-overplot-xy`)) { // ensure only one custom overlay group is present
                     const svg = document.createElementNS("http://www.w3.org/2000/svg", "g")
-                    svg.setAttribute("class", `${plotId}-overplot`)
+                    svg.setAttribute("class", `${plotId}-overplot-xy`) // xy is currently hardcoded as only one subplot
                     svg.setAttribute("fill", "none");
                     subplot.appendChild(svg)
                 }

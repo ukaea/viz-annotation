@@ -1,8 +1,8 @@
-from typing import Tuple, List
+from typing import List
 from pydantic import BaseModel
 from enum import Enum
 
-from services.api.schemas.events import Event
+from services.api.schemas.samples import Sample
 
 
 class Task(Enum):
@@ -12,6 +12,5 @@ class Task(Enum):
 
 class Project(BaseModel):
     name: str
-    samples: Tuple[int, int]
-    task: Task = None
-    events: List[Event] = None
+    samples: List[Sample]
+    task: Task

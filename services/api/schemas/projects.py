@@ -10,7 +10,19 @@ class Task(Enum):
     UFO = "UFO"
 
 
+class QueryStrategyType(str, Enum):
+    RANDOM = "random"
+    SEQUENTIAL = "sequential"
+
+
+class DataLoaderType(str, Enum):
+    PARQUET = "parquet"
+    UDA = "uda"
+
+
 class Project(BaseModel):
     name: str
     samples: List[Sample]
     task: Task
+    query_strategy: QueryStrategyType
+    data_loader: DataLoaderType

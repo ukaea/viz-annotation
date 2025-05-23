@@ -14,6 +14,11 @@ class QueryStrategy(ABC):
 
 
 class RandomQueryStrategy(QueryStrategy):
+    """Random query strategy
+
+    Randomly chooses a sample as the next one to show to the user
+    """
+
     def __init__(self, samples: list[Sample]):
         super().__init__(samples)
         self.indices = np.arange(len(self.samples))
@@ -27,6 +32,11 @@ class RandomQueryStrategy(QueryStrategy):
 
 
 class SequentialQueryStrategy(QueryStrategy):
+    """Sequential query strategy
+
+    Chooses the next sample from the ordered list of samples
+    """
+
     def __init__(self, samples: list[Sample]):
         super().__init__(samples)
         self.index = 0

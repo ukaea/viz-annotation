@@ -344,6 +344,29 @@ export type TimeSeriesAnnotation = {
   selected: boolean;
 };
 
+// ---------------------------------------------------------------------------
+// Auth / User types
+// ---------------------------------------------------------------------------
+
+export const CurrentUserSchema = z.object({
+  _id: z.string(),
+  username: z.string(),
+  email: z.string().default(""),
+  global_role: z.enum(["admin", "user"]),
+  is_active: z.boolean(),
+});
+export type CurrentUser = z.infer<typeof CurrentUserSchema>;
+
+export const ProjectMemberSchema = z.object({
+  _id: z.string(),
+  project_id: z.string(),
+  user_id: z.string(),
+  username: z.string(),
+  role: z.enum(["admin", "annotator", "viewer"]),
+  show_others_annotations: z.boolean(),
+});
+export type ProjectMember = z.infer<typeof ProjectMemberSchema>;
+
 export type ToolingCallbacks = {
   start: (x: number, y: number, label: string) => void;
   move: (x: number, y: number) => void;

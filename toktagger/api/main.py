@@ -8,15 +8,18 @@ import warnings
 import tempfile
 from toktagger.api.routers.annotations import router as annotations_router
 from toktagger.api.routers.annotators import router as annotators_router
+from toktagger.api.routers.auth import router as auth_router
 from toktagger.api.routers.data import router as data_router
 from toktagger.api.routers.models import router as models_router
 from toktagger.api.routers.projects import router as projects_router
 from toktagger.api.routers.samples import router as samples_router
+from toktagger.api.routers.users import router as users_router
 from toktagger.api.routers.base import router as base_router
 from toktagger.api.routers.paths import router as paths_router
 from toktagger.api.routers.meta import router as meta_router
 from toktagger.api.core.data_loaders import LoaderRegistry
 from toktagger.api.crud.db import MongoDBClient
+from toktagger.api.auth.first_run import ensure_admin_user
 from toktagger.api.models import models_dependencies_installed
 import toktagger.api.config as config
 
@@ -40,6 +43,10 @@ async def lifespan(app: FastAPI):
         str(config.settings.server.cache_dir),
     )
     app.state.project = None
+
+    # Bootstrap admin user on first run; set auth_required flag
+    app.state.auth_required = await ensure_admin_user(app.state.db_client)
+
     yield
 
     await app.state.db_client.client.close()
@@ -115,7 +122,6 @@ class Server:
                 name="WorkerLoaderRegistry", lifetime="detached"
             ).remote(LoaderRegistry._registry)
 
-        # Create a task registry
         self.app.state.task_registry = ActorRegistry(
             max_actors=max_actors,
             max_gpu_actors=max_gpu_actors,
@@ -135,20 +141,18 @@ class Server:
 
         self.app = FastAPI(lifespan=lifespan)
 
-        # Allow requests from the frontend dev server
         origins = [
             "http://localhost:5173",
         ]
 
         self.app.add_middleware(
             CORSMiddleware,
-            allow_origins=origins,  # or ["*"] to allow all
+            allow_origins=origins,
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
         )
 
-        # Static front end files
         self.app.state.index_file = self.frontend_path / "index.html"
         self.app.state.testing_mode = self.testing_mode
         self.app.mount(
@@ -157,6 +161,8 @@ class Server:
             name="assets",
         )
 
+        self.app.include_router(auth_router)
+        self.app.include_router(users_router)
         self.app.include_router(annotations_router)
         self.app.include_router(data_router)
         self.app.include_router(models_router)
@@ -197,7 +203,6 @@ class Server:
             config.settings.server.port = port
 
         self._setup_app()
-        # Setup ray if required
         if models_dependencies_installed():
             self._setup_ray()
         uvicorn.run(

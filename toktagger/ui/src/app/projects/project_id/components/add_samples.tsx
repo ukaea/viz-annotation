@@ -27,7 +27,7 @@ import {
 } from "@/types";
 import AddCircle from "@spectrum-icons/workflow/AddCircle";
 import { useState, useEffect } from "react";
-import { BACKEND_API_URL } from "@/app/core";
+import { BACKEND_API_URL, apiFetch } from "@/app/core";
 import NumericalRange, {
   NumericalRangeType,
 } from "@/app/components/ui/numerical_range";
@@ -69,7 +69,7 @@ export const AddSamplesEditor = ({
   useEffect(() => {
     async function fetchDataSchema() {
       try {
-        const response = await fetch(
+        const response = await apiFetch(
           `${BACKEND_API_URL}/meta/dataloader/${dataLoader}`,
         );
         if (response.ok) {
@@ -171,7 +171,7 @@ export const AddSamplesEditor = ({
       if (useDirectories) {
         apiUrl = `${BACKEND_API_URL}/paths/directories?dir_path=${dirPath}&file_type=${fileType}`;
       }
-      const response = await fetch(apiUrl);
+      const response = await apiFetch(apiUrl);
 
       if (response.ok) {
         const result = await response.json();
@@ -290,7 +290,7 @@ export const AddSamplesEditor = ({
       });
 
       // POST to API
-      const response = await fetch(
+      const response = await apiFetch(
         `${BACKEND_API_URL}/projects/${project._id}/samples`,
         {
           method: "POST",

@@ -1,11 +1,13 @@
 from typing import Literal
-from fastapi import APIRouter, Request, Path, Query
+from fastapi import APIRouter, Depends, Request, Path, Query
+from toktagger.api.auth.dependencies import get_current_user, require_project_annotator
 from toktagger.api.crud import utils
 from toktagger.api.schemas.samples import SampleUpdate
 from toktagger.api.schemas.annotations import (
     AnnotationBatchTypes,
     AnnotationOutTypes,
 )
+from toktagger.api.schemas.users import UserOut
 
 router = APIRouter(
     prefix="/projects/{project_id}",
@@ -26,36 +28,17 @@ async def get_all_annotations(
     project_id: str = Path(
         description="The ID of the project to retrieve annotations for"
     ),
-    sort_by: str = Query(
-        "_id",
-        description="Field to sort responses by, by default '_id' (equivalent to timestamp)",
-    ),
-    sort_direction: Literal["ascending", "descending"] = Query(
-        "descending",
-        description="Direction to sort responses, by default 'descending'",
-    ),
-    start: int = Query(
-        0,
-        description="Index of the first annotation you want returned when sorted by above parameter",
-    ),
-    count: int = Query(
-        None,
-        description="The number of annotations to return, leave blank to return all entries",
-    ),
-    validated: bool = Query(
-        None,
-        description="Whether to return only validated or unvalidated annotations, leave blank for all annotations",
-    ),
+    sort_by: str = Query("_id"),
+    sort_direction: Literal["ascending", "descending"] = Query("descending"),
+    start: int = Query(0),
+    count: int = Query(None),
+    validated: bool = Query(None),
+    current_user: UserOut = Depends(get_current_user),
 ) -> list[AnnotationOutTypes]:
-    """
-    Retrieve all annotations for this project, subject to specified filters.
-    ------------------------------------------------------------------------
-    """
+    """Retrieve all annotations for this project."""
     db_client = request.app.state.db_client
-    # Check project exists
     await utils.get_project(db_client=db_client, project_id=project_id)
 
-    # Get annotations
     annotations = await utils.get_annotations(
         db_client=db_client,
         project_id=project_id,
@@ -82,11 +65,9 @@ async def import_annotations(
     project_id: str = Path(
         description="The ID of the project to update annotations for"
     ),
+    current_user: UserOut = Depends(get_current_user),
 ) -> None:
-    """
-    Update or add annotations for this project.
-    -------------------------------------------
-    """
+    """Update or add annotations for this project."""
     db_client = request.app.state.db_client
     await utils.import_annotations(db_client, project_id, annotations)
 
@@ -103,15 +84,11 @@ async def delete_all_annotations(
     project_id: str = Path(
         description="The ID of the project to delete all annotations for"
     ),
+    current_user: UserOut = Depends(get_current_user),
 ):
-    """
-    Delete ALL annotations for the given project.
-    ---------------------------------------------
-    """
+    """Delete ALL annotations for the given project."""
     db_client = request.app.state.db_client
-    # Check project exists
     await utils.get_project(db_client=db_client, project_id=project_id)
-    # Delete all annotations for this project
     await utils.delete_annotations(db_client=db_client, project_id=project_id)
 
 
@@ -119,7 +96,7 @@ async def delete_all_annotations(
     "/samples/{sample_id}/annotations",
     response_model=list[AnnotationOutTypes],
     responses={
-        200: {"description": "Annotations for this sample deleted successfully."},
+        200: {"description": "Annotations for this sample returned successfully."},
         404: {"description": "Project or Sample not found with that ID."},
     },
 )
@@ -127,54 +104,41 @@ async def get_annotations(
     request: Request,
     project_id: str = Path(description="The ID of the project to get samples from."),
     sample_id: str = Path(description="The ID of the sample to get annotations from."),
-    sort_by: str = Query(
-        "_id",
-        description="Field to sort responses by, by default '_id' (equivalent to timestamp)",
-    ),
-    sort_direction: Literal["ascending", "descending"] = Query(
-        "descending",
-        description="Direction to sort responses, by default 'descending'",
-    ),
-    start: int = Query(
-        0,
-        description="Index of the first annotation you want returned when sorted newest - oldest",
-    ),
-    count: int = Query(
-        None,
-        description="The number of annotations to return, leave blank to return all entries",
-    ),
-    validated: bool = Query(
-        None,
-        description="Whether to return only validated or unvalidated annotations, leave blank for all annotations",
-    ),
-    created_by: str = Query(
-        None,
-        description="Whether to only return annotations created by a specific model or by a human.",
-    ),
+    sort_by: str = Query("_id"),
+    sort_direction: Literal["ascending", "descending"] = Query("descending"),
+    start: int = Query(0),
+    count: int = Query(None),
+    validated: bool = Query(None),
+    created_by: str = Query(None),
+    current_user: UserOut = Depends(get_current_user),
 ) -> list[AnnotationOutTypes]:
-    # Return annotations available for this project and sample, if any
-    # Can filter by params, eg specific camera or frame being returned (or return all annotations for this sample at once and store client side?)
-    # Should return whether these are validated as a boolean
     db_client = request.app.state.db_client
-    # Check project and sample exist
     await utils.get_project(db_client=db_client, project_id=project_id)
     await utils.get_sample(
         db_client=db_client, project_id=project_id, sample_id=sample_id
     )
 
-    # Get annotations
+    # Apply per-user annotation visibility filter
+    effective_created_by = created_by
+    if current_user.global_role != "admin":
+        membership = await utils.get_project_membership(
+            db_client, project_id, current_user.id
+        )
+        if membership and not membership.get("show_others_annotations", True):
+            # Only show the current user's own annotations
+            effective_created_by = current_user.username
+
     annotations = await utils.get_annotations(
         db_client=db_client,
         project_id=project_id,
         sample_id=sample_id,
         validated=validated,
-        created_by=created_by,
+        created_by=effective_created_by,
         sort_by=sort_by,
         sort_direction=sort_direction,
         start=start,
         count=count,
     )
-
     return annotations
 
 
@@ -194,38 +158,27 @@ async def update_annotations(
     sample_id: str = Path(
         description="The ID of the sample to update annotations for."
     ),
-    validated: bool = Query(
-        None,
-        description="Whether to set sample to validated (useful if no annotations present).",
-    ),
+    validated: bool = Query(None),
+    current_user: UserOut = Depends(require_project_annotator),
 ):
-    """
-    Update the list of annotations to a given sample for a specified project. Will overwrite existing annotations.
-    ---------------------------------------------------------------------
-    """
-    # Add human annotations to this project and sample
-    # Again dont know what form this data will take so have set to a Request for now
-    # This data could be for one or more events per task, ie multiple ELMs or UFOs per pulse
-    # This should be added into the database, with validated=True
-    # Delete predictions from model, if they exist, since they are being replaced by human validated ones
+    """Update the annotations for a sample. Replaces only the current user's annotations."""
     db_client = request.app.state.db_client
 
-    # Check project and sample exist
     await utils.get_project(db_client=db_client, project_id=project_id)
     sample = await utils.get_sample(
         db_client=db_client, project_id=project_id, sample_id=sample_id
     )
 
-    # Set shot_id for each annotation
+    # Server is authoritative for identity
     for annotation in annotations:
+        annotation.created_by = current_user.username
         annotation.shot_id = sample.shot_id
 
-    # Delete previous annotations, if they exist, and add new ones
     result = await utils.update_annotations(
-        db_client, project_id, sample_id, annotations
+        db_client, project_id, sample_id, annotations,
+        created_by=current_user.username,
     )
 
-    # Update sample to show that annotations are validated
     if validated or any(annotation.validated for annotation in annotations):
         await utils.update_sample(
             db_client=db_client,
@@ -249,22 +202,14 @@ async def remove_annotations(
     sample_id: str = Path(
         description="The ID of the sample to delete annotations from."
     ),
+    current_user: UserOut = Depends(get_current_user),
 ):
-    """
-    Delete ALL annotations for a given sample from a given project.
-    ---------------------------------------------------------------
-    """
-    # Remove annotations for this project and sample
-    # Probably dont need to be able to specify params here, don't envisage how/why the UI would allow you to remove specific annotations
-
+    """Delete ALL annotations for a given sample from a given project."""
     db_client = request.app.state.db_client
-    # Check project and sample exist
     await utils.get_project(db_client=db_client, project_id=project_id)
     await utils.get_sample(
         db_client=db_client, project_id=project_id, sample_id=sample_id
     )
-
-    # Delete all annotations for this project and sample
     await utils.delete_annotations(
         db_client=db_client, project_id=project_id, sample_id=sample_id
     )

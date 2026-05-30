@@ -6,7 +6,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { BACKEND_API_URL } from "@/app/core";
+import { BACKEND_API_URL, apiFetch } from "@/app/core";
 
 interface APISchemaContextType {
   schema: Record<string, unknown> | null;
@@ -23,7 +23,7 @@ interface APISchemaProviderProps {
 }
 
 async function getAPISchema(): Promise<Record<string, unknown>> {
-  const response = await fetch(`${BACKEND_API_URL}/openapi.json`);
+  const response = await apiFetch(`${BACKEND_API_URL}/openapi.json`);
   if (!response.ok) {
     throw new Error(`Failed to fetch schema: ${response.statusText}`);
   }

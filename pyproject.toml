@@ -39,6 +39,7 @@ dependencies = [
   "bump-my-version>=1.2.7",
   "platformdirs>=4.4.0",
   "pydantic-settings>=2.11.0",
+  "itsdangerous>=2.0.0",
 ]
 [project.optional-dependencies]
 models = [

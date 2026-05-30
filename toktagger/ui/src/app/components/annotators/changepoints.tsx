@@ -10,7 +10,7 @@ import {
 } from "@adobe/react-spectrum";
 import { Annotation, MultiVariateTimeSeriesData } from "@/types";
 import { AnnotatorTypes } from "./types";
-import { BACKEND_API_URL } from "@/app/core";
+import { BACKEND_API_URL, apiFetch } from "@/app/core";
 import { useSample } from "@/app/contexts/SampleContext";
 
 enum ChangePointMethod {
@@ -70,7 +70,7 @@ export function ChangePointDetectionTool({
         return;
       }
 
-      const response = await fetch(
+      const response = await apiFetch(
         `${BACKEND_API_URL}/projects/${project_id}/samples/${sample_id}/annotator/change_point_detection`,
         {
           method: "POST",

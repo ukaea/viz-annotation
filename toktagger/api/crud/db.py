@@ -29,7 +29,7 @@ class MongoDBClient:
 
     async def insert(
         self,
-        collection: typing.Literal["projects", "annotations", "models", "samples"],
+        collection: typing.Literal["projects", "annotations", "models", "samples", "users", "project_members"],
         model: T,
         ids: dict[str, ObjectId] | None = None,
     ):
@@ -41,7 +41,7 @@ class MongoDBClient:
 
     async def insert_many(
         self,
-        collection: typing.Literal["projects", "annotations", "models", "samples"],
+        collection: typing.Literal["projects", "annotations", "models", "samples", "users", "project_members"],
         models: list[T],
         ids: typing.Union[dict, list[dict]] | None = None,
     ):
@@ -62,7 +62,7 @@ class MongoDBClient:
 
     async def update(
         self,
-        collection: typing.Literal["projects", "annotations", "models", "samples"],
+        collection: typing.Literal["projects", "annotations", "models", "samples", "users", "project_members"],
         model: T,
         object_id: ObjectId,
     ):
@@ -81,7 +81,7 @@ class MongoDBClient:
 
     async def get_document_by_id(
         self,
-        collection: typing.Literal["projects", "annotations", "models", "samples"],
+        collection: typing.Literal["projects", "annotations", "models", "samples", "users", "project_members"],
         object_id: ObjectId,
     ):
         return await self.db[collection].find_one({"_id": object_id})
@@ -94,7 +94,7 @@ class MongoDBClient:
 
     async def get_filtered_documents(
         self,
-        collection: typing.Literal["projects", "annotations", "models", "samples"],
+        collection: typing.Literal["projects", "annotations", "models", "samples", "users", "project_members"],
         filters: dict = {},
         sort_by: str = "_id",
         sort_direction: typing.Literal["ascending", "descending"] = "descending",
@@ -114,7 +114,7 @@ class MongoDBClient:
 
     async def delete_filtered_documents(
         self,
-        collection: typing.Literal["projects", "annotations", "models", "samples"],
+        collection: typing.Literal["projects", "annotations", "models", "samples", "users", "project_members"],
         filters: dict = {},
     ):
         return await self.db[collection].delete_many(filters)

@@ -1,5 +1,5 @@
 import { useSample } from "@/app/contexts/SampleContext";
-import { BACKEND_API_URL } from "@/app/core";
+import { BACKEND_API_URL, apiFetch } from "@/app/core";
 import { Annotation, PlotProps } from "@/types";
 import { ActionButton, Flex, NumberField, Switch } from "@adobe/react-spectrum";
 import { useEffect, useState } from "react";
@@ -58,7 +58,7 @@ export default function SpectrogramThresholdTool({
         return;
       }
 
-      const response = await fetch(
+      const response = await apiFetch(
         `${BACKEND_API_URL}/projects/${project_id}/samples/${sample_id}/annotator/spectrogram_threshold`,
         {
           method: "POST",

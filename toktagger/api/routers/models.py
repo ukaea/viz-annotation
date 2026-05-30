@@ -17,6 +17,8 @@ if models_dependencies_installed():
     from toktagger.api.worker import load_model, train_model, get_predictions
     from toktagger.api.models.base import ModelRegistry
     import ray
+else:
+    ModelRegistry = None
 
 import logging
 

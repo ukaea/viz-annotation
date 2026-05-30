@@ -7,6 +7,8 @@ import toktagger.api.config as config
 
 if models_dependencies_installed():
     from toktagger.api.models.base import ModelRegistry
+else:
+    ModelRegistry = None
 
 router = APIRouter(prefix="/meta", tags=["Metadata"])
 

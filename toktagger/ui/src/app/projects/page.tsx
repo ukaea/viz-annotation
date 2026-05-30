@@ -4,6 +4,7 @@ import { deleteProject, getProjects } from "@/app/core";
 import Delete from "@spectrum-icons/workflow/Delete";
 import { ProjectConfigEditor } from "./components/project_config";
 import { useNavigate, useHref } from "react-router-dom";
+import { useAuth } from "@/app/contexts/AuthContext";
 import {
   Provider,
   defaultTheme,
@@ -143,6 +144,8 @@ const ProjectsTable = ({
 };
 
 export default function Projects() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [projectsPerPage, setProjectsPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [projectName, setProjectName] = useState<string>("");
@@ -186,7 +189,28 @@ export default function Projects() {
       <ProjectsBreadCrumbs />
       <div className="w-screen h-screen flex items-center justify-center bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400">
         <div className="w-full md:w-4/5 p-6 bg-white/60 text-gray-800 rounded-lg shadow-lg backdrop-blur-sm">
-          <h1 className="text-2xl font-bold mb-4">Projects</h1>
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-2xl font-bold">Projects</h1>
+            <div className="flex items-center gap-3">
+              {user?.global_role === "admin" && (
+                <button
+                  className="text-sm text-blue-700 hover:underline"
+                  onClick={() => navigate("/ui/admin/users")}
+                >
+                  Admin Panel
+                </button>
+              )}
+              <span className="text-sm text-gray-600">
+                Signed in as <strong>{user?.username}</strong>
+              </span>
+              <button
+                className="text-sm text-red-600 hover:underline"
+                onClick={logout}
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
           <Provider theme={defaultTheme}>
             <ToastContainer placement="top" />
             <Flex

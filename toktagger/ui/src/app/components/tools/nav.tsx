@@ -18,7 +18,8 @@ import StepForward from "@spectrum-icons/workflow/StepForward";
 import StepBackward from "@spectrum-icons/workflow/StepBackward";
 import SaveFloppy from "@spectrum-icons/workflow/SaveFloppy";
 import Delete from "@spectrum-icons/workflow/Delete";
-import { getShotSample, saveSampleAnnotations, updateSample } from "@/app/core";
+import { getShotSample, saveSampleAnnotations, updateSample, BACKEND_API_URL, apiFetch, getAnnotationsForSample } from "@/app/core";
+import { useAuth } from "@/app/contexts/AuthContext";
 import {
   useNavigate,
   NavigateFunction,
@@ -391,7 +392,8 @@ type NavigationBarInfo = {
   sample_id: string;
 };
 export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
-  const { setIsValidated } = useSample();
+  const { setIsValidated, setAnnotations } = useSample();
+  const { user } = useAuth();
   const navAdapter = useNavAdapter();
 
   const {
@@ -412,6 +414,21 @@ export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
       (raw_direction as SortDirection) || "ascending";
     return { column, direction };
   });
+
+  const [showOthers, setShowOthers] = useState(true);
+
+  const toggleShowOthers = useCallback(async (next: boolean) => {
+    setShowOthers(next);
+    if (user) {
+      await apiFetch(
+        `${BACKEND_API_URL}/projects/${project_id}/members/${user._id}`,
+        { method: "PUT", body: JSON.stringify({ show_others_annotations: next }) },
+      );
+    }
+    // Re-fetch annotations with updated visibility
+    const fresh = await getAnnotationsForSample(project_id, sample_id);
+    setAnnotations(() => fresh);
+  }, [project_id, sample_id, user, setAnnotations]);
 
   return (
     <Flex alignItems="center" direction="column" gap="size-100">
@@ -455,6 +472,14 @@ export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
         <Tooltip>
           When enabled, annotations will be saved when navigating to another
           sample.
+        </Tooltip>
+      </TooltipTrigger>
+      <TooltipTrigger delay={1000} placement="bottom">
+        <Checkbox isSelected={showOthers} onChange={toggleShowOthers}>
+          Show Others&apos; Annotations
+        </Checkbox>
+        <Tooltip>
+          When enabled, annotations from other users are also displayed.
         </Tooltip>
       </TooltipTrigger>
       <ShotSearch

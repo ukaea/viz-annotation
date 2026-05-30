@@ -177,6 +177,7 @@ package.json
 
 data/jet_images/
 toktagger/ui/.vite/
+*.tsbuildinfo
 
 # Ignore config file
 toktagger.toml

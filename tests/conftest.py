@@ -3,6 +3,7 @@ import pytest_asyncio
 from toktagger.api.main import Server
 from toktagger.api.crud.db import MongoDBClient
 import tests.db_definitions as db_definitions
+from testcontainers.mongodb import MongoDbContainer
 from bson.objectid import ObjectId
 import asyncio
 from httpx import AsyncClient, ASGITransport
@@ -10,10 +11,7 @@ import os
 import multiprocessing
 import requests
 import time
-import tempfile
-import toktagger.api.config as config
 import importlib
-import pathlib
 
 MODELS_ENABLED = importlib.util.find_spec("ray") is not None
 
@@ -35,23 +33,36 @@ if MODELS_ENABLED:
     )
 
 else:
-    error_msg = """ You have attempted to run a test which uses a fixture that requires models,
-            but the models optional dependencies (Ray) are not installed, 
-            and this test was not marked as a 'models_enabled' test.
-            Please review the fixture usage of this test, or mark it accurately.
-            """
+    _error_msg = (
+        "You have attempted to run a test which uses a fixture that requires models, "
+        "but the models optional dependencies (Ray) are not installed, "
+        "and this test was not marked as a 'models_enabled' test. "
+        "Please review the fixture usage of this test, or mark it accurately."
+    )
 
     @pytest.fixture()
     def ray_session():
-        raise pytest.UsageError(error_msg)
+        raise pytest.UsageError(_error_msg)
 
     @pytest.fixture()
     def setup_model_samples():
-        raise pytest.UsageError(error_msg)
+        raise pytest.UsageError(_error_msg)
 
     @pytest.fixture()
     def setup_model_db():
-        raise pytest.UsageError(error_msg)
+        raise pytest.UsageError(_error_msg)
+
+
+try:
+    import ray
+    from toktagger.api.models.base import ModelRegistry, WorkerRegistry
+
+    _models_available = True
+except Exception:
+    _models_available = False
+    ModelRegistry = None
+    WorkerRegistry = None
+    ray = None
 
     @pytest.fixture()
     def models_api_client():
@@ -76,27 +87,21 @@ def uda_test(uda_env_vars):
 
 
 @pytest.fixture(scope="session")
-def settings():
-    with tempfile.TemporaryDirectory(suffix="toktagger_") as tempd:
-        pathlib.Path(tempd).joinpath("models").mkdir(exist_ok=True)
-        settings = config.Settings(
-            server=config.Server(cache_dir=tempd),
-            models=config.Models(
-                cache_dir=pathlib.Path(tempd).joinpath("models"), max_actors=1
-            ),
-            database=config.Database(mongo_url="./toktagger_test_db"),
-            uda=config.UDA(),
-            sal=config.SAL(),
-        )
-        config.settings = settings
-        yield settings
+def mongo_container():
+    try:
+        import docker
+
+        docker.from_env().ping()
+    except Exception:
+        pytest.skip("Docker not available — skipping MongoDB container tests")
+    with MongoDbContainer("mongo:8.0") as mongo:
+        yield mongo.get_connection_url()
 
 
 @pytest_asyncio.fixture(scope="function")
-async def db_client(settings):
-    db_client = MongoDBClient(
-        settings.database.mongo_url, "annotate_db", settings.server.cache_dir
-    )
+async def db_client(mongo_container):
+    db_client = MongoDBClient(mongo_container, "annotate_db")
+
     yield db_client
 
     await db_client.delete_filtered_documents("projects")
@@ -115,7 +120,6 @@ async def api_client(monkeypatch, db_client):
     # So have to run this manually, however trying to run the close after the yield to close the db connection gives errors
     # So am just going to leave it open, since the db container will be deleted after anyway
     # Any alternative solution ideas are welcome.....
-    os.environ["API_URL"] = "http://test"
     server = Server()
     server.testing_mode = True
     monkeypatch.setenv("API_URL", "http://test")
@@ -123,6 +127,8 @@ async def api_client(monkeypatch, db_client):
     app = server.app
     app.state.db_client = db_client
     app.state.project = None
+    app.state.auth_required = False
+
 
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
@@ -133,6 +139,8 @@ async def api_client(monkeypatch, db_client):
 
 @pytest_asyncio.fixture(scope="function")
 async def setup_db(db_client):
+    if not _models_available:
+        pytest.skip("ray / model dependencies not installed")
     project_id_1 = await db_client.insert("projects", db_definitions.PROJECT_1)
     await asyncio.sleep(0.01)
     project_id_2 = await db_client.insert("projects", db_definitions.PROJECT_2)
@@ -185,6 +193,7 @@ async def setup_db(db_client):
         ids={"project_id": ObjectId(project_id_2), "sample_id": ObjectId(sample_id_4)},
     )
     await asyncio.sleep(0.01)
+
     yield {
         "project_id_1": project_id_1,
         "project_id_2": project_id_2,
@@ -227,20 +236,20 @@ async def setup_db_small(db_client):
 
 
 def run_server():
-    # Import to register mock model
-
+    os.environ["TOKTAGGER_AUTH_REQUIRED"] = "false"
     server = Server()
     server.testing_mode = True
     server.run()
 
 
 @pytest.fixture(scope="package")
-def start_server(settings):
+def start_server(mongo_container):
+    os.environ["MONGO_URL"] = mongo_container
     proc = multiprocessing.Process(target=run_server)
     proc.start()
     # Wait for server to start
     server_up = False
-    for t in range(60):
+    for t in range(600):
         try:
             response = requests.get(
                 "http://localhost:8002/health",

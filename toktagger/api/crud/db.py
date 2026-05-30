@@ -19,12 +19,15 @@ class MongoDBClient:
             # Use mongodb (expects running instance of mongodb at this address)
             self.client = pymongo.AsyncMongoClient(url)
         else:
-            if not cache_dir:
-                cache_dir = user_cache_dir("toktagger", "ukaea")
-            cache_dir = Path(cache_dir)
-            cache_dir.mkdir(parents=True, exist_ok=True)
-            file_name = cache_dir / db_name
-            self.client = AsyncMongitaClient(file_name)
+            # File-path mode: cache_dir takes priority, else use url as base dir
+            if cache_dir:
+                base_dir = Path(cache_dir)
+            elif url and url != "default":
+                base_dir = Path(url)
+            else:
+                base_dir = Path(user_cache_dir("toktagger", "ukaea"))
+            base_dir.mkdir(parents=True, exist_ok=True)
+            self.client = AsyncMongitaClient(str(base_dir / db_name))
         self.db = self.client[db_name]
 
     async def insert(

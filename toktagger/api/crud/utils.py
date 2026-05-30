@@ -595,6 +595,9 @@ async def get_project_members(
         user_doc = await db_client.get_document_by_id("users", doc["user_id"])
         username = user_doc["username"] if user_doc else "unknown"
         doc["username"] = username
+        # ObjectId fields not covered by ConfiguredModel.convert_objectid must be
+        # stringified manually before Pydantic validation.
+        doc["user_id"] = str(doc["user_id"])
         result.append(ProjectMemberOut.model_validate(doc))
     return result
 

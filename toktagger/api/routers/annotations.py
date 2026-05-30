@@ -118,15 +118,23 @@ async def get_annotations(
         db_client=db_client, project_id=project_id, sample_id=sample_id
     )
 
-    # Apply per-user annotation visibility filter
-    effective_created_by = created_by
+    # Enforce project membership (global admins bypass this check)
+    membership = None
     if current_user.global_role != "admin":
         membership = await utils.get_project_membership(
             db_client, project_id, current_user.id
         )
-        if membership and not membership.get("show_others_annotations", True):
-            # Only show the current user's own annotations
-            effective_created_by = current_user.username
+        if membership is None:
+            from fastapi import HTTPException as _HTTPException
+            raise _HTTPException(
+                status_code=403, detail="You are not a member of this project"
+            )
+
+    # Apply per-user annotation visibility filter
+    effective_created_by = created_by
+    if membership and not membership.get("show_others_annotations", True):
+        # Only show the current user's own annotations
+        effective_created_by = current_user.username
 
     annotations = await utils.get_annotations(
         db_client=db_client,

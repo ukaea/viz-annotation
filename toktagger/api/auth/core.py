@@ -11,6 +11,15 @@ ACCESS_TOKEN_EXPIRE_SECONDS = 60 * 60 * 24  # 24 hours
 _SALT = "toktagger-auth-v1"
 
 _serializer: URLSafeTimedSerializer | None = None
+_internal_token: str | None = None
+
+
+def get_internal_token() -> str:
+    """Return a stable per-process internal token for trusted server-to-server calls."""
+    global _internal_token
+    if _internal_token is None:
+        _internal_token = secrets.token_urlsafe(32)
+    return _internal_token
 
 
 def _get_serializer() -> URLSafeTimedSerializer:

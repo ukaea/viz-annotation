@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 
-from toktagger.api.auth.core import decode_token
+from toktagger.api.auth.core import decode_token, get_internal_token
 from toktagger.api.schemas.users import UserOut
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
@@ -17,6 +17,19 @@ async def get_current_user(
             {
                 "_id": "000000000000000000000000",
                 "username": "admin",
+                "email": "",
+                "global_role": "admin",
+                "is_active": True,
+                "timestamp": "2000-01-01T00:00:00",
+            }
+        )
+
+    # Internal server-to-server token (used by Ray worker callbacks via sender.py)
+    if token is not None and token == get_internal_token():
+        return UserOut.model_validate(
+            {
+                "_id": "000000000000000000000000",
+                "username": "__internal__",
                 "email": "",
                 "global_role": "admin",
                 "is_active": True,

@@ -28,7 +28,11 @@ def send_updates(
     else:
         payload = updates.model_dump(mode="json")
 
-    response = requests.put(url=url, json=payload)
+    headers = {}
+    if api_token := os.environ.get("API_TOKEN"):
+        headers["Authorization"] = f"Bearer {api_token}"
+
+    response = requests.put(url=url, json=payload, headers=headers)
 
     return response
 

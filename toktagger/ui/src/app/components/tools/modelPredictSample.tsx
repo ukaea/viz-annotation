@@ -26,11 +26,16 @@ type ModelPredictInfo = {
   sample_id: string;
 };
 
+const modelCreatedBy = (modelType: string) => `model::${modelType}`;
+
 export function ModelPredictTool({ project_id, sample_id }: ModelPredictInfo) {
   const { annotations, project, dataParams, setAnnotations } = useSample();
   const [isEnabled, setIsEnabled] = useState<boolean>(() => {
     return annotations.some(
-      (ann) => project?.model_types.includes(ann.created_by) || false,
+      (ann) =>
+        project?.model_types.some(
+          (t) => ann.created_by === modelCreatedBy(t),
+        ) || false,
     );
   });
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -85,7 +90,8 @@ export function ModelPredictTool({ project_id, sample_id }: ModelPredictInfo) {
       setAnnotations((previousAnnotations: Annotations) => {
         const otherAnnotations = previousAnnotations.filter(
           (annotation: Annotation) =>
-            annotation.created_by !== selectedModelName || annotation.validated,
+            annotation.created_by !== modelCreatedBy(selectedModelName!) ||
+            annotation.validated,
         );
         return otherAnnotations;
       });
@@ -154,7 +160,11 @@ export function ModelPredictTool({ project_id, sample_id }: ModelPredictInfo) {
         }
       } else if (response.ok) {
         setAnnotations((previousAnnotations: Annotations) => {
-          return previousAnnotations.concat(payload);
+          const otherAnnotations = previousAnnotations.filter(
+            (annotation: Annotation) =>
+              annotation.created_by !== modelCreatedBy(selectedModelName!),
+          );
+          return otherAnnotations.concat(payload);
         });
         clearInterval(interval);
         setIsLoading(false);

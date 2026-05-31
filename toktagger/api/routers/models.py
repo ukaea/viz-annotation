@@ -640,7 +640,7 @@ async def delete_predictions(
 
     result = await request.app.state.db_client.delete_filtered_documents(
         collection="annotations",
-        filters={"project_id": ObjectId(project.id), "created_by": model_type},
+        filters={"project_id": ObjectId(project.id), "created_by": f"model::{model_type}"},
     )
 
     if result.deleted_count == 0:

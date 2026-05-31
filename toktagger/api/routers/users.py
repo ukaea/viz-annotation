@@ -38,6 +38,10 @@ async def create_user(
     body: UserCreate,
     _: UserOut = Depends(require_global_admin),
 ):
+    if body.username.startswith("model::") or body.username.startswith("__"):
+        raise HTTPException(
+            status_code=422, detail="Username uses a reserved prefix"
+        )
     user = UserIn(
         username=body.username,
         hashed_password=hash_password(body.password),

@@ -74,6 +74,11 @@ async def import_annotations(
 ) -> None:
     """Update or add annotations for this project."""
     db_client = request.app.state.db_client
+    # Non-admin, non-internal callers must own all annotations they import.
+    # Global admins and the internal Ray-worker token bypass this for data migration / predictions.
+    if current_user.username != "__internal__" and current_user.global_role != "admin":
+        for annotation in annotations:
+            annotation.created_by = current_user.username
     await utils.import_annotations(db_client, project_id, annotations)
 
 

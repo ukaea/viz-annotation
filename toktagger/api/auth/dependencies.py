@@ -87,6 +87,14 @@ async def get_project_membership(
     return docs[0]
 
 
+async def require_project_viewer(
+    membership=Depends(get_project_membership),
+    current_user: UserOut = Depends(get_current_user),
+) -> UserOut:
+    """Any project member (viewer, annotator, admin) may access read-only resources."""
+    return current_user
+
+
 async def require_project_annotator(
     membership=Depends(get_project_membership),
     current_user: UserOut = Depends(get_current_user),

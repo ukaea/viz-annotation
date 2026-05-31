@@ -1,11 +1,13 @@
 from typing import Optional
+from toktagger.api.auth.dependencies import require_project_viewer
 from toktagger.api.core.views import DATA_VIEWS
 from toktagger.api.core.data_loaders import LoaderRegistry
 from toktagger.api.crud import utils
 from toktagger.api.schemas.data import DataResponseType, DataParams, DataParamTypes
+from toktagger.api.schemas.users import UserOut
 from toktagger.api.schemas.views import ViewParams, ViewParamTypes
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from toktagger.api.core.data_loaders import DataLoaderError
 
@@ -19,6 +21,7 @@ async def get_data(
     request: Request,
     project_id: str,
     sample_id: str,
+    current_user: UserOut = Depends(require_project_viewer),
     params: Optional[DataParamTypes] = DataParams(),
     view: Optional[ViewParamTypes] = ViewParams(),
 ) -> DataResponseType:

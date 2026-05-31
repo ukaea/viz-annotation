@@ -1,4 +1,9 @@
-from fastapi import APIRouter, Request, HTTPException, Query, Path, Body
+from fastapi import APIRouter, Depends, Request, HTTPException, Query, Path, Body
+from toktagger.api.auth.dependencies import (
+    require_project_viewer,
+    require_project_annotator,
+    require_project_admin_role,
+)
 from toktagger.api.core.query_strategy import QUERY_STRATEGIES
 from toktagger.api.crud import utils
 from toktagger.api.schemas.samples import (
@@ -9,6 +14,7 @@ from toktagger.api.schemas.samples import (
 )
 from toktagger.api.schemas.annotations import Annotation
 from toktagger.api.schemas import convert_to_objectid
+from toktagger.api.schemas.users import UserOut
 from typing import Literal
 import logging
 
@@ -28,6 +34,7 @@ router = APIRouter(prefix="/projects/{project_id}/samples", tags=["Samples"])
 async def get_samples(
     request: Request,
     project_id: str = Path(description="The ID of the project to get samples for."),
+    current_user: UserOut = Depends(require_project_viewer),
     sort_by: str = Query(
         "_id",
         description="Field to sort responses by, by default '_id' (equivalent to timestamp)",
@@ -80,16 +87,12 @@ async def add_samples(
     project_id: str = Path(
         description="The project ID to associate these samples with."
     ),
+    current_user: UserOut = Depends(require_project_annotator),
 ):
     """
     Add a list of samples (with optional annotations) to this project.
     ------------------------------------------------------------------
     """
-    # Add samples from the range specified to the project
-    # I'm assuming these will be shot/pulse numbers, hence int, but could be unique ID strings instead
-    # Depends if for us a 'sample' will always be a shot/pulse, or if it could be a subset eg a single frame of video
-    # Do we also want to allow a single value, or list of specific value?
-    print(samples)
     project_obj_id = convert_to_objectid(project_id, "projects")
     if not await request.app.state.db_client.get_document_by_id(
         "projects", project_obj_id
@@ -184,6 +187,7 @@ async def update_samples(
     project_id: str = Path(
         description="The project ID to associate these samples with."
     ),
+    current_user: UserOut = Depends(require_project_annotator),
 ):
     """
     Update a list of samples (provided with their IDs) for this project.
@@ -216,6 +220,7 @@ async def update_samples(
 async def get_next_sample(
     request: Request,
     project_id: str = Path(description="The project to return the next sample from."),
+    current_user: UserOut = Depends(require_project_viewer),
     visited_sample_ids: list[str] = Body(
         ..., description="The IDs of the samples already seen in this session."
     ),
@@ -261,6 +266,7 @@ async def get_sample_summary(
     project_id: str = Path(
         description="The ID of the project to get a summary of samples from."
     ),
+    current_user: UserOut = Depends(require_project_viewer),
 ) -> SampleSummary:
     """Get a summary of samples for this project.
 
@@ -285,6 +291,7 @@ async def get_sample(
         description="The ID of the project to retrieve a sample from."
     ),
     sample_id: str = Path(description="The ID of the sample to retrieve."),
+    current_user: UserOut = Depends(require_project_viewer),
 ) -> Sample:
     """
     Get the specified sample from this project.
@@ -313,6 +320,7 @@ async def remove_sample(
         description="The ID of the project to delete a sample from."
     ),
     sample_id: str = Path(description="The ID of the sample to delete."),
+    current_user: UserOut = Depends(require_project_admin_role),
 ):
     """
     Get the specified sample from this project.
@@ -340,6 +348,7 @@ async def remove_all_samples(
     project_id: str = Path(
         description="The ID of the project to delete all samples from."
     ),
+    current_user: UserOut = Depends(require_project_admin_role),
 ):
     """
     Remove all samples from this project.

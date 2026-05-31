@@ -1,6 +1,11 @@
 from typing import Literal
 from fastapi import APIRouter, Depends, Request, Path, Query
-from toktagger.api.auth.dependencies import get_current_user, require_project_annotator
+from toktagger.api.auth.dependencies import (
+    get_current_user,
+    require_project_annotator,
+    require_project_viewer,
+    require_project_admin_role,
+)
 from toktagger.api.crud import utils
 from toktagger.api.schemas.samples import SampleUpdate
 from toktagger.api.schemas.annotations import (
@@ -33,7 +38,7 @@ async def get_all_annotations(
     start: int = Query(0),
     count: int = Query(None),
     validated: bool = Query(None),
-    current_user: UserOut = Depends(get_current_user),
+    current_user: UserOut = Depends(require_project_viewer),
 ) -> list[AnnotationOutTypes]:
     """Retrieve all annotations for this project."""
     db_client = request.app.state.db_client
@@ -65,7 +70,7 @@ async def import_annotations(
     project_id: str = Path(
         description="The ID of the project to update annotations for"
     ),
-    current_user: UserOut = Depends(get_current_user),
+    current_user: UserOut = Depends(require_project_annotator),
 ) -> None:
     """Update or add annotations for this project."""
     db_client = request.app.state.db_client
@@ -84,7 +89,7 @@ async def delete_all_annotations(
     project_id: str = Path(
         description="The ID of the project to delete all annotations for"
     ),
-    current_user: UserOut = Depends(get_current_user),
+    current_user: UserOut = Depends(require_project_admin_role),
 ):
     """Delete ALL annotations for the given project."""
     db_client = request.app.state.db_client
@@ -210,7 +215,7 @@ async def remove_annotations(
     sample_id: str = Path(
         description="The ID of the sample to delete annotations from."
     ),
-    current_user: UserOut = Depends(get_current_user),
+    current_user: UserOut = Depends(require_project_admin_role),
 ):
     """Delete ALL annotations for a given sample from a given project."""
     db_client = request.app.state.db_client

@@ -19,6 +19,7 @@ interface TableEntry {
   id: string;
   category: TimeSeriesCategory;
   data: string;
+  created_by: string;
   marker: {
     width: DimensionValue;
     height: DimensionValue;
@@ -75,6 +76,7 @@ export const AnnotationsTable = () => {
         id: annotation.id,
         category,
         data,
+        created_by: annotation.created_by,
         marker,
       });
     });
@@ -93,14 +95,17 @@ export const AnnotationsTable = () => {
           <Column key="marker" width="2%">
             <></>
           </Column>
-          <Column key="category" width="28%">
+          <Column key="category" width="23%">
             Category
           </Column>
-          <Column key="type" width="20%">
+          <Column key="type" width="17%">
             Type
           </Column>
-          <Column key="data" width="50%">
+          <Column key="data" width="38%">
             Data
+          </Column>
+          <Column key="created_by" width="20%">
+            Created by
           </Column>
         </TableHeader>
         <TableBody items={entries}>
@@ -121,6 +126,7 @@ export const AnnotationsTable = () => {
               </Cell>
               <Cell>{item.category.type}</Cell>
               <Cell>{item.data}</Cell>
+              <Cell>{item.created_by}</Cell>
             </Row>
           )}
         </TableBody>

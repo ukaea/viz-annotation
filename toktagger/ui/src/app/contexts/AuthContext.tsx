@@ -81,9 +81,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const meRes = await fetch(`${BACKEND_API_URL}/auth/me`, {
       headers: { Authorization: `Bearer ${access_token}` },
     });
-    if (meRes.ok) {
-      setUser((await meRes.json()) as CurrentUser);
+    if (!meRes.ok) {
+      localStorage.removeItem(TOKEN_KEY);
+      setToken(null);
+      throw new Error("Login failed: could not load user profile");
     }
+    setUser((await meRes.json()) as CurrentUser);
   };
 
   const logout = () => {

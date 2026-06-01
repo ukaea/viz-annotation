@@ -14,6 +14,7 @@ It currently supports the following features:
 - **Annotation Tools**: Apply consistent labels to signals and images using a customizable tagging system.
 - **ML Models**: Train and infer from ML models within the UI.
 - **Dataset Management**: Organize and manage annotations in a central repository.
+- **Multi-User Support**: Role-based access control with per-project membership, suitable for team annotation workflows.
 - **Extensible API**: A Python API for integrating with existing workflows and tools.
 
 
@@ -49,13 +50,39 @@ uv tool install --python 3.12.6 toktagger[models]
 ```
 
 ## Quick Start
-To get started, run:
+
+To start a local single-user instance:
 
 ```sh
 toktagger
 ```
 
-This will start a local instance of the application running at `http://localhost:8002`.
+This starts the application at `http://localhost:8002`. On first launch an `admin` account is created automatically and the credentials are printed to the terminal.
+
+### Multi-User / Team Deployment
+
+For concurrent multi-user access, run with multiple Gunicorn workers:
+
+```sh
+toktagger --workers 4 --host 0.0.0.0 --port 8002 --no-browser
+```
+
+Or directly via Gunicorn:
+
+```sh
+gunicorn toktagger.api.asgi:app \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --workers 4 \
+    --bind 0.0.0.0:8002
+```
+
+With Docker Compose, the production stack defaults to 4 workers. Override with the `WORKERS` environment variable:
+
+```sh
+WORKERS=8 docker compose up
+```
+
+See [User Management](user_management.md) for creating accounts, assigning roles, and managing project membership.
 
 ## Configuration
 There are a series of additional options which you can configure to customise the functionality of TokTagger - [find details about these here.](./configuration.md)

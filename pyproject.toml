@@ -14,7 +14,8 @@ classifiers = [
 
 dependencies = [
   "fastapi",
-  "uvicorn",
+  "uvicorn[standard]",
+  "gunicorn",
   "fsspec",
   "xarray",
   "s3fs",

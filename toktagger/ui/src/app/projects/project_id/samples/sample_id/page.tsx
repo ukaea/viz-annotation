@@ -1,19 +1,12 @@
 "use client";
 
 import React from "react";
-import {
-  Provider,
-  defaultTheme,
-  Breadcrumbs,
-  Item,
-  ToastContainer,
-  Flex,
-} from "@adobe/react-spectrum";
+import { Breadcrumbs, Item, Flex } from "@adobe/react-spectrum";
 import { Project, Sample, TaskType } from "@/types";
 import { TimeSeriesView } from "@/app/time_series/components/time-series";
 // import { SpectrogramView } from "@/app/spectrogram/components/spectrogram";
 import ToolBar from "@/app/components/tools/toolbar";
-import { useHref, useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import ErrorView from "@/app/views/error";
 import LoadingView from "@/app/views/loading";
 import { SampleProvider, useSample } from "@/app/contexts/SampleContext";
@@ -28,22 +21,17 @@ type SampleDataBreadCrumbsInfo = {
 const SampleDataBreadCrumbs = ({
   project,
   sample,
-}: SampleDataBreadCrumbsInfo) => {
-  const navigate = useNavigate();
-  return (
-    <Provider theme={defaultTheme} router={{ navigate, useHref }}>
-      <Breadcrumbs>
-        <Item key="projects" href={`/ui/projects`}>
-          Projects
-        </Item>
-        <Item key="project" href={`/ui/projects/${project._id}`}>
-          Project: {project.name}
-        </Item>
-        <Item key="samples">Shot: {sample.shot_id}</Item>
-      </Breadcrumbs>
-    </Provider>
-  );
-};
+}: SampleDataBreadCrumbsInfo) => (
+  <Breadcrumbs>
+    <Item key="projects" href={`/ui/projects`}>
+      Projects
+    </Item>
+    <Item key="project" href={`/ui/projects/${project._id}`}>
+      Project: {project.name}
+    </Item>
+    <Item key="samples">Shot: {sample.shot_id}</Item>
+  </Breadcrumbs>
+);
 
 const SampleView = () => {
   const { project, error, isLoading, data } = useSample();
@@ -97,16 +85,13 @@ function SamplePageContent(props: { sampleId: string }) {
 
   return (
     <div>
-      <Provider theme={defaultTheme}>
-        <ToastContainer placement="top" />
-        <SampleDataBreadCrumbs project={project} sample={sample} />
-        <Flex>
-          <SampleTaskProviders>
-            <ToolBar />
-            <SampleView />
-          </SampleTaskProviders>
-        </Flex>
-      </Provider>
+      <SampleDataBreadCrumbs project={project} sample={sample} />
+      <Flex>
+        <SampleTaskProviders>
+          <ToolBar />
+          <SampleView />
+        </SampleTaskProviders>
+      </Flex>
     </div>
   );
 }

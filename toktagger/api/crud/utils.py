@@ -558,14 +558,14 @@ async def create_user(db_client: MongoDBClient, user: UserIn) -> str:
 async def update_user(
     db_client: MongoDBClient, user_id: str, updates: dict
 ) -> None:
-    from bson.objectid import ObjectId
     obj_id = convert_to_objectid(user_id, "users")
     doc = await db_client.get_document_by_id("users", obj_id)
     if not doc:
         raise HTTPException(status_code=404, detail="User not found")
-    from toktagger.api.schemas.users import UserUpdate
-    model = UserUpdate(**updates)
-    await db_client.update("users", model, obj_id)
+    # Apply updates directly — the router has already validated and hashed fields
+    # (e.g. hashed_password) before calling here. Reconstructing via UserUpdate
+    # would silently drop hashed_password since it is not a UserUpdate field.
+    await db_client.db["users"].update_one({"_id": obj_id}, {"$set": updates})
 
 
 async def delete_user(db_client: MongoDBClient, user_id: str) -> None:

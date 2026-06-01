@@ -46,12 +46,15 @@ services:
       - ${CUSTOM_SCRIPT:-./toktagger/api/run.py}:/app/run.py
       - ~/.sal/:/root/.sal
     environment:
-      DATABASE_MONGO_URL: "mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017"
-      MODELS_CACHE_DIR: "/app/data/models"
-      SERVER_HOST: api_app
-      SERVER_PORT: 8002
-      SERVER_RELOAD: "true"
-      CUSTOM_SCRIPT: ${CUSTOM_SCRIPT}
+      MONGO_URL: "mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017"
+      UDA_HOST: "uda2.mast.l"
+      UDA_META_PLUGINNAME: "MASTU_DB"
+      UDA_METANEW_PLUGINNAME: "MAST_DB"
+      SAL_HOST: "https://sal.jetdata.eu"
+      MODEL_STORAGE: "/app/data/models"
+      API_URL: "http://api_app:8002"
+      RELOAD: "true"
+      WORKERS: "1"
     working_dir: /app
     command: ["python", "run.py"]
     networks:

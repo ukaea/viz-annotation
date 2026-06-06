@@ -179,5 +179,5 @@ data/jet_images/
 toktagger/ui/.vite/
 *.tsbuildinfo
 
-# Ignore config file
-toktagger.toml
+# Local Mongita database directory (should live in user cache dir, not the repo)
+toktagger_db/

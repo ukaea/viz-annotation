@@ -8,13 +8,14 @@ Key invariants under test:
   4. Viewer-role users cannot PUT annotations (403).
   5. A project non-member cannot access annotations (403).
 """
+
 import pytest
-from bson.objectid import ObjectId
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 async def create_project_and_sample(client, token):
     """Create a project then add one sample; return (project_id, sample_id)."""
@@ -82,6 +83,7 @@ async def get_annotations(client, project_id, sample_id, token):
 # Test 1 — concurrent safety: saves are scoped per user
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_user_save_does_not_overwrite_other_users_annotations(auth_setup):
     client = auth_setup["client"]
@@ -100,11 +102,15 @@ async def test_user_save_does_not_overwrite_other_users_annotations(auth_setup):
     bob_token = await auth_setup["get_token"]("bob", "bob_pass")
 
     # Alice saves her annotation
-    resp_a = await put_annotations(client, project_id, sample_id, alice_token, "alice_label")
+    resp_a = await put_annotations(
+        client, project_id, sample_id, alice_token, "alice_label"
+    )
     assert resp_a.status_code == 200
 
     # Bob saves his annotation
-    resp_b = await put_annotations(client, project_id, sample_id, bob_token, "bob_label")
+    resp_b = await put_annotations(
+        client, project_id, sample_id, bob_token, "bob_label"
+    )
     assert resp_b.status_code == 200
 
     # Both annotations should exist (admin sees all)
@@ -141,13 +147,14 @@ async def test_user_save_replaces_only_own_previous_annotations(auth_setup):
     annotations = await get_annotations(client, project_id, sample_id, admin_token)
     labels = {a["label"] for a in annotations}
     assert "alice_v2" in labels
-    assert "alice_v1" not in labels   # replaced
-    assert "bob_v1" in labels         # untouched
+    assert "alice_v1" not in labels  # replaced
+    assert "bob_v1" in labels  # untouched
 
 
 # ---------------------------------------------------------------------------
 # Test 2 — server is authoritative for created_by
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_server_overwrites_created_by_from_jwt(auth_setup):
@@ -183,12 +190,13 @@ async def test_server_overwrites_created_by_from_jwt(auth_setup):
 
     annotations = await get_annotations(client, project_id, sample_id, admin_token)
     assert len(annotations) == 1
-    assert annotations[0]["created_by"] == "alice"   # server used JWT identity
+    assert annotations[0]["created_by"] == "alice"  # server used JWT identity
 
 
 # ---------------------------------------------------------------------------
 # Test 3 — show_others_annotations filter
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_show_others_annotations_false_hides_others(auth_setup):
@@ -252,6 +260,7 @@ async def test_show_others_annotations_true_shows_all(auth_setup):
 # Test 4 — viewer cannot PUT annotations
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_viewer_cannot_put_annotations(auth_setup):
     client = auth_setup["client"]
@@ -276,6 +285,7 @@ async def test_viewer_cannot_put_annotations(auth_setup):
 # Test 5 — non-member cannot access project annotations
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_non_member_cannot_get_annotations(auth_setup):
     client = auth_setup["client"]
@@ -294,6 +304,7 @@ async def test_non_member_cannot_get_annotations(auth_setup):
 # ---------------------------------------------------------------------------
 # Test 6 — project visibility filtered by membership
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_non_member_cannot_see_project_in_list(auth_setup):

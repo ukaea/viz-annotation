@@ -1,12 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
-import {
-  Heading,
-  InlineAlert,
-  TextField,
-  Button,
-} from "@adobe/react-spectrum";
+import { Heading, InlineAlert, TextField, Button } from "@adobe/react-spectrum";
 import { useAuth } from "@/app/contexts/AuthContext";
 
 export default function LoginPage() {
@@ -43,19 +38,36 @@ export default function LoginPage() {
         className="bg-white dark:bg-gray-800 p-10 rounded-2xl shadow-2xl"
         style={{ minWidth: 360 }}
       >
-        <Heading level={2} UNSAFE_style={{ marginBottom: 24, textAlign: "center" }}>
+        <Heading
+          level={2}
+          UNSAFE_style={{ marginBottom: 24, textAlign: "center" }}
+        >
           TokTagger — Sign In
         </Heading>
         {error && (
-          <InlineAlert variant="negative" UNSAFE_style={{ marginBottom: 16, width: "100%" }}>
+          <InlineAlert
+            variant="negative"
+            UNSAFE_style={{ marginBottom: 16, width: "100%" }}
+          >
             {error}
           </InlineAlert>
         )}
         <form
           onSubmit={handleSubmit}
-          style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%" }}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 16,
+            width: "100%",
+          }}
         >
-          <button type="submit" style={{ display: "none" }} tabIndex={-1} aria-hidden />
+          <button
+            type="submit"
+            style={{ display: "none" }}
+            tabIndex={-1}
+            aria-hidden
+          />
           <TextField
             label="Username"
             value={username}

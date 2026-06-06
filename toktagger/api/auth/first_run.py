@@ -24,11 +24,11 @@ async def ensure_admin_user(db_client) -> bool:
 
     border = "=" * 52
     print(f"\n{border}")
-    print(f"  TokTagger: first-run setup")
-    print(f"  Admin account created")
-    print(f"  Username : admin")
+    print("  TokTagger: first-run setup")
+    print("  Admin account created")
+    print("  Username : admin")
     print(f"  Password : {password}")
-    print(f"  Please change this password after first login.")
+    print("  Please change this password after first login.")
     print(f"{border}\n")
 
     return True

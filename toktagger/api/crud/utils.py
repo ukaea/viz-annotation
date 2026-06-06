@@ -527,18 +527,15 @@ async def import_annotations(
 # User helpers
 # ---------------------------------------------------------------------------
 
-async def get_user_by_username(
-    db_client: MongoDBClient, username: str
-) -> dict | None:
+
+async def get_user_by_username(db_client: MongoDBClient, username: str) -> dict | None:
     docs = await db_client.get_filtered_documents(
         "users", filters={"username": username}
     )
     return docs[0] if docs else None
 
 
-async def get_user_by_id(
-    db_client: MongoDBClient, user_id: str
-) -> dict | None:
+async def get_user_by_id(db_client: MongoDBClient, user_id: str) -> dict | None:
     obj_id = convert_to_objectid(user_id, "users")
     return await db_client.get_document_by_id("users", obj_id)
 
@@ -555,9 +552,7 @@ async def create_user(db_client: MongoDBClient, user: UserIn) -> str:
     return await db_client.insert("users", user)
 
 
-async def update_user(
-    db_client: MongoDBClient, user_id: str, updates: dict
-) -> None:
+async def update_user(db_client: MongoDBClient, user_id: str, updates: dict) -> None:
     obj_id = convert_to_objectid(user_id, "users")
     doc = await db_client.get_document_by_id("users", obj_id)
     if not doc:
@@ -574,14 +569,13 @@ async def delete_user(db_client: MongoDBClient, user_id: str) -> None:
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
     # Also remove their project memberships
-    await db_client.delete_filtered_documents(
-        "project_members", {"user_id": obj_id}
-    )
+    await db_client.delete_filtered_documents("project_members", {"user_id": obj_id})
 
 
 # ---------------------------------------------------------------------------
 # Project membership helpers
 # ---------------------------------------------------------------------------
+
 
 async def get_project_members(
     db_client: MongoDBClient, project_id: str
@@ -658,6 +652,7 @@ async def update_project_member(
         raise HTTPException(status_code=404, detail="Membership not found")
 
     from toktagger.api.schemas.users import ProjectMemberUpdate
+
     member_oid = convert_to_objectid(str(docs[0]["_id"]), "project_members")
     model = ProjectMemberUpdate(**updates)
     await db_client.update("project_members", model, member_oid)
@@ -710,7 +705,10 @@ async def get_user_projects(
         filters["name"] = {"$regex": f"{name}", "$options": "i"}
 
     import pymongo
-    direction = pymongo.ASCENDING if sort_direction == "ascending" else pymongo.DESCENDING
+
+    _direction = (
+        pymongo.ASCENDING if sort_direction == "ascending" else pymongo.DESCENDING
+    )
     docs = await db_client.get_filtered_documents(
         "projects",
         filters=filters,

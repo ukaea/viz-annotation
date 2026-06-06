@@ -8,6 +8,7 @@ Tests for model × auth interactions:
   6. A user whose username matches a model-type string cannot corrupt
      "model::<type>" prefixed predictions.
 """
+
 import pytest
 from toktagger.api.auth.core import get_internal_token
 
@@ -15,6 +16,7 @@ from toktagger.api.auth.core import get_internal_token
 # ---------------------------------------------------------------------------
 # Helpers (duplicated from other test files for clarity)
 # ---------------------------------------------------------------------------
+
 
 async def create_project_and_sample(client, token):
     proj = await client.post(
@@ -40,7 +42,9 @@ async def create_project_and_sample(client, token):
     return project_id, sample_id
 
 
-def annotation_payload(label: str = "lbl", created_by: str = "placeholder", shot_id: int = 1):
+def annotation_payload(
+    label: str = "lbl", created_by: str = "placeholder", shot_id: int = 1
+):
     """Payload suitable for bulk import (PUT /projects/{id}/annotations).
     shot_id must match an existing sample — the default matches the sample
     created by create_project_and_sample (shot_id=1).
@@ -61,6 +65,7 @@ def annotation_payload(label: str = "lbl", created_by: str = "placeholder", shot
 # ---------------------------------------------------------------------------
 # Internal token
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_internal_token_accepted_for_import(auth_setup):
@@ -95,6 +100,7 @@ async def test_no_token_rejected_for_import_in_auth_mode(auth_setup):
 # ---------------------------------------------------------------------------
 # created_by enforcement in bulk import
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_import_non_admin_created_by_overwritten(auth_setup):
@@ -179,6 +185,7 @@ async def test_internal_token_preserves_arbitrary_created_by(auth_setup):
 # Reserved username prefixes
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_username_with_model_prefix_rejected(auth_setup):
     client = auth_setup["client"]
@@ -217,6 +224,7 @@ async def test_username_with_dunder_prefix_rejected(auth_setup):
 # Username collision protection
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_user_save_does_not_corrupt_model_prefixed_predictions(auth_setup):
     """
@@ -245,14 +253,16 @@ async def test_user_save_does_not_corrupt_model_prefixed_predictions(auth_setup)
     alice_token = await auth_setup["get_token"]("alice", "alice_pass")
     save_resp = await client.put(
         f"/projects/{project_id}/samples/{sample_id}/annotations",
-        json=[{
-            "label": "human_ann",
-            "time_min": 0.0,
-            "time_max": 1.0,
-            "type": "time_region",
-            "validated": True,
-            "created_by": "placeholder",
-        }],
+        json=[
+            {
+                "label": "human_ann",
+                "time_min": 0.0,
+                "time_max": 1.0,
+                "type": "time_region",
+                "validated": True,
+                "created_by": "placeholder",
+            }
+        ],
         headers={"Authorization": f"Bearer {alice_token}"},
     )
     assert save_resp.status_code == 200

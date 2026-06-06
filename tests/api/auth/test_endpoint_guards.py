@@ -8,12 +8,14 @@ Permission matrix:
   - Annotator           → 200 on reads and writes, 403 on destructive deletes
   - Project admin (admin role) → 200 on everything
 """
+
 import pytest
 
 
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
+
 
 async def create_project_and_sample(client, token):
     proj_resp = await client.post(
@@ -65,6 +67,7 @@ def annotation_payload():
 # Samples — GET (list)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_non_member_cannot_list_samples(auth_setup):
     client = auth_setup["client"]
@@ -97,6 +100,7 @@ async def test_viewer_can_list_samples(auth_setup):
 # ---------------------------------------------------------------------------
 # Samples — POST (add)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_non_member_cannot_add_samples(auth_setup):
@@ -149,6 +153,7 @@ async def test_annotator_can_add_samples(auth_setup):
 # Samples — DELETE single sample
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_annotator_cannot_delete_sample(auth_setup):
     client = auth_setup["client"]
@@ -182,6 +187,7 @@ async def test_project_admin_can_delete_sample(auth_setup):
 # Samples — DELETE all samples
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_annotator_cannot_delete_all_samples(auth_setup):
     client = auth_setup["client"]
@@ -213,6 +219,7 @@ async def test_global_admin_can_delete_all_samples(auth_setup):
 # ---------------------------------------------------------------------------
 # Project-level annotations — GET
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_non_member_cannot_get_project_annotations(auth_setup):
@@ -246,6 +253,7 @@ async def test_viewer_can_get_project_annotations(auth_setup):
 # ---------------------------------------------------------------------------
 # Project-level annotations — PUT (bulk import)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_viewer_cannot_import_annotations(auth_setup):
@@ -297,6 +305,7 @@ async def test_annotator_can_import_annotations(auth_setup):
 # Project-level annotations — DELETE all
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_annotator_cannot_delete_project_annotations(auth_setup):
     client = auth_setup["client"]
@@ -329,6 +338,7 @@ async def test_global_admin_can_delete_project_annotations(auth_setup):
 # Sample-level annotations — DELETE all (bulk, admin-only)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_annotator_cannot_delete_all_sample_annotations(auth_setup):
     client = auth_setup["client"]
@@ -360,6 +370,7 @@ async def test_global_admin_can_delete_all_sample_annotations(auth_setup):
 # ---------------------------------------------------------------------------
 # Data endpoint
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_non_member_cannot_get_data(auth_setup):

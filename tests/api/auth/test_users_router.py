@@ -1,13 +1,12 @@
 """Integration tests for /users and /projects/{id}/members endpoints."""
-import pytest
-from bson.objectid import ObjectId
 
-from toktagger.api.schemas.projects import ProjectIn, Task, QueryStrategyType
+import pytest
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 async def create_project(client, token):
     resp = await client.post(
@@ -28,13 +27,12 @@ async def create_project(client, token):
 # User CRUD — admin only
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_list_users_as_admin(auth_setup):
     client = auth_setup["client"]
     token = await auth_setup["get_token"]("admin", "admin_pass")
-    response = await client.get(
-        "/users", headers={"Authorization": f"Bearer {token}"}
-    )
+    response = await client.get("/users", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
     users = response.json()
     usernames = [u["username"] for u in users]
@@ -47,9 +45,7 @@ async def test_list_users_as_admin(auth_setup):
 async def test_list_users_non_admin_forbidden(auth_setup):
     client = auth_setup["client"]
     token = await auth_setup["get_token"]("alice", "alice_pass")
-    response = await client.get(
-        "/users", headers={"Authorization": f"Bearer {token}"}
-    )
+    response = await client.get("/users", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 403
 
 
@@ -160,6 +156,7 @@ async def test_delete_user_as_admin(auth_setup):
 # Project membership
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_add_and_list_project_members(auth_setup):
     client = auth_setup["client"]
@@ -227,9 +224,7 @@ async def test_update_member_show_others_annotations(auth_setup):
         f"/projects/{project_id}/members",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
-    alice_member = next(
-        m for m in members_resp.json() if m["username"] == "alice"
-    )
+    alice_member = next(m for m in members_resp.json() if m["username"] == "alice")
     assert alice_member["show_others_annotations"] is False
 
 

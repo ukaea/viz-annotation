@@ -1,6 +1,5 @@
 """Conftest for auth tests — uses mongita (no Docker required)."""
-import os
-import pytest
+
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 
@@ -14,6 +13,7 @@ from toktagger.api.schemas.users import UserIn
 # Low-level DB client (per-test, fresh path each time)
 # ---------------------------------------------------------------------------
 
+
 @pytest_asyncio.fixture(scope="function")
 async def db_client(tmp_path):
     client = MongoDBClient(str(tmp_path), "annotate_db")
@@ -24,6 +24,7 @@ async def db_client(tmp_path):
 # ---------------------------------------------------------------------------
 # Passthrough API client (auth_required=False) — for first_run tests
 # ---------------------------------------------------------------------------
+
 
 @pytest_asyncio.fixture(scope="function")
 async def api_client(tmp_path):
@@ -48,6 +49,7 @@ async def api_client(tmp_path):
 # ---------------------------------------------------------------------------
 # Auth-aware fixture: auth_required=True, three known users seeded
 # ---------------------------------------------------------------------------
+
 
 @pytest_asyncio.fixture(scope="function")
 async def auth_setup(tmp_path):

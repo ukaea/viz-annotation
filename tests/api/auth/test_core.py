@@ -1,5 +1,5 @@
 """Unit tests for toktagger.api.auth.core — no DB or network needed."""
-import time
+
 import pytest
 
 from toktagger.api.auth.core import (
@@ -14,6 +14,7 @@ from toktagger.api.auth.core import (
 # ---------------------------------------------------------------------------
 # hash_password / verify_password
 # ---------------------------------------------------------------------------
+
 
 def test_hash_password_format():
     h = hash_password("secret")
@@ -56,6 +57,7 @@ def test_verify_password_empty_string():
 # create_access_token / decode_token (round-trip)
 # ---------------------------------------------------------------------------
 
+
 def test_create_access_token_returns_string():
     token = create_access_token({"sub": "alice"})
     assert isinstance(token, str)
@@ -80,7 +82,7 @@ def test_decode_token_expired(monkeypatch):
 
     serializer = _get_serializer()
 
-    original_loads = serializer.loads
+    _original_loads = serializer.loads
 
     def fake_loads(data, **kwargs):
         raise SignatureExpired("simulated expiry")

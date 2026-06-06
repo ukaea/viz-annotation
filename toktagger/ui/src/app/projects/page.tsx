@@ -35,7 +35,12 @@ type ProjectsTableProps = {
   onModify?: () => void;
 };
 
-const ProjectsTable = ({ projects, sortDescriptor, onSortChange, onModify }: ProjectsTableProps) => {
+const ProjectsTable = ({
+  projects,
+  sortDescriptor,
+  onSortChange,
+  onModify,
+}: ProjectsTableProps) => {
   const rows = projects.map(({ _id, ...rest }) => ({ ...rest, id: _id, _id }));
 
   return (
@@ -49,10 +54,18 @@ const ProjectsTable = ({ projects, sortDescriptor, onSortChange, onModify }: Pro
         onSortChange={onSortChange}
       >
         <TableHeader>
-          <Column key="name" allowsSorting>Name</Column>
-          <Column key="task" allowsSorting>Task</Column>
-          <Column key="timestamp" allowsSorting>Date Created</Column>
-          <Column key="data_loader" allowsSorting>Loader</Column>
+          <Column key="name" allowsSorting>
+            Name
+          </Column>
+          <Column key="task" allowsSorting>
+            Task
+          </Column>
+          <Column key="timestamp" allowsSorting>
+            Date Created
+          </Column>
+          <Column key="data_loader" allowsSorting>
+            Loader
+          </Column>
           <Column key="actions">Actions</Column>
         </TableHeader>
         <TableBody items={rows}>
@@ -66,19 +79,31 @@ const ProjectsTable = ({ projects, sortDescriptor, onSortChange, onModify }: Pro
                 <Flex direction="row" gap="size-100">
                   <ProjectConfigEditor project={item} onModify={onModify} />
                   <DialogTrigger>
-                    <Button aria-label="Delete" variant="negative"><Delete /></Button>
+                    <Button aria-label="Delete" variant="negative">
+                      <Delete />
+                    </Button>
                     {(close) => (
                       <Dialog>
                         <Heading>Confirm Deletion</Heading>
                         <Divider />
                         <Content>
-                          Are you sure you want to delete project <strong>{item["name"]}</strong>?
-                          You will also lose <strong>all annotations</strong> associated with this
+                          Are you sure you want to delete project{" "}
+                          <strong>{item["name"]}</strong>? You will also lose{" "}
+                          <strong>all annotations</strong> associated with this
                           project. This action cannot be undone.
                         </Content>
                         <ButtonGroup>
-                          <Button variant="secondary" onPress={close}>Cancel</Button>
-                          <Button variant="negative" onPress={async () => { await deleteProject(item._id); onModify?.(); close(); }}>
+                          <Button variant="secondary" onPress={close}>
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="negative"
+                            onPress={async () => {
+                              await deleteProject(item._id);
+                              onModify?.();
+                              close();
+                            }}
+                          >
                             Delete
                           </Button>
                         </ButtonGroup>
@@ -101,21 +126,35 @@ export default function Projects() {
   const [projectsPerPage, setProjectsPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [projectName, setProjectName] = useState<string>("");
-  const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({ column: "_id", direction: "descending" });
+  const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
+    column: "_id",
+    direction: "descending",
+  });
   const [projects, setProjects] = useState<Project[]>([]);
 
   const refreshProjects = useCallback(async () => {
-    setProjects(await getProjects(sortDescriptor, currentPage, projectsPerPage, projectName));
+    setProjects(
+      await getProjects(
+        sortDescriptor,
+        currentPage,
+        projectsPerPage,
+        projectName,
+      ),
+    );
   }, [sortDescriptor, currentPage, projectsPerPage, projectName]);
 
-  useEffect(() => { refreshProjects(); }, [refreshProjects]);
+  useEffect(() => {
+    refreshProjects();
+  }, [refreshProjects]);
 
   if (!projects) return;
 
   return (
     <div>
       <Breadcrumbs>
-        <Item key="projects" href="/ui/projects/">Projects</Item>
+        <Item key="projects" href="/ui/projects/">
+          Projects
+        </Item>
       </Breadcrumbs>
       <div className="w-screen h-screen flex items-center justify-center bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400 dark:from-gray-700 dark:via-gray-800 dark:to-gray-900">
         <div className="w-full md:w-4/5 p-6 bg-white/60 dark:bg-gray-800/60 text-gray-800 dark:text-gray-100 rounded-lg shadow-lg backdrop-blur-sm">
@@ -125,18 +164,41 @@ export default function Projects() {
               <span className="text-sm text-gray-600 dark:text-gray-300">
                 Signed in as <strong>{user?.username}</strong>
               </span>
-              <Button variant="secondary" onPress={() => navigate("/ui/profile")}>Profile</Button>
+              <Button
+                variant="secondary"
+                onPress={() => navigate("/ui/profile")}
+              >
+                Profile
+              </Button>
               {user?.global_role === "admin" && (
-                <Button variant="secondary" onPress={() => navigate("/ui/admin/users")}>Admin Panel</Button>
+                <Button
+                  variant="secondary"
+                  onPress={() => navigate("/ui/admin/users")}
+                >
+                  Admin Panel
+                </Button>
               )}
-              <Button variant="negative" onPress={logout}>Sign Out</Button>
+              <Button variant="negative" onPress={logout}>
+                Sign Out
+              </Button>
             </div>
           </div>
-          <Flex direction="row" margin="size-100" gap="size-100" alignItems="center" justifyContent="space-between">
+          <Flex
+            direction="row"
+            margin="size-100"
+            gap="size-100"
+            alignItems="center"
+            justifyContent="space-between"
+          >
             <ProjectConfigEditor onModify={refreshProjects} />
             <SearchField
               label="Search By Name"
-              onSubmit={(name) => { if (name != null) { setProjectName(name); setCurrentPage(1); } }}
+              onSubmit={(name) => {
+                if (name != null) {
+                  setProjectName(name);
+                  setCurrentPage(1);
+                }
+              }}
             />
           </Flex>
           <ProjectsTable
@@ -146,14 +208,23 @@ export default function Projects() {
             onModify={refreshProjects}
           />
           <div className="flex items-center justify-between pl-4 pr-4">
-            <Button variant="primary" onPress={() => setCurrentPage((p) => p - 1)} isDisabled={currentPage === 1}>
+            <Button
+              variant="primary"
+              onPress={() => setCurrentPage((p) => p - 1)}
+              isDisabled={currentPage === 1}
+            >
               Previous
             </Button>
             <div className="flex items-center justify-center gap-8 pb-2">
               <p>Page: {currentPage}</p>
               <Picker
                 label="Projects per Page:"
-                onSelectionChange={(k) => { if (k != null) { setProjectsPerPage(Number(k) || 10); setCurrentPage(1); } }}
+                onSelectionChange={(k) => {
+                  if (k != null) {
+                    setProjectsPerPage(Number(k) || 10);
+                    setCurrentPage(1);
+                  }
+                }}
                 defaultSelectedKey="10"
               >
                 <Item key="5">5</Item>
@@ -162,7 +233,11 @@ export default function Projects() {
                 <Item key="50">50</Item>
               </Picker>
             </div>
-            <Button variant="primary" onPress={() => setCurrentPage((p) => p + 1)} isDisabled={projects.length < projectsPerPage}>
+            <Button
+              variant="primary"
+              onPress={() => setCurrentPage((p) => p + 1)}
+              isDisabled={projects.length < projectsPerPage}
+            >
               Next
             </Button>
           </div>

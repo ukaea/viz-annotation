@@ -15,11 +15,14 @@ if (import.meta.env.VITE_DATA_API_URL) {
   BACKEND_API_URL = import.meta.env.VITE_DATA_API_URL;
 }
 
-export function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
+export function apiFetch(
+  url: string,
+  options: RequestInit = {},
+): Promise<Response> {
   const token = localStorage.getItem("tt_access_token");
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(options.headers as Record<string, string> ?? {}),
+    ...((options.headers as Record<string, string>) ?? {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
   return fetch(url, { ...options, headers });
@@ -469,7 +472,9 @@ export const getModelPredictSchema = async (
 };
 
 export const getModelTypes = async (task: string): Promise<Response> => {
-  const response = await apiFetch(`${BACKEND_API_URL}/meta/models?task=${task}`);
+  const response = await apiFetch(
+    `${BACKEND_API_URL}/meta/models?task=${task}`,
+  );
   if (!response.ok) {
     throw new Error(`Failed to fetch model types!`);
   }

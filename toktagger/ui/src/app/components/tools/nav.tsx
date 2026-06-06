@@ -20,7 +20,14 @@ import StepForward from "@spectrum-icons/workflow/StepForward";
 import StepBackward from "@spectrum-icons/workflow/StepBackward";
 import SaveFloppy from "@spectrum-icons/workflow/SaveFloppy";
 import Delete from "@spectrum-icons/workflow/Delete";
-import { getShotSample, saveSampleAnnotations, updateSample, BACKEND_API_URL, apiFetch, getAnnotationsForSample } from "@/app/core";
+import {
+  getShotSample,
+  saveSampleAnnotations,
+  updateSample,
+  BACKEND_API_URL,
+  apiFetch,
+  getAnnotationsForSample,
+} from "@/app/core";
 import { useAuth } from "@/app/contexts/AuthContext";
 import {
   useNavigate,
@@ -464,18 +471,24 @@ export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
 
   const [showOthers, setShowOthers] = useState(true);
 
-  const toggleShowOthers = useCallback(async (next: boolean) => {
-    setShowOthers(next);
-    if (user) {
-      await apiFetch(
-        `${BACKEND_API_URL}/projects/${project_id}/members/${user._id}`,
-        { method: "PUT", body: JSON.stringify({ show_others_annotations: next }) },
-      );
-    }
-    // Re-fetch annotations with updated visibility
-    const fresh = await getAnnotationsForSample(project_id, sample_id);
-    setAnnotations(() => fresh);
-  }, [project_id, sample_id, user, setAnnotations]);
+  const toggleShowOthers = useCallback(
+    async (next: boolean) => {
+      setShowOthers(next);
+      if (user) {
+        await apiFetch(
+          `${BACKEND_API_URL}/projects/${project_id}/members/${user._id}`,
+          {
+            method: "PUT",
+            body: JSON.stringify({ show_others_annotations: next }),
+          },
+        );
+      }
+      // Re-fetch annotations with updated visibility
+      const fresh = await getAnnotationsForSample(project_id, sample_id);
+      setAnnotations(() => fresh);
+    },
+    [project_id, sample_id, user, setAnnotations],
+  );
 
   return (
     <Flex alignItems="center" direction="column" gap="size-100">
@@ -487,8 +500,8 @@ export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
             primaryActionLabel="OK"
             onPrimaryAction={() => setPermissionDenied(false)}
           >
-            You don't have permission to save annotations for this project.
-            Your changes have not been saved.
+            You don't have permission to save annotations for this project. Your
+            changes have not been saved.
           </AlertDialog>
         )}
       </DialogContainer>
@@ -529,7 +542,11 @@ export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
         />
       </ButtonGroup>
       <TooltipTrigger delay={1000} placement="bottom">
-        <Checkbox isSelected={SaveOnNavigate} onChange={setSaveOnNavigate} isDisabled={!canAnnotate}>
+        <Checkbox
+          isSelected={SaveOnNavigate}
+          onChange={setSaveOnNavigate}
+          isDisabled={!canAnnotate}
+        >
           Save on Navigate
         </Checkbox>
         <Tooltip>

@@ -36,7 +36,9 @@ export default function ProfilePage() {
       }
       ToastQueue.positive("Email updated", { timeout: 2000 });
     } catch (e) {
-      ToastQueue.negative(e instanceof Error ? e.message : "Error", { timeout: 3000 });
+      ToastQueue.negative(e instanceof Error ? e.message : "Error", {
+        timeout: 3000,
+      });
     } finally {
       setEmailSaving(false);
     }
@@ -49,7 +51,9 @@ export default function ProfilePage() {
       return;
     }
     if (newPassword.length < 8) {
-      ToastQueue.negative("Password must be at least 8 characters", { timeout: 3000 });
+      ToastQueue.negative("Password must be at least 8 characters", {
+        timeout: 3000,
+      });
       return;
     }
     setPasswordSaving(true);
@@ -66,7 +70,9 @@ export default function ProfilePage() {
       setNewPassword("");
       setConfirmPassword("");
     } catch (e) {
-      ToastQueue.negative(e instanceof Error ? e.message : "Error", { timeout: 3000 });
+      ToastQueue.negative(e instanceof Error ? e.message : "Error", {
+        timeout: 3000,
+      });
     } finally {
       setPasswordSaving(false);
     }
@@ -75,31 +81,61 @@ export default function ProfilePage() {
   return (
     <div>
       <Breadcrumbs>
-        <Item key="projects" href="/ui/projects/">Projects</Item>
+        <Item key="projects" href="/ui/projects/">
+          Projects
+        </Item>
         <Item key="profile">Profile</Item>
       </Breadcrumbs>
       <div className="w-screen h-screen flex items-center justify-center bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400 dark:from-gray-700 dark:via-gray-800 dark:to-gray-900">
         <div className="w-full md:w-4/5 p-6 bg-white/60 dark:bg-gray-800/60 text-gray-800 dark:text-gray-100 rounded-lg shadow-lg backdrop-blur-sm">
           <h1 className="text-2xl font-bold mb-4">Profile</h1>
           <Flex direction="column" alignItems="center">
-            <Flex direction="column" gap="size-300" width="size-6000" maxWidth="100%">
-
+            <Flex
+              direction="column"
+              gap="size-300"
+              width="size-6000"
+              maxWidth="100%"
+            >
               <p className="text-sm text-gray-600 dark:text-gray-300">
                 <strong>Username:</strong> {user?.username}
                 &nbsp;&nbsp;|&nbsp;&nbsp;
                 <strong>Role:</strong> {user?.global_role}
               </p>
 
-              <TextField label="Email" value={email} onChange={setEmail} type="email" width="100%" />
-              <Button variant="primary" onPress={saveEmail} isPending={emailSaving} isDisabled={emailSaving} width="100%">
+              <TextField
+                label="Email"
+                value={email}
+                onChange={setEmail}
+                type="email"
+                width="100%"
+              />
+              <Button
+                variant="primary"
+                onPress={saveEmail}
+                isPending={emailSaving}
+                isDisabled={emailSaving}
+                width="100%"
+              >
                 Save Email
               </Button>
 
               <Divider size="S" />
 
               <h2 className="text-lg font-semibold">Change Password</h2>
-              <TextField label="New password" type="password" value={newPassword} onChange={setNewPassword} width="100%" />
-              <TextField label="Confirm new password" type="password" value={confirmPassword} onChange={setConfirmPassword} width="100%" />
+              <TextField
+                label="New password"
+                type="password"
+                value={newPassword}
+                onChange={setNewPassword}
+                width="100%"
+              />
+              <TextField
+                label="Confirm new password"
+                type="password"
+                value={confirmPassword}
+                onChange={setConfirmPassword}
+                width="100%"
+              />
               <Button
                 variant="primary"
                 onPress={savePassword}
@@ -109,7 +145,6 @@ export default function ProfilePage() {
               >
                 Change Password
               </Button>
-
             </Flex>
           </Flex>
         </div>

@@ -1,5 +1,8 @@
 from fastapi import APIRouter, Depends, Request, HTTPException
-from toktagger.api.auth.dependencies import require_project_viewer, require_project_annotator
+from toktagger.api.auth.dependencies import (
+    require_project_viewer,
+    require_project_annotator,
+)
 from toktagger.api.schemas.projects import Project, Task
 from toktagger.api.schemas.samples import Sample
 from toktagger.api.schemas.data import DataParamTypes

@@ -136,6 +136,7 @@ async def get_annotations(
         )
         if membership is None:
             from fastapi import HTTPException as _HTTPException
+
             raise _HTTPException(
                 status_code=403, detail="You are not a member of this project"
             )
@@ -193,7 +194,10 @@ async def update_annotations(
         annotation.shot_id = sample.shot_id
 
     result = await utils.update_annotations(
-        db_client, project_id, sample_id, annotations,
+        db_client,
+        project_id,
+        sample_id,
+        annotations,
         created_by=current_user.username,
     )
 

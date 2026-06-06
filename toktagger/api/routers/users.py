@@ -24,6 +24,7 @@ router = APIRouter(tags=["Users"])
 # Global user management (admin only)
 # ---------------------------------------------------------------------------
 
+
 @router.get("/users", response_model=list[UserOut])
 async def list_users(
     request: Request,
@@ -39,9 +40,7 @@ async def create_user(
     _: UserOut = Depends(require_global_admin),
 ):
     if body.username.startswith("model::") or body.username.startswith("__"):
-        raise HTTPException(
-            status_code=422, detail="Username uses a reserved prefix"
-        )
+        raise HTTPException(status_code=422, detail="Username uses a reserved prefix")
     user = UserIn(
         username=body.username,
         hashed_password=hash_password(body.password),
@@ -95,6 +94,7 @@ async def delete_user(
 # ---------------------------------------------------------------------------
 # Project membership management
 # ---------------------------------------------------------------------------
+
 
 @router.get(
     "/projects/{project_id}/members",

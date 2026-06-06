@@ -10,7 +10,9 @@ from toktagger.api.schemas.users import UserOut
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
 
-@router.get("", responses={200: {"description": "Returns a list of available Projects."}})
+@router.get(
+    "", responses={200: {"description": "Returns a list of available Projects."}}
+)
 async def get_projects(
     request: Request,
     sort_by: str = Query("_id"),
@@ -47,9 +49,7 @@ async def create_project(
     project_id = await db_client.insert(collection="projects", model=project)
 
     # Auto-add creator as project admin
-    await utils.add_project_member(
-        db_client, project_id, current_user.id, role="admin"
-    )
+    await utils.add_project_member(db_client, project_id, current_user.id, role="admin")
 
     return {"_id": project_id}
 
@@ -132,6 +132,7 @@ async def delete_project(
     await utils.delete_projects(db_client=db_client, project_id=project_id)
     # Also remove project memberships
     from toktagger.api.schemas import convert_to_objectid
+
     project_oid = convert_to_objectid(project_id, "projects")
     await db_client.delete_filtered_documents(
         "project_members", {"project_id": project_oid}

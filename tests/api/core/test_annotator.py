@@ -1,4 +1,5 @@
 import pytest
+
 pytest.importorskip("pooch")  # scipy.datasets.electrocardiogram requires pooch
 import toktagger.api.core.annotators as annotators
 import numpy

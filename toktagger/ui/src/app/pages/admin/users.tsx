@@ -54,7 +54,9 @@ export default function AdminUsersPage() {
       body: JSON.stringify({ is_active: !isActive }),
     });
     await refresh();
-    ToastQueue.positive(isActive ? "User deactivated" : "User activated", { timeout: 2000 });
+    ToastQueue.positive(isActive ? "User deactivated" : "User activated", {
+      timeout: 2000,
+    });
   };
 
   const deleteUser = async (userId: string, close: () => void) => {
@@ -67,24 +69,34 @@ export default function AdminUsersPage() {
   return (
     <div>
       <Breadcrumbs>
-        <Item key="projects" href="/ui/projects/">Projects</Item>
+        <Item key="projects" href="/ui/projects/">
+          Projects
+        </Item>
         <Item key="admin">Admin</Item>
         <Item key="users">Users</Item>
       </Breadcrumbs>
       <div className="w-screen min-h-screen flex items-start justify-center bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400 dark:from-gray-700 dark:via-gray-800 dark:to-gray-900 py-6">
         <div className="w-full md:w-4/5 p-6 bg-white/60 dark:bg-gray-800/60 text-gray-800 dark:text-gray-100 rounded-lg shadow-lg backdrop-blur-sm">
-          <Flex justifyContent="space-between" alignItems="center" marginBottom="size-200">
+          <Flex
+            justifyContent="space-between"
+            alignItems="center"
+            marginBottom="size-200"
+          >
             <Heading level={2}>User Management</Heading>
             <Flex gap="size-100" alignItems="center">
               <span className="text-sm text-gray-600 dark:text-gray-300">
                 Signed in as <strong>{currentUser?.username}</strong>
               </span>
-              <Button variant="negative" onPress={logout}>Sign Out</Button>
+              <Button variant="negative" onPress={logout}>
+                Sign Out
+              </Button>
             </Flex>
           </Flex>
 
           {error && (
-            <InlineAlert variant="negative" marginBottom="size-200">{error}</InlineAlert>
+            <InlineAlert variant="negative" marginBottom="size-200">
+              {error}
+            </InlineAlert>
           )}
 
           <Flex marginBottom="size-200">
@@ -117,7 +129,10 @@ export default function AdminUsersPage() {
                         {item.is_active ? "Deactivate" : "Activate"}
                       </Button>
                       <DialogTrigger>
-                        <Button variant="negative" isDisabled={item.id === currentUser?._id}>
+                        <Button
+                          variant="negative"
+                          isDisabled={item.id === currentUser?._id}
+                        >
                           Delete
                         </Button>
                         {(close) => (
@@ -125,11 +140,19 @@ export default function AdminUsersPage() {
                             <Heading>Delete User</Heading>
                             <Divider />
                             <Content>
-                              Delete user <strong>{item.username}</strong>? This cannot be undone.
+                              Delete user <strong>{item.username}</strong>? This
+                              cannot be undone.
                             </Content>
                             <ButtonGroup>
-                              <Button variant="secondary" onPress={close}>Cancel</Button>
-                              <Button variant="negative" onPress={() => deleteUser(item.id, close)}>Delete</Button>
+                              <Button variant="secondary" onPress={close}>
+                                Cancel
+                              </Button>
+                              <Button
+                                variant="negative"
+                                onPress={() => deleteUser(item.id, close)}
+                              >
+                                Delete
+                              </Button>
                             </ButtonGroup>
                           </Dialog>
                         )}
@@ -164,7 +187,10 @@ function CreateUserDialog({ onCreated }: { onCreated: () => void }) {
         const d = await res.json().catch(() => ({}));
         throw new Error(d?.detail ?? "Failed to create user");
       }
-      setUsername(""); setPassword(""); setEmail(""); setRole("user");
+      setUsername("");
+      setPassword("");
+      setEmail("");
+      setRole("user");
       close();
       onCreated();
       ToastQueue.positive("User created", { timeout: 2000 });
@@ -181,20 +207,47 @@ function CreateUserDialog({ onCreated }: { onCreated: () => void }) {
           <Heading>Create User</Heading>
           <Divider />
           <Content>
-            {error && <InlineAlert variant="negative" marginBottom="size-100">{error}</InlineAlert>}
+            {error && (
+              <InlineAlert variant="negative" marginBottom="size-100">
+                {error}
+              </InlineAlert>
+            )}
             <Flex direction="column" gap="size-100">
-              <TextField label="Username" value={username} onChange={setUsername} isRequired />
-              <TextField label="Password" type="password" value={password} onChange={setPassword} isRequired />
+              <TextField
+                label="Username"
+                value={username}
+                onChange={setUsername}
+                isRequired
+              />
+              <TextField
+                label="Password"
+                type="password"
+                value={password}
+                onChange={setPassword}
+                isRequired
+              />
               <TextField label="Email" value={email} onChange={setEmail} />
-              <Picker label="Role" selectedKey={role} onSelectionChange={(k) => setRole(k as "admin" | "user")}>
+              <Picker
+                label="Role"
+                selectedKey={role}
+                onSelectionChange={(k) => setRole(k as "admin" | "user")}
+              >
                 <Item key="user">User</Item>
                 <Item key="admin">Admin</Item>
               </Picker>
             </Flex>
           </Content>
           <ButtonGroup>
-            <Button variant="secondary" onPress={close}>Cancel</Button>
-            <Button variant="cta" isDisabled={!username || !password} onPress={() => submit(close)}>Create</Button>
+            <Button variant="secondary" onPress={close}>
+              Cancel
+            </Button>
+            <Button
+              variant="cta"
+              isDisabled={!username || !password}
+              onPress={() => submit(close)}
+            >
+              Create
+            </Button>
           </ButtonGroup>
         </Dialog>
       )}
@@ -202,7 +255,13 @@ function CreateUserDialog({ onCreated }: { onCreated: () => void }) {
   );
 }
 
-function ChangeRoleDialog({ user, onChanged }: { user: UserRow; onChanged: () => void }) {
+function ChangeRoleDialog({
+  user,
+  onChanged,
+}: {
+  user: UserRow;
+  onChanged: () => void;
+}) {
   const [role, setRole] = useState<"admin" | "user">(user.global_role);
 
   const save = async (close: () => void) => {
@@ -223,14 +282,22 @@ function ChangeRoleDialog({ user, onChanged }: { user: UserRow; onChanged: () =>
           <Heading>Edit {user.username}</Heading>
           <Divider />
           <Content>
-            <Picker label="Global Role" selectedKey={role} onSelectionChange={(k) => setRole(k as "admin" | "user")}>
+            <Picker
+              label="Global Role"
+              selectedKey={role}
+              onSelectionChange={(k) => setRole(k as "admin" | "user")}
+            >
               <Item key="user">User</Item>
               <Item key="admin">Admin</Item>
             </Picker>
           </Content>
           <ButtonGroup>
-            <Button variant="secondary" onPress={close}>Cancel</Button>
-            <Button variant="cta" onPress={() => save(close)}>Save</Button>
+            <Button variant="secondary" onPress={close}>
+              Cancel
+            </Button>
+            <Button variant="cta" onPress={() => save(close)}>
+              Save
+            </Button>
           </ButtonGroup>
         </Dialog>
       )}

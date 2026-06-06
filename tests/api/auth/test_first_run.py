@@ -1,8 +1,8 @@
 """Unit tests for toktagger.api.auth.first_run."""
+
 import pytest
 
 from toktagger.api.auth.first_run import ensure_admin_user
-from toktagger.api.auth.core import verify_password
 
 
 @pytest.mark.asyncio
@@ -10,7 +10,7 @@ async def test_ensure_admin_user_creates_admin_on_empty_db(db_client):
     users_before = await db_client.get_all_documents("users")
     assert len(users_before) == 0
 
-    result = await ensure_admin_user(db_client)
+    await ensure_admin_user(db_client)
 
     users_after = await db_client.get_all_documents("users")
     assert len(users_after) == 1

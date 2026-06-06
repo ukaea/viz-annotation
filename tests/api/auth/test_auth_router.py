@@ -1,4 +1,5 @@
 """Integration tests for /auth/token and /auth/me endpoints."""
+
 import pytest
 
 

@@ -19,6 +19,17 @@ logger = logging.getLogger("ray")
 
 if models_dependencies_installed():
     import ray
+else:
+    class _RayStub:
+        @staticmethod
+        def remote(cls):
+            return cls
+        class ObjectRef:
+            pass
+        @staticmethod
+        def get_actor(name):
+            raise RuntimeError("Ray not installed")
+    ray = _RayStub()  # type: ignore[assignment]
 
 
 # Recursively walk through schema, finding things which need to be changed

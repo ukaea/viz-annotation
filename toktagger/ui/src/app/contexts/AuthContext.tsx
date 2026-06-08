@@ -30,29 +30,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Validate stored token on mount
+  // Validate stored token on mount. Also handles auth-not-required mode:
+  // when the server has TOKTAGGER_AUTH_REQUIRED=false it returns a synthetic
+  // admin from /auth/me with no token, so we always call the endpoint.
   useEffect(() => {
     const validate = async () => {
       const stored = localStorage.getItem(TOKEN_KEY);
-      if (!stored) {
-        setIsLoading(false);
-        return;
-      }
+      const headers: HeadersInit = stored
+        ? { Authorization: `Bearer ${stored}` }
+        : {};
       try {
-        const res = await fetch(`${BACKEND_API_URL}/auth/me`, {
-          headers: { Authorization: `Bearer ${stored}` },
-        });
+        const res = await fetch(`${BACKEND_API_URL}/auth/me`, { headers });
         if (res.ok) {
           const data = await res.json();
           setUser(data as CurrentUser);
           setToken(stored);
         } else {
-          localStorage.removeItem(TOKEN_KEY);
+          if (stored) localStorage.removeItem(TOKEN_KEY);
           setToken(null);
           setUser(null);
         }
       } catch {
-        localStorage.removeItem(TOKEN_KEY);
+        if (stored) localStorage.removeItem(TOKEN_KEY);
         setToken(null);
         setUser(null);
       } finally {

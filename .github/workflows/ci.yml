@@ -186,6 +186,7 @@ jobs:
         run: python scripts/generate_example_config.py
 
       - name: Commit built files
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         run: |
           BUILD_DIR=toktagger/api/static   # <-- replace with your Vite outDir
           git add $BUILD_DIR

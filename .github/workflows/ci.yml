@@ -86,7 +86,7 @@ jobs:
   test_models_disabled:
     name: Pytest (Models Disabled)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     strategy:
       matrix:

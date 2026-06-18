@@ -53,7 +53,9 @@ def create_project(
     return project_id
 
 
-def create_uda_samples(project_id: str, shot_ids: list[int], token: str, base_url: str = BASE_URL):
+def create_uda_samples(
+    project_id: str, shot_ids: list[int], token: str, base_url: str = BASE_URL
+):
     samples = []
     for shot_id in shot_ids:
         sample = {
@@ -74,7 +76,9 @@ def create_uda_samples(project_id: str, shot_ids: list[int], token: str, base_ur
     r.raise_for_status()
 
 
-def create_sal_samples(project_id: str, shot_ids: list[int], token: str, base_url: str = BASE_URL):
+def create_sal_samples(
+    project_id: str, shot_ids: list[int], token: str, base_url: str = BASE_URL
+):
     samples = []
     for shot_id in shot_ids:
         sample = {
@@ -95,7 +99,9 @@ def create_sal_samples(project_id: str, shot_ids: list[int], token: str, base_ur
     r.raise_for_status()
 
 
-def create_fair_mast_samples(project_id: str, shot_ids: list[int], token: str, base_url: str = BASE_URL):
+def create_fair_mast_samples(
+    project_id: str, shot_ids: list[int], token: str, base_url: str = BASE_URL
+):
     samples = []
     for shot_id in shot_ids:
         sample = {
@@ -152,7 +158,13 @@ def create_local_samples(
     r.raise_for_status()
 
 
-def create_image_samples(project_id: str, shot_ids: list[int], image_dir: str, token: str, base_url: str = BASE_URL):
+def create_image_samples(
+    project_id: str,
+    shot_ids: list[int],
+    image_dir: str,
+    token: str,
+    base_url: str = BASE_URL,
+):
     samples = []
     for shot_id in shot_ids:
         samples.append(
@@ -176,7 +188,9 @@ def create_image_samples(project_id: str, shot_ids: list[int], image_dir: str, t
     r.raise_for_status()
 
 
-def create_uda_camera_samples(project_id: str, shot_ids: list[int], token: str, base_url: str = BASE_URL):
+def create_uda_camera_samples(
+    project_id: str, shot_ids: list[int], token: str, base_url: str = BASE_URL
+):
     samples = []
     for shot_id in shot_ids:
         sample = {
@@ -233,24 +247,43 @@ def main():
     shot_ids = [int(path.stem) for path in shot_files]
 
     project_id = create_project(
-        "UDA Disruption Project", "time-series", "uda", "sequential", token=token, base_url=args.url
+        "UDA Disruption Project",
+        "time-series",
+        "uda",
+        "sequential",
+        token=token,
+        base_url=args.url,
     )
     create_uda_samples(project_id, shot_ids, token=token, base_url=args.url)
 
     project_id = create_project(
-        "Local ELM Project", "time-series", "tabular", "sequential", token=token, base_url=args.url
+        "Local ELM Project",
+        "time-series",
+        "tabular",
+        "sequential",
+        token=token,
+        base_url=args.url,
     )
     create_local_samples(
-        project_id, shot_ids, token=token, base_url=args.url,
-        base_path=base_path / "summary", file_type="parquet"
+        project_id,
+        shot_ids,
+        token=token,
+        base_url=args.url,
+        base_path=base_path / "summary",
+        file_type="parquet",
     )
 
     shot_files = Path("./data/test/mhd").glob("*.parquet")
     shot_files = list(shot_files)
     shot_ids = [int(path.stem) for path in shot_files]
     project_id = create_project(
-        "Local MHD Project", "spectrogram", "tabular", "random", token=token, base_url=args.url,
-        min_time_step=0.000001
+        "Local MHD Project",
+        "spectrogram",
+        "tabular",
+        "random",
+        token=token,
+        base_url=args.url,
+        min_time_step=0.000001,
     )
     create_local_samples(
         project_id,
@@ -262,8 +295,12 @@ def main():
         signals=["mirnov"],
     )
     # ---- Image / UFO demo project ----
-    project_id = create_project("Frame Project", "video", "image", "random", token=token, base_url=args.url)
-    create_image_samples(project_id, [10101], Path("./data/test/video/"), token=token, base_url=args.url)
+    project_id = create_project(
+        "Frame Project", "video", "image", "random", token=token, base_url=args.url
+    )
+    create_image_samples(
+        project_id, [10101], Path("./data/test/video/"), token=token, base_url=args.url
+    )
 
     # JET data
     project_id = create_project(
@@ -294,7 +331,12 @@ def main():
 
     shot_ids = [30421]
     project_id = create_project(
-        "UDA Camera Frame Project", "video", "uda_camera", "random", token=token, base_url=args.url
+        "UDA Camera Frame Project",
+        "video",
+        "uda_camera",
+        "random",
+        token=token,
+        base_url=args.url,
     )
     create_uda_camera_samples(project_id, shot_ids, token=token, base_url=args.url)
 

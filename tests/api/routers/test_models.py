@@ -580,7 +580,7 @@ async def test_model_stop_training_not_in_progress(
 @pytest.mark.models_enabled
 async def test_model_delete_predictions(models_api_client, db_client, setup_model_db):
     await models_api_client.delete(
-        f"/projects/{setup_model_db['project_id']}/models/disruption_cnn/predict"
+        f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/predict"
     )
 
     # Should be 5 annotations remaining since half were created by 'manual'

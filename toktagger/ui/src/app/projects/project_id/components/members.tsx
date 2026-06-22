@@ -103,6 +103,7 @@ export function ProjectMembersDialog({ projectId, isProjectAdmin }: Props) {
                         onSelectionChange={(k) =>
                           updateRole(item.user_id, k as string)
                         }
+                        width="size-1600"
                       >
                         <Item key="admin">Admin</Item>
                         <Item key="annotator">Annotator</Item>

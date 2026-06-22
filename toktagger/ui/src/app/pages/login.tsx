@@ -16,6 +16,10 @@ export default function LoginPage() {
   }
 
   const handleLogin = async () => {
+    if (!username || !password) {
+      setError("Invalid username or password");
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
@@ -72,7 +76,6 @@ export default function LoginPage() {
             label="Username"
             value={username}
             onChange={setUsername}
-            isRequired
             autoFocus
             width="100%"
           />
@@ -81,7 +84,6 @@ export default function LoginPage() {
             type="password"
             value={password}
             onChange={setPassword}
-            isRequired
             width="100%"
           />
           <Button

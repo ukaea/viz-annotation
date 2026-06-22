@@ -58,26 +58,44 @@ uv tool install --python 3.12.6 toktagger[models]
 
 ## Quick Start
 
-To start a local single-user instance:
+To start the application:
 
 ```sh
 toktagger
 ```
 
-This starts the application at `http://localhost:8002`. On first launch an `admin` account is created automatically and the credentials are printed to the terminal.
+This launches 4 Gunicorn workers and opens the UI at `http://localhost:8002`. On first launch an `admin` account is created automatically and the credentials are printed to the terminal.
+
+### Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--workers N` | `4` | Number of Gunicorn worker processes |
+| `--host HOST` | `0.0.0.0` | Host to bind to |
+| `--port PORT` | `8002` | Port to listen on |
+| `--no-browser` | off | Suppress automatic browser launch |
+| `--reload` | off | Auto-reload on code changes (single-worker dev mode only) |
+
+### Development Mode
+
+For local development with automatic reload on code changes, use a single worker:
+
+```sh
+toktagger --workers 1 --reload
+```
 
 ### Multi-User / Team Deployment
 
-For concurrent multi-user access, run with multiple Gunicorn workers:
+For server deployments, run with multiple workers and disable the automatic browser launch:
 
 ```sh
 toktagger --workers 4 --host 0.0.0.0 --port 8002 --no-browser
 ```
 
-Or directly via Gunicorn:
+Or directly via Gunicorn (use `python -m gunicorn` to ensure the correct virtual environment is used):
 
 ```sh
-gunicorn toktagger.api.asgi:app \
+python -m gunicorn toktagger.api.asgi:app \
     --worker-class uvicorn.workers.UvicornWorker \
     --workers 4 \
     --bind 0.0.0.0:8002

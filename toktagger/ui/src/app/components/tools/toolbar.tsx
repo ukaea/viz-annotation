@@ -325,6 +325,7 @@ export default function ToolBar() {
             alignItems="center"
             justifyContent="center"
             gap="size-100"
+            width="100%"
           >
             <Header height="size-300" marginBottom="size-100">
               <span style={{ fontSize: "1.2rem" }}>Controls</span>

@@ -1,20 +1,9 @@
 import asyncio
+import os
 import re
-from typing import Any, AsyncIterator, Dict, Iterable, List, Optional, Tuple
+from typing import Any, AsyncIterator, Callable, Dict, Iterable, List, Optional, Tuple
+from filelock import FileLock
 from mongita import MongitaClientDisk
-
-
-class AsyncMutex:
-    def __init__(self) -> None:
-        self._alock = asyncio.Lock()
-        self._loop = asyncio.get_event_loop()
-
-    async def __aenter__(self):
-        await self._alock.acquire()
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        self._alock.release()
 
 
 class AsyncMongitaClient:
@@ -22,12 +11,30 @@ class AsyncMongitaClient:
         self,
         db_path: str,
     ) -> None:
+        os.makedirs(db_path, exist_ok=True)
         self._client = MongitaClientDisk(db_path)
         self._closed = False
-        self._mutex = AsyncMutex()
+        self._mutex = asyncio.Lock()
+        self._file_lock = FileLock(db_path + ".lock")
 
     def __getitem__(self, name: str) -> "AsyncDatabase":
         return AsyncDatabase(self, name)
+
+    async def _run(self, fn: Callable) -> Any:
+        """Run fn in a thread, holding the cross-process FileLock.
+
+        asyncio.Lock prevents multiple coroutines in this worker from
+        queuing up threads; FileLock prevents concurrent access from
+        other gunicorn workers.
+        """
+        async with self._mutex:
+            file_lock = self._file_lock
+
+            def _in_thread():
+                with file_lock:
+                    return fn()
+
+            return await asyncio.to_thread(_in_thread)
 
     async def close(self) -> None:
         if self._closed:
@@ -61,20 +68,23 @@ class AsyncCollection:
         return self._name
 
     async def insert_one(self, document: Dict[str, Any]) -> Any:
-        async with self._database._client._mutex:
-            return await asyncio.to_thread(self._sync_col.insert_one, document)
+        return await self._database._client._run(
+            lambda: self._sync_col.insert_one(document)
+        )
 
     async def insert_many(self, documents: Iterable[Dict[str, Any]]) -> Any:
-        async with self._database._client._mutex:
-            return await asyncio.to_thread(self._sync_col.insert_many, list(documents))
+        docs = list(documents)
+        return await self._database._client._run(
+            lambda: self._sync_col.insert_many(docs)
+        )
 
     async def find_one(
         self, filter: Optional[Dict[str, Any]] = None, *args, **kwargs
     ) -> Optional[Dict[str, Any]]:
-        async with self._database._client._mutex:
-            return await asyncio.to_thread(
-                self._sync_col.find_one, filter or {}, *args, **kwargs
-            )
+        f = filter or {}
+        return await self._database._client._run(
+            lambda: self._sync_col.find_one(f, *args, **kwargs)
+        )
 
     def find(
         self,
@@ -101,11 +111,11 @@ class AsyncCollection:
                     else:
                         mongo_filter[field] = condition
 
-            async with self._database._client._mutex:
-                cursor = await asyncio.to_thread(
-                    self._sync_col.find, mongo_filter or {}, *args, **kwargs
-                )
-                results = await asyncio.to_thread(lambda: list(cursor))
+            def _do_find():
+                cursor = self._sync_col.find(mongo_filter or {}, *args, **kwargs)
+                return list(cursor)
+
+            results = await self._database._client._run(_do_find)
 
             # Apply regex filters
             if regex_filters:
@@ -135,44 +145,39 @@ class AsyncCollection:
     async def update_one(
         self, filter: Dict[str, Any], update: Dict[str, Any], *args, **kwargs
     ) -> Any:
-        async with self._database._client._mutex:
-            return await asyncio.to_thread(
-                self._sync_col.update_one, filter, update, *args, **kwargs
-            )
+        return await self._database._client._run(
+            lambda: self._sync_col.update_one(filter, update, *args, **kwargs)
+        )
 
     async def update_many(
         self, filter: Dict[str, Any], update: Dict[str, Any], *args, **kwargs
     ) -> Any:
-        async with self._database._client._mutex:
-            return await asyncio.to_thread(
-                self._sync_col.update_many, filter, update, *args, **kwargs
-            )
+        return await self._database._client._run(
+            lambda: self._sync_col.update_many(filter, update, *args, **kwargs)
+        )
 
     async def delete_one(self, filter: Dict[str, Any], *args, **kwargs) -> Any:
-        async with self._database._client._mutex:
-            return await asyncio.to_thread(
-                self._sync_col.delete_one, filter, *args, **kwargs
-            )
+        return await self._database._client._run(
+            lambda: self._sync_col.delete_one(filter, *args, **kwargs)
+        )
 
     async def delete_many(self, filter: Dict[str, Any], *args, **kwargs) -> Any:
-        async with self._database._client._mutex:
-            return await asyncio.to_thread(
-                self._sync_col.delete_many, filter, *args, **kwargs
-            )
+        return await self._database._client._run(
+            lambda: self._sync_col.delete_many(filter, *args, **kwargs)
+        )
 
     async def count_documents(
         self, filter: Optional[Dict[str, Any]] = None, *args, **kwargs
     ) -> int:
-        async with self._database._client._mutex:
-            return await asyncio.to_thread(
-                self._sync_col.count_documents, filter or {}, *args, **kwargs
-            )
+        f = filter or {}
+        return await self._database._client._run(
+            lambda: self._sync_col.count_documents(f, *args, **kwargs)
+        )
 
     async def create_index(self, keys: Any, *args, **kwargs) -> Any:
-        async with self._database._client._mutex:
-            return await asyncio.to_thread(
-                self._sync_col.create_index, keys, *args, **kwargs
-            )
+        return await self._database._client._run(
+            lambda: self._sync_col.create_index(keys, *args, **kwargs)
+        )
 
 
 class AsyncCursor:

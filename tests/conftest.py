@@ -1,3 +1,5 @@
+import pathlib
+import tempfile
 import pytest
 import pytest_asyncio
 from toktagger.api.main import Server
@@ -12,6 +14,7 @@ import multiprocessing
 import requests
 import time
 import importlib
+import toktagger.api.config as config
 
 MODELS_ENABLED = importlib.util.find_spec("ray") is not None
 
@@ -84,6 +87,28 @@ def uda_test(uda_env_vars):
         pyuda.Client().get("help::help()")
     except Exception:
         pytest.skip("Could not contact UDA server")
+
+
+@pytest.fixture(scope="session")
+def settings():
+    """Session-scoped config object with temp dirs for models storage.
+
+    Required by ray_session (models_fixtures.py) for MODEL_STORAGE env var.
+    Also patches the module-level config.settings so model fixtures that
+    reference config.settings.models.cache_dir work correctly.
+    """
+    with tempfile.TemporaryDirectory(suffix="toktagger_") as tempd:
+        models_dir = pathlib.Path(tempd) / "models"
+        models_dir.mkdir(exist_ok=True)
+        s = config.Settings(
+            server=config.Server(cache_dir=tempd),
+            models=config.Models(cache_dir=models_dir, max_actors=1),
+            database=config.Database(mongo_url="./toktagger_test_db"),
+            uda=config.UDA(),
+            sal=config.SAL(),
+        )
+        config.settings = s
+        yield s
 
 
 @pytest.fixture(scope="session")

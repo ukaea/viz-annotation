@@ -13,7 +13,15 @@ from toktagger.api.schemas.annotations import (
 from toktagger.api.schemas.projects import Project
 from toktagger.api.schemas.samples import FileData, Sample, SampleUpdate, SampleSummary
 from toktagger.api.schemas.models import Model, ModelIn, ModelUpdate
-from toktagger.api.schemas.users import ProjectMember, ProjectMemberOut, UserIn, UserOut
+from toktagger.api.auth.core import hash_password
+from toktagger.api.schemas.users import (
+    ProjectMember,
+    ProjectMemberOut,
+    ProjectMemberUpdate,
+    UserIn,
+    UserOut,
+    UserUpdate,
+)
 
 
 async def get_projects(
@@ -528,16 +536,19 @@ async def import_annotations(
 # ---------------------------------------------------------------------------
 
 
-async def get_user_by_username(db_client: MongoDBClient, username: str) -> dict | None:
+async def get_user_by_username(
+    db_client: MongoDBClient, username: str
+) -> UserOut | None:
     docs = await db_client.get_filtered_documents(
         "users", filters={"username": username}
     )
-    return docs[0] if docs else None
+    return UserOut.model_validate(docs[0]) if docs else None
 
 
-async def get_user_by_id(db_client: MongoDBClient, user_id: str) -> dict | None:
+async def get_user_by_id(db_client: MongoDBClient, user_id: str) -> UserOut | None:
     obj_id = convert_to_objectid(user_id, "users")
-    return await db_client.get_document_by_id("users", obj_id)
+    doc = await db_client.get_document_by_id("users", obj_id)
+    return UserOut.model_validate(doc) if doc else None
 
 
 async def get_all_users(db_client: MongoDBClient) -> list[UserOut]:
@@ -552,15 +563,17 @@ async def create_user(db_client: MongoDBClient, user: UserIn) -> str:
     return await db_client.insert("users", user)
 
 
-async def update_user(db_client: MongoDBClient, user_id: str, updates: dict) -> None:
+async def update_user(
+    db_client: MongoDBClient, user_id: str, updates: UserUpdate
+) -> None:
     obj_id = convert_to_objectid(user_id, "users")
-    doc = await db_client.get_document_by_id("users", obj_id)
-    if not doc:
+    user = await get_user_by_id(db_client, user_id)
+    if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    # Apply updates directly — the router has already validated and hashed fields
-    # (e.g. hashed_password) before calling here. Reconstructing via UserUpdate
-    # would silently drop hashed_password since it is not a UserUpdate field.
-    await db_client.db["users"].update_one({"_id": obj_id}, {"$set": updates})
+    update_dict = updates.model_dump(exclude_none=True)
+    if "password" in update_dict:
+        update_dict["hashed_password"] = hash_password(update_dict.pop("password"))
+    await db_client.db["users"].update_one({"_id": obj_id}, {"$set": update_dict})
 
 
 async def delete_user(db_client: MongoDBClient, user_id: str) -> None:
@@ -586,11 +599,8 @@ async def get_project_members(
     )
     result = []
     for doc in docs:
-        user_doc = await db_client.get_document_by_id("users", doc["user_id"])
-        username = user_doc["username"] if user_doc else "unknown"
-        doc["username"] = username
-        # ObjectId fields not covered by ConfiguredModel.convert_objectid must be
-        # stringified manually before Pydantic validation.
+        user = await get_user_by_id(db_client, str(doc["user_id"]))
+        doc["username"] = user.username if user else "unknown"
         doc["user_id"] = str(doc["user_id"])
         result.append(ProjectMemberOut.model_validate(doc))
     return result
@@ -639,7 +649,7 @@ async def update_project_member(
     db_client: MongoDBClient,
     project_id: str,
     user_id: str,
-    updates: dict,
+    updates: ProjectMemberUpdate,
 ) -> None:
     project_oid = convert_to_objectid(project_id, "projects")
     user_oid = convert_to_objectid(user_id, "users")
@@ -651,11 +661,8 @@ async def update_project_member(
     if not docs:
         raise HTTPException(status_code=404, detail="Membership not found")
 
-    from toktagger.api.schemas.users import ProjectMemberUpdate
-
     member_oid = convert_to_objectid(str(docs[0]["_id"]), "project_members")
-    model = ProjectMemberUpdate(**updates)
-    await db_client.update("project_members", model, member_oid)
+    await db_client.update("project_members", updates, member_oid)
 
 
 async def remove_project_member(

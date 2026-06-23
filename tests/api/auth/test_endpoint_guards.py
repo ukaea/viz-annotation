@@ -11,10 +11,7 @@ Permission matrix:
 
 import pytest
 
-
-# ---------------------------------------------------------------------------
-# Shared helpers
-# ---------------------------------------------------------------------------
+from tests.api.auth.conftest import get_auth_token
 
 
 async def create_project_and_sample(client, token):
@@ -63,18 +60,13 @@ def annotation_payload():
     ]
 
 
-# ---------------------------------------------------------------------------
-# Samples — GET (list)
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 async def test_non_member_cannot_list_samples(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, _ = await create_project_and_sample(client, admin_token)
 
-    bob_token = await auth_setup["get_token"]("bob", "bob_pass")
+    bob_token = await get_auth_token(client, "bob", "bob_pass")
     resp = await client.get(
         f"/projects/{project_id}/samples",
         headers={"Authorization": f"Bearer {bob_token}"},
@@ -85,11 +77,11 @@ async def test_non_member_cannot_list_samples(auth_setup):
 @pytest.mark.asyncio
 async def test_viewer_can_list_samples(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, _ = await create_project_and_sample(client, admin_token)
     await add_member(client, admin_token, project_id, "alice", "viewer")
 
-    alice_token = await auth_setup["get_token"]("alice", "alice_pass")
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
     resp = await client.get(
         f"/projects/{project_id}/samples",
         headers={"Authorization": f"Bearer {alice_token}"},
@@ -97,18 +89,13 @@ async def test_viewer_can_list_samples(auth_setup):
     assert resp.status_code == 200
 
 
-# ---------------------------------------------------------------------------
-# Samples — POST (add)
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 async def test_non_member_cannot_add_samples(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, _ = await create_project_and_sample(client, admin_token)
 
-    bob_token = await auth_setup["get_token"]("bob", "bob_pass")
+    bob_token = await get_auth_token(client, "bob", "bob_pass")
     resp = await client.post(
         f"/projects/{project_id}/samples",
         json=[{"shot_id": 99, "data": {"file_name": "x.csv", "type": "csv"}}],
@@ -120,11 +107,11 @@ async def test_non_member_cannot_add_samples(auth_setup):
 @pytest.mark.asyncio
 async def test_viewer_cannot_add_samples(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, _ = await create_project_and_sample(client, admin_token)
     await add_member(client, admin_token, project_id, "alice", "viewer")
 
-    alice_token = await auth_setup["get_token"]("alice", "alice_pass")
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
     resp = await client.post(
         f"/projects/{project_id}/samples",
         json=[{"shot_id": 99, "data": {"file_name": "x.csv", "type": "csv"}}],
@@ -136,11 +123,11 @@ async def test_viewer_cannot_add_samples(auth_setup):
 @pytest.mark.asyncio
 async def test_annotator_can_add_samples(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, _ = await create_project_and_sample(client, admin_token)
     await add_member(client, admin_token, project_id, "alice", "annotator")
 
-    alice_token = await auth_setup["get_token"]("alice", "alice_pass")
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
     resp = await client.post(
         f"/projects/{project_id}/samples",
         json=[{"shot_id": 99, "data": {"file_name": "x.csv", "type": "csv"}}],
@@ -149,19 +136,14 @@ async def test_annotator_can_add_samples(auth_setup):
     assert resp.status_code == 200
 
 
-# ---------------------------------------------------------------------------
-# Samples — DELETE single sample
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 async def test_annotator_cannot_delete_sample(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, sample_id = await create_project_and_sample(client, admin_token)
     await add_member(client, admin_token, project_id, "alice", "annotator")
 
-    alice_token = await auth_setup["get_token"]("alice", "alice_pass")
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
     resp = await client.delete(
         f"/projects/{project_id}/samples/{sample_id}",
         headers={"Authorization": f"Bearer {alice_token}"},
@@ -172,7 +154,7 @@ async def test_annotator_cannot_delete_sample(auth_setup):
 @pytest.mark.asyncio
 async def test_project_admin_can_delete_sample(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, sample_id = await create_project_and_sample(client, admin_token)
 
     # Admin (global) is also an implicit project admin; use them directly.
@@ -183,19 +165,14 @@ async def test_project_admin_can_delete_sample(auth_setup):
     assert resp.status_code == 200
 
 
-# ---------------------------------------------------------------------------
-# Samples — DELETE all samples
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 async def test_annotator_cannot_delete_all_samples(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, _ = await create_project_and_sample(client, admin_token)
     await add_member(client, admin_token, project_id, "alice", "annotator")
 
-    alice_token = await auth_setup["get_token"]("alice", "alice_pass")
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
     resp = await client.delete(
         f"/projects/{project_id}/samples",
         headers={"Authorization": f"Bearer {alice_token}"},
@@ -206,7 +183,7 @@ async def test_annotator_cannot_delete_all_samples(auth_setup):
 @pytest.mark.asyncio
 async def test_global_admin_can_delete_all_samples(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, _ = await create_project_and_sample(client, admin_token)
 
     resp = await client.delete(
@@ -216,18 +193,13 @@ async def test_global_admin_can_delete_all_samples(auth_setup):
     assert resp.status_code == 200
 
 
-# ---------------------------------------------------------------------------
-# Project-level annotations — GET
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 async def test_non_member_cannot_get_project_annotations(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, _ = await create_project_and_sample(client, admin_token)
 
-    bob_token = await auth_setup["get_token"]("bob", "bob_pass")
+    bob_token = await get_auth_token(client, "bob", "bob_pass")
     resp = await client.get(
         f"/projects/{project_id}/annotations",
         headers={"Authorization": f"Bearer {bob_token}"},
@@ -238,11 +210,11 @@ async def test_non_member_cannot_get_project_annotations(auth_setup):
 @pytest.mark.asyncio
 async def test_viewer_can_get_project_annotations(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, _ = await create_project_and_sample(client, admin_token)
     await add_member(client, admin_token, project_id, "alice", "viewer")
 
-    alice_token = await auth_setup["get_token"]("alice", "alice_pass")
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
     resp = await client.get(
         f"/projects/{project_id}/annotations",
         headers={"Authorization": f"Bearer {alice_token}"},
@@ -250,19 +222,14 @@ async def test_viewer_can_get_project_annotations(auth_setup):
     assert resp.status_code == 200
 
 
-# ---------------------------------------------------------------------------
-# Project-level annotations — PUT (bulk import)
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 async def test_viewer_cannot_import_annotations(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, _ = await create_project_and_sample(client, admin_token)
     await add_member(client, admin_token, project_id, "alice", "viewer")
 
-    alice_token = await auth_setup["get_token"]("alice", "alice_pass")
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
     resp = await client.put(
         f"/projects/{project_id}/annotations",
         json=annotation_payload(),
@@ -274,11 +241,11 @@ async def test_viewer_cannot_import_annotations(auth_setup):
 @pytest.mark.asyncio
 async def test_annotator_can_import_annotations(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, sample_id = await create_project_and_sample(client, admin_token)
     await add_member(client, admin_token, project_id, "alice", "annotator")
 
-    alice_token = await auth_setup["get_token"]("alice", "alice_pass")
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
     # Bulk import requires full annotation docs (with sample_id embedded)
     payload = [
         {
@@ -301,19 +268,14 @@ async def test_annotator_can_import_annotations(auth_setup):
     assert resp.status_code == 200
 
 
-# ---------------------------------------------------------------------------
-# Project-level annotations — DELETE all
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 async def test_annotator_cannot_delete_project_annotations(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, _ = await create_project_and_sample(client, admin_token)
     await add_member(client, admin_token, project_id, "alice", "annotator")
 
-    alice_token = await auth_setup["get_token"]("alice", "alice_pass")
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
     resp = await client.delete(
         f"/projects/{project_id}/annotations",
         headers={"Authorization": f"Bearer {alice_token}"},
@@ -324,7 +286,7 @@ async def test_annotator_cannot_delete_project_annotations(auth_setup):
 @pytest.mark.asyncio
 async def test_global_admin_can_delete_project_annotations(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, _ = await create_project_and_sample(client, admin_token)
 
     resp = await client.delete(
@@ -334,19 +296,14 @@ async def test_global_admin_can_delete_project_annotations(auth_setup):
     assert resp.status_code == 200
 
 
-# ---------------------------------------------------------------------------
-# Sample-level annotations — DELETE all (bulk, admin-only)
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 async def test_annotator_cannot_delete_all_sample_annotations(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, sample_id = await create_project_and_sample(client, admin_token)
     await add_member(client, admin_token, project_id, "alice", "annotator")
 
-    alice_token = await auth_setup["get_token"]("alice", "alice_pass")
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
     resp = await client.delete(
         f"/projects/{project_id}/samples/{sample_id}/annotations",
         headers={"Authorization": f"Bearer {alice_token}"},
@@ -357,7 +314,7 @@ async def test_annotator_cannot_delete_all_sample_annotations(auth_setup):
 @pytest.mark.asyncio
 async def test_global_admin_can_delete_all_sample_annotations(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, sample_id = await create_project_and_sample(client, admin_token)
 
     resp = await client.delete(
@@ -367,18 +324,13 @@ async def test_global_admin_can_delete_all_sample_annotations(auth_setup):
     assert resp.status_code == 200
 
 
-# ---------------------------------------------------------------------------
-# Data endpoint
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 async def test_non_member_cannot_get_data(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, sample_id = await create_project_and_sample(client, admin_token)
 
-    bob_token = await auth_setup["get_token"]("bob", "bob_pass")
+    bob_token = await get_auth_token(client, "bob", "bob_pass")
     resp = await client.post(
         f"/projects/{project_id}/samples/{sample_id}/data",
         json={},
@@ -391,11 +343,11 @@ async def test_non_member_cannot_get_data(auth_setup):
 async def test_viewer_passes_data_auth_check(auth_setup):
     """Viewer should pass the auth gate (may still get 404/422 for missing data file)."""
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, sample_id = await create_project_and_sample(client, admin_token)
     await add_member(client, admin_token, project_id, "alice", "viewer")
 
-    alice_token = await auth_setup["get_token"]("alice", "alice_pass")
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
     resp = await client.post(
         f"/projects/{project_id}/samples/{sample_id}/data",
         json={},

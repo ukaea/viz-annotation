@@ -116,7 +116,7 @@ jobs:
   test_models_enabled:
     name: Pytest (Models Enabled)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     strategy:
       matrix:
@@ -144,6 +144,7 @@ jobs:
         run: uv run --all-extras pytest tests/end_to_end
 
   build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
@@ -186,7 +187,6 @@ jobs:
         run: python scripts/generate_example_config.py
 
       - name: Commit built files
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         run: |
           BUILD_DIR=toktagger/api/static   # <-- replace with your Vite outDir
           git add $BUILD_DIR

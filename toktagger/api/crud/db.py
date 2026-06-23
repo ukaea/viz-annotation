@@ -19,7 +19,9 @@ class MongoDBClient:
             # Use mongodb (expects running instance of mongodb at this address)
             self.client = pymongo.AsyncMongoClient(url)
         else:
-            # File-path mode: cache_dir takes priority, else use url as base dir
+            # File-path mode: cache_dir takes priority, else fall back to url as a base
+            # directory path (backward-compatibility for users who configured a filesystem
+            # path as the DB URL before the cache_dir option was added).
             if cache_dir:
                 base_dir = Path(cache_dir)
             elif url and url != "default":

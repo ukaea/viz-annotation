@@ -2,10 +2,7 @@
 
 import pytest
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+from tests.api.auth.conftest import get_auth_token
 
 
 async def create_project(client, token):
@@ -23,15 +20,10 @@ async def create_project(client, token):
     return resp.json()["_id"]
 
 
-# ---------------------------------------------------------------------------
-# User CRUD — admin only
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 async def test_list_users_as_admin(auth_setup):
     client = auth_setup["client"]
-    token = await auth_setup["get_token"]("admin", "admin_pass")
+    token = await get_auth_token(client, "admin", "admin_pass")
     response = await client.get("/users", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
     users = response.json()
@@ -44,7 +36,7 @@ async def test_list_users_as_admin(auth_setup):
 @pytest.mark.asyncio
 async def test_list_users_non_admin_forbidden(auth_setup):
     client = auth_setup["client"]
-    token = await auth_setup["get_token"]("alice", "alice_pass")
+    token = await get_auth_token(client, "alice", "alice_pass")
     response = await client.get("/users", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 403
 
@@ -52,7 +44,7 @@ async def test_list_users_non_admin_forbidden(auth_setup):
 @pytest.mark.asyncio
 async def test_create_user_as_admin(auth_setup):
     client = auth_setup["client"]
-    token = await auth_setup["get_token"]("admin", "admin_pass")
+    token = await get_auth_token(client, "admin", "admin_pass")
     response = await client.post(
         "/users",
         json={
@@ -73,7 +65,7 @@ async def test_create_user_as_admin(auth_setup):
 @pytest.mark.asyncio
 async def test_create_user_non_admin_forbidden(auth_setup):
     client = auth_setup["client"]
-    token = await auth_setup["get_token"]("alice", "alice_pass")
+    token = await get_auth_token(client, "alice", "alice_pass")
     response = await client.post(
         "/users",
         json={
@@ -90,7 +82,7 @@ async def test_create_user_non_admin_forbidden(auth_setup):
 @pytest.mark.asyncio
 async def test_get_user_by_id_self(auth_setup):
     client = auth_setup["client"]
-    token = await auth_setup["get_token"]("alice", "alice_pass")
+    token = await get_auth_token(client, "alice", "alice_pass")
     alice_id = auth_setup["alice_id"]
     response = await client.get(
         f"/users/{alice_id}",
@@ -103,7 +95,7 @@ async def test_get_user_by_id_self(auth_setup):
 @pytest.mark.asyncio
 async def test_get_other_user_as_non_admin_forbidden(auth_setup):
     client = auth_setup["client"]
-    token = await auth_setup["get_token"]("alice", "alice_pass")
+    token = await get_auth_token(client, "alice", "alice_pass")
     bob_id = auth_setup["bob_id"]
     response = await client.get(
         f"/users/{bob_id}",
@@ -115,7 +107,7 @@ async def test_get_other_user_as_non_admin_forbidden(auth_setup):
 @pytest.mark.asyncio
 async def test_update_own_user(auth_setup):
     client = auth_setup["client"]
-    token = await auth_setup["get_token"]("alice", "alice_pass")
+    token = await get_auth_token(client, "alice", "alice_pass")
     alice_id = auth_setup["alice_id"]
     response = await client.put(
         f"/users/{alice_id}",
@@ -135,7 +127,7 @@ async def test_update_own_user(auth_setup):
 @pytest.mark.asyncio
 async def test_delete_user_as_admin(auth_setup):
     client = auth_setup["client"]
-    token = await auth_setup["get_token"]("admin", "admin_pass")
+    token = await get_auth_token(client, "admin", "admin_pass")
     bob_id = auth_setup["bob_id"]
     response = await client.delete(
         f"/users/{bob_id}",
@@ -152,15 +144,10 @@ async def test_delete_user_as_admin(auth_setup):
     assert login_resp.status_code == 401
 
 
-# ---------------------------------------------------------------------------
-# Project membership
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 async def test_add_and_list_project_members(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id = await create_project(client, admin_token)
 
     # Add alice as annotator (uses username, not user_id)
@@ -185,8 +172,8 @@ async def test_add_and_list_project_members(auth_setup):
 @pytest.mark.asyncio
 async def test_add_member_non_admin_forbidden(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
-    alice_token = await auth_setup["get_token"]("alice", "alice_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
     project_id = await create_project(client, admin_token)
 
     resp = await client.post(
@@ -200,8 +187,8 @@ async def test_add_member_non_admin_forbidden(auth_setup):
 @pytest.mark.asyncio
 async def test_update_member_show_others_annotations(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
-    alice_token = await auth_setup["get_token"]("alice", "alice_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
     project_id = await create_project(client, admin_token)
 
     # Add alice as annotator (uses username, not user_id)
@@ -231,7 +218,7 @@ async def test_update_member_show_others_annotations(auth_setup):
 @pytest.mark.asyncio
 async def test_remove_project_member(auth_setup):
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id = await create_project(client, admin_token)
 
     await client.post(

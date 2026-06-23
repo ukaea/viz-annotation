@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Request, Depends
+from toktagger.api.auth.dependencies import get_current_user
 from toktagger.api.core.data_loaders import LoaderRegistry
 from toktagger.api.schemas.models import LoadTypes
 from toktagger.api.models import models_dependencies_installed, check_models_enabled
@@ -10,7 +11,11 @@ if models_dependencies_installed():
 else:
     ModelRegistry = None
 
-router = APIRouter(prefix="/meta", tags=["Metadata"])
+router = APIRouter(
+    prefix="/meta",
+    tags=["Metadata"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get("/dataloader")

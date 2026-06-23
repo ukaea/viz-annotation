@@ -6,10 +6,24 @@ TokTagger supports multiple concurrent users with role-based access control. An 
 
 ## User Roles
 
-| Role | Permissions |
+TokTagger has two layers of roles:
+
+### Global roles (account-level)
+
+| Global Role | Permissions |
 |---|---|
 | `admin` | Full access: create/edit/delete any project, manage all user accounts, view all annotations |
-| `user` | Access only to projects they are a member of; can annotate and export within those projects |
+| `user` | Access only to projects they are a member of |
+
+### Project roles (per-project membership)
+
+| Project Role | Permissions |
+|---|---|
+| `admin` | Manage project membership, delete samples and annotations |
+| `annotator` | Submit and update annotations for samples |
+| `viewer` | Read-only access to the project's samples and annotations |
+
+A global `admin` automatically has unrestricted access to all projects regardless of project role.
 
 ---
 
@@ -52,6 +66,9 @@ The panel lists all registered accounts with their username, email, role, and ac
 1. Find the user in the table and click **Edit**.
 2. Select the new **Global Role**.
 3. Click **Save**.
+
+!!! note
+    TokTagger prevents demoting or deactivating the last remaining active admin account to avoid an unrecoverable lockout.
 
 ### Deactivating / Reactivating a User
 

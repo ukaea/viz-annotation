@@ -1,7 +1,6 @@
 from typing import Literal
 from fastapi import APIRouter, Depends, Request, Path, Query
 from toktagger.api.auth.dependencies import (
-    get_current_user,
     require_project_annotator,
     require_project_viewer,
     require_project_admin_role,
@@ -120,7 +119,7 @@ async def get_annotations(
     count: int = Query(None),
     validated: bool = Query(None),
     created_by: str = Query(None),
-    current_user: UserOut = Depends(get_current_user),
+    current_user: UserOut = Depends(require_project_viewer),
 ) -> list[AnnotationOutTypes]:
     db_client = request.app.state.db_client
     await utils.get_project(db_client=db_client, project_id=project_id)
@@ -128,18 +127,13 @@ async def get_annotations(
         db_client=db_client, project_id=project_id, sample_id=sample_id
     )
 
-    # Enforce project membership (global admins bypass this check)
+    # Membership already validated by require_project_viewer; re-fetch only to check
+    # the per-user show_others_annotations preference (global admins get None → show all)
     membership = None
     if current_user.global_role != "admin":
         membership = await utils.get_project_membership(
             db_client, project_id, current_user.id
         )
-        if membership is None:
-            from fastapi import HTTPException as _HTTPException
-
-            raise _HTTPException(
-                status_code=403, detail="You are not a member of this project"
-            )
 
     # Apply per-user annotation visibility filter
     effective_created_by = created_by

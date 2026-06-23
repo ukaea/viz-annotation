@@ -88,6 +88,8 @@ def uda_test(uda_env_vars):
 
 @pytest.fixture(scope="session")
 def mongo_container():
+    # Used by tests/api/ (non-auth) tests via db_client and api_client fixtures below.
+    # Auth tests use tmp_path + mongita in tests/api/auth/conftest.py instead.
     try:
         import docker
 

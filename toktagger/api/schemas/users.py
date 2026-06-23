@@ -3,20 +3,22 @@ from pydantic import BaseModel, Field
 from toktagger.api.schemas import ConfiguredModel
 
 
-class UserIn(ConfiguredModel):
-    username: str
-    hashed_password: str
+class UserBase(ConfiguredModel):
+    """Shared fields for user models."""
+
     email: str = ""
     global_role: Literal["admin", "user"] = "user"
     is_active: bool = True
 
 
-class UserOut(ConfiguredModel):
+class UserIn(UserBase):
+    username: str
+    hashed_password: str
+
+
+class UserOut(UserBase):
     id: str = Field(..., alias="_id")
     username: str
-    email: str = ""
-    global_role: Literal["admin", "user"]
-    is_active: bool
 
 
 class UserCreate(BaseModel):

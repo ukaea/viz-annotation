@@ -2,6 +2,8 @@
 
 import pytest
 
+from tests.api.auth.conftest import get_auth_token
+
 
 @pytest.mark.asyncio
 async def test_login_success(auth_setup):
@@ -44,7 +46,7 @@ async def test_login_unknown_user(auth_setup):
 async def test_login_inactive_user(auth_setup):
     """Deactivated users cannot log in."""
     client = auth_setup["client"]
-    admin_token = await auth_setup["get_token"]("admin", "admin_pass")
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
 
     # Deactivate alice via the admin API
     await client.put(
@@ -64,7 +66,7 @@ async def test_login_inactive_user(auth_setup):
 @pytest.mark.asyncio
 async def test_get_me_returns_current_user(auth_setup):
     client = auth_setup["client"]
-    token = await auth_setup["get_token"]("alice", "alice_pass")
+    token = await get_auth_token(client, "alice", "alice_pass")
     response = await client.get(
         "/auth/me",
         headers={"Authorization": f"Bearer {token}"},
@@ -80,7 +82,7 @@ async def test_get_me_returns_current_user(auth_setup):
 @pytest.mark.asyncio
 async def test_get_me_admin_role(auth_setup):
     client = auth_setup["client"]
-    token = await auth_setup["get_token"]("admin", "admin_pass")
+    token = await get_auth_token(client, "admin", "admin_pass")
     response = await client.get(
         "/auth/me",
         headers={"Authorization": f"Bearer {token}"},

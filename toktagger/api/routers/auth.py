@@ -14,6 +14,7 @@ async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
 ):
     db_client = request.app.state.db_client
+    # Raw doc lookup is intentional: UserOut deliberately omits hashed_password.
     docs = await db_client.get_filtered_documents(
         "users", filters={"username": form_data.username}
     )

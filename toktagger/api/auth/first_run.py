@@ -35,7 +35,8 @@ async def ensure_admin_user(db_client) -> bool:
     print("  Admin account created")
     print("  Username : admin")
     print(f"  Password : {password}")
-    print("  Please change this password after first login.")
+    print("  ⚠  This password will not be shown again.")
+    print("  Please change it after first login.")
     print(f"{border}\n")
 
     return True

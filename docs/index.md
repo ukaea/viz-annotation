@@ -59,6 +59,9 @@ toktagger
 
 This starts the application at `http://localhost:8002`. On first launch an `admin` account is created automatically and the credentials are printed to the terminal.
 
+!!! warning
+    **Save the generated password immediately** — it is only printed once and cannot be recovered.
+
 ### Multi-User / Team Deployment
 
 For concurrent multi-user access, run with multiple Gunicorn workers:

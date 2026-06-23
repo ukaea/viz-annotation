@@ -9,25 +9,28 @@ from toktagger.api.auth.core import hash_password
 from toktagger.api.schemas.users import UserIn
 
 
-# ---------------------------------------------------------------------------
-# Low-level DB client (per-test, fresh path each time)
-# ---------------------------------------------------------------------------
+async def get_auth_token(client: AsyncClient, username: str, password: str) -> str:
+    """Obtain a JWT access token for the given user."""
+    resp = await client.post(
+        "/auth/token",
+        data={"username": username, "password": password},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert resp.status_code == 200, f"Login failed ({username}): {resp.text}"
+    return resp.json()["access_token"]
 
 
 @pytest_asyncio.fixture(scope="function")
-async def db_client(tmp_path):
+async def auth_db_client(tmp_path):
+    """Low-level DB client backed by mongita (per-test, no Docker)."""
     client = MongoDBClient(str(tmp_path), "annotate_db")
     yield client
     await client.client.close()
 
 
-# ---------------------------------------------------------------------------
-# Passthrough API client (auth_required=False) — for first_run tests
-# ---------------------------------------------------------------------------
-
-
 @pytest_asyncio.fixture(scope="function")
-async def api_client(tmp_path):
+async def auth_api_client(tmp_path):
+    """Passthrough API client (auth_required=False) — for first_run tests."""
     db = MongoDBClient(str(tmp_path), "annotate_db")
 
     server = Server()
@@ -46,18 +49,15 @@ async def api_client(tmp_path):
     await db.client.close()
 
 
-# ---------------------------------------------------------------------------
-# Auth-aware fixture: auth_required=True, three known users seeded
-# ---------------------------------------------------------------------------
-
-
 @pytest_asyncio.fixture(scope="function")
 async def auth_setup(tmp_path):
-    """
-    Returns a dict with:
-      - client:    AsyncClient ready to make requests
-      - get_token: async helper(username, password) -> str
+    """Auth-aware fixture: auth_required=True with three pre-seeded users.
+
+    Yields a dict with:
+      - client:    AsyncClient for making requests
       - admin_id, alice_id, bob_id: inserted user IDs
+
+    Use get_auth_token(client, username, password) to obtain JWT tokens.
     """
     db = MongoDBClient(str(tmp_path), "annotate_db")
 
@@ -103,19 +103,8 @@ async def auth_setup(tmp_path):
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         client.app = app
-
-        async def get_token(username: str, password: str) -> str:
-            resp = await client.post(
-                "/auth/token",
-                data={"username": username, "password": password},
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
-            )
-            assert resp.status_code == 200, f"Login failed ({username}): {resp.text}"
-            return resp.json()["access_token"]
-
         yield {
             "client": client,
-            "get_token": get_token,
             "admin_id": admin_id,
             "alice_id": alice_id,
             "bob_id": bob_id,

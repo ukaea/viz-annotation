@@ -2,7 +2,6 @@ import pytest
 
 pytest.importorskip("ray")
 
-import pathlib
 from toktagger.api.schemas.models import ModelUpdate
 from toktagger.api.models.base import ActorRegistry
 from toktagger.api.core.sender import (
@@ -488,12 +487,20 @@ async def test_model_delete_type(models_api_client, db_client, setup_model_db):
     assert not config.settings.models.cache_dir.joinpath(
         f"{setup_model_db['model_id_2']}.model"
     ).exists()
+<<<<<<< HEAD
     # And for model 3 it does still exist
+=======
+    # And for model 3 and 4 it does still exist
+>>>>>>> 6486dc0a (Fix test_models.py: use config.settings instead of os.environ)
     assert config.settings.models.cache_dir.joinpath(
         f"{setup_model_db['model_id_3']}.model"
     ).exists()
     assert config.settings.models.cache_dir.joinpath(
+<<<<<<< HEAD
         f"{setup_model_db['model_id_3']}.model"
+=======
+        f"{setup_model_db['model_id_4']}.model"
+>>>>>>> 6486dc0a (Fix test_models.py: use config.settings instead of os.environ)
     ).exists()
 
 
@@ -647,9 +654,13 @@ async def test_model_load_local(models_api_client, db_client, setup_model_db):
         assert model["progress"] == 100
 
         # Check model has been saved after completion
+<<<<<<< HEAD
         model_path = pathlib.Path(config.settings.models.cache_dir).joinpath(
             f"{model_id}.model"
         )
+=======
+        model_path = config.settings.models.cache_dir.joinpath(f"{model_id}.model")
+>>>>>>> 6486dc0a (Fix test_models.py: use config.settings instead of os.environ)
         assert model_path.exists()
 
         # Open the file, check contents are there
@@ -670,7 +681,11 @@ async def test_model_load_local_missing_file(
 
 
 @pytest.mark.asyncio
+<<<<<<< HEAD
 async def test_model_load_local_disabled(models_api_client, db_client, setup_model_db):
+=======
+async def test_model_load_local_disabled(api_client, db_client, setup_model_db):
+>>>>>>> 6486dc0a (Fix test_models.py: use config.settings instead of os.environ)
     # Try loading  file with local load disabled
     config.settings.models.local_load_enabled = False
     with tempfile.NamedTemporaryFile(suffix=".model", mode="w") as tempf:
@@ -728,8 +743,14 @@ async def test_model_load_local_failed(models_api_client, db_client, setup_model
         assert model["training_status"] == "failed"
 
         # Check model has not been saved after completion
+<<<<<<< HEAD
         assert (
             not pathlib.Path(config.settings.models.cache_dir)
             .joinpath(f"{model_id}.model")
             .exists()
         )
+=======
+        assert not config.settings.models.cache_dir.joinpath(
+            f"{model_id}.model"
+        ).exists()
+>>>>>>> 6486dc0a (Fix test_models.py: use config.settings instead of os.environ)

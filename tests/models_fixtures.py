@@ -74,7 +74,7 @@ def setup_model_samples():
             validated=True,
             label="Disruption",
             time=disruption_time,
-            created_by="manual" if i < 9985 else "mock_disruption_cnn",
+            created_by="manual" if i < 9985 else "model::mock_disruption_cnn",
         )
 
         samples.append(

@@ -642,7 +642,7 @@ async def delete_predictions(
         collection="annotations",
         filters={
             "project_id": ObjectId(project.id),
-            "created_by": model_type,
+            "created_by": f"model::{model_type}",
         },
     )
 

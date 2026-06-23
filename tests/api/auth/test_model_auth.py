@@ -204,16 +204,26 @@ async def test_username_with_dunder_prefix_rejected(auth_setup):
 
 @pytest.mark.asyncio
 async def test_user_save_does_not_corrupt_model_prefixed_predictions(auth_setup):
-    """
-    Saving human annotations for a user whose username is 'disruption_cnn' must NOT
-    delete annotations with created_by='model::disruption_cnn'. The model:: prefix
-    ensures complete namespace separation.
+    """A human user named 'disruption_cnn' saving annotations must NOT delete
+    model predictions stored as 'model::disruption_cnn'. The prefix is the separator.
     """
     client = auth_setup["client"]
     admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, sample_id = await create_project_and_sample(client, admin_token)
 
-    # Insert a fake model prediction directly via internal token
+    # Create a human user whose name matches a model type (the collision scenario).
+    create_resp = await client.post(
+        "/users",
+        json={
+            "username": "disruption_cnn",
+            "password": "pass123",
+            "global_role": "user",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert create_resp.status_code == 200
+
+    # Insert a model prediction via the internal token.
     internal_token = get_internal_token()
     await client.put(
         f"/projects/{project_id}/annotations",
@@ -221,13 +231,13 @@ async def test_user_save_does_not_corrupt_model_prefixed_predictions(auth_setup)
         headers={"Authorization": f"Bearer {internal_token}"},
     )
 
-    # Add alice as annotator and have her save her own annotation for the same sample
+    # The human user saves their own annotation for the same sample.
     await client.post(
         f"/projects/{project_id}/members",
-        json={"username": "alice", "role": "annotator"},
+        json={"username": "disruption_cnn", "role": "annotator"},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
-    alice_token = await get_auth_token(client, "alice", "alice_pass")
+    human_token = await get_auth_token(client, "disruption_cnn", "pass123")
     save_resp = await client.put(
         f"/projects/{project_id}/samples/{sample_id}/annotations",
         json=[
@@ -240,16 +250,17 @@ async def test_user_save_does_not_corrupt_model_prefixed_predictions(auth_setup)
                 "created_by": "placeholder",
             }
         ],
-        headers={"Authorization": f"Bearer {alice_token}"},
+        headers={"Authorization": f"Bearer {human_token}"},
     )
     assert save_resp.status_code == 200
 
-    # Both annotations should survive
+    # Both the model prediction and human annotation must survive — the model::
+    # prefix provides complete namespace separation.
     get_resp = await client.get(
         f"/projects/{project_id}/annotations",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     annotations = get_resp.json()
-    labels = {a["label"] for a in annotations}
-    assert "model_pred" in labels
-    assert "human_ann" in labels
+    labels_by_author = {a["created_by"]: a["label"] for a in annotations}
+    assert labels_by_author.get("model::disruption_cnn") == "model_pred"
+    assert labels_by_author.get("disruption_cnn") == "human_ann"

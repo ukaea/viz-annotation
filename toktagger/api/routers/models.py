@@ -293,7 +293,7 @@ async def stop_model_training(
     request: Request,
     project_id: str,
     model_type: str,
-    current_user: UserOut = Depends(require_project_admin_role),
+    current_user: UserOut = Depends(require_project_annotator),
     version: int | None = Query(
         None, description="Version of model to use, leave blank for latest version"
     ),

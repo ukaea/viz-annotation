@@ -711,11 +711,6 @@ async def get_user_projects(
     if name:
         filters["name"] = {"$regex": f"{name}", "$options": "i"}
 
-    import pymongo
-
-    _direction = (
-        pymongo.ASCENDING if sort_direction == "ascending" else pymongo.DESCENDING
-    )
     docs = await db_client.get_filtered_documents(
         "projects",
         filters=filters,

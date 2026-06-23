@@ -125,6 +125,31 @@ async def test_update_own_user(auth_setup):
 
 
 @pytest.mark.asyncio
+async def test_update_other_user_as_non_admin_forbidden(auth_setup):
+    client = auth_setup["client"]
+    token = await get_auth_token(client, "alice", "alice_pass")
+    bob_id = auth_setup["bob_id"]
+    response = await client.put(
+        f"/users/{bob_id}",
+        json={"email": "hacked@evil.com"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_delete_user_as_non_admin_forbidden(auth_setup):
+    client = auth_setup["client"]
+    token = await get_auth_token(client, "alice", "alice_pass")
+    bob_id = auth_setup["bob_id"]
+    response = await client.delete(
+        f"/users/{bob_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_delete_user_as_admin(auth_setup):
     client = auth_setup["client"]
     token = await get_auth_token(client, "admin", "admin_pass")

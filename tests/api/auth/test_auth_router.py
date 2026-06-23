@@ -60,7 +60,7 @@ async def test_login_inactive_user(auth_setup):
         data={"username": "alice", "password": "alice_pass"},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
-    assert response.status_code in (401, 403)
+    assert response.status_code == 403
 
 
 @pytest.mark.asyncio

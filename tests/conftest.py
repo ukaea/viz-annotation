@@ -5,7 +5,6 @@ import pytest_asyncio
 from toktagger.api.main import Server
 from toktagger.api.crud.db import MongoDBClient
 import tests.db_definitions as db_definitions
-from testcontainers.mongodb import MongoDbContainer
 from bson.objectid import ObjectId
 import asyncio
 from httpx import AsyncClient, ASGITransport
@@ -55,21 +54,9 @@ else:
     def setup_model_db():
         raise pytest.UsageError(_error_msg)
 
-
-try:
-    import ray
-    from toktagger.api.models.base import ModelRegistry, WorkerRegistry
-
-    _models_available = True
-except Exception:
-    _models_available = False
-    ModelRegistry = None
-    WorkerRegistry = None
-    ray = None
-
     @pytest.fixture()
     def models_api_client():
-        raise pytest.UsageError(error_msg)
+        raise pytest.UsageError(_error_msg)
 
 
 @pytest.fixture(scope="session")
@@ -111,23 +98,11 @@ def settings():
         yield s
 
 
-@pytest.fixture(scope="session")
-def mongo_container():
-    # Used by tests/api/ (non-auth) tests via db_client and api_client fixtures below.
-    # Auth tests use tmp_path + mongita in tests/api/auth/conftest.py instead.
-    try:
-        import docker
-
-        docker.from_env().ping()
-    except Exception:
-        pytest.skip("Docker not available — skipping MongoDB container tests")
-    with MongoDbContainer("mongo:8.0") as mongo:
-        yield mongo.get_connection_url()
-
-
 @pytest_asyncio.fixture(scope="function")
-async def db_client(mongo_container):
-    db_client = MongoDBClient(mongo_container, "annotate_db")
+async def db_client(settings):
+    db_client = MongoDBClient(
+        settings.database.mongo_url, "annotate_db", settings.server.cache_dir
+    )
 
     yield db_client
 
@@ -147,6 +122,7 @@ async def api_client(monkeypatch, db_client):
     # So have to run this manually, however trying to run the close after the yield to close the db connection gives errors
     # So am just going to leave it open, since the db container will be deleted after anyway
     # Any alternative solution ideas are welcome.....
+    os.environ["API_URL"] = "http://test"
     server = Server()
     server.testing_mode = True
     monkeypatch.setenv("API_URL", "http://test")
@@ -155,7 +131,6 @@ async def api_client(monkeypatch, db_client):
     app.state.db_client = db_client
     app.state.project = None
     app.state.auth_required = False
-
 
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
@@ -166,8 +141,6 @@ async def api_client(monkeypatch, db_client):
 
 @pytest_asyncio.fixture(scope="function")
 async def setup_db(db_client):
-    if not _models_available:
-        pytest.skip("ray / model dependencies not installed")
     project_id_1 = await db_client.insert("projects", db_definitions.PROJECT_1)
     await asyncio.sleep(0.01)
     project_id_2 = await db_client.insert("projects", db_definitions.PROJECT_2)
@@ -270,8 +243,7 @@ def run_server():
 
 
 @pytest.fixture(scope="package")
-def start_server(mongo_container):
-    os.environ["MONGO_URL"] = mongo_container
+def start_server(settings):
     proc = multiprocessing.Process(target=run_server)
     proc.start()
     # Wait for server to start

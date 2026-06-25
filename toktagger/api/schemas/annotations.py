@@ -1,4 +1,5 @@
 from typing import Literal, Optional, Union
+from typing_extensions import TypeVar
 
 from pydantic import Field, TypeAdapter, create_model, model_validator
 
@@ -41,16 +42,16 @@ class TimeRegion(AnnotationBase):
     time_min: float
     time_max: float
 
-
-class BoundingBox(AnnotationBase):
+T = TypeVar("T", int, float, default=float)
+class BoundingBox[T](AnnotationBase):
     type: Literal["bounding_box"] = "bounding_box"
-    height: int
-    width: int
-    x_min: int
-    y_min: int
+    height: T
+    width: T
+    x_min: T
+    y_min: T
 
 
-class VideoBoundingBox(BoundingBox):
+class VideoBoundingBox(BoundingBox[int]):
     type: Literal["video_bounding_box"] = "video_bounding_box"
     frame: int
     track_id: str

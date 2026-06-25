@@ -6,6 +6,8 @@ import {
   TimeRegion,
   TimeSeriesAnnotation,
   TimeSeriesAnnotationType,
+  BoundingBox,
+  BoundingBoxSchema,
 } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 
@@ -92,6 +94,23 @@ export function convertRawAnnotationsToTimeSeries(
     };
   }
 
+  if (BoundingBoxSchema.safeParse(annotation).success) {
+    const boundingBox = BoundingBoxSchema.parse(annotation);
+    return {
+      id: uuidv4(),
+      created_by: boundingBox.created_by,
+      label: boundingBox.label,
+      type: TimeSeriesAnnotationType.BOUNDING_BOX,
+      points: [
+        { x: boundingBox.x_min, y: boundingBox.y_min },
+        { x: boundingBox.x_min + boundingBox.width, y: boundingBox.y_min + boundingBox.height}
+      ],
+      selected: false,
+    };
+  } else {
+    console.log(BoundingBoxSchema.safeParse(annotation).error?.message)
+  }
+
   console.warn(
     `The following annotation could not be parsed into a time series annotation:\n ${annotation}`,
   );
@@ -128,6 +147,24 @@ export function convertTimeSeriesToRawAnnotations(
       label: annotation.label,
     };
     return timePoint;
+  }
+
+  if (annotation.type === TimeSeriesAnnotationType.BOUNDING_BOX) {
+    const boundingBox: BoundingBox = {
+      project_id: null,
+      sample_id: null,
+      validated: false,
+      uncertainty: 1,
+      created_by: annotation.created_by,
+      type: "bounding_box",
+      x_min: Math.min(annotation.points[0].x, annotation.points[1].x),
+      y_min: Math.min(annotation.points[0].y, annotation.points[1].y),
+      height: Math.abs(annotation.points[0].y - annotation.points[1].y),
+      width: Math.abs(annotation.points[0].x - annotation.points[1].x),
+      label: annotation.label,
+    };
+    console.log(boundingBox)
+    return boundingBox;
   }
 
   console.warn(

@@ -162,6 +162,16 @@ export const TimeSeriesProvider = ({
         });
       });
     }
+    if (project.bounding_box_labels) {
+      project.bounding_box_labels.forEach((label, index) => {
+        const category_id = `${TimeSeriesAnnotationType.BOUNDING_BOX}_${label}`;
+        timeSeriesCategories.set(category_id, {
+          label,
+          color: randomColor(index),
+          type: TimeSeriesAnnotationType.BOUNDING_BOX,
+        });
+      });
+    }
     setCategories(timeSeriesCategories);
   }, [project]);
 
@@ -337,6 +347,15 @@ export const TimeSeriesProvider = ({
             return { ...annotation, selected: false };
           }
           if (annotation.type === TimeSeriesAnnotationType.TIME_POINT) {
+            if (
+              annotation.points[0].x > range.low &&
+              annotation.points[0].x < range.high
+            ) {
+              return { ...annotation, selected: true };
+            }
+            return { ...annotation, selected: false };
+          }
+          if (annotation.type === TimeSeriesAnnotationType.BOUNDING_BOX) {
             if (
               annotation.points[0].x > range.low &&
               annotation.points[0].x < range.high

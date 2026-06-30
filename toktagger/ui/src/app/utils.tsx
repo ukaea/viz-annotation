@@ -103,12 +103,15 @@ export function convertRawAnnotationsToTimeSeries(
       type: TimeSeriesAnnotationType.BOUNDING_BOX,
       points: [
         { x: boundingBox.x_min, y: boundingBox.y_min },
-        { x: boundingBox.x_min + boundingBox.width, y: boundingBox.y_min + boundingBox.height}
+        {
+          x: boundingBox.x_min + boundingBox.width,
+          y: boundingBox.y_min + boundingBox.height,
+        },
       ],
       selected: false,
     };
   } else {
-    console.log(BoundingBoxSchema.safeParse(annotation).error?.message)
+    console.log(BoundingBoxSchema.safeParse(annotation).error?.message);
   }
 
   console.warn(

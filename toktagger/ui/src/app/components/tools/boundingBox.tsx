@@ -21,7 +21,7 @@ enum Side {
   LEFT,
   BOTTOM,
   TOP,
-  RIGHT
+  RIGHT,
 }
 
 export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
@@ -37,7 +37,7 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
     useTimeSeriesState();
 
   const currentAnnotation = useRef<TimeSeriesAnnotation | null>(null);
-  const dragOffset = useRef({x: 0, y: 0});
+  const dragOffset = useRef({ x: 0, y: 0 });
 
   // Hook to trigger the context provider to render context menu
   const { show } = useContextMenu({
@@ -71,17 +71,29 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
         updateAnnotation(currentAnnotation.current);
       },
       end(_x, _y) {
-        if (!currentAnnotation.current) return
+        if (!currentAnnotation.current) return;
 
         // Once the user has drawn the annotation the points are recalculated to ensure the bottom left and top right are stored
         const origin: TimeSeriesAnnotationPoint = {
-          x: Math.min(currentAnnotation.current.points[0].x, currentAnnotation.current.points[1].x),
-          y: Math.min(currentAnnotation.current.points[0].y, currentAnnotation.current.points[1].y),
-        }
+          x: Math.min(
+            currentAnnotation.current.points[0].x,
+            currentAnnotation.current.points[1].x,
+          ),
+          y: Math.min(
+            currentAnnotation.current.points[0].y,
+            currentAnnotation.current.points[1].y,
+          ),
+        };
         const extreme: TimeSeriesAnnotationPoint = {
-          x: Math.max(currentAnnotation.current.points[0].x, currentAnnotation.current.points[1].x),
-          y: Math.max(currentAnnotation.current.points[0].y, currentAnnotation.current.points[1].y),
-        }
+          x: Math.max(
+            currentAnnotation.current.points[0].x,
+            currentAnnotation.current.points[1].x,
+          ),
+          y: Math.max(
+            currentAnnotation.current.points[0].y,
+            currentAnnotation.current.points[1].y,
+          ),
+        };
         currentAnnotation.current.points[0] = origin;
         currentAnnotation.current.points[1] = extreme;
         updateAnnotation(currentAnnotation.current);
@@ -182,12 +194,12 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
           dragOffset.current = {
             x: xAxis.d2p(d.points[0].x) - event.x,
             y: event.y - yAxis.d2p(d.points[0].y),
-          }
+          };
         })
         .on("drag", function (event, d) {
           const newX = event.x + dragOffset.current.x;
           const newY = event.y + dragOffset.current.y;
-          
+
           // This ensure the visual rendering is updated in real-time
           d3.select(this).attr("x", newX);
           d3.select(this).attr("y", newY);
@@ -195,14 +207,20 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
           // Bottom-left corner
           const origin = {
             x: xAxis.p2d(newX),
-            y: yAxis.p2d(newY)
-          }
+            y: yAxis.p2d(newY),
+          };
 
           // Top-right corner
           const extreme = {
-            x: xAxis.p2d(newX + Math.abs(xAxis.d2p(d.points[1].x) - xAxis.d2p(d.points[0].x))),
-            y: yAxis.p2d(newY + Math.abs(yAxis.d2p(d.points[1].y) - yAxis.d2p(d.points[0].y)))
-          }
+            x: xAxis.p2d(
+              newX +
+                Math.abs(xAxis.d2p(d.points[1].x) - xAxis.d2p(d.points[0].x)),
+            ),
+            y: yAxis.p2d(
+              newY +
+                Math.abs(yAxis.d2p(d.points[1].y) - yAxis.d2p(d.points[0].y)),
+            ),
+          };
 
           d.points[0] = origin;
           d.points[1] = extreme;
@@ -216,10 +234,10 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
       const getBoundaryHandler = (side: Side) => {
         // Used to reduce code repetition
         let point_id: number;
-        if (side === Side.LEFT || side === Side.BOTTOM ) {
-          point_id = 0
+        if (side === Side.LEFT || side === Side.BOTTOM) {
+          point_id = 0;
         } else {
-          point_id = 1
+          point_id = 1;
         }
 
         const resize = d3
@@ -233,9 +251,9 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
             const y = yAxis.p2d(event.y);
 
             if (side === Side.LEFT || side === Side.RIGHT) {
-              d.points[point_id].x = x
+              d.points[point_id].x = x;
             } else {
-              d.points[point_id].y = y
+              d.points[point_id].y = y;
             }
             updateAnnotation(d);
             setOngoingAction(true);
@@ -282,11 +300,12 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
             setOngoingAction(false);
           });
         return resize;
-      }
+      };
 
       // Create a line and a transparent drag handle for each VSpan
       for (const boundingBox of annotations) {
-        if (boundingBox.type !== TimeSeriesAnnotationType.BOUNDING_BOX) continue;
+        if (boundingBox.type !== TimeSeriesAnnotationType.BOUNDING_BOX)
+          continue;
         const opacity = boundingBox.selected ? 0.8 : 0.5;
 
         // pixel positions for the two definiting points
@@ -298,18 +317,18 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
 
         const originPoint: TimeSeriesAnnotationPoint = {
           x: Math.min(px0, px1),
-          y: Math.min(py0, py1)
-        }
-        
-        const boxWidth = Math.abs(px1 - px0)
-        const boxHeight = Math.abs(py1 - py0)
+          y: Math.min(py0, py1),
+        };
+
+        const boxWidth = Math.abs(px1 - px0);
+        const boxHeight = Math.abs(py1 - py0);
 
         // handle layout: fixed outside strip + variable inside strip
         const OUTER_HANDLE_PX = 10; // fixed, always clickable outside the zone
         const INNER_HANDLE_MAX_PX = 10; // cap inside portion so handles don't dominate
         const MIN_CENTER_DRAG_PX = 6; // keep a gap so the middle stays draggable
-        const EDGE_PERCENTAGE = 0.5
-        const EDGE_BUFFER = (1 - EDGE_PERCENTAGE) / 2
+        const EDGE_PERCENTAGE = 0.5;
+        const EDGE_BUFFER = (1 - EDGE_PERCENTAGE) / 2;
 
         // inside portion per side; shrink when zone is tiny to keep a center gap
         const innerWidth = Math.max(
@@ -360,9 +379,9 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
             "class",
             "annotation bounding-box bottomHandle disable-on-modifier",
           )
-          .attr("x", px0 + boxWidth*EDGE_BUFFER)
+          .attr("x", px0 + boxWidth * EDGE_BUFFER)
           .attr("y", py0 - (totalHandleHeight - OUTER_HANDLE_PX))
-          .attr("width", boxWidth*EDGE_PERCENTAGE)
+          .attr("width", boxWidth * EDGE_PERCENTAGE)
           .attr("height", totalHandleHeight)
           .attr("fill", "transparent")
           .attr("style", `pointer-events: ${pointerEvent}`)
@@ -378,9 +397,9 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
             "class",
             "annotation bounding-box topHandle disable-on-modifier",
           )
-          .attr("x", px0 + boxWidth*EDGE_BUFFER)
+          .attr("x", px0 + boxWidth * EDGE_BUFFER)
           .attr("y", py1 - OUTER_HANDLE_PX)
-          .attr("width", boxWidth*EDGE_PERCENTAGE)
+          .attr("width", boxWidth * EDGE_PERCENTAGE)
           .attr("height", totalHandleHeight)
           .attr("fill", "transparent")
           .attr("style", `pointer-events: ${pointerEvent}`)
@@ -397,9 +416,9 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
             "annotation bounding-box leftHandle disable-on-modifier",
           )
           .attr("x", px0 - OUTER_HANDLE_PX)
-          .attr("y", py1 + boxHeight*EDGE_BUFFER)
+          .attr("y", py1 + boxHeight * EDGE_BUFFER)
           .attr("width", totalHandleWidth)
-          .attr("height", boxHeight*EDGE_PERCENTAGE)
+          .attr("height", boxHeight * EDGE_PERCENTAGE)
           .attr("fill", "transparent")
           .attr("style", `pointer-events: ${pointerEvent}`)
           .style("cursor", "w-resize")
@@ -415,9 +434,9 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
             "annotation bounding-box rightHandle disable-on-modifier",
           )
           .attr("x", px1 - (totalHandleWidth - OUTER_HANDLE_PX))
-          .attr("y", py1 + boxHeight*EDGE_BUFFER)
+          .attr("y", py1 + boxHeight * EDGE_BUFFER)
           .attr("width", totalHandleWidth)
-          .attr("height", boxHeight*EDGE_PERCENTAGE)
+          .attr("height", boxHeight * EDGE_PERCENTAGE)
           .attr("fill", "transparent")
           .attr("style", `pointer-events: ${pointerEvent}`)
           .style("cursor", "w-resize")

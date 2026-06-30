@@ -375,7 +375,7 @@ export const TimeSeriesProvider = ({
 
   const batchUpdateLabels = useCallback(
     (category: TimeSeriesCategory) => {
-      const updated_state: TimeSeriesAnnotation[] = annotations.map(
+      const updatedState: TimeSeriesAnnotation[] = annotations.map(
         (annotation) => {
           // Label should only be changed if it is the annotation is the correct type and selected
           if (annotation.type === category.type && annotation.selected) {
@@ -385,9 +385,9 @@ export const TimeSeriesProvider = ({
         },
       );
 
-      setAnnotations(updated_state);
+      setRawAnnotations((_prev) => parseTimeSeriesAnnotations(updatedState));
     },
-    [annotations],
+    [annotations, parseTimeSeriesAnnotations, setRawAnnotations],
   );
 
   const batchDeleteAnnotations = useCallback(() => {

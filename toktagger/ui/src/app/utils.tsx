@@ -163,7 +163,6 @@ export function convertTimeSeriesToRawAnnotations(
       width: Math.abs(annotation.points[0].x - annotation.points[1].x),
       label: annotation.label,
     };
-    console.log(boundingBox)
     return boundingBox;
   }
 

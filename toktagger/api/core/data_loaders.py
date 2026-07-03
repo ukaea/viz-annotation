@@ -222,7 +222,8 @@ class ArrayDataLoader(DataLoader):
             # Avoid divide by zero in case where image is uniform
             if val_range:
                 arr = arr / val_range
-            arr = (arr * 255).astype(np.uint8)
+            arr *= 255
+        arr = arr.astype(np.uint8)
 
         if params.name != "image":
             raise DataLoaderError("Must provide image data parameters!")

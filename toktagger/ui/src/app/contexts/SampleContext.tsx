@@ -6,6 +6,7 @@ import React, {
   useEffect,
   ReactNode,
   useRef,
+  useCallback,
 } from "react";
 import { ToastQueue } from "@adobe/react-spectrum";
 import {
@@ -157,6 +158,11 @@ export function SampleProvider({
   // Annotations are sample-level working state. Do not reload them on every video frame fetch.
   const loadedAnnotationsSampleKeyRef = useRef<string | null>(null);
 
+  // Persistence tracking: what was last persisted to the backend (prevents unnecessary saves and infinite loops).
+  const lastPersistedRef = useRef<Annotation[] | null>(null);
+  // Tracks whether the initial data fetch has completed, so we don't save the empty array on mount.
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+
   if (prevSampleId !== sampleId) {
     setPrevSampleId(sampleId);
     setDataParams({ name: "identity" });
@@ -165,7 +171,39 @@ export function SampleProvider({
   useEffect(() => {
     setVideoFrameBounds({ min: null, max: null });
     lastGoodVideoFrameRef.current = null;
+    setInitialLoadComplete(false);
   }, [sampleId]);
+
+  // Persist annotations to the backend whenever they change (after initial load).
+  const saveAnnotations = useCallback(() => {
+    if (!projectId || !sampleId) return;
+
+    const persisted = lastPersistedRef.current;
+    if (persisted && persisted.length === annotations.length) {
+      let allMatch = true;
+      for (let i = 0; i < annotations.length; i++) {
+        if (JSON.stringify(persisted[i]) !== JSON.stringify(annotations[i])) {
+          allMatch = false;
+          break;
+        }
+      }
+      if (allMatch) return;
+    }
+
+    lastPersistedRef.current = annotations;
+    fetch(`${BACKEND_API_URL}/projects/${projectId}/samples/${sampleId}/annotations`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(annotations),
+    }).catch((err) => {
+      console.error("Failed to persist annotations:", err);
+    });
+  }, [projectId, sampleId, annotations]);
+
+  useEffect(() => {
+    if (!initialLoadComplete) return;
+    saveAnnotations();
+  }, [initialLoadComplete, saveAnnotations]);
 
   function extractDetail(payload: unknown): string {
     if (!payload) return "Unknown error";
@@ -349,6 +387,7 @@ export function SampleProvider({
         setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
         setIsLoading(false);
+        setInitialLoadComplete(true);
       }
     };
 

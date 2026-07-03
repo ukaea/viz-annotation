@@ -68,8 +68,9 @@ def setup_annotations(page: Page, num_annotations: int, go_to_next: bool = False
         page.wait_for_timeout(200)
 
         if num_annotations == 2:
-            page.get_by_role("button", name="View Mode").click()
-            page.locator("body").click()
+            # Edit mode persists across navigation within a project, so the
+            # toolbar is already in edit mode here (button reads "Edit Mode").
+            # No need to toggle it back on.
             page.get_by_role("button", name="TIME POINT").click()
             page.get_by_test_id("select-annotation-label").click()
             page.get_by_test_id("popover").get_by_text("Disruption").click()
@@ -512,12 +513,10 @@ def test_save_on_navigate(
     )
     assert response.status_code == 200
     annotations = response.json()
-    if save_on_navigate:
-        assert len(annotations) == num_annotations
-    else:
-        assert len(annotations) == (
-            0 if num_annotations == 0 else 1
-        )  # Because it shouldnt have saved the human annotation if num_annotations=2
+    # Annotations now auto-save to the backend whenever they change, so the
+    # human-drawn annotation is persisted regardless of "Save on Navigate".
+    # The checkbox only controls whether annotations are marked as validated.
+    assert len(annotations) == num_annotations
 
     # Check all marked as validated if saved
     for annotation in annotations:

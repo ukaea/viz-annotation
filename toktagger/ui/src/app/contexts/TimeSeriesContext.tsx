@@ -109,7 +109,7 @@ export const TimeSeriesProvider = ({
 
   // project is guaranteed non-null here: TimeSeriesProvider is only rendered
   // after SampleView confirms project is loaded.
-  const projectId = project?._id ?? '';
+  const projectId = project?._id ?? "";
 
   const [annotations, setAnnotations] = useState<TimeSeriesAnnotation[]>([]);
   const [toolingCallbacks, setToolingCallbacks] = useState<
@@ -141,7 +141,10 @@ export const TimeSeriesProvider = ({
   // Persist activeTool to sessionStorage on every change
   useEffect(() => {
     if (!projectId) return;
-    sessionStorage.setItem(`ts-active-tool-${projectId}`, JSON.stringify(activeTool));
+    sessionStorage.setItem(
+      `ts-active-tool-${projectId}`,
+      JSON.stringify(activeTool),
+    );
   }, [activeTool, projectId]);
 
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);

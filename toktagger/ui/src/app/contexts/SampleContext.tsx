@@ -191,11 +191,14 @@ export function SampleProvider({
     }
 
     lastPersistedRef.current = annotations;
-    fetch(`${BACKEND_API_URL}/projects/${projectId}/samples/${sampleId}/annotations`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(annotations),
-    }).catch((err) => {
+    fetch(
+      `${BACKEND_API_URL}/projects/${projectId}/samples/${sampleId}/annotations`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(annotations),
+      },
+    ).catch((err) => {
       console.error("Failed to persist annotations:", err);
     });
   }, [projectId, sampleId, annotations]);

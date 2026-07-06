@@ -43,8 +43,7 @@ import {
   getModelLoadTypes,
   getModelLoadAllowedIds,
 } from "@/app/core";
-import { error } from "ajv/dist/vocabularies/applicator/dependencies";
-import validation from "ajv/dist/vocabularies/validation";
+import { labelValue } from "@rjsf/utils";
 
 type LoadMethod = "local" | "gitlab";
 
@@ -74,6 +73,7 @@ function LocalLoadTab({ form, setForm, validationErrors }: LocalLoadProps) {
         marginTop={"size-100"}
         width={"100%"}
         label="Model Weights Path"
+        value={form.weights_path}
         validationState={
           "weights_path" in validationErrors ? "invalid" : undefined
         }
@@ -129,6 +129,7 @@ function GitlabLoadTab({
         marginTop={"size-100"}
         width={"100%"}
         label="Model Name"
+        value={form.model_name}
         validationState={
           "model_name" in validationErrors ? "invalid" : undefined
         }
@@ -145,6 +146,7 @@ function GitlabLoadTab({
         marginTop={"size-100"}
         width={"100%"}
         label="Model Version"
+        value={form.model_version}
         validationState={
           "model_version" in validationErrors ? "invalid" : undefined
         }
@@ -161,6 +163,7 @@ function GitlabLoadTab({
         marginTop={"size-100"}
         width={"100%"}
         label="Weights Path"
+        value={form.weights_path}
         validationState={
           "weights_path" in validationErrors ? "invalid" : undefined
         }
@@ -204,13 +207,13 @@ export function ModelLoadModal({
   const [selectedTab, setSelectedTab] = useState<LoadMethod | null>(null);
 
   const [localForm, setLocalForm] = useState<LocalLoadForm>({
-    weightsPath: "",
+    weights_path: "",
   });
 
   const [gitlabForm, setGitlabForm] = useState<GitlabLoadForm>({
-    gitlabProjectId: 0,
-    modelName: "",
-    weightsPath: "",
+    gitlab_project_id: 0,
+    model_name: "",
+    weights_path: "",
     model_version: undefined,
   });
 
@@ -242,7 +245,10 @@ export function ModelLoadModal({
       setMessageIcon(<Alert aria-label="Failed" color="negative" size="S" />);
 
       const errors = Object.fromEntries(
-        valid.error.issues.map((issue) => [issue.path[0], issue.message]),
+        valid.error.issues.map((issue) => [
+          String(issue.path[0]),
+          issue.message,
+        ]),
       );
 
       setValidationErrors(errors);
@@ -369,7 +375,7 @@ export function ModelLoadModal({
       }
       if (modelLoadResponse.ok) {
         const data = await modelLoadResponse.json();
-        const loadMethods = data as string[];
+        const loadMethods = data as LoadMethod[];
         setLoadMethods(loadMethods);
         setSelectedTab(loadMethods?.[0] ?? null);
       } else {
@@ -415,7 +421,9 @@ export function ModelLoadModal({
               <Tabs
                 aria-label="ML Model Tabs"
                 selectedKey={selectedTab}
-                onSelectionChange={setSelectedTab}
+                onSelectionChange={(key) =>
+                  setSelectedTab(String(key) as LoadMethod)
+                }
               >
                 <TabList>
                   {loadMethods?.includes("local") ? (

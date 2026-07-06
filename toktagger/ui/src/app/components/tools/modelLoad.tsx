@@ -482,6 +482,7 @@ export function ModelLoadModal({
               onPress={submitLoadJob}
               isDisabled={
                 !selectedModelName ||
+                isLoading ||
                 (selectedTab == "gitlab" &&
                   !GitlabLoadFormSchema.safeParse(gitlabForm).success) ||
                 (selectedTab == "local" &&

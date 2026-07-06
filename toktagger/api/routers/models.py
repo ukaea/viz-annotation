@@ -9,8 +9,9 @@ from toktagger.api.schemas.models import (
     Model,
     ModelIn,
     ModelUpdate,
-    LocalLoadParams,
+    LoadParams,
     GitlabLoadParams,
+    HuggingfaceLoadParams,
 )
 from toktagger.api.schemas.projects import Project
 from toktagger.api.models import models_dependencies_installed, check_models_enabled
@@ -398,7 +399,7 @@ async def stop_model_training(
 
 @router.post("/models/{model_type}/load/local")
 async def load_model_weights_local(
-    request: Request, project_id: str, model_type: str, params: LocalLoadParams
+    request: Request, project_id: str, model_type: str, params: LoadParams
 ):
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
@@ -440,7 +441,7 @@ async def load_model_weights_gitlab(
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
-    # Check if local load method is enabled
+    # Check if Gitlab load method is enabled
     if not config.settings.models.gitlab_load_enabled:
         raise HTTPException(
             status_code=403, detail="Loading model weights from Gitlab is disabled."
@@ -458,10 +459,51 @@ async def load_model_weights_gitlab(
     ):
         raise HTTPException(
             status_code=422,
-            detail="Must set a Gitlab Project ID either via UI or env var.",
+            detail="Must set a Gitlab Project ID either via UI or config setting.",
         )
-    elif not params.gitlab_project_id:
+    elif config.settings.models.gitlab_project_id:
         params.gitlab_project_id = config.settings.models.gitlab_project_id
+
+    project = await utils.get_project(db_client, project_id)
+    model = await create_model(db_client, project, model_type)
+
+    task = load_model_gitlab.remote(project=project, model=model, params=params)
+
+    task_id = task_registry.register(task)
+    task_registry.update_actors(model.id, False)
+
+    # Associate the task ID with the model in the database
+    await utils.update_model(
+        db_client=db_client, model_id=model.id, updates=ModelUpdate(task_id=task_id)
+    )
+
+    return {"task_id": task_id, "model_id": model.id}
+
+
+@router.post("/models/{model_type}/load/hugging_face")
+async def load_model_weights_hugging_face(
+    request: Request, project_id: str, model_type: str, params: HuggingfaceLoadParams
+):
+    db_client = request.app.state.db_client
+    task_registry = request.app.state.task_registry
+
+    # Check if HF load method is enabled
+    if not config.settings.models.huggingface_load_enabled:
+        raise HTTPException(
+            status_code=403,
+            detail="Loading model weights from Hugging Face is disabled.",
+        )
+    # Check if config setting limits userspace to load from
+    if (
+        not params.huggingface_userspace
+        and config.settings.models.huggingface_userspace is None
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="Must set a Hugging Face userspace / organisation to load from, either via UI or config setting.",
+        )
+    elif config.settings.models.huggingface_userspace:
+        params.huggingface_userspace = config.settings.models.huggingface_userspace
 
     project = await utils.get_project(db_client, project_id)
     model = await create_model(db_client, project, model_type)

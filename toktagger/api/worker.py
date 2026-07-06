@@ -10,7 +10,12 @@ from toktagger.api.schemas.annotations import (
     AnnotationOutTypes,
 )
 from pydantic import ValidationError
-from toktagger.api.schemas.models import Model, ModelUpdate, GitlabLoadParams
+from toktagger.api.schemas.models import (
+    Model,
+    ModelUpdate,
+    GitlabLoadParams,
+    HuggingfaceLoadParams,
+)
 from toktagger.api.core.sender import (
     send_batch_samples,
     send_batch_annotations,
@@ -20,6 +25,7 @@ import logging
 from platformdirs import user_cache_dir
 import pydantic
 from mlflow import MlflowClient, MlflowException
+from huggingface_hub import hf_hub_download
 
 logger = logging.getLogger("ray")
 logger.setLevel("DEBUG")
@@ -209,6 +215,96 @@ def load_model_gitlab(
     weights_path = client.download_artifacts(
         run_id=mlflow_model.run_id, path=params.weights_path, dst_path=str(model_dir)
     )
+
+    # If only safetensors allowed, check it is one
+    # if os.environ.get("MODELS_SAFETENSORS_ONLY"):
+    #     try:
+    #         with safe_open(weights_path, framework="pt", device="cpu") as f:
+    #             _ = list(f.keys())
+    #     except Exception:
+    #         # Not a safetensors object, delete local file and return error
+    #         pathlib.Path(weights_path).unlink()
+    #         logger.error(
+    #             "Only permitted to load SafeTensors files due to env var setting!"
+    #         )
+    #         send_model_updates(
+    #             project_id=project.id,
+    #             model_id=model.id,
+    #             updates=ModelUpdate(training_status="failed"),
+    #         )
+    #         return {
+    #             "project_id": project.id,
+    #             "model_id": model.id,
+    #             "message": "Failed to load weights - retrieved file is not a SafeTensor!",
+    #         }
+
+    # Try loading actor with weights file, catch and reraise any errors
+    try:
+        load_temp_weights_task = model_actor.wrapped_load.remote(str(weights_path))
+        ray.get(load_temp_weights_task)
+    except Exception as e:
+        pathlib.Path(weights_path).unlink()
+        logger.error(e)
+        send_model_updates(
+            project_id=project.id,
+            model_id=model.id,
+            updates=ModelUpdate(training_status="failed"),
+        )
+        return {
+            "project_id": project.id,
+            "model_id": model.id,
+            "message": f"Failed to load weights - {str(e)}",
+        }
+
+    # Save the model with the correct file name, delete temporary file
+    save_weights_task = model_actor.wrapped_save.remote(
+        model_dir.joinpath(str(model.id))
+    )
+    ray.get(save_weights_task)
+
+    pathlib.Path(weights_path).unlink()
+
+    return {"project_id": project.id, "model_id": model.id, "message": None}
+
+
+@ray.remote(num_cpus=0.1)
+def load_model_huggingface(
+    model: Model, project: Project, params: HuggingfaceLoadParams
+) -> tuple[str, str | None]:
+    # Make sure model storage location in cache dir exists
+    model_dir = pathlib.Path(os.environ["MODEL_STORAGE"])
+    model_dir.mkdir(exist_ok=True)
+
+    # Change status to started
+    send_model_updates(
+        project_id=project.id,
+        model_id=model.id,
+        updates=ModelUpdate(training_status="started"),
+    )
+
+    model_actor = get_actor(project=project, model=model)
+
+    # Pull object from Hugging Face
+    try:
+        weights_path = hf_hub_download(
+            repo_id=f"{params.huggingface_userspace}/{params.model_name}",
+            filename=params.weights_path,
+            revision=params.model_version,
+            local_dir=str(model_dir),
+            local_dir_use_symlinks=False,
+        )
+    except Exception:
+        logger.error("Requested version of selected model could not be found!")
+        send_model_updates(
+            project_id=project.id,
+            model_id=model.id,
+            updates=ModelUpdate(training_status="failed"),
+        )
+        return {
+            "project_id": project.id,
+            "model_id": model.id,
+            "message": "Failed to load weights - requested version of selected model could not be found!",
+        }
 
     # If only safetensors allowed, check it is one
     # if os.environ.get("MODELS_SAFETENSORS_ONLY"):

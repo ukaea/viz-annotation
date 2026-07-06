@@ -104,6 +104,14 @@ class Models(pydantic.BaseModel):
         None,
         description="Limit the user to load ML model weights from a specific Gitlab project. Leave blank to allow the user to choose.",
     )
+    huggingface_load_enabled: bool = pydantic.Field(
+        True,
+        description="Whether to enable the loading of model weights files from Hugging Face.",
+    )
+    huggingface_userspace: str | None = pydantic.Field(
+        None,
+        description="Limit the user to load ML model weights from a specific Hugging Face userspace / organisation. Leave blank to allow the user to choose.",
+    )
 
 
 class Settings(BaseSettings):

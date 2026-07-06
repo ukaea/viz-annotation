@@ -31,18 +31,21 @@ from toktagger.api.schemas.samples import (
     ImageArrayFileData,
     DataTypes,
 )
+import toktagger.api.config as config
 
 # Set up UDA environment variables with defaults if not already set. This is required for
 # the pyuda client to work correctly outside of Freia.
-os.environ["UDA_HOST"] = os.environ.get("UDA_HOST", "uda2.mast.l")
-os.environ["UDA_META_PLUGINNAME"] = os.environ.get("UDA_META_PLUGINNAME", "MASTU_DB")
+os.environ["UDA_HOST"] = os.environ.get("UDA_HOST", config.settings.uda.host)
+os.environ["UDA_META_PLUGINNAME"] = os.environ.get(
+    "UDA_META_PLUGINNAME", config.settings.uda.meta_pluginname
+)
 os.environ["UDA_METANEW_PLUGINNAME"] = os.environ.get(
-    "UDA_METANEW_PLUGINNAME", "MAST_DB"
+    "UDA_METANEW_PLUGINNAME", config.settings.uda.metanew_pluginname
 )
 
 # Setup SAL environment variables with defaults if not already set. This is required for
 # the SAL client to work correctly.
-os.environ["SAL_HOST"] = os.environ.get("SAL_HOST", "https://sal.jetdata.eu")
+os.environ["SAL_HOST"] = os.environ.get("SAL_HOST", config.settings.sal.host)
 
 
 class DataLoaderError(Exception):
@@ -219,7 +222,8 @@ class ArrayDataLoader(DataLoader):
             # Avoid divide by zero in case where image is uniform
             if val_range:
                 arr = arr / val_range
-            arr = (arr * 255).astype(np.uint8)
+            arr *= 255
+        arr = arr.astype(np.uint8)
 
         if params.name != "image":
             raise DataLoaderError("Must provide image data parameters!")

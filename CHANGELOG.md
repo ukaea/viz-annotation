@@ -1,5 +1,23 @@
 # Change Log
 
+## [v0.3.1](https://github.com/ukaea/toktagger/releases/tag/v0.3.1) - 2025-07-03
+* Fixed bug related to loading float numpy arrays as images
+
+## [v0.3.0](https://github.com/ukaea/toktagger/releases/tag/v0.3.0) - 2025-06-29
+* Added support for using GPUs to train / predict ML models
+* Added support for point annotations in video UI
+* Added configuration file and extra config options
+* Changed some environment variables to have new names - see documentation for more details
+
+## [v0.2.1](https://github.com/ukaea/toktagger/releases/tag/v0.2.1) - 2025-06-22
+* Added support for ML model predictions from video UI toolbar
+* Fixed bug so that video annotations update immediately on importing
+* Added support for loading local weights files for ML models
+* Fixed bug to correctly update sample validation status when annotations are imported
+* Fixed bug where annotation `created_by` field was being overwritten when validated
+* Fixed zooming bug in time series UI
+* Increased minimum supported Python version to 3.10
+
 ## [v0.2.0](https://github.com/ukaea/toktagger/releases/tag/v0.2.0) - 2025-06-08
 * Added polygon tooling to image annotations UI
 * Added propogate annotations toggle to image annotation UI

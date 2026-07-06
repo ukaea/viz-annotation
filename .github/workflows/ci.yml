@@ -171,13 +171,25 @@ jobs:
       - name: Install dependencies
         run: npm --prefix toktagger/ui ci
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package
+        run: pip install .
+
       - name: Build project
         run: npm --prefix toktagger/ui run build
+
+      - name: Regenerate example toml files
+        run: python scripts/generate_example_config.py
 
       - name: Commit built files
         run: |
           BUILD_DIR=toktagger/api/static   # <-- replace with your Vite outDir
           git add $BUILD_DIR
+          git add toktagger.example.toml
           if ! git diff --cached --quiet; then
             git commit -m "chore: update build output [skip ci]"
             git push origin HEAD

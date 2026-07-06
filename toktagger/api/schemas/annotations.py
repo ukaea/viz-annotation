@@ -67,6 +67,14 @@ class VideoPolygon(AnnotationBase):
     )
 
 
+class VideoPoint(AnnotationBase):
+    type: Literal["video_point"] = "video_point"
+    frame: int
+    track_id: str
+    x: int
+    y: int
+
+
 class SpectrogramMask(AnnotationBase):
     type: Literal["spectrogram_mask"] = "spectrogram_mask"
     values: list[list[float]]
@@ -114,6 +122,7 @@ TimeRegionOut = create_out_model(TimeRegion)
 BoundingBoxOut = create_out_model(BoundingBox)
 VideoBoundingBoxOut = create_out_model(VideoBoundingBox)
 VideoPolygonOut = create_out_model(VideoPolygon)
+VideoPointOut = create_out_model(VideoPoint)
 SpectrogramMaskOut = create_out_model(SpectrogramMask)
 ClassLabelOut = create_out_model(ClassLabel)
 
@@ -123,6 +132,7 @@ TimeRegionBatch = create_batch_model(TimeRegion)
 BoundingBoxBatch = create_batch_model(BoundingBox)
 VideoBoundingBoxBatch = create_batch_model(VideoBoundingBox)
 VideoPolygonBatch = create_batch_model(VideoPolygon)
+VideoPointBatch = create_batch_model(VideoPoint)
 SpectrogramMaskBatch = create_batch_model(SpectrogramMask)
 ClassLabelBatch = create_batch_model(ClassLabel)
 
@@ -134,6 +144,7 @@ AnnotationTypes = Union[
     BoundingBox,
     VideoBoundingBox,
     VideoPolygon,
+    VideoPoint,
     SpectrogramMask,
     ClassLabel,
 ]
@@ -144,6 +155,7 @@ AnnotationOutTypes = Union[
     BoundingBoxOut,
     VideoBoundingBoxOut,
     VideoPolygonOut,
+    VideoPointOut,
     SpectrogramMaskOut,
     ClassLabelOut,
 ]
@@ -154,6 +166,7 @@ AnnotationBatchTypes = Union[
     BoundingBoxBatch,
     VideoBoundingBoxBatch,
     VideoPolygonBatch,
+    VideoPointBatch,
     SpectrogramMaskBatch,
     ClassLabelBatch,
 ]

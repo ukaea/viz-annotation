@@ -1,0 +1,57 @@
+# Example TokTagger Configuration File. 
+# All settings are optional, and default values are indicated below. 
+# To override a setting, uncomment the line and provide your value.
+
+[database]
+# URL of the MongoDB server to connect to as a backend. If not set, uses a local mongita client.
+# mongo_url = './toktagger_db'
+
+
+[models]
+# The directory to use for storing ML model weights.
+# cache_dir = '/home/runner/.cache/toktagger/models'
+
+# The maximum number of ML models which can be loaded concurrently, set to None to detect automatically and use all available cores.
+# max_actors = 5
+
+# The maximum number of GPUs to use for ML model tasks, leave blank to detect automatically and use all available cores.
+# max_gpu_actors = None
+
+# Force the set number of GPU actors available, even if insufficient available GPU cores detected on hardware.
+# force_num_gpus = false
+
+# Whether to enable the loading of model weights files from local disk. Should be disabled for production servers.
+# local_load_enabled = true
+
+
+[sal]
+# URL for the SAL server to connect to for JET data loaders.
+# host = 'https://sal.jetdata.eu'
+
+
+[server]
+# Address of the host to launch TokTagger on.
+# host = 'localhost'
+
+# The port to use for the TokTagger Rest API.
+# port = 8002
+
+# Whether to hot reload the TokTagger server on changes to files.
+# reload = false
+
+# The directory to use for storing entries in the Mongita database, if used.
+# cache_dir = '/home/runner/.cache/toktagger'
+
+
+[uda]
+# Host name for the UDA server to connect to for MAST data loaders.
+# host = 'uda2.mast.l'
+
+# Database location for MAST-U data
+# meta_pluginname = 'MASTU_DB'
+
+# Database location for MAST data
+# metanew_pluginname = 'MAST_DB'
+
+
+

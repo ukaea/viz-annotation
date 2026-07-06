@@ -12,6 +12,7 @@ from toktagger.api.schemas.models import ModelUpdate
 from toktagger.api.models import models_dependencies_installed
 import pydantic
 import uuid
+from collections import OrderedDict
 import logging
 
 logger = logging.getLogger("ray")
@@ -110,6 +111,11 @@ class Model(ABC):
     def wrapped_load(self, file_path: str) -> None:
         self.load(file_path=file_path)
         self._trained = True
+
+    @typing.final
+    def gpu_available(self) -> bool:
+        assigned_resources = ray.get_runtime_context().get_assigned_resources()
+        return bool(assigned_resources.get("GPU"))
 
     def log_progress(
         self,
@@ -345,7 +351,7 @@ class ModelRegistry:
         return walk_schema(schema)
 
 
-@ray.remote
+@ray.remote(num_cpus=0.1)
 class WorkerRegistry:
     def __init__(self, registry):
         self._registry: dict[str, Model | DataLoader] = registry
@@ -360,17 +366,27 @@ class WorkerRegistry:
 class ActorRegistry:
     """Registry to keep track of Ray actors, and the task they are associated with."""
 
-    def __init__(self, max_actors: int):
+    def __init__(self, max_actors: int, max_gpu_actors: int):
         """Create task registry
 
         Parameters
         ----------
         max_actors : int
             Maximum number of actors to keep alive simultaneously
+        max_gpu_actors : int
+            Maximum number of GPU actors to keep alive simultaneously
         """
+
+        if max_actors < 1:
+            raise ValueError(
+                "Insufficient CPU cores available for ML model functionality"
+            )
+
+        self.gpu_enabled = True if max_gpu_actors > 0 else False
         self.max_actors = max_actors
+        self.max_gpu_actors = max_gpu_actors
         self.tasks = {}
-        self.actors = []
+        self.actors = OrderedDict()
 
     def register(self, task_ref: ray.ObjectRef) -> str:
         """Store a Ray task reference in the registry and associate with a UUID.
@@ -404,7 +420,7 @@ class ActorRegistry:
         """
         return self.tasks.get(task_id)
 
-    def update_actors(self, actor_name: str) -> None:
+    def update_actors(self, actor_name: str, use_gpu: bool) -> None:
         """Record that a Ray Actor has been accessed, and kill any stale Actors.
 
         Parameters
@@ -412,13 +428,33 @@ class ActorRegistry:
         actor_name : str
             The name of the Ray Actor
         """
+        # Set this actor to be the most recently used
         if actor_name in self.actors:
-            self.actors.remove(actor_name)
+            self.actors.move_to_end(actor_name)
+        else:
+            self.actors[actor_name] = use_gpu
 
-        self.actors.append(actor_name)
+        if not self.actors[actor_name] and use_gpu:
+            # CPU actor may be upgraded to GPU (but not other way round)
+            self.actors[actor_name] = use_gpu
 
-        if len(self.actors) > self.max_actors:
-            stale_actor = self.actors.pop(0)
+        stale_actor = None
+        # Check GPU limit first
+        gpu_count = sum(1 for gpu in self.actors.values() if gpu)
+        if self.gpu_enabled and gpu_count > self.max_gpu_actors:
+            # Find first actor which requires GPU
+            stale_actor = next(
+                (actor for actor, gpu in self.actors.items() if gpu), None
+            )
+            if not stale_actor:
+                raise ValueError("GPU count exceeds maximum, but no GPU actor found!")
+            self.actors.pop(stale_actor)
+
+        # Then check overall tasks limit
+        elif len(self.actors) > self.max_actors:
+            stale_actor, _ = self.actors.popitem(last=False)
+
+        if stale_actor:
             try:
                 actor = ray.get_actor(stale_actor)
                 # Queue a kill job, letting any other in progress tasks finish first

@@ -50,6 +50,7 @@ Annotators = "annotators.md"
 Advanced = [
     {"Custom Data Loaders" = "custom_dataloaders.md"},
     {"Custom Models" = "custom_models.md"},
+    {"Configuration Options" = "configuration.md"}
 ]
 
 [[project.nav]]

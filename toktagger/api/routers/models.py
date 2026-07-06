@@ -1,7 +1,5 @@
 from fastapi import APIRouter, Request, Depends, Path, Query, Body, HTTPException
 from fastapi.responses import JSONResponse
-import pathlib
-import os
 import random
 from bson.objectid import ObjectId
 from toktagger.api.crud import utils
@@ -18,6 +16,8 @@ from toktagger.api.schemas.projects import Project
 from toktagger.api.models import models_dependencies_installed, check_models_enabled
 from pydantic import ValidationError
 from collections import defaultdict
+import toktagger.api.config as config
+import pathlib
 
 # Only import large packages if models dependencies installed
 if models_dependencies_installed():
@@ -201,7 +201,7 @@ async def delete_models(
         )
 
         # And delete file from storage (if it exists - may not if the job failed)
-        pathlib.Path(os.environ["MODEL_STORAGE"]).joinpath(f"{model.id}.model").unlink(
+        config.settings.models.cache_dir.joinpath(f"{model.id}.model").unlink(
             missing_ok=True
         )
 
@@ -227,6 +227,7 @@ async def start_model_training(
     request: Request,
     project_id: str,
     model_type: str,
+    use_gpu: bool = Query(False, description="Whether to use GPU to train the model"),
     params: dict = Body(
         {}, description="Optional parameters for training the model", embed=True
     ),
@@ -234,16 +235,27 @@ async def start_model_training(
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
+    # If GPU requested but not available, return error
+    if use_gpu and not task_registry.gpu_enabled:
+        raise HTTPException(
+            status_code=409,
+            detail="GPU was requested but GPU support not enabled on server!",
+        )
+
+    project = await utils.get_project(db_client, project_id)
+    # Check that this model type is valid for this project
+    if model_type not in project.model_types:
+        raise HTTPException(
+            status_code=422,
+            detail=f"This model type is not valid for your current project! Valid types are: {project.model_types}",
+        )
+
     # Get model params model from registry and validate
     params_validated = validate_model_params(model_type, "training", params)
 
-    project = await utils.get_project(db_client, project_id)
-
-    model = await create_model(db_client, project, model_type)
-
     # Get annotations and samples
-    annotations = await utils.get_annotations(db_client, project_id, validated=True)
-    samples = await utils.get_samples(db_client, project_id, validated=True)
+    annotations = await utils.get_annotations(db_client, project.id, validated=True)
+    samples = await utils.get_samples(db_client, project.id, validated=True)
 
     # Get all validated samples and annotations for this project
     logger.info(f"Collected {len(annotations)} annotations.")
@@ -259,11 +271,52 @@ async def start_model_training(
             detail="No validated annotations found to train a model on!",
         )
 
+    # Create model
+    # Try to get model for this project from database if it exists
+    db_models = await utils.get_models(db_client, project_id, model_type)
+
+    if (
+        len(
+            [
+                db_model
+                for db_model in db_models
+                if db_model.training_status in ["queued", "started"]
+            ]
+        )
+        > 0
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Training of {model_type} model already in progress!",
+        )
+
+    if len(db_models) == 0:
+        # This is the first time a model has been saved for this project, so version = 1
+        version = 1
+    else:
+        version = db_models[0].version + 1
+
+    model_in = ModelIn(
+        type=model_type,
+        version=version,
+        training_status="queued",
+        progress=0,
+        score=0,
+    )
+
+    model_id = await utils.add_model(
+        db_client=db_client, project_id=project.id, model=model_in
+    )
+
     # Split annotations into 2D list, so annotations[idx] is a list of annotations for samples[idx]
     sample_annotations_mapping = defaultdict(list)
     for annotation in annotations:
         sample_annotations_mapping[annotation.sample_id].append(annotation)
     annotations_2d = [sample_annotations_mapping[sample.id] for sample in samples]
+
+    model = Model(**model_in.model_dump(), id=model_id, project_id=project.id)
+
+    task_registry.update_actors(model.id, use_gpu)
 
     train_task = train_model.remote(
         model=model,
@@ -271,17 +324,17 @@ async def start_model_training(
         samples=samples,
         annotations=annotations_2d,
         params=params_validated,
+        use_gpu=use_gpu,
     )
 
     task_id = task_registry.register(train_task)
-    task_registry.update_actors(model.id)
 
     # Associate the task ID with the model in the database
     await utils.update_model(
-        db_client=db_client, model_id=model, updates=ModelUpdate(task_id=task_id)
+        db_client=db_client, model_id=model_id, updates=ModelUpdate(task_id=task_id)
     )
 
-    return {"task_id": task_id, "model_id": model.id}
+    return {"task_id": task_id, "model_id": model_id}
 
 
 @router.delete("/models/{model_type}/train")
@@ -357,8 +410,8 @@ async def load_model_weights_local(
             status_code=422, detail="Weights file not found at specified path!"
         )
 
-    # Check if local load method is enabled
-    if os.environ.get("DISABLE_LOCAL_MODEL_LOAD"):
+    # Check if that load method is enabled
+    if not config.settings.models.local_load_enabled:
         raise HTTPException(
             status_code=403, detail="Loading from local weights is disabled."
         )
@@ -388,26 +441,27 @@ async def load_model_weights_gitlab(
     task_registry = request.app.state.task_registry
 
     # Check if local load method is enabled
-    if os.environ.get("DISABLE_GITLAB_MODEL_LOAD"):
+    if not config.settings.models.gitlab_load_enabled:
         raise HTTPException(
             status_code=403, detail="Loading model weights from Gitlab is disabled."
         )
 
     # Check if required env vars have been set
-    if not all(
-        (os.environ.get("MODELS_GITLAB_URL"), os.environ.get("MODELS_GITLAB_TOKEN"))
-    ):
+    if not all(config.settings.models.gitlab_url, config.settings.models.gitlab_token):
         raise HTTPException(
             status_code=409,
             detail="Gitlab URL and Token env vars must be set for ML Model loading from Gitlab.",
         )
-    if not params.gitlab_project_id and not os.environ.get("MODELS_GITLAB_PROJECT_ID"):
+    if (
+        not params.gitlab_project_id
+        and config.settings.models.gitlab_project_id is None
+    ):
         raise HTTPException(
             status_code=422,
             detail="Must set a Gitlab Project ID either via UI or env var.",
         )
     elif not params.gitlab_project_id:
-        params.gitlab_project_id = int(os.environ.get("MODELS_GITLAB_PROJECT_ID"))
+        params.gitlab_project_id = config.settings.models.gitlab_project_id
 
     project = await utils.get_project(db_client, project_id)
     model = await create_model(db_client, project, model_type)
@@ -415,7 +469,7 @@ async def load_model_weights_gitlab(
     task = load_model_gitlab.remote(project=project, model=model, params=params)
 
     task_id = task_registry.register(task)
-    task_registry.update_actors(model.id)
+    task_registry.update_actors(model.id, False)
 
     # Associate the task ID with the model in the database
     await utils.update_model(
@@ -431,7 +485,7 @@ async def get_load_model_status(
     project_id: str = Path(description="The ID of the project to load a model for."),
     model_type: str = Path(description="The type of model to load."),
     task_id: str = Path(description="The load task to get results from."),
-) -> bool:
+) -> bool | str:
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
@@ -518,12 +572,22 @@ async def predict(
         None,
         description="A list of specific sample IDs to make predictions for, leave blank for random selection.",
     ),
+    use_gpu: bool = Query(
+        False, description="Whether to use GPU to create these predictions"
+    ),
     params: dict = Body(
         {}, description="Optional parameters for training the model", embed=True
     ),
 ):
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
+
+    # If GPU requested but not available, return error
+    if use_gpu and not task_registry.gpu_enabled:
+        raise HTTPException(
+            status_code=409,
+            detail="GPU was requested but GPU support not enabled on server!",
+        )
 
     project = await utils.get_project(db_client, project_id)
 
@@ -576,11 +640,16 @@ async def predict(
     else:
         samples = random.sample(selected_samples, num_predictions)
 
+    task_registry.update_actors(model.id, use_gpu)
+
     predict_task = get_predictions.remote(
-        project=project, model=model, samples=samples, params=params_validated
+        project=project,
+        model=model,
+        samples=samples,
+        params=params_validated,
+        use_gpu=use_gpu,
     )
     task_id = task_registry.register(predict_task)
-    task_registry.update_actors(model.id)
 
     return {"task_id": task_id}
 
@@ -624,6 +693,9 @@ async def create_sample_predictions(
         description="The ID of the sample to make model predictions for."
     ),
     model_type: str = Path(description="The type of model to make predictions from."),
+    use_gpu: bool = Query(
+        False, description="Whether to use GPU to create these predictions"
+    ),
     params: dict = Body(
         {}, description="Optional parameters for training the model", embed=True
     ),
@@ -633,6 +705,13 @@ async def create_sample_predictions(
 ) -> dict[str, str]:
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
+
+    # If GPU requested but not available, return error
+    if use_gpu and not task_registry.gpu_enabled:
+        raise HTTPException(
+            status_code=409,
+            detail="GPU was requested but GPU support not enabled on server!",
+        )
 
     project = await utils.get_project(db_client, project_id)
 
@@ -652,15 +731,17 @@ async def create_sample_predictions(
 
     sample = await utils.get_sample(db_client, project_id, sample_id)
 
+    task_registry.update_actors(model.id, use_gpu)
+
     task = get_predictions.remote(
         project=project,
         model=model,
         samples=[sample],
         params=params_validated,
         data_params=data_params,
+        use_gpu=use_gpu,
     )
     task_id = task_registry.register(task)
-    task_registry.update_actors(model.id)
 
     return {"task_id": task_id}
 

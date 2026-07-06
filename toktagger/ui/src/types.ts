@@ -60,6 +60,16 @@ export const VideoPolygonSchema = BaseAnnotationSchema.extend({
 
 export type VideoPolygon = z.infer<typeof VideoPolygonSchema>;
 
+export const VideoPointSchema = BaseAnnotationSchema.extend({
+  type: z.literal("video_point"),
+  frame: z.number().int(),
+  track_id: z.string(),
+  x: z.number().int(),
+  y: z.number().int(),
+});
+
+export type VideoPoint = z.infer<typeof VideoPointSchema>;
+
 export const AnnotationSchema = z.union([
   TimePointSchema,
   TimeRegionSchema,
@@ -67,6 +77,7 @@ export const AnnotationSchema = z.union([
   BoundingBoxSchema,
   VideoBoundingBoxSchema,
   VideoPolygonSchema,
+  VideoPointSchema,
 ]);
 export type Annotation = z.infer<typeof AnnotationSchema>;
 
@@ -300,6 +311,7 @@ export const HealthInfoSchema = z.object({
   version: z.string(),
   db_connected: z.boolean(),
   models_enabled: z.boolean(),
+  gpu_available: z.boolean(),
 });
 export type HealthInfo = z.infer<typeof HealthInfoSchema>;
 

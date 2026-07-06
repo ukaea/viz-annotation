@@ -209,8 +209,10 @@ export const BaseTimeSeriesPlot = ({
           const x0 = eventData["xaxis.range"][0] as number;
           const x1 = eventData["xaxis.range"][1] as number;
           rescale(x0, x1);
-        } else {
-          rescale(); // Handle other updates like auto-scale button
+        } else if (
+          Object.keys(eventData).some((key) => key.startsWith("xaxis"))
+        ) {
+          rescale(); // Handle other updates like auto-scale button (e.g. xaxis.autorange: true)
         }
       }
       triggerUpdate();

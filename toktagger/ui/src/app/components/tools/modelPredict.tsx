@@ -51,6 +51,7 @@ export function ModelPredictModal({
   );
   const [models, setModels] = useState<Model[] | null>(null);
   const [selectedModel, setSelectedModel] = useState<Model | null>(null);
+  const [useGPU, setUseGPU] = useState<boolean>(false);
   const [schema, setSchema] = useState<RJSFSchema | null>(null);
   const [unvalidatedFormData, setUnvalidatedFormData] = useState<
     Record<string, unknown>
@@ -60,7 +61,6 @@ export function ModelPredictModal({
     undefined,
   );
   const [numPredictions, setNumPredictions] = useState<number>(20);
-
   const onSelectModel = (keys: Selection) => {
     setSelectedKeys(keys);
 
@@ -100,7 +100,7 @@ export function ModelPredictModal({
         setSchema(null);
         return;
       }
-      const newSchema: RJSFSchema = await getModelPredictSchema(
+      const newSchema: RJSFSchema | null = await getModelPredictSchema(
         selectedModel.type,
       );
       setSchema(newSchema);
@@ -158,6 +158,7 @@ export function ModelPredictModal({
       selectedModel.type,
       selectedModel.version,
       numPredictions,
+      useGPU,
       params,
     );
 
@@ -275,15 +276,15 @@ export function ModelPredictModal({
                 </TableBody>
               </TableView>
             )}
-            {schema && (
-              <ModelForm
-                ref={formRef}
-                schema={schema}
-                onSubmit={submitPredictJob}
-                formData={unvalidatedFormData}
-                setFormData={setUnvalidatedFormData}
-              />
-            )}
+            <ModelForm
+              ref={formRef}
+              schema={schema}
+              onSubmit={submitPredictJob}
+              formData={unvalidatedFormData}
+              setFormData={setUnvalidatedFormData}
+              useGPU={useGPU}
+              setUseGPU={setUseGPU}
+            />
           </Content>
           <Footer>
             {message && (

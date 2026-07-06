@@ -1,13 +1,11 @@
 import uvicorn
-import os
+import toktagger.api.config as config
 
 if __name__ == "__main__":
-    os.environ["API_URL"] = "http://0.0.0.0:8002"
-
     uvicorn.run(
         "toktagger.api.cli:create_app",
         factory=True,
-        host="0.0.0.0",
-        port=8002,
-        reload=True if os.environ.get("RELOAD") == "true" else False,
+        host=config.settings.server.host,
+        port=config.settings.server.port,
+        reload=config.settings.server.reload,
     )

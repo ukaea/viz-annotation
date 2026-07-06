@@ -63,8 +63,3 @@ toktagger
 ```
 
 This will start a local instance of the application running at `http://localhost:8002`.
-
-## Settings
-There are some additional settings which can be configured via environment variables:
-
-* **DISABLE_LOCAL_MODEL_LOAD**: This disables support for models to have their pretrained weights loaded locally by moving the weights into a specificed location. This option should be set if setting up a production instance of TokTagger where users only have access to the web UI, and not the server backend.

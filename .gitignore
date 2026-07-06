@@ -177,3 +177,6 @@ package.json
 
 data/jet_images/
 toktagger/ui/.vite/
+
+# Ignore config file
+toktagger.toml

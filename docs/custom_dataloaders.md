@@ -294,6 +294,31 @@ server.run()
 
 Here's an example of loading data from a SQL database:
 
+### Update Config Settings
+If your data loader requires configuration inputs from the user, then the `config.Settings` object should be updated to accept this. This takes the form of a [Pydantic Settings object](https://pydantic.dev/docs/validation/latest/concepts/pydantic_settings/#usage), where nested `BaseModels` represent sections inside the `toktagger.toml` configuration file. For example, we can make create a new Settings object which inherits from the one in `toktagger.api.config.py`, and we can add a new `SQL` section where we need the database URL to connect to with our dataloader:
+```python
+from toktagger.api.config import Settings
+
+class SQL(pydantic.BaseModel):
+    url: str | None = pydantic.Field(
+        None,
+        description="URL of the SQL database to connect to",
+    )
+class UpdatedSettings(Settings):
+    sql: SQL = pydantic.Field(SQL)
+```
+Note that this will load settings from the following sources, in the following order:
+1. Any values which the `UpdatedSettings` class is initialized with
+2. Environment variables, case insensitive, named using the nested model names. Eg for the above setting, it would be `SQL_URL`.
+3. Values in the `toktagger.toml` configuration file, with section titles according to nesting. Eg:
+```toml
+[sql]
+url = "sqlite:///./test.db"
+```
+4. Environment variables provided in a .env file
+
+### Create the DataLoader
+We can then create our dataloader, accessing the setting we defined above:
 ```python
 import sqlalchemy as sa
 from typing import Type
@@ -302,7 +327,7 @@ import pydantic
 from toktagger.api.core.data_loaders import DataLoader, LoaderRegistry
 from toktagger.api.schemas.data import MultiVariateTimeSeriesData, TimeSeriesData, DataParams
 from toktagger.api.schemas.samples import ShotData
-
+import toktagger.api.config as config
 
 @LoaderRegistry.register("sql_database")
 class SQLDatabaseLoader(DataLoader):
@@ -310,10 +335,8 @@ class SQLDatabaseLoader(DataLoader):
     
     def __init__(self):
         # Initialize database connection
-        # Connection string should be in environment variable
-        import os
-        connection_string = os.environ.get("DATABASE_URL")
-        self.engine = sa.create_engine(connection_string)
+        # Connection string should be in the settings object
+        self.engine = sa.create_engine(config.settings.sql.url)
     
     @classmethod
     def sample_data_type(cls) -> Type[ShotData]:
@@ -353,6 +376,20 @@ class SQLDatabaseLoader(DataLoader):
         
         return MultiVariateTimeSeriesData(values=results)
 ```
+### Launch the Server
+To run the server with our custom Settings object and DataLoader, we should create a run script as follows:
+```python title="run.py"
+from settings import UpdatedSettings
+from loader import CSVTimeSeriesLoader
+from toktagger.api.main import Server
+import toktagger.api.config as config
+
+# Update config.settings to use our new object
+config.settings = UpdatedSettings()
+
+server = Server()
+server.run()
+```
 
 ## Using Docker
 If you are using the docker compose option to run the server, you can provide a custom script similar to the one above to add your own data loaders. To do this, create a file similar to the one above, but making sure to pass the following arguments into `server.run()`:
@@ -364,10 +401,10 @@ server.run(
 )
 ```
 
-You can then provide the path to your script when running docker compose. For example, say we have the above script in a file called `custom_toktagger.py` - We simply need to add `CUSTOM_SCRIPT=./custom_toktagger.py` before the docker compose command!
+You can then provide the path to your script when running docker compose. For example, say we have the above script in a file called `custom_toktagger.py` - We simply need to add `CUSTOM_SCRIPT=./custom_toktagger.py` before the docker compose command, and a SQL URL as an environment variable:
 
 ```sh
-CUSTOM_SCRIPT=./custom_toktagger.py docker compose --env-file .env.dev -f docker-compose.dev.yml up --build
+CUSTOM_SCRIPT=./custom_toktagger.py SQL_URL=<Your URL> docker compose --env-file .env.dev -f docker-compose.dev.yml up --build
 ```
 
 !!! tip

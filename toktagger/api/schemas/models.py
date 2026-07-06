@@ -44,8 +44,12 @@ class LoadMethods(str, Enum):
     GITLAB = "gitlab"
 
 
+class LocalLoadParams(pydantic.BaseModel):
+    weights_path: str
+
+
 class GitlabLoadParams(pydantic.BaseModel):
     model_name: str
     weights_path: str
-    version: str | None
+    model_version: str | None
     gitlab_project_id: int | None = None

@@ -7,7 +7,13 @@ from bson.objectid import ObjectId
 from toktagger.api.crud import utils
 from toktagger.api.schemas.annotations import AnnotationBatchTypes
 from toktagger.api.schemas.data import DataParamTypes, DataParams
-from toktagger.api.schemas.models import Model, ModelIn, ModelUpdate, GitlabLoadParams
+from toktagger.api.schemas.models import (
+    Model,
+    ModelIn,
+    ModelUpdate,
+    LocalLoadParams,
+    GitlabLoadParams,
+)
 from toktagger.api.schemas.projects import Project
 from toktagger.api.models import models_dependencies_installed, check_models_enabled
 from pydantic import ValidationError
@@ -339,16 +345,13 @@ async def stop_model_training(
 
 @router.post("/models/{model_type}/load/local")
 async def load_model_weights_local(
-    request: Request,
-    project_id: str,
-    model_type: str,
-    weights_path: str,
+    request: Request, project_id: str, model_type: str, params: LocalLoadParams
 ):
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
     # Check file available at weights path
-    weights_path: pathlib.Path = pathlib.Path(weights_path)
+    weights_path: pathlib.Path = pathlib.Path(params.weights_path)
     if not weights_path.exists():
         raise HTTPException(
             status_code=422, detail="Weights file not found at specified path!"

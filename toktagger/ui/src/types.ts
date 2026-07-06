@@ -246,6 +246,20 @@ export const ModelSchema = z.object({
 });
 
 export type Model = z.infer<typeof ModelSchema>;
+
+export const LocalLoadFormSchema = z.object({
+  weights_path: z.string().min(1),
+});
+export type LocalLoadForm = z.infer<typeof LocalLoadFormSchema>;
+
+export const GitlabLoadFormSchema = z.object({
+  gitlab_project_id: z.number().min(1),
+  model_name: z.string().min(1),
+  weights_path: z.string().min(1),
+  model_version: z.string().optional(),
+});
+export type GitlabLoadForm = z.infer<typeof GitlabLoadFormSchema>;
+
 export const DataParamsSchema = z.object({
   name: z.string(),
   // Only used for video/image loader params.

@@ -162,9 +162,11 @@ def load_model_gitlab(
 
     # Pull object from ML Model registry
     client = MlflowClient()
-    if params.version:
+    if params.model_version:
         try:
-            mlflow_model = client.get_model_version(params.model_name, params.version)
+            mlflow_model = client.get_model_version(
+                params.model_name, params.model_version
+            )
         except MlflowException:
             mlflow_model = None
     else:

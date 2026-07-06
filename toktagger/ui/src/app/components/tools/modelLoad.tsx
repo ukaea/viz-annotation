@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { z } from "zod/v4";
 import {
   ComboBox,
   Item,
@@ -28,16 +29,153 @@ import CheckmarkCircle from "@spectrum-icons/workflow/CheckmarkCircle";
 import DataAdd from "@spectrum-icons/workflow/DataAdd";
 import Alert from "@spectrum-icons/workflow/Alert";
 import { GitlabIcon } from "@/app/utils";
-import { Project } from "@/types";
 import {
-  startLoadModelWeightsLocal,
-  startLoadModelWeightsGitlab,
+  Project,
+  GitlabLoadForm,
+  GitlabLoadFormSchema,
+  LocalLoadForm,
+  LocalLoadFormSchema,
+} from "@/types";
+import {
+  startLoadModelWeights,
   getLoadModelStatus,
   getModelTypes,
   getModelLoadTypes,
   getModelLoadAllowedIds,
 } from "@/app/core";
-import { unstable_HistoryRouter } from "react-router-dom";
+import { error } from "ajv/dist/vocabularies/applicator/dependencies";
+import validation from "ajv/dist/vocabularies/validation";
+
+type LoadMethod = "local" | "gitlab";
+
+type LocalLoadProps = {
+  form: LocalLoadForm;
+  setForm: (formData: LocalLoadForm) => void;
+  validationErrors: Record<string, string>;
+};
+
+type GitlabLoadProps = {
+  form: GitlabLoadForm;
+  setForm: (formData: GitlabLoadForm) => void;
+  allowedGitlabProjectId: number | null;
+  validationErrors: Record<string, string>;
+};
+
+function LocalLoadTab({ form, setForm, validationErrors }: LocalLoadProps) {
+  return (
+    <Flex direction="column">
+      <Text marginTop={"size-100"}>
+        <em>
+          Specify the path to the weights file to load, ensuring that the file
+          has the correct permissions which allow it to be copied.
+        </em>
+      </Text>
+      <TextField
+        marginTop={"size-100"}
+        width={"100%"}
+        label="Model Weights Path"
+        validationState={
+          "weights_path" in validationErrors ? "invalid" : undefined
+        }
+        errorMessage={validationErrors.weights_path ?? ""}
+        onChange={(weights_path) =>
+          setForm({
+            ...form,
+            weights_path,
+          })
+        }
+      />
+    </Flex>
+  );
+}
+
+function GitlabLoadTab({
+  form,
+  setForm,
+  allowedGitlabProjectId,
+  validationErrors,
+}: GitlabLoadProps) {
+  return (
+    <Flex direction="column">
+      <Text marginTop={"size-100"}>
+        <em>Load model weights from the Gitlab ML Model Registry.</em>
+      </Text>
+      <NumberField
+        marginTop={"size-100"}
+        width={"100%"}
+        label="Project ID"
+        value={
+          form.gitlab_project_id ??
+          (allowedGitlabProjectId ? allowedGitlabProjectId : undefined)
+        }
+        validationState={
+          "gitlab_project_id" in validationErrors ? "invalid" : undefined
+        }
+        errorMessage={validationErrors.gitlab_project_id ?? ""}
+        onChange={(gitlab_project_id) =>
+          setForm({
+            ...form,
+            gitlab_project_id,
+          })
+        }
+        description={
+          allowedGitlabProjectId
+            ? "Gitlab Project ID is configured on the server."
+            : "The ID of the Gitlab project whose ML Model Registry will be connected to."
+        }
+        isDisabled={!!allowedGitlabProjectId}
+      />
+      <TextField
+        marginTop={"size-100"}
+        width={"100%"}
+        label="Model Name"
+        validationState={
+          "model_name" in validationErrors ? "invalid" : undefined
+        }
+        errorMessage={validationErrors.model_name ?? ""}
+        onChange={(model_name) =>
+          setForm({
+            ...form,
+            model_name,
+          })
+        }
+        description="The name of the ML Model stored in the registry to download weights for."
+      />
+      <TextField
+        marginTop={"size-100"}
+        width={"100%"}
+        label="Model Version"
+        validationState={
+          "model_version" in validationErrors ? "invalid" : undefined
+        }
+        errorMessage={validationErrors.model_version ?? ""}
+        onChange={(model_version) =>
+          setForm({
+            ...form,
+            model_version,
+          })
+        }
+        description="Optional: The semantic version of the model to download, eg v1.0.0"
+      />
+      <TextField
+        marginTop={"size-100"}
+        width={"100%"}
+        label="Weights Path"
+        validationState={
+          "weights_path" in validationErrors ? "invalid" : undefined
+        }
+        errorMessage={validationErrors.weights_path ?? ""}
+        onChange={(weights_path) =>
+          setForm({
+            ...form,
+            weights_path,
+          })
+        }
+        description="The path to the weights artifact within the model registry."
+      />
+    </Flex>
+  );
+}
 
 export function ModelLoadModal({
   project,
@@ -51,47 +189,73 @@ export function ModelLoadModal({
   const [messageIcon, setMessageIcon] = useState<React.JSX.Element | null>(
     null,
   );
-  const [selectedTab, setSelectedTab] = useState<Key | null>(null);
   const [modelNames, setModelNames] = useState<string[] | null>(null);
   const [selectedModelName, setSelectedModelName] = useState<string | null>(
     null,
   );
   const pollingModelName = useRef<string | null>(null);
   const [loadMethods, setLoadMethods] = useState<string[] | null>(null);
-  const [allowedProjectId, setAllowedProjectId] = useState<string | null>(null);
-  const [weightsPath, setWeightsPath] = useState<string>("");
+  const [allowedRemoteProjectId, setallowedRemoteProjectId] = useState<
+    number | null
+  >(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [taskId, setTaskId] = useState<string | null>(null);
 
-  // TODO these shouldnt all be in here
-  const [gitlabModelName, setGitlabModelName] = useState<string>("");
-  const [gitlabProjectId, setGitlabProjectId] = useState<number | null>(null);
-  const [gitlabModelVersion, setGitlabModelVersion] = useState<string | null>(
-    null,
-  );
+  const [selectedTab, setSelectedTab] = useState<LoadMethod | null>(null);
+
+  const [localForm, setLocalForm] = useState<LocalLoadForm>({
+    weightsPath: "",
+  });
+
+  const [gitlabForm, setGitlabForm] = useState<GitlabLoadForm>({
+    gitlabProjectId: 0,
+    modelName: "",
+    weightsPath: "",
+    model_version: undefined,
+  });
+
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string>
+  >({});
+
   const submitLoadJob = async () => {
     if (!selectedModelName || !selectedTab || !project._id) {
       return;
     }
-    let response: Response;
+    let params: LocalLoadForm | GitlabLoadForm;
+    let valid:
+      | z.ZodSafeParseResult<LocalLoadForm>
+      | z.ZodSafeParseResult<GitlabLoadForm>;
+
     if (selectedTab == "local") {
-      response = await startLoadModelWeightsLocal(
-        project._id,
-        selectedModelName,
-        weightsPath,
-      );
+      params = localForm;
+      valid = LocalLoadFormSchema.safeParse(params);
     } else if (selectedTab == "gitlab") {
-      response = await startLoadModelWeightsGitlab(
-        project._id,
-        selectedModelName,
-        gitlabModelName,
-        weightsPath,
-        gitlabModelVersion,
-        gitlabProjectId,
-      );
+      params = gitlabForm;
+      valid = GitlabLoadFormSchema.safeParse(params);
     } else {
-      throw new Error("Only one signal name allowed for image array data!");
+      throw new Error("Unrecognised model load type!");
     }
+
+    if (!valid.success) {
+      setMessage("Invalid parameters provided!");
+      setMessageIcon(<Alert aria-label="Failed" color="negative" size="S" />);
+
+      const errors = Object.fromEntries(
+        valid.error.issues.map((issue) => [issue.path[0], issue.message]),
+      );
+
+      setValidationErrors(errors);
+      return;
+    }
+    setValidationErrors({});
+    let response: Response;
+    response = await startLoadModelWeights(
+      project._id,
+      selectedTab,
+      selectedModelName,
+      params,
+    );
     const payload = await response.json();
 
     if (response.ok) {
@@ -99,6 +263,20 @@ export function ModelLoadModal({
       setTaskId(payload.task_id);
       pollingModelName.current = selectedModelName;
       setMessage(null);
+    } else if (response.status == 422) {
+      setMessage("Invalid parameters provided!");
+      setMessageIcon(<Alert aria-label="Failed" color="negative" size="S" />);
+      console.log(payload.detail);
+      const errors = Object.fromEntries(
+        payload.detail.map((issue: Record<string, string | string[]>) => [
+          issue.loc.at(-1),
+          issue.msg,
+        ]),
+      );
+      console.log(errors);
+
+      setValidationErrors(errors);
+      return;
     } else {
       console.log(payload.detail);
       setMessage(payload.detail);
@@ -164,7 +342,7 @@ export function ModelLoadModal({
       const response = await getModelLoadAllowedIds(selectedTab as string);
       if (response.ok) {
         const data = await response.json();
-        setAllowedProjectId(data as string);
+        setallowedRemoteProjectId(data as number);
       } else {
         const errorMessage = await response.json();
         setMessage(errorMessage.detail);
@@ -241,13 +419,13 @@ export function ModelLoadModal({
               >
                 <TabList>
                   {loadMethods?.includes("local") ? (
-                    <Item key="local">
+                    <Item key="local" aria-label="Use Local File Tab">
                       <DataAdd />
                       <Text>Use Local File</Text>
                     </Item>
                   ) : null}
                   {loadMethods?.includes("gitlab") ? (
-                    <Item key="gitlab">
+                    <Item key="gitlab" aria-label="From Gitlab Tab">
                       <GitlabIcon />
                       <Text>From Gitlab</Text>
                     </Item>
@@ -255,68 +433,22 @@ export function ModelLoadModal({
                 </TabList>
                 <TabPanels>
                   {loadMethods?.includes("local") ? (
-                    <Item key="local">
-                      <Flex direction="column">
-                        <Text marginTop={"size-100"}>
-                          <em>
-                            Specify the path to the weights file to load,
-                            ensuring that the file has the correct permissions
-                            which allow it to be copied.
-                          </em>
-                        </Text>
-                        <TextField
-                          marginTop={"size-100"}
-                          width={"100%"}
-                          label="Model Weights Path"
-                          onChange={setWeightsPath}
-                        />
-                      </Flex>
+                    <Item key="local" aria-label="Load from local file form">
+                      <LocalLoadTab
+                        form={localForm}
+                        setForm={setLocalForm}
+                        validationErrors={validationErrors}
+                      />
                     </Item>
                   ) : null}
                   {loadMethods?.includes("gitlab") ? (
-                    <Item key="gitlab">
-                      <Flex direction="column">
-                        <Text marginTop={"size-100"}>
-                          <em>
-                            Load model weights from the Gitlab ML Model
-                            Registry.
-                          </em>
-                        </Text>
-                        <NumberField
-                          marginTop={"size-100"}
-                          width={"100%"}
-                          label="Project ID"
-                          onChange={setGitlabProjectId}
-                          description={
-                            allowedProjectId
-                              ? "Project ID is configured on the server."
-                              : "The ID of the project whose ML Model Registry will be connected to."
-                          }
-                          defaultValue={Number(allowedProjectId) ?? undefined}
-                          isDisabled={!!allowedProjectId}
-                        />
-                        <TextField
-                          marginTop={"size-100"}
-                          width={"100%"}
-                          label="Model Name"
-                          onChange={setGitlabModelName}
-                          description="The name of the ML Model stored in the registry to download weights for."
-                        />
-                        <TextField
-                          marginTop={"size-100"}
-                          width={"100%"}
-                          label="Model Version"
-                          onChange={setGitlabModelVersion}
-                          description="Optional: The semantic version of the model to download, eg v1.0.0"
-                        />
-                        <TextField
-                          marginTop={"size-100"}
-                          width={"100%"}
-                          label="Weights Path"
-                          onChange={setWeightsPath}
-                          description="The path to the weights artifact within the model registry."
-                        />
-                      </Flex>
+                    <Item key="gitlab" aria-label="Load from Gitlab form">
+                      <GitlabLoadTab
+                        form={gitlabForm}
+                        setForm={setGitlabForm}
+                        allowedGitlabProjectId={allowedRemoteProjectId}
+                        validationErrors={validationErrors}
+                      />
                     </Item>
                   ) : null}
                 </TabPanels>
@@ -340,7 +472,13 @@ export function ModelLoadModal({
             <Button
               variant="accent"
               onPress={submitLoadJob}
-              isDisabled={!weightsPath || !selectedModelName} // TODO this doesnt work for load via gitlab yet
+              isDisabled={
+                !selectedModelName ||
+                (selectedTab == "gitlab" &&
+                  !GitlabLoadFormSchema.safeParse(gitlabForm).success) ||
+                (selectedTab == "local" &&
+                  !LocalLoadFormSchema.safeParse(localForm).success)
+              }
             >
               Submit
             </Button>

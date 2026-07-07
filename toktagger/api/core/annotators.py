@@ -671,7 +671,6 @@ class Profile2DThresholdAnnotator:
 
         if isinstance(signal, TimeSeriesData):
             dim_1, time, values = compute_stft(signal)
-            values = values  # Transpose to have shape (time, dim_1)
         elif isinstance(signal, Profile2DData):
             dim_1 = np.array(signal.dim_1)
             time = np.array(signal.time)

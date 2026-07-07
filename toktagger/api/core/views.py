@@ -45,12 +45,11 @@ class Profile2DView:
         self, data: Profile2DData | TimeSeriesData
     ) -> Profile2DData:
         if isinstance(data, TimeSeriesData):
-            dim_1, time, values = compute_stft(data)
-            values = values.T  # Transpose to have shape (time, dim_1)
+            dim_1, time, values = compute_stft(data)  # shape (dim_1, time)
         elif isinstance(data, Profile2DData):
             time = np.array(data.time)
-            values = np.array(data.values)
             dim_1 = np.array(data.dim_1)
+            values = np.array(data.values).T  # (time, dim_1) -> (dim_1, time)
         else:
             raise RuntimeError(f"Unsupported data type for Profile2DView: {type(data)}")
 
@@ -81,7 +80,7 @@ class Profile2DView:
         )
 
         ds = xr.DataArray(
-            values.T, coords=dict(dim_1=dim_1, time=time), dims=["dim_1", "time"]
+            values, coords=dict(dim_1=dim_1, time=time), dims=["dim_1", "time"]
         )
         ds = ds.sel(time=slice(time_min, time_max))
         ds = ds.sel(dim_1=slice(dim_1_min, dim_1_max))

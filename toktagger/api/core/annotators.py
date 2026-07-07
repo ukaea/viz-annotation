@@ -1,7 +1,7 @@
 import numpy as np
 import ruptures as rpt
 import hmmlearn.hmm as hmm
-from typing import List, Dict, Union
+from typing import Iterable, List, Dict, Tuple, Union
 from abc import ABC, abstractmethod
 from scipy.signal import find_peaks, peak_widths, stft
 from scipy.ndimage import uniform_filter1d, gaussian_filter, uniform_filter
@@ -149,7 +149,7 @@ def downsample_time_series(
     return time_coarse, signal
 
 
-def _coords_to_flat_list(coords) -> List[float]:
+def _coords_to_flat_list(coords: Iterable[Tuple[float, float]]) -> List[float]:
     """
     Convert an iterable of (x,y) coordinates to COCO flattened list [x1,y1,x2,y2,...].
     Drops the closing coordinate if it's equal to the first (Shapely exterior rings often close).

@@ -23,6 +23,24 @@
 # Whether to enable the loading of model weights files from local disk. Should be disabled for production servers.
 # local_load_enabled = true
 
+# Whether to enable the loading of model weights files from Gitlab.
+# gitlab_load_enabled = true
+
+# The URL of the Gitlab server to load ML model weights from.
+# gitlab_url = None
+
+# The PAT Token to use when connecting to Gitlab to load model weights.
+# gitlab_token = None
+
+# Limit the user to load ML model weights from a specific Gitlab project. Leave blank to allow the user to choose.
+# gitlab_project_id = None
+
+# Whether to enable the loading of model weights files from Hugging Face.
+# huggingface_load_enabled = true
+
+# Limit the user to load ML model weights from a specific Hugging Face userspace / organisation. Leave blank to allow the user to choose.
+# huggingface_userspace = None
+
 
 [sal]
 # URL for the SAL server to connect to for JET data loaders.

@@ -57,8 +57,7 @@ type PlotlyWidgetProps = {
   plotConfig: PlotConfiguration;
   rescaleOnZoom?: boolean;
   children:
-    | React.ReactElement<InjectedProps>
-    | React.ReactElement<InjectedProps>[];
+    React.ReactElement<InjectedProps> | React.ReactElement<InjectedProps>[];
 };
 
 function getBoxBounds(eventData: PlotRelayoutEvent) {

@@ -1,7 +1,7 @@
 import numpy as np
 import ruptures as rpt
 import hmmlearn.hmm as hmm
-from typing import Iterable, List, Dict, Tuple, Union
+from typing import Iterable, List, Tuple, TypedDict, Union
 from abc import ABC, abstractmethod
 from scipy.signal import find_peaks, peak_widths, stft
 from scipy.ndimage import uniform_filter1d, gaussian_filter, uniform_filter
@@ -168,14 +168,20 @@ def _coords_to_flat_list(coords: Iterable[Tuple[float, float]]) -> List[float]:
     return flat
 
 
+class CocoPolygonAnnotation(TypedDict):
+    segmentation: List[List[float]]
+    area: float
+    bbox: List[float]
+
+
 def shapely_to_coco_style_annotation(
     geom: Union[Polygon, MultiPolygon],
-) -> Dict:
+) -> CocoPolygonAnnotation:
     """
     Convert a Shapely Polygon or MultiPolygon to a COCO annotation dict (polygon segmentation).
-    Returns a dict with keys: segmentation, area, bbox, iscrowd, image_id, category_id, id.
+    Returns a dict with keys: segmentation, area, bbox.
     """
-    segs = []
+    segs: List[List[float]] = []
     if geom.is_empty:
         raise ValueError("Geometry is empty")
 
@@ -204,7 +210,7 @@ def shapely_to_coco_style_annotation(
     bbox = [float(minx), float(miny), width, height]
     area = float(geom.area)
 
-    annotation = {
+    annotation: CocoPolygonAnnotation = {
         "segmentation": segs,
         "area": area,
         "bbox": bbox,
@@ -700,7 +706,7 @@ class Profile2DThresholdAnnotator:
             )
 
         # Convert each labeled region to polygons
-        polygons = []
+        polygons: list[Polygon] = []
         for region_label in range(1, labeled_regions.max() + 1):
             # Create a binary mask for the current label
             region_mask = labeled_regions == region_label
@@ -726,7 +732,9 @@ class Profile2DThresholdAnnotator:
                 # if poly.is_valid and poly.area > 0:
                 polygons.append(poly)
 
-        polygons = [shapely_to_coco_style_annotation(polygon) for polygon in polygons]
+        polygons_dict: list[CocoPolygonAnnotation] = [
+            shapely_to_coco_style_annotation(polygon) for polygon in polygons
+        ]
 
         annotations = [
             PolygonAnnotation(
@@ -735,7 +743,7 @@ class Profile2DThresholdAnnotator:
                 created_by=AnnotatorTypes.PROFILE2D_THRESHOLD,
                 signal_name=self.params.signal_name,
             )
-            for poly in polygons
+            for poly in polygons_dict
         ]
         return annotations
 

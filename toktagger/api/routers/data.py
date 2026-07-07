@@ -1,5 +1,5 @@
 from typing import Optional
-from toktagger.api.auth.dependencies import require_project_viewer
+from toktagger.api.auth.dependencies import get_current_user, require_project_viewer
 from toktagger.api.core.views import DATA_VIEWS
 from toktagger.api.core.data_loaders import LoaderRegistry
 from toktagger.api.crud import utils
@@ -12,7 +12,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from toktagger.api.core.data_loaders import DataLoaderError
 
 router = APIRouter(
-    prefix="/projects/{project_id}/samples/{sample_id}/data", tags=["Data"]
+    prefix="/projects/{project_id}/samples/{sample_id}/data",
+    tags=["Data"],
+    dependencies=[Depends(get_current_user)],
 )
 
 

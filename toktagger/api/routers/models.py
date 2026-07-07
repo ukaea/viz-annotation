@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 import random
 from bson.objectid import ObjectId
 from toktagger.api.auth.dependencies import (
+    get_current_user,
     require_project_viewer,
     require_project_annotator,
     require_project_admin_role,
@@ -57,8 +58,8 @@ def validate_model_params(model_type: str, schema_type: str, params: dict):
 router = APIRouter(
     prefix="/projects/{project_id}",
     tags=["Models"],
-    # Check models are enabled whenever an endpoint is called
-    dependencies=[Depends(check_models_enabled)],
+    # Authenticate first, then check models are enabled, on every endpoint
+    dependencies=[Depends(get_current_user), Depends(check_models_enabled)],
 )
 
 

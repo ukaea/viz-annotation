@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Request, HTTPException
 from toktagger.api.auth.dependencies import (
+    get_current_user,
     require_project_viewer,
     require_project_annotator,
 )
@@ -18,6 +19,7 @@ from toktagger.api.core.data_loaders import LoaderRegistry
 router = APIRouter(
     prefix="/projects/{project_id}",
     tags=["Annotators"],
+    dependencies=[Depends(get_current_user)],
 )
 
 

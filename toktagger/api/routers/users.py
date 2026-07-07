@@ -17,7 +17,7 @@ from toktagger.api.schemas.users import (
     UserUpdate,
 )
 
-router = APIRouter(tags=["Users"])
+router = APIRouter(tags=["Users"], dependencies=[Depends(get_current_user)])
 
 
 # ---------------------------------------------------------------------------

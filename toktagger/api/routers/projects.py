@@ -13,7 +13,11 @@ from toktagger.api.schemas import convert_to_objectid
 from toktagger.api.schemas.projects import Project, ProjectIn
 from toktagger.api.schemas.users import UserOut
 
-router = APIRouter(prefix="/projects", tags=["Projects"])
+router = APIRouter(
+    prefix="/projects",
+    tags=["Projects"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get(

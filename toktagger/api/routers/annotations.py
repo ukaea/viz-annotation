@@ -1,6 +1,7 @@
 from typing import Literal
 from fastapi import APIRouter, Depends, Request, Path, Query
 from toktagger.api.auth.dependencies import (
+    get_current_user,
     require_project_annotator,
     require_project_viewer,
     require_project_admin_role,
@@ -16,6 +17,7 @@ from toktagger.api.schemas.users import UserOut
 router = APIRouter(
     prefix="/projects/{project_id}",
     tags=["Annotations"],
+    dependencies=[Depends(get_current_user)],
 )
 
 

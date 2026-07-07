@@ -57,14 +57,14 @@ type LocalLoadProps = {
 type GitlabLoadProps = {
   form: GitlabLoadForm;
   setForm: (formData: GitlabLoadForm) => void;
-  allowedGitlabProjectId: number | null;
+  restrictedProjectId: boolean;
   validationErrors: Record<string, string>;
 };
 
 type HuggingfaceLoadProps = {
   form: HuggingfaceLoadForm;
   setForm: (formData: HuggingfaceLoadForm) => void;
-  allowedUserspace: string | null;
+  restrictedUserspace: boolean;
   validationErrors: Record<string, string>;
 };
 
@@ -100,7 +100,7 @@ function LocalLoadTab({ form, setForm, validationErrors }: LocalLoadProps) {
 function GitlabLoadTab({
   form,
   setForm,
-  allowedGitlabProjectId,
+  restrictedProjectId,
   validationErrors,
 }: GitlabLoadProps) {
   return (
@@ -112,7 +112,7 @@ function GitlabLoadTab({
         marginTop={"size-100"}
         width={"100%"}
         label="Project ID"
-        value={form.gitlab_project_id ?? allowedGitlabProjectId ?? undefined}
+        value={form.gitlab_project_id ?? undefined}
         validationState={
           "gitlab_project_id" in validationErrors ? "invalid" : undefined
         }
@@ -124,11 +124,11 @@ function GitlabLoadTab({
           })
         }
         description={
-          allowedGitlabProjectId
+          restrictedProjectId
             ? "Gitlab Project ID is configured on the server."
             : "The ID of the Gitlab project whose ML Model Registry will be connected to."
         }
-        isDisabled={!!allowedGitlabProjectId}
+        isDisabled={restrictedProjectId}
       />
       <TextField
         marginTop={"size-100"}
@@ -188,7 +188,7 @@ function GitlabLoadTab({
 function HuggingfaceLoadTab({
   form,
   setForm,
-  allowedUserspace,
+  restrictedUserspace,
   validationErrors,
 }: HuggingfaceLoadProps) {
   return (
@@ -200,11 +200,11 @@ function HuggingfaceLoadTab({
         marginTop={"size-100"}
         width={"100%"}
         label="Userspace or Organisation"
-        value={form.huggingface_userspace ?? allowedUserspace ?? undefined}
+        value={form.huggingface_userspace ?? undefined}
         validationState={
-          "gitlab_project_id" in validationErrors ? "invalid" : undefined
+          "huggingface_userspace" in validationErrors ? "invalid" : undefined
         }
-        errorMessage={validationErrors.gitlab_project_id ?? ""}
+        errorMessage={validationErrors.huggingface_userspace ?? ""}
         onChange={(huggingface_userspace) =>
           setForm({
             ...form,
@@ -212,11 +212,11 @@ function HuggingfaceLoadTab({
           })
         }
         description={
-          allowedUserspace
+          restrictedUserspace
             ? "HuggingFace userspace or organisation is configured on the server."
             : "The ID of the HuggingFace userspace or organisation which will be connected to."
         }
-        isDisabled={!!allowedUserspace}
+        isDisabled={restrictedUserspace}
       />
       <TextField
         marginTop={"size-100"}
@@ -291,9 +291,7 @@ export function ModelLoadModal({
   );
   const pollingModelName = useRef<string | null>(null);
   const [loadMethods, setLoadMethods] = useState<string[] | null>(null);
-  const [allowedRemoteProjectId, setallowedRemoteProjectId] = useState<
-    string | null
-  >(null);
+  const [restrictedRemoteId, setRestrictedRemoteId] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [taskId, setTaskId] = useState<string | null>(null);
 
@@ -382,8 +380,6 @@ export function ModelLoadModal({
           issue.msg,
         ]),
       );
-      console.log(errors);
-
       setValidationErrors(errors);
       return;
     } else {
@@ -451,7 +447,22 @@ export function ModelLoadModal({
       const response = await getModelLoadAllowedIds(selectedTab as string);
       if (response.ok) {
         const data = await response.json();
-        setallowedRemoteProjectId(data as string);
+        if (!data) {
+          setRestrictedRemoteId(false);
+          return;
+        }
+        setRestrictedRemoteId(true);
+        if (selectedTab === "gitlab") {
+          setGitlabForm((prev) => ({
+            ...prev,
+            gitlab_project_id: Number(data),
+          }));
+        } else if (selectedTab === "hugging_face") {
+          setHuggingfaceForm((prev) => ({
+            ...prev,
+            huggingface_userspace: data as string,
+          }));
+        }
       } else {
         const errorMessage = await response.json();
         setMessage(errorMessage.detail);
@@ -563,7 +574,7 @@ export function ModelLoadModal({
                       <GitlabLoadTab
                         form={gitlabForm}
                         setForm={setGitlabForm}
-                        allowedGitlabProjectId={Number(allowedRemoteProjectId)}
+                        restrictedProjectId={restrictedRemoteId}
                         validationErrors={validationErrors}
                       />
                     </Item>
@@ -576,7 +587,7 @@ export function ModelLoadModal({
                       <HuggingfaceLoadTab
                         form={huggingfaceForm}
                         setForm={setHuggingfaceForm}
-                        allowedUserspace={allowedRemoteProjectId}
+                        restrictedUserspace={restrictedRemoteId}
                         validationErrors={validationErrors}
                       />
                     </Item>
@@ -602,16 +613,7 @@ export function ModelLoadModal({
             <Button
               variant="accent"
               onPress={submitLoadJob}
-              isDisabled={
-                !selectedModelName ||
-                isLoading ||
-                (selectedTab == "gitlab" &&
-                  !GitlabLoadFormSchema.safeParse(gitlabForm).success) ||
-                (selectedTab == "local" &&
-                  !LocalLoadFormSchema.safeParse(localForm).success) ||
-                (selectedTab == "hugging_face" &&
-                  !HuggingfaceLoadFormSchema.safeParse(huggingfaceForm).success)
-              }
+              isDisabled={!selectedModelName || isLoading}
             >
               Submit
             </Button>

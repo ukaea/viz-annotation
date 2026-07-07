@@ -291,7 +291,6 @@ def load_model_huggingface(
             filename=params.weights_path,
             revision=params.model_version,
             local_dir=str(model_dir),
-            local_dir_use_symlinks=False,
         )
     except Exception:
         logger.error("Requested version of selected model could not be found!")

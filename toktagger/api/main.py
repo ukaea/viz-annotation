@@ -31,6 +31,7 @@ from toktagger.api.routers.meta import router as meta_router
 from toktagger.api.core.data_loaders import LoaderRegistry
 from toktagger.api.crud.db import MongoDBClient
 from toktagger.api.auth.first_run import ensure_admin_user
+from toktagger.api.auth.core import get_internal_token
 from toktagger.api.models import models_dependencies_installed
 import toktagger.api.config as config
 
@@ -79,8 +80,6 @@ class Server:
         self.testing_mode = False
 
     def _setup_ray(self):
-        from toktagger.api.auth.core import get_internal_token
-
         num_gpus = None
         # ALlow the user to force overriding of number of GPUs available
         # This is so that eg Mac can work correctly

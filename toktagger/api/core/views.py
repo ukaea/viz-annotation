@@ -61,6 +61,13 @@ class Profile2DView:
             self.params.time_max if self.params.time_max is not None else time.max()
         )
 
+        if (
+            self.params.time_min is not None
+            and self.params.time_max is not None
+            and self.params.time_min == self.params.time_max
+        ):
+            raise RuntimeError("time_min and time_max must not be equal")
+
         dim_1_min = (
             self.params.dim_1_min if self.params.dim_1_min is not None else dim_1.min()
         )

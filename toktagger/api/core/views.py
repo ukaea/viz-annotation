@@ -26,21 +26,6 @@ class Profile2DView:
 
         self.params = params
 
-    def __call__(
-        self, data: MultiProfile2DData | MultiVariateTimeSeriesData
-    ) -> Profile2DData:
-        if self.params.signal_name not in data.values:
-            raise RuntimeError("Signal name not found in data")
-
-        profile_data = data.values.get(self.params.signal_name, None)
-
-        if profile_data is None:
-            raise RuntimeError(
-                f"Profile data for {self.params.signal_name} does not exist."
-            )
-
-        return self.convert_profile_to_view(profile_data)
-
     def convert_profile_to_view(
         self, data: Profile2DData | TimeSeriesData
     ) -> Profile2DData:
@@ -98,6 +83,21 @@ class Profile2DView:
             dim_1=ds.dim_1.values.tolist(),
             values=ds.values.tolist(),
         )
+
+    def __call__(
+        self, data: MultiProfile2DData | MultiVariateTimeSeriesData
+    ) -> Profile2DData:
+        if self.params.signal_name not in data.values:
+            raise RuntimeError("Signal name not found in data")
+
+        profile_data = data.values.get(self.params.signal_name, None)
+
+        if profile_data is None:
+            raise RuntimeError(
+                f"Profile data for {self.params.signal_name} does not exist."
+            )
+
+        return self.convert_profile_to_view(profile_data)
 
 
 DATA_VIEWS = {

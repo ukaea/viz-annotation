@@ -38,7 +38,6 @@ dependencies = [
   "scikit-image>=0.24.0",
   "torch>=2.8.0",
   "ray>=2.51.1",
-  "appdirs>=1.4.4",
   "uda-xarray>=0.2.1",
   "sal-xarray>=0.2.1",
   "bump-my-version>=1.2.7",

@@ -32,11 +32,26 @@ async def get_all_annotations(
     project_id: str = Path(
         description="The ID of the project to retrieve annotations for"
     ),
-    sort_by: str = Query("_id"),
-    sort_direction: Literal["ascending", "descending"] = Query("descending"),
-    start: int = Query(0),
-    count: int = Query(None),
-    validated: bool = Query(None),
+    sort_by: str = Query(
+        "_id",
+        description="Field to sort responses by, by default '_id' (equivalent to timestamp)",
+    ),
+    sort_direction: Literal["ascending", "descending"] = Query(
+        "descending",
+        description="Direction to sort responses, by default 'descending'",
+    ),
+    start: int = Query(
+        0,
+        description="Index of the first annotation you want returned when sorted by above parameter",
+    ),
+    count: int = Query(
+        None,
+        description="The number of annotations to return, leave blank to return all entries",
+    ),
+    validated: bool = Query(
+        None,
+        description="Whether to return only validated or unvalidated annotations, leave blank for all annotations",
+    ),
     current_user: UserOut = Depends(require_project_viewer),
 ) -> list[AnnotationOutTypes]:
     """Retrieve all annotations for this project."""
@@ -113,12 +128,30 @@ async def get_annotations(
     request: Request,
     project_id: str = Path(description="The ID of the project to get samples from."),
     sample_id: str = Path(description="The ID of the sample to get annotations from."),
-    sort_by: str = Query("_id"),
-    sort_direction: Literal["ascending", "descending"] = Query("descending"),
-    start: int = Query(0),
-    count: int = Query(None),
-    validated: bool = Query(None),
-    created_by: str = Query(None),
+    sort_by: str = Query(
+        "_id",
+        description="Field to sort responses by, by default '_id' (equivalent to timestamp)",
+    ),
+    sort_direction: Literal["ascending", "descending"] = Query(
+        "descending",
+        description="Direction to sort responses, by default 'descending'",
+    ),
+    start: int = Query(
+        0,
+        description="Index of the first annotation you want returned when sorted newest - oldest",
+    ),
+    count: int = Query(
+        None,
+        description="The number of annotations to return, leave blank to return all entries",
+    ),
+    validated: bool = Query(
+        None,
+        description="Whether to return only validated or unvalidated annotations, leave blank for all annotations",
+    ),
+    created_by: str = Query(
+        None,
+        description="Whether to only return annotations created by a specific model or by a human.",
+    ),
     current_user: UserOut = Depends(require_project_viewer),
 ) -> list[AnnotationOutTypes]:
     db_client = request.app.state.db_client
@@ -171,7 +204,10 @@ async def update_annotations(
     sample_id: str = Path(
         description="The ID of the sample to update annotations for."
     ),
-    validated: bool = Query(None),
+    validated: bool = Query(
+        None,
+        description="Whether to set sample to validated (useful if no annotations present).",
+    ),
     current_user: UserOut = Depends(require_project_annotator),
 ):
     """Update the annotations for a sample. Replaces only the current user's annotations."""

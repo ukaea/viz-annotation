@@ -21,11 +21,25 @@ router = APIRouter(prefix="/projects", tags=["Projects"])
 )
 async def get_projects(
     request: Request,
-    sort_by: str = Query("_id"),
-    sort_direction: Literal["ascending", "descending"] = Query("descending"),
-    start: int = Query(0),
-    count: int | None = Query(None),
-    name: str | None = Query(None),
+    sort_by: str = Query(
+        "_id",
+        description="Field to sort responses by, by default '_id' (equivalent to timestamp)",
+    ),
+    sort_direction: Literal["ascending", "descending"] = Query(
+        "descending",
+        description="Direction to sort responses, by default 'descending'",
+    ),
+    start: int = Query(
+        0,
+        description="Index of the first project you want returned when sorted by above parameter",
+    ),
+    count: int | None = Query(
+        None,
+        description="Number of projects you want returned, leave blank to return all entries",
+    ),
+    name: str | None = Query(
+        None, description="Name of a project to search for, by default None"
+    ),
     current_user: UserOut = Depends(get_current_user),
 ) -> list[Project]:
     """Get a list of projects visible to the current user."""

@@ -330,12 +330,14 @@ async def test_import_annotations(api_client, setup_db, db_client):
     annotations = await db_client.get_all_documents("annotations")
     assert len(annotations) == 7
 
-    # Verify imported annotations
+    # created_by is overwritten with the authenticated caller (passthrough admin);
+    # the supplied "manual" author is ignored. Only the internal Ray-worker user may
+    # preserve its own created_by.
     db_annotations = await db_client.get_filtered_documents(
         "annotations", filters={"sample_id": ObjectId(setup_db["sample_id_2"])}
     )
     imported_annotations = [
-        ann for ann in db_annotations if ann["created_by"] == "manual"
+        ann for ann in db_annotations if ann["created_by"] == "admin"
     ]
     assert len(imported_annotations) == 2
 

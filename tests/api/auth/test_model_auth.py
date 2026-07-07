@@ -122,8 +122,9 @@ async def test_import_non_admin_created_by_overwritten(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_import_admin_can_set_arbitrary_created_by(auth_setup):
-    """A global admin may import annotations attributed to any user."""
+async def test_import_admin_is_attributed_as_self(auth_setup):
+    """A global admin importing annotations is recorded as the author; a
+    supplied created_by is ignored so authorship stays auditable."""
     client = auth_setup["client"]
     admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, sample_id = await create_project_and_sample(client, admin_token)
@@ -141,7 +142,7 @@ async def test_import_admin_can_set_arbitrary_created_by(auth_setup):
     )
     annotations = get_resp.json()
     assert len(annotations) == 1
-    assert annotations[0]["created_by"] == "alice"
+    assert annotations[0]["created_by"] == "admin"
 
 
 @pytest.mark.asyncio

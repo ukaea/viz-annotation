@@ -1,6 +1,6 @@
 from pathlib import Path
 from filelock import FileLock
-from platformdirs import user_cache_dir
+import toktagger.api.config as config
 from toktagger.api.auth.core import hash_password
 from toktagger.api.schemas.users import UserIn
 
@@ -10,7 +10,7 @@ async def ensure_admin_user(db_client) -> bool:
 
     Returns True if auth is required (users exist after this call).
     """
-    lock_path = Path(user_cache_dir("toktagger", "ukaea")) / "first_run.lock"
+    lock_path = Path(config.settings.server.cache_dir) / "first_run.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
 
     with FileLock(str(lock_path), timeout=30):

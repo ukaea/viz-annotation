@@ -12,7 +12,7 @@ router = APIRouter(
 _ALL_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
 
 
-@router.api_route("/", methods=_ALL_METHODS)
+@router.api_route("/", methods=_ALL_METHODS, include_in_schema=False)
 def get_app(request: Request):
     """Serve the main SPA."""
     if request.method in ("GET", "HEAD"):
@@ -52,7 +52,7 @@ async def health_check(request: Request) -> dict:
     }
 
 
-@router.api_route("/{full_path:path}", methods=_ALL_METHODS)
+@router.api_route("/{full_path:path}", methods=_ALL_METHODS, include_in_schema=False)
 def spa_fallback(request: Request, full_path: str):
     """Fallback for SPA routing — serves index.html on GET, redirects other methods.
 

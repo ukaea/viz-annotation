@@ -5,7 +5,8 @@ from datetime import timedelta
 from pathlib import Path
 
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
-from platformdirs import user_cache_dir
+
+import toktagger.api.config as config
 
 ACCESS_TOKEN_EXPIRE_SECONDS = 60 * 60 * 24  # 24 hours
 _SALT = "toktagger-auth-v1"
@@ -31,7 +32,7 @@ def _get_serializer() -> URLSafeTimedSerializer:
     if env_key:
         secret = env_key
     else:
-        cache_dir = Path(user_cache_dir("toktagger", "ukaea"))
+        cache_dir = Path(config.settings.server.cache_dir)
         cache_dir.mkdir(parents=True, exist_ok=True)
         key_file = cache_dir / "secret.key"
         if key_file.exists():

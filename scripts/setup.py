@@ -232,8 +232,7 @@ def main():
     )
     parser.add_argument(
         "--password",
-        default=os.environ.get("TOKTAGGER_PASSWORD"),
-        required=not os.environ.get("TOKTAGGER_PASSWORD"),
+        default=os.environ.get("TOKTAGGER_PASSWORD", "admin"),
         help="Password for authentication (or set TOKTAGGER_PASSWORD env var)",
     )
     args = parser.parse_args()

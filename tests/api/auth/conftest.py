@@ -1,12 +1,28 @@
 """Conftest for auth tests — uses mongita (no Docker required)."""
 
+import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 
+import toktagger.api.config as config
+import toktagger.api.auth.core as auth_core
 from toktagger.api.main import Server
 from toktagger.api.crud.db import MongoDBClient
 from toktagger.api.auth.core import hash_password
 from toktagger.api.schemas.users import UserIn
+
+
+@pytest.fixture(autouse=True)
+def _isolate_auth_cache(tmp_path, monkeypatch):
+    """Keep the auth secret.key and first_run.lock out of the real user cache dir.
+
+    Points server.cache_dir at the test's tmp_path (the same dir the DB fixtures
+    use) so these files are written under the configured location and cleaned up
+    with the test. Resetting the cached serializer forces it to be rebuilt against
+    the patched location.
+    """
+    monkeypatch.setattr(config.settings.server, "cache_dir", tmp_path)
+    monkeypatch.setattr(auth_core, "_serializer", None)
 
 
 async def get_auth_token(client: AsyncClient, username: str, password: str) -> str:

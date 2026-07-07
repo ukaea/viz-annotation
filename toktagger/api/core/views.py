@@ -32,7 +32,7 @@ class Profile2DView:
         if self.params.signal_name not in data.values:
             raise RuntimeError("Signal name not found in data")
 
-        profile_data = data.values[self.params.signal_name]
+        profile_data = data.values.get(self.params.signal_name, None)
 
         if profile_data is None:
             raise RuntimeError(

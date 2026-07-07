@@ -487,20 +487,12 @@ async def test_model_delete_type(models_api_client, db_client, setup_model_db):
     assert not config.settings.models.cache_dir.joinpath(
         f"{setup_model_db['model_id_2']}.model"
     ).exists()
-<<<<<<< HEAD
-    # And for model 3 it does still exist
-=======
     # And for model 3 and 4 it does still exist
->>>>>>> 6486dc0a (Fix test_models.py: use config.settings instead of os.environ)
     assert config.settings.models.cache_dir.joinpath(
         f"{setup_model_db['model_id_3']}.model"
     ).exists()
     assert config.settings.models.cache_dir.joinpath(
-<<<<<<< HEAD
-        f"{setup_model_db['model_id_3']}.model"
-=======
         f"{setup_model_db['model_id_4']}.model"
->>>>>>> 6486dc0a (Fix test_models.py: use config.settings instead of os.environ)
     ).exists()
 
 
@@ -602,14 +594,14 @@ async def test_model_delete_no_predictions(
     models_api_client, db_client, setup_model_db
 ):
     response = await models_api_client.delete(
-        f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/predict"
+        f"/projects/{setup_model_db['project_id']}/models/mock_timeseries_cnn/predict"
     )
 
     # Nothing created by this model, so should return 404 and not delete anything
     assert response.status_code == 404
     assert (
         response.json()["detail"]
-        == "No annotations produced by mock_disruption_cnn could be found for this Project."
+        == "No annotations produced by mock_timeseries_cnn could be found for this Project."
     )
     annotations = await db_client.get_all_documents(collection="annotations")
     assert len(annotations) == 10
@@ -654,13 +646,7 @@ async def test_model_load_local(models_api_client, db_client, setup_model_db):
         assert model["progress"] == 100
 
         # Check model has been saved after completion
-<<<<<<< HEAD
-        model_path = pathlib.Path(config.settings.models.cache_dir).joinpath(
-            f"{model_id}.model"
-        )
-=======
         model_path = config.settings.models.cache_dir.joinpath(f"{model_id}.model")
->>>>>>> 6486dc0a (Fix test_models.py: use config.settings instead of os.environ)
         assert model_path.exists()
 
         # Open the file, check contents are there
@@ -681,11 +667,7 @@ async def test_model_load_local_missing_file(
 
 
 @pytest.mark.asyncio
-<<<<<<< HEAD
 async def test_model_load_local_disabled(models_api_client, db_client, setup_model_db):
-=======
-async def test_model_load_local_disabled(api_client, db_client, setup_model_db):
->>>>>>> 6486dc0a (Fix test_models.py: use config.settings instead of os.environ)
     # Try loading  file with local load disabled
     config.settings.models.local_load_enabled = False
     with tempfile.NamedTemporaryFile(suffix=".model", mode="w") as tempf:
@@ -743,14 +725,6 @@ async def test_model_load_local_failed(models_api_client, db_client, setup_model
         assert model["training_status"] == "failed"
 
         # Check model has not been saved after completion
-<<<<<<< HEAD
-        assert (
-            not pathlib.Path(config.settings.models.cache_dir)
-            .joinpath(f"{model_id}.model")
-            .exists()
-        )
-=======
         assert not config.settings.models.cache_dir.joinpath(
             f"{model_id}.model"
         ).exists()
->>>>>>> 6486dc0a (Fix test_models.py: use config.settings instead of os.environ)

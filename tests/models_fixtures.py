@@ -42,6 +42,7 @@ async def models_api_client(monkeypatch, settings, db_client, ray_session):
     app = server.app
     app.state.db_client = db_client
     app.state.project = None
+    app.state.auth_required = False
     # This task ID is associated with a model in the db, so that cancelling training test works
     app.state.task_registry.tasks["abc123"] = "Ray Task Object"
 

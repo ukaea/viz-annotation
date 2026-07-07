@@ -482,7 +482,7 @@ export const getModelTypes = async (task: string): Promise<Response> => {
 };
 
 export const getModelLoadTypes = async (): Promise<Response> => {
-  const response = await fetch(`${BACKEND_API_URL}/meta/models/load`);
+  const response = await apiFetch(`${BACKEND_API_URL}/meta/models/load`);
   if (!response.ok) {
     throw new Error(`Failed to fetch model types!`);
   }
@@ -495,7 +495,7 @@ export const startLoadModelWeights = async (
   load_method: string,
   weights_path: string,
 ): Promise<Response> => {
-  const response = await fetch(
+  const response = await apiFetch(
     `${BACKEND_API_URL}/projects/${project_id}/models/${selected_model}/load?method=${load_method}&weights_path=${weights_path}`,
     {
       method: "POST",
@@ -512,7 +512,7 @@ export const getLoadModelStatus = async (
   selected_model: string,
   task_id: string,
 ): Promise<Response> => {
-  const response = await fetch(
+  const response = await apiFetch(
     `${BACKEND_API_URL}/projects/${project_id}/models/${selected_model}/load/${task_id}`,
     {
       method: "GET",

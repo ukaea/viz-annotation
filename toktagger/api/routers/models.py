@@ -177,8 +177,8 @@ async def start_model_training(
     request: Request,
     project_id: str,
     model_type: str,
-    use_gpu: bool = Query(False, description="Whether to use GPU to train the model"),
     current_user: UserOut = Depends(require_project_annotator),
+    use_gpu: bool = Query(False, description="Whether to use GPU to train the model"),
     params: dict = Body(
         {}, description="Optional parameters for training the model", embed=True
     ),
@@ -355,6 +355,7 @@ async def load_model_weights(
     model_type: str,
     method: LoadTypes,
     weights_path: str,
+    current_user: UserOut = Depends(require_project_annotator),
 ):
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
@@ -450,6 +451,7 @@ async def get_load_model_status(
     project_id: str = Path(description="The ID of the project to load a model for."),
     model_type: str = Path(description="The type of model to load."),
     task_id: str = Path(description="The load task to get results from."),
+    current_user: UserOut = Depends(require_project_viewer),
 ) -> bool | str:
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry

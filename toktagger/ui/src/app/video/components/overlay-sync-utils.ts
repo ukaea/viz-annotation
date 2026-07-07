@@ -3,6 +3,7 @@ import {
   getLabelTrack,
   isRectangleAnno,
   isPolygonAnno,
+  polygonArea,
   type PolygonAnnotation,
   type RectangleAnnotation,
   readPolygonGeometry,
@@ -196,18 +197,6 @@ function samePoint(
   b: ReadonlyArray<number>,
 ): boolean {
   return a[0] === b[0] && a[1] === b[1];
-}
-
-function polygonArea(points: Array<ReadonlyArray<number>>): number {
-  let area = 0;
-
-  for (let i = 0; i < points.length; i += 1) {
-    const [x1, y1] = points[i];
-    const [x2, y2] = points[(i + 1) % points.length];
-    area += x1 * y2 - x2 * y1;
-  }
-
-  return Math.abs(area) / 2;
 }
 
 function clampPolygonToImage(

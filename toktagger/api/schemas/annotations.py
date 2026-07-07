@@ -59,17 +59,6 @@ class VideoBoundingBox(BoundingBox):
     track_id: str
 
 
-class VideoPolygon(AnnotationBase):
-    type: Literal["video_polygon"] = "video_polygon"
-    frame: int
-    track_id: str
-    segmentation: list[int] = Field(
-        ...,
-        min_length=6,
-        description="COCO polygon segmentation as a flat list: [x1, y1, x2, y2, ...].",
-    )
-
-
 class SpectrogramMask(AnnotationBase):
     type: Literal["spectrogram_mask"] = "spectrogram_mask"
     values: list[list[float]]
@@ -80,6 +69,12 @@ class PolygonAnnotation(AnnotationBase):
     segmentation: list[list[float]]
     area: float
     bbox: list[float]  # [x, y, width, height]
+
+
+class VideoPolygon(PolygonAnnotation):
+    type: Literal["video_polygon"] = "video_polygon"
+    frame: int
+    track_id: str
 
 
 class Profile2DMask(AnnotationBase):

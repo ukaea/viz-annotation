@@ -66,7 +66,9 @@ export type VideoPolygon = {
   frame: number;
   track_id: string;
   label: string;
-  segmentation: number[];
+  segmentation: number[][];
+  area: number;
+  bbox: number[];
   created_by?: string;
   timestamp?: string;
   class_id?: number;

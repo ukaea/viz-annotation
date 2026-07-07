@@ -214,6 +214,19 @@ export function readRectGeometry(
   return g;
 }
 
+/** Shoelace formula: area enclosed by a polygon's vertices. */
+export function polygonArea(points: Array<ReadonlyArray<number>>): number {
+  let area = 0;
+
+  for (let i = 0; i < points.length; i += 1) {
+    const [x1, y1] = points[i];
+    const [x2, y2] = points[(i + 1) % points.length];
+    area += x1 * y2 - x2 * y1;
+  }
+
+  return Math.abs(area) / 2;
+}
+
 /** Read polygon geometry (returns null if missing/invalid). */
 export function readPolygonGeometry(
   a: PolygonAnnotation,
@@ -331,12 +344,10 @@ export function annoToVideoPolygon(
   const { className, trackId } = getLabelTrack(a);
   if (!className || !trackId) return null;
 
-  const segmentation = g.points.flatMap(([x, y]) => [
-    Math.round(x),
-    Math.round(y),
-  ]);
+  const flat = g.points.flatMap(([x, y]) => [Math.round(x), Math.round(y)]);
+  if (flat.length < 6) return null;
 
-  if (segmentation.length < 6) return null;
+  const { minX, minY, maxX, maxY } = g.bounds;
 
   return {
     type: "video_polygon",
@@ -344,7 +355,9 @@ export function annoToVideoPolygon(
     track_id: String(trackId),
     label: String(className),
     class_id: classIdForName(className),
-    segmentation,
+    segmentation: [flat],
+    area: polygonArea(g.points),
+    bbox: [minX, minY, maxX - minX, maxY - minY],
     created_by: getAnnotationCreator(a),
   };
 }
@@ -409,10 +422,11 @@ export function videoPolygonToAnno(
   frameKey: string,
 ): ImageAnnotation {
   const points: [number, number][] = [];
+  const flat = p.segmentation[0] ?? [];
 
-  for (let i = 0; i < p.segmentation.length - 1; i += 2) {
-    const x = Number(p.segmentation[i]);
-    const y = Number(p.segmentation[i + 1]);
+  for (let i = 0; i < flat.length - 1; i += 2) {
+    const x = Number(flat[i]);
+    const y = Number(flat[i + 1]);
     if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
     points.push([x, y]);
   }

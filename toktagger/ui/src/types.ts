@@ -53,11 +53,19 @@ export const VideoBoundingBoxAnnotationSchema =
 
 export type VideoBoundingBox = z.infer<typeof VideoBoundingBoxAnnotationSchema>;
 
-export const VideoPolygonSchema = BaseAnnotationSchema.extend({
+export const PolygonAnnotationSchema = BaseAnnotationSchema.extend({
+  type: z.literal("polygon"),
+  segmentation: z.array(z.array(z.number())),
+  area: z.number(),
+  bbox: z.array(z.number()),
+});
+
+export type PolygonAnnotation = z.infer<typeof PolygonAnnotationSchema>;
+
+export const VideoPolygonSchema = PolygonAnnotationSchema.extend({
   type: z.literal("video_polygon"),
   frame: z.number().int(),
   track_id: z.string(),
-  segmentation: z.array(z.number().int()).min(6),
 });
 
 export type VideoPolygon = z.infer<typeof VideoPolygonSchema>;
@@ -68,6 +76,7 @@ export const AnnotationSchema = z.union([
   ClassLabelSchema,
   BoundingBoxAnnotationSchema,
   VideoBoundingBoxAnnotationSchema,
+  PolygonAnnotationSchema,
   VideoPolygonSchema,
 ]);
 export type Annotation = z.infer<typeof AnnotationSchema>;
@@ -111,14 +120,6 @@ export const ImageDataSchema = z.object({
   values: z.string(), // base64 PNG
 });
 export type ImageData = z.infer<typeof ImageDataSchema>;
-
-export const PolygonAnnotationSchema = BaseAnnotationSchema.extend({
-  segmentation: z.array(z.array(z.number())),
-  area: z.number(),
-  bbox: z.array(z.number()),
-});
-
-export type PolygonAnnotation = z.infer<typeof PolygonAnnotationSchema>;
 
 export const DataSchema = z.union([
   TimeSeriesDataSchema,

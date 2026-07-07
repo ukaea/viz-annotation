@@ -1,6 +1,5 @@
 from typing import Union, Literal
 from pydantic import BaseModel
-from toktagger.api.schemas import ConfiguredModel
 
 
 class Data(BaseModel):
@@ -31,7 +30,7 @@ class ImageData(Data):
     values: str  # Base64 encoded string
 
 
-class DataParams(ConfiguredModel):
+class DataParams(BaseModel):
     name: Literal["identity"] = "identity"
 
 

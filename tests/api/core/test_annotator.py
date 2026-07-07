@@ -174,7 +174,7 @@ def test_changepoint_annotator_no_change():
     assert np.isclose(regions[0].time_max, 99)
 
 
-def test_profile2d_threshold():
+def test_profile_2d_threshold():
     data = electrocardiogram()[2000:4000]
     ts_data = TimeSeriesData(time=numpy.arange(len(data)), values=data)
     mv_data = MultiVariateTimeSeriesData(values={"Ip": ts_data})

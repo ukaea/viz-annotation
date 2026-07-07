@@ -740,7 +740,7 @@ class Profile2DThresholdAnnotator:
             PolygonAnnotation(
                 **poly,
                 label="Unknown",
-                created_by=AnnotatorTypes.PROFILE2D_THRESHOLD,
+                created_by=AnnotatorTypes.PROFILE_2D_THRESHOLD,
                 signal_name=self.params.signal_name,
             )
             for poly in polygons_dict
@@ -753,7 +753,7 @@ ANNOTATORS = {
     AnnotatorTypes.OUTLIER_DETECTION: OutlierDetectionAnnotator,
     AnnotatorTypes.CHANGE_POINT_DETECTION: ChangePointDetectionAnnotator,
     AnnotatorTypes.JUMP_DETECTION: JumpDetectionAnnotator,
-    AnnotatorTypes.PROFILE2D_THRESHOLD: Profile2DThresholdAnnotator,
+    AnnotatorTypes.PROFILE_2D_THRESHOLD: Profile2DThresholdAnnotator,
 }
 
 # Currently only allowing these annotators to task mapping
@@ -765,6 +765,6 @@ ANNOTATORS_PER_TASK = {
         AnnotatorTypes.CHANGE_POINT_DETECTION,
         AnnotatorTypes.JUMP_DETECTION,
     ],
-    Task.PROFILE_2D: [AnnotatorTypes.PROFILE2D_THRESHOLD],
+    Task.PROFILE_2D: [AnnotatorTypes.PROFILE_2D_THRESHOLD],
     Task.VIDEO: [],
 }

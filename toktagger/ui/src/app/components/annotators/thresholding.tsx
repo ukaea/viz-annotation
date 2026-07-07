@@ -108,7 +108,7 @@ export default function Profile2DThresholdTool({
       }
 
       const response = await fetch(
-        `${BACKEND_API_URL}/projects/${project_id}/samples/${sample_id}/annotator/profile2d_threshold`,
+        `${BACKEND_API_URL}/projects/${project_id}/samples/${sample_id}/annotator/profile_2d_threshold`,
         {
           method: "POST",
           headers: {

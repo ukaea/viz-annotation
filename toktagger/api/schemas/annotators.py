@@ -9,7 +9,7 @@ class AnnotatorTypes(str, Enum):
     CHANGE_POINT_DETECTION = "change_point_detection"
     JUMP_DETECTION = "jump_detection"
     MANUAL_ANNOTATION = "manual"
-    PROFILE2D_THRESHOLD = "profile2d_threshold"
+    PROFILE_2D_THRESHOLD = "profile_2d_threshold"
 
 
 class DataTypes(Enum):

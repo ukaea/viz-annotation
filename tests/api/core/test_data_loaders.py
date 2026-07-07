@@ -232,7 +232,7 @@ def test_fair_mast_dataloader():
     data_loader = data_loaders.FAIRMASTDataLoader()
     try:
         data = data_loader.get_sample(sample, params=DataParams(name="identity"))
-    except Exception:
+    except TimeoutError:
         pytest.skip("Could not contact FAIR-MAST server")
     assert isinstance(data, MultiVariateTimeSeriesData)
 

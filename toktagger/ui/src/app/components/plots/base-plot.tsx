@@ -48,7 +48,8 @@ type TimeSeriesPlotProps = {
   plotConfig: PlotConfiguration;
   rescaleOnZoom?: boolean;
   children:
-    React.ReactElement<InjectedProps> | React.ReactElement<InjectedProps>[];
+    | React.ReactElement<InjectedProps>
+    | React.ReactElement<InjectedProps>[];
 };
 
 export const BaseTimeSeriesPlot = ({

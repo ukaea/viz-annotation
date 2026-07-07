@@ -184,17 +184,20 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install package
+        working-directory: .
         run: pip install .
 
       - name: Build project
         run: npm run build
 
       - name: Regenerate example toml files
+        working-directory: .
         run: python scripts/generate_example_config.py
 
       - name: Commit built files
+        working-directory: .
         run: |
-          BUILD_DIR=../../toktagger/api/static   # <-- replace with your Vite outDir
+          BUILD_DIR=toktagger/api/static   # <-- replace with your Vite outDir
           git add $BUILD_DIR
           git add toktagger.example.toml
           if ! git diff --cached --quiet; then

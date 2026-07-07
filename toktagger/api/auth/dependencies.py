@@ -42,11 +42,11 @@ async def get_current_user(
 
     try:
         payload = decode_token(token)
-        username: str = payload.get("sub")
-        if not username:
-            raise ValueError("missing sub")
-    except ValueError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+        username = payload.get("sub")
+        if not username or not isinstance(username, str):
+            raise ValueError("Token is missing a subject claim")
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
 
     db_client = request.app.state.db_client
     user = await utils.get_user_by_username(db_client, username)

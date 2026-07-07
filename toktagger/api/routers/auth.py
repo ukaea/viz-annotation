@@ -3,6 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from toktagger.api.auth.core import create_access_token, verify_password
 from toktagger.api.auth.dependencies import get_current_user
+from toktagger.api.crud import utils
 from toktagger.api.schemas.users import TokenResponse, UserOut
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -15,13 +16,10 @@ async def login(
 ):
     db_client = request.app.state.db_client
     # Raw doc lookup is intentional: UserOut deliberately omits hashed_password.
-    docs = await db_client.get_filtered_documents(
-        "users", filters={"username": form_data.username}
-    )
-    if not docs:
+    user_doc = await utils.get_user_doc_by_username(db_client, form_data.username)
+    if not user_doc:
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
-    user_doc = docs[0]
     if not verify_password(form_data.password, user_doc.get("hashed_password", "")):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 

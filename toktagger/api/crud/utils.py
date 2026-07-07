@@ -545,6 +545,18 @@ async def get_user_by_username(
     return UserOut.model_validate(docs[0]) if docs else None
 
 
+async def get_user_doc_by_username(
+    db_client: MongoDBClient, username: str
+) -> dict | None:
+    """Return the raw user document, including fields UserOut omits (e.g.
+    hashed_password). Use this only where those fields are required, such as
+    password verification during login."""
+    docs = await db_client.get_filtered_documents(
+        "users", filters={"username": username}
+    )
+    return docs[0] if docs else None
+
+
 async def get_user_by_id(db_client: MongoDBClient, user_id: str) -> UserOut | None:
     obj_id = convert_to_objectid(user_id, "users")
     doc = await db_client.get_document_by_id("users", obj_id)

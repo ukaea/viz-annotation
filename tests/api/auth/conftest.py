@@ -39,7 +39,7 @@ async def get_auth_token(client: AsyncClient, username: str, password: str) -> s
 @pytest_asyncio.fixture(scope="function")
 async def auth_db_client(tmp_path):
     """Low-level DB client backed by mongita (per-test, no Docker)."""
-    client = MongoDBClient(str(tmp_path), "annotate_db")
+    client = MongoDBClient("default", "annotate_db", cache_dir=str(tmp_path))
     yield client
     await client.client.close()
 
@@ -47,7 +47,7 @@ async def auth_db_client(tmp_path):
 @pytest_asyncio.fixture(scope="function")
 async def auth_api_client(tmp_path):
     """Passthrough API client (auth_required=False) — for first_run tests."""
-    db = MongoDBClient(str(tmp_path), "annotate_db")
+    db = MongoDBClient("default", "annotate_db", cache_dir=str(tmp_path))
 
     server = Server()
     server._setup_app()
@@ -75,7 +75,7 @@ async def auth_setup(tmp_path):
 
     Use get_auth_token(client, username, password) to obtain JWT tokens.
     """
-    db = MongoDBClient(str(tmp_path), "annotate_db")
+    db = MongoDBClient("default", "annotate_db", cache_dir=str(tmp_path))
 
     server = Server()
     server._setup_app()

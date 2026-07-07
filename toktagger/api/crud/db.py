@@ -19,15 +19,13 @@ class MongoDBClient:
             # Use mongodb (expects running instance of mongodb at this address)
             self.client = pymongo.AsyncMongoClient(url)
         else:
-            # File-path mode: cache_dir takes priority, else fall back to url as a base
-            # directory path (backward-compatibility for users who configured a filesystem
-            # path as the DB URL before the cache_dir option was added).
-            if cache_dir:
-                base_dir = Path(cache_dir)
-            elif url and url != "default":
-                base_dir = Path(url)
-            else:
-                base_dir = Path(user_cache_dir("toktagger", "ukaea"))
+            # File-path mode (embedded Mongita): store data under cache_dir if given,
+            # otherwise the platform-specific user cache directory.
+            base_dir = (
+                Path(cache_dir)
+                if cache_dir
+                else Path(user_cache_dir("toktagger", "ukaea"))
+            )
             base_dir.mkdir(parents=True, exist_ok=True)
             self.client = AsyncMongitaClient(str(base_dir / db_name))
         self.db = self.client[db_name]

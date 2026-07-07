@@ -10,6 +10,7 @@
   "dependencies": {
     "@adobe/react-spectrum": "^3.14.0",
     "@annotorious/openseadragon": "^3.8.2",
+    "@annotorious/plugin-tools": "^1.6.0",
     "@annotorious/react": "^3.8.2",
     "@react-types/shared": "^3.31.0",
     "@rjsf/core": "^6.5.1",

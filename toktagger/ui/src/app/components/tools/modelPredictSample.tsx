@@ -40,6 +40,7 @@ export function ModelPredictTool({ project_id, sample_id }: ModelPredictInfo) {
   const [selectedModelName, setSelectedModelName] = useState<string | null>(
     null,
   );
+  const [useGPU, setUseGPU] = useState<boolean>(false);
   const [schema, setSchema] = useState<RJSFSchema | null>(null);
   const [unvalidatedFormData, setUnvalidatedFormData] = useState<
     Record<string, unknown>
@@ -70,7 +71,7 @@ export function ModelPredictTool({ project_id, sample_id }: ModelPredictInfo) {
         setSchema(null);
         return;
       }
-      const newSchema: RJSFSchema =
+      const newSchema: RJSFSchema | null =
         await getModelPredictSchema(selectedModelName);
       setSchema(newSchema);
     };
@@ -109,6 +110,7 @@ export function ModelPredictTool({ project_id, sample_id }: ModelPredictInfo) {
       project_id,
       sample_id,
       selectedModelName,
+      useGPU,
       params,
       dataParams,
     );
@@ -200,16 +202,16 @@ export function ModelPredictTool({ project_id, sample_id }: ModelPredictInfo) {
                 ))
               : null}
           </ComboBox>
-          {schema && (
-            <ModelForm
-              ref={formRef}
-              schema={schema}
-              onSubmit={submitPredictJob}
-              disabled={!isEnabled}
-              formData={unvalidatedFormData}
-              setFormData={setUnvalidatedFormData}
-            />
-          )}
+          <ModelForm
+            ref={formRef}
+            schema={schema}
+            onSubmit={submitPredictJob}
+            disabled={!isEnabled}
+            formData={unvalidatedFormData}
+            setFormData={setUnvalidatedFormData}
+            useGPU={useGPU}
+            setUseGPU={setUseGPU}
+          />
           <Flex marginTop="size-200" marginBottom="size-200">
             <Button
               marginEnd="size-400"

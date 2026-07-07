@@ -34,12 +34,18 @@ async def health_check(request: Request) -> dict:
     except Exception:
         db_conn = False
 
+    # If available, check whether GPUs enabled for model tasks
+    model_gpu_available = False
+    if hasattr(request.app.state, "task_registry"):
+        model_gpu_available = request.app.state.task_registry.gpu_enabled
+
     # Return info
     return {
         "name": "TokTagger",
         "version": vers,
         "db_connected": db_conn,
         "models_enabled": models_dependencies_installed(),
+        "gpu_available": model_gpu_available,
         "testing_mode": request.app.state.testing_mode,
     }
 

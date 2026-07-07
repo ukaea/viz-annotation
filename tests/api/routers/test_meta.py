@@ -1,6 +1,6 @@
 import pytest
 from toktagger.api.schemas.samples import ShotData
-import os
+import toktagger.api.config as config
 
 
 @pytest.mark.asyncio
@@ -47,10 +47,9 @@ async def test_get_model_types(api_client, setup_db, task):
 @pytest.mark.parametrize("local", [True, False])
 async def test_get_model_load_methods(api_client, setup_db, local):
     if not local:
-        os.environ["DISABLE_LOCAL_MODEL_LOAD"] = "true"
+        config.settings.models.local_load_enabled = False
     response = await api_client.get("/meta/models/load")
-    if not local:
-        os.environ.pop("DISABLE_LOCAL_MODEL_LOAD")
+    config.settings.models.local_load_enabled = True  # Restore default setting
     assert response.status_code == 200
     data = response.json()
     if local:
@@ -105,8 +104,9 @@ async def test_get_model_types_disabled(api_client, setup_db, task):
 @pytest.mark.parametrize("local", [True, False])
 async def test_get_model_load_methods_disabled(api_client, setup_db, local):
     if not local:
-        os.environ["DISABLE_LOCAL_MODEL_LOAD"] = "true"
+        config.settings.models.local_load_enabled = False
     response = await api_client.get("/meta/models/load")
+    config.settings.models.local_load_enabled = True
     assert response.status_code == 503
     data = response.json()
     assert (

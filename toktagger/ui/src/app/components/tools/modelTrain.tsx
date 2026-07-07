@@ -41,6 +41,7 @@ export function ModelTrainModal({
   const [selectedModelName, setSelectedModelName] = useState<string | null>(
     null,
   );
+  const [useGPU, setUseGPU] = useState<boolean>(false);
   const [schema, setSchema] = useState<RJSFSchema | null>(null);
   const [unvalidatedFormData, setUnvalidatedFormData] = useState<
     Record<string, unknown>
@@ -72,7 +73,7 @@ export function ModelTrainModal({
         setSchema(null);
         return;
       }
-      const newSchema: RJSFSchema =
+      const newSchema: RJSFSchema | null =
         await getModelTrainSchema(selectedModelName);
       setSchema(newSchema);
     };
@@ -94,6 +95,7 @@ export function ModelTrainModal({
     const response = await startTraining(
       project._id,
       selectedModelName,
+      useGPU,
       params,
     );
     if (response.ok) {
@@ -139,15 +141,15 @@ export function ModelTrainModal({
                   ))
                 : null}
             </ComboBox>
-            {schema && (
-              <ModelForm
-                ref={formRef}
-                schema={schema}
-                onSubmit={submitTrainJob}
-                formData={unvalidatedFormData}
-                setFormData={setUnvalidatedFormData}
-              />
-            )}
+            <ModelForm
+              ref={formRef}
+              schema={schema}
+              onSubmit={submitTrainJob}
+              formData={unvalidatedFormData}
+              setFormData={setUnvalidatedFormData}
+              useGPU={useGPU}
+              setUseGPU={setUseGPU}
+            />
           </Content>
           <Footer>
             {message && (

@@ -77,6 +77,14 @@ class VideoPolygon(PolygonAnnotation):
     track_id: str
 
 
+class VideoPoint(AnnotationBase):
+    type: Literal["video_point"] = "video_point"
+    frame: int
+    track_id: str
+    x: int
+    y: int
+
+
 class Profile2DMask(AnnotationBase):
     type: Literal["profile_2d_mask"] = "profile_2d_mask"
     values: list[list[float]]
@@ -124,6 +132,7 @@ TimeRegionOut = create_out_model(TimeRegion)
 BoundingBoxOut = create_out_model(BoundingBox)
 VideoBoundingBoxOut = create_out_model(VideoBoundingBox)
 VideoPolygonOut = create_out_model(VideoPolygon)
+VideoPointOut = create_out_model(VideoPoint)
 SpectrogramMaskOut = create_out_model(SpectrogramMask)
 Profile2DMaskOut = create_out_model(Profile2DMask)
 PolygonAnnotationOut = create_out_model(PolygonAnnotation)
@@ -135,6 +144,7 @@ TimeRegionBatch = create_batch_model(TimeRegion)
 BoundingBoxBatch = create_batch_model(BoundingBox)
 VideoBoundingBoxBatch = create_batch_model(VideoBoundingBox)
 VideoPolygonBatch = create_batch_model(VideoPolygon)
+VideoPointBatch = create_batch_model(VideoPoint)
 SpectrogramMaskBatch = create_batch_model(SpectrogramMask)
 Profile2DMaskBatch = create_batch_model(Profile2DMask)
 PolygonAnnotationBatch = create_batch_model(PolygonAnnotation)
@@ -148,6 +158,7 @@ AnnotationTypes = Union[
     BoundingBox,
     VideoBoundingBox,
     VideoPolygon,
+    VideoPoint,
     SpectrogramMask,
     Profile2DMask,
     PolygonAnnotation,
@@ -160,6 +171,7 @@ AnnotationOutTypes = Union[
     BoundingBoxOut,
     VideoBoundingBoxOut,
     VideoPolygonOut,
+    VideoPointOut,
     SpectrogramMaskOut,
     Profile2DMaskOut,
     PolygonAnnotationOut,
@@ -172,6 +184,7 @@ AnnotationBatchTypes = Union[
     BoundingBoxBatch,
     VideoBoundingBoxBatch,
     VideoPolygonBatch,
+    VideoPointBatch,
     SpectrogramMaskBatch,
     Profile2DMaskBatch,
     PolygonAnnotationBatch,

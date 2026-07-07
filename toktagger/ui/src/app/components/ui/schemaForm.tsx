@@ -26,6 +26,10 @@ import {
   InlineAlert,
   Content,
   Flex,
+  Switch,
+  Footer,
+  Link,
+  ContextualHelp,
 } from "@adobe/react-spectrum";
 import {
   WidgetProps,
@@ -38,6 +42,7 @@ import {
 } from "@rjsf/utils";
 import { getDefaultRegistry, IChangeEvent } from "@rjsf/core";
 import { getSchemaType } from "@rjsf/utils";
+import { useServerHealth } from "@/app/contexts/healthContext";
 
 export function SpectrumBaseWidget(props: WidgetProps) {
   const {
@@ -389,7 +394,7 @@ const SpectrumArrayFieldTemplate = ({
       </Heading>
       {items.map((item) => item)}
       {schema.description && (
-        <Flex maxWidth={"size-2000"} marginTop={"size-50"}>
+        <Flex marginTop={"size-50"}>
           <span style={{ fontSize: "12px" }}>
             <Text slot="description">
               <em>{schema.description}</em>
@@ -407,7 +412,7 @@ const SpectrumArrayFieldItemTemplate = ({
   return <View marginX={"size-400"}>{children}</View>;
 };
 
-type ModelFormProps = {
+type SchemaFormProps = {
   schema: RJSFSchema;
   onSubmit: (data: Record<string, unknown>) => void;
   disabled?: boolean;
@@ -416,7 +421,7 @@ type ModelFormProps = {
   formData?: Record<string, unknown>;
   setFormData?: (formData: Record<string, unknown>) => void;
 };
-const ModelForm = forwardRef<Form, ModelFormProps>(
+const SchemaForm = forwardRef<Form, SchemaFormProps>(
   ({ schema, disabled, onSubmit, formData, setFormData }, ref) => {
     const registry = getDefaultRegistry();
     const widgets = {
@@ -443,50 +448,111 @@ const ModelForm = forwardRef<Form, ModelFormProps>(
     const isControlled = formData !== undefined && setFormData !== undefined;
 
     return (
+      <View
+        marginTop="size-100"
+        padding="size-250"
+        borderWidth="thin"
+        borderColor="dark"
+        borderRadius="medium"
+        backgroundColor="gray-75"
+      >
+        <Heading level={1}>
+          {" "}
+          <strong>Model Parameters</strong>{" "}
+        </Heading>
+        <Form
+          ref={ref}
+          schema={schema}
+          validator={validator}
+          widgets={widgets}
+          disabled={disabled}
+          onSubmit={(e: IChangeEvent<Record<string, unknown>>) => {
+            onSubmit(e.formData ?? {});
+          }}
+          uiSchema={{
+            "ui:options": {
+              label: false,
+            },
+          }}
+          templates={{
+            FieldTemplate: SpectrumFieldTemplate,
+            Label: NoLabelTemplate,
+            TitleFieldTemplate: TitleTemplate,
+            ArrayFieldTemplate: SpectrumArrayFieldTemplate,
+            ArrayFieldItemTemplate: SpectrumArrayFieldItemTemplate,
+            ButtonTemplates: { SubmitButton: () => null },
+            ErrorListTemplate: SpectrumErrorTemplate,
+          }}
+          {...(isControlled && {
+            formData: formData,
+            onChange: (data) =>
+              data.formData ? setFormData(data.formData) : null,
+          })}
+        />
+      </View>
+    );
+  },
+);
+
+type ModelFormProps = Omit<SchemaFormProps, "schema"> & {
+  schema: RJSFSchema | null;
+  useGPU: boolean;
+  setUseGPU: (useGPU: boolean) => void;
+};
+
+const ModelForm = forwardRef<Form, ModelFormProps>(
+  (
+    { schema, disabled, onSubmit, formData, setFormData, useGPU, setUseGPU },
+    ref,
+  ) => {
+    const { gpuAvailable } = useServerHealth();
+    return (
       <div>
         <Provider theme={defaultTheme}>
-          <View
-            marginTop="size-200"
-            padding="size-250"
-            borderWidth="thin"
-            borderColor="dark"
-            borderRadius="medium"
-            backgroundColor="gray-75"
-          >
-            <Heading level={1}>
-              {" "}
-              <strong>Model Parameters</strong>{" "}
-            </Heading>
-            <Form
-              ref={ref}
-              schema={schema}
-              validator={validator}
-              widgets={widgets}
-              disabled={disabled}
-              onSubmit={(e: IChangeEvent<Record<string, unknown>>) => {
-                onSubmit(e.formData ?? {});
-              }}
-              uiSchema={{
-                "ui:options": {
-                  label: false,
-                },
-              }}
-              templates={{
-                FieldTemplate: SpectrumFieldTemplate,
-                Label: NoLabelTemplate,
-                TitleFieldTemplate: TitleTemplate,
-                ArrayFieldTemplate: SpectrumArrayFieldTemplate,
-                ArrayFieldItemTemplate: SpectrumArrayFieldItemTemplate,
-                ButtonTemplates: { SubmitButton: () => null },
-                ErrorListTemplate: SpectrumErrorTemplate,
-              }}
-              {...(isControlled && {
-                formData: formData,
-                onChange: (data) =>
-                  data.formData ? setFormData(data.formData) : null,
-              })}
-            />
-          </View>
+          <Flex direction="column" width="100%">
+            <Flex direction="row" width="100%" justifyContent={"left"}>
+              <Switch
+                marginTop={"size-200"}
+                marginBottom={"size-200"}
+                isSelected={useGPU}
+                onChange={setUseGPU}
+                isDisabled={disabled || !gpuAvailable}
+              >
+                Allocate GPU
+              </Switch>
+              <ContextualHelp
+                marginTop="size-200"
+                placement="right top"
+                aria-label="ML Model Help"
+                UNSAFE_style={{ marginLeft: -20 }}
+              >
+                <Heading>
+                  {gpuAvailable ? "Allocate GPU For This Task" : "GPU Disabled"}
+                </Heading>
+                <Content>
+                  {gpuAvailable
+                    ? "Enable this setting to make a GPU worker node available to this task. This task may then use the GPU, depending on model implementation."
+                    : "GPU tasks are disabled. This may be because no GPU devices were detected. If you believe this was incorrect, you can force the number of GPU nodes to make available via configuration options."}
+                </Content>
+                <Footer>
+                  <Link href="https://ukaea.github.io/toktagger/custom_models#gpu-usage">
+                    Learn more about configuring GPU usage for ML Models in
+                    TokTagger.
+                  </Link>
+                </Footer>
+              </ContextualHelp>
+            </Flex>
+            {schema && (
+              <SchemaForm
+                ref={ref}
+                schema={schema}
+                onSubmit={onSubmit}
+                disabled={disabled}
+                formData={formData}
+                setFormData={setFormData}
+              />
+            )}
+          </Flex>
         </Provider>
       </div>
     );

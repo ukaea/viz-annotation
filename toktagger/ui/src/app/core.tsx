@@ -327,10 +327,11 @@ export const deleteSamples = async (project_id: string) => {
 export const startTraining = async (
   project_id: string,
   selected_model: string,
+  useGPU: boolean,
   params: Record<string, unknown>,
 ): Promise<Response> => {
   const response = await fetch(
-    `${BACKEND_API_URL}/projects/${project_id}/models/${selected_model}/train`,
+    `${BACKEND_API_URL}/projects/${project_id}/models/${selected_model}/train?use_gpu=${useGPU}`,
     {
       method: "PUT",
       headers: {
@@ -364,10 +365,11 @@ export const startPredictions = async (
   selected_model: string,
   version: number,
   num_predictions: number,
+  use_gpu: boolean,
   params: Record<string, unknown>,
 ): Promise<Response> => {
   const response = await fetch(
-    `${BACKEND_API_URL}/projects/${project_id}/models/${selected_model}/predict?version=${version}&num_predictions=${num_predictions}`,
+    `${BACKEND_API_URL}/projects/${project_id}/models/${selected_model}/predict?version=${version}&num_predictions=${num_predictions}&use_gpu=${use_gpu}`,
     {
       method: "POST",
       headers: {
@@ -383,11 +385,12 @@ export const startSamplePredictions = async (
   project_id: string,
   sample_id: string,
   selected_model: string,
+  use_gpu: boolean,
   params: Record<string, unknown>,
   data_params: DataParams,
 ): Promise<Response> => {
   const response = await fetch(
-    `${BACKEND_API_URL}/projects/${project_id}/samples/${sample_id}/models/${selected_model}/predict`,
+    `${BACKEND_API_URL}/projects/${project_id}/samples/${sample_id}/models/${selected_model}/predict?use_gpu=${use_gpu}`,
     {
       method: "POST",
       headers: {
@@ -427,7 +430,7 @@ export const getModels = async (project_id: string): Promise<Response> => {
 export const getModelSchema = async (
   modelName: string,
   schemaType: string,
-): Promise<RJSFSchema> => {
+): Promise<RJSFSchema | null> => {
   const response = await fetch(
     `${BACKEND_API_URL}/meta/models/${modelName}/${schemaType}`,
   );
@@ -435,19 +438,22 @@ export const getModelSchema = async (
     throw new Error(`Failed to fetch model schema!`);
   }
   const data = await response.json();
+  if (!data) {
+    return null;
+  }
   const schema: RJSFSchema = data as RJSFSchema;
   return schema;
 };
 
 export const getModelTrainSchema = async (
   modelName: string,
-): Promise<RJSFSchema> => {
+): Promise<RJSFSchema | null> => {
   return getModelSchema(modelName, "train");
 };
 
 export const getModelPredictSchema = async (
   modelName: string,
-): Promise<RJSFSchema> => {
+): Promise<RJSFSchema | null> => {
   return getModelSchema(modelName, "predict");
 };
 

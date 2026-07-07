@@ -227,6 +227,52 @@ self.log_progress(
 - `"failed"` - Training encountered an error
 - `"aborted"` - Training was manually stopped
 
+## GPU Usage
+TokTagger can reserve GPU nodes for ML Model tasks if requested by the user via the UI. If you wish to use a GPU to perform training or prediction in your model, then you can check whether a GPU is currently enabled on the model's worker node using this method:
+```py
+class MyModel(Model):
+    def train(self, ...):
+
+    if self.gpu_available():
+        ...
+```
+
+Note that your model should be written in a way which makes it agnostic to the environment in which it is run. To do this, you may wish to include a `device` parameter within your Training and Prediction parameters, eg for a PyTorch model:
+```py
+class MyTrainParams(pydantic.BaseModel):
+    device: typing.Literal["cpu", "cuda", "mps", "xpu"] = "cpu"
+```
+The exact format of the inputs required may depend on the ML framework you are using. You can then use these to correctly setup your model for the given environment, for example:
+```py
+class MyModel(Model):
+    def train(
+        self,
+        samples: list[Sample],
+        annotations: list[list[Annotation]],
+        params: MyTrainParams,
+        ):
+        if not self.gpu_available() and params.device != "cpu":
+            raise ValueError(
+                "Only CPU available on current worker node, but non-CPU device requested!"
+            )
+        device = torch.device(params.device)
+        self.model.to(device)
+```
+Note that a CPU is always available on all worker nodes, even if a GPU is requested. To reduce startup time, if a model exists on a worker node with a GPU but prediction is requested on a CPU node, that task will still be executed on the existing worker node which has GPU access. If a new model has a task scheduled which requires a GPU, and there are no free GPUs available, the least most recently used model will be stopped and its worker node will be made available to the new model.
+
+!!! note
+    Note that TokTagger uses Ray for task scheduling and management. Ray will detect Nvidia and most AMD GPUs reliably and make them available if requested, but for intel GPUs it may be less reliable. 
+    
+    For Macs with Apple silicon chips (such as the M1, M2, M3 series), the GPU is integrated and appears similarly to a CPU, and Ray will not detect it. Therefore it should be available to every worker node, regardless of the Allocate GPU setting, and regardless of what `self.gpu_available()` reports.
+
+If Ray detects a GPU is available on your machine, it will automatically start TokTagger with GPU support enabled, and will use all GPU cores it is able to detect. If you wish to limit the number of GPUs which TokTagger should use in parallel, set the `MAX_GPU_ACTORS` environment variable. To disable GPUs, set `MAX_GPU_ACTORS` to 0.
+
+!!! tip
+    As mentioned above, Ray may fail to detect your GPU, especially on Mac devices. If you know how many GPU cores you can use in parallel on your machine, you can set `MAX_GPU_ACTORS` to that number. You should also set the environment variable `FORCE_NUM_GPUS` to `True`, as otherwise TokTagger will throw an error during start up as it tries to allocate more cores than it thinks are available.
+
+    Note that this is just for task scheduling, and has no impact on the underlying resources available to each task. However the `Allocate GPU` button on the UI will now be enabled, and the `self.gpu_available()` will correctly report whether the user requested GPU usage or not for the given task, meaning that you can correctly assign tasks to GPU or CPU hardware accordingly.
+
+
 ## Complete Example: Random Forest Classification Model
 
 Here's a complete example using a scikit-learn RandomForest for time series classification:

@@ -3,7 +3,7 @@ from toktagger.api.core.data_loaders import LoaderRegistry
 from toktagger.api.schemas.models import LoadTypes
 from toktagger.api.models import models_dependencies_installed, check_models_enabled
 import typing
-import os
+import toktagger.api.config as config
 
 if models_dependencies_installed():
     from toktagger.api.models.base import ModelRegistry
@@ -38,7 +38,7 @@ async def get_model_types(task: str) -> list[str]:
 )
 async def get_model_load_methods() -> list[str]:
     """Get list of enabled ways to load pretrained weights into the server."""
-    return [LoadTypes.LOCAL] if not os.environ.get("DISABLE_LOCAL_MODEL_LOAD") else []
+    return [LoadTypes.LOCAL] if config.settings.models.local_load_enabled else []
 
 
 @router.get(

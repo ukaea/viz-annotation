@@ -57,6 +57,9 @@ toktagger
 
 This will start a local instance of the application running at `http://localhost:8002`.
 
+## Configuration
+There are a series of additional options which you can configure to customise the functionality of TokTagger - [find details about these here.](./configuration.md)
+
 ## Project Links
 
  - [Git Repo](https://github.com/ukaea/toktagger)

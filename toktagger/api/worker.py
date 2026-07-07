@@ -156,7 +156,7 @@ def load_model_gitlab(
         updates=ModelUpdate(training_status="started"),
     )
 
-    model_actor = get_actor(project=project, model=model)
+    model_actor = get_actor(project=project, model=model, use_gpu=False)
 
     # Construct URI required
     if not all(
@@ -282,7 +282,7 @@ def load_model_huggingface(
         updates=ModelUpdate(training_status="started"),
     )
 
-    model_actor = get_actor(project=project, model=model)
+    model_actor = get_actor(project=project, model=model, use_gpu=False)
 
     # Pull object from Hugging Face
     try:

@@ -42,6 +42,7 @@ class Model(ModelIn):
 class LoadMethods(str, Enum):
     LOCAL = "local"
     GITLAB = "gitlab"
+    HUGGINGFACE = "hugging_face"
 
 
 class LoadParams(pydantic.BaseModel):
@@ -50,7 +51,7 @@ class LoadParams(pydantic.BaseModel):
 
 class RemoteLoadParams(LoadParams):
     model_name: str
-    model_version: str | None
+    model_version: str | None = None
 
 
 class GitlabLoadParams(RemoteLoadParams):

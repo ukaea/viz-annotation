@@ -43,6 +43,8 @@ async def get_model_load_methods() -> list[str]:
         enabled.append(LoadMethods.LOCAL)
     if config.settings.models.gitlab_load_enabled:
         enabled.append(LoadMethods.GITLAB)
+    if config.settings.models.huggingface_load_enabled:
+        enabled.append(LoadMethods.HUGGINGFACE)
 
     return enabled
 
@@ -51,13 +53,19 @@ async def get_model_load_methods() -> list[str]:
     "/models/load/{load_method}",
     dependencies=[Depends(check_models_enabled)],
 )
-async def get_model_load_method_allowlist(load_method: LoadMethods) -> int | None:
+async def get_model_load_method_allowlist(load_method: LoadMethods) -> str | None:
     """Get allowed ID for loading from online projects, if applicable."""
     match load_method:
         case LoadMethods.LOCAL:
             return None
         case LoadMethods.GITLAB:
-            return config.settings.models.gitlab_project_id
+            return (
+                str(config.settings.models.gitlab_project_id)
+                if config.settings.models.gitlab_project_id
+                else None
+            )
+        case LoadMethods.HUGGINGFACE:
+            return config.settings.models.huggingface_userspace
 
 
 @router.get(

@@ -28,13 +28,15 @@ import FileWorkflow from "@spectrum-icons/workflow/FileWorkflow";
 import CheckmarkCircle from "@spectrum-icons/workflow/CheckmarkCircle";
 import DataAdd from "@spectrum-icons/workflow/DataAdd";
 import Alert from "@spectrum-icons/workflow/Alert";
-import { GitlabIcon } from "@/app/utils";
+import { GitlabIcon, HuggingFaceIcon } from "@/app/utils";
 import {
   Project,
   GitlabLoadForm,
   GitlabLoadFormSchema,
   LocalLoadForm,
   LocalLoadFormSchema,
+  HuggingfaceLoadForm,
+  HuggingfaceLoadFormSchema,
 } from "@/types";
 import {
   startLoadModelWeights,
@@ -43,9 +45,8 @@ import {
   getModelLoadTypes,
   getModelLoadAllowedIds,
 } from "@/app/core";
-import { labelValue } from "@rjsf/utils";
 
-type LoadMethod = "local" | "gitlab";
+type LoadMethod = "local" | "gitlab" | "hugging_face";
 
 type LocalLoadProps = {
   form: LocalLoadForm;
@@ -57,6 +58,13 @@ type GitlabLoadProps = {
   form: GitlabLoadForm;
   setForm: (formData: GitlabLoadForm) => void;
   allowedGitlabProjectId: number | null;
+  validationErrors: Record<string, string>;
+};
+
+type HuggingfaceLoadProps = {
+  form: HuggingfaceLoadForm;
+  setForm: (formData: HuggingfaceLoadForm) => void;
+  allowedUserspace: string | null;
   validationErrors: Record<string, string>;
 };
 
@@ -104,10 +112,7 @@ function GitlabLoadTab({
         marginTop={"size-100"}
         width={"100%"}
         label="Project ID"
-        value={
-          form.gitlab_project_id ??
-          (allowedGitlabProjectId ? allowedGitlabProjectId : undefined)
-        }
+        value={form.gitlab_project_id ?? allowedGitlabProjectId ?? undefined}
         validationState={
           "gitlab_project_id" in validationErrors ? "invalid" : undefined
         }
@@ -180,6 +185,94 @@ function GitlabLoadTab({
   );
 }
 
+function HuggingfaceLoadTab({
+  form,
+  setForm,
+  allowedUserspace,
+  validationErrors,
+}: HuggingfaceLoadProps) {
+  return (
+    <Flex direction="column">
+      <Text marginTop={"size-100"}>
+        <em>Load model weights from HuggingFace.</em>
+      </Text>
+      <TextField
+        marginTop={"size-100"}
+        width={"100%"}
+        label="Userspace or Organisation"
+        value={form.huggingface_userspace ?? allowedUserspace ?? undefined}
+        validationState={
+          "gitlab_project_id" in validationErrors ? "invalid" : undefined
+        }
+        errorMessage={validationErrors.gitlab_project_id ?? ""}
+        onChange={(huggingface_userspace) =>
+          setForm({
+            ...form,
+            huggingface_userspace,
+          })
+        }
+        description={
+          allowedUserspace
+            ? "HuggingFace userspace or organisation is configured on the server."
+            : "The ID of the HuggingFace userspace or organisation which will be connected to."
+        }
+        isDisabled={!!allowedUserspace}
+      />
+      <TextField
+        marginTop={"size-100"}
+        width={"100%"}
+        label="Model Name"
+        value={form.model_name}
+        validationState={
+          "model_name" in validationErrors ? "invalid" : undefined
+        }
+        errorMessage={validationErrors.model_name ?? ""}
+        onChange={(model_name) =>
+          setForm({
+            ...form,
+            model_name,
+          })
+        }
+        description="The name of the project stored in HuggingFace to download weights for."
+      />
+      <TextField
+        marginTop={"size-100"}
+        width={"100%"}
+        label="Model Version"
+        value={form.model_version}
+        validationState={
+          "model_version" in validationErrors ? "invalid" : undefined
+        }
+        errorMessage={validationErrors.model_version ?? ""}
+        onChange={(model_version) =>
+          setForm({
+            ...form,
+            model_version,
+          })
+        }
+        description="Optional: The semantic version or revision of the model to download, eg v1.0.0."
+      />
+      <TextField
+        marginTop={"size-100"}
+        width={"100%"}
+        label="Weights Path"
+        value={form.weights_path}
+        validationState={
+          "weights_path" in validationErrors ? "invalid" : undefined
+        }
+        errorMessage={validationErrors.weights_path ?? ""}
+        onChange={(weights_path) =>
+          setForm({
+            ...form,
+            weights_path,
+          })
+        }
+        description="The path to the weights artifact within the HuggingFace project."
+      />
+    </Flex>
+  );
+}
+
 export function ModelLoadModal({
   project,
   isEnabled,
@@ -199,7 +292,7 @@ export function ModelLoadModal({
   const pollingModelName = useRef<string | null>(null);
   const [loadMethods, setLoadMethods] = useState<string[] | null>(null);
   const [allowedRemoteProjectId, setallowedRemoteProjectId] = useState<
-    number | null
+    string | null
   >(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -215,6 +308,13 @@ export function ModelLoadModal({
     model_name: "",
     weights_path: "",
     model_version: undefined,
+  });
+
+  const [huggingfaceForm, setHuggingfaceForm] = useState<HuggingfaceLoadForm>({
+    model_name: "",
+    weights_path: "",
+    model_version: undefined,
+    huggingface_userspace: "",
   });
 
   const [validationErrors, setValidationErrors] = useState<
@@ -236,6 +336,9 @@ export function ModelLoadModal({
     } else if (selectedTab == "gitlab") {
       params = gitlabForm;
       valid = GitlabLoadFormSchema.safeParse(params);
+    } else if (selectedTab == "hugging_face") {
+      params = huggingfaceForm;
+      valid = HuggingfaceLoadFormSchema.safeParse(params);
     } else {
       throw new Error("Unrecognised model load type!");
     }
@@ -348,7 +451,7 @@ export function ModelLoadModal({
       const response = await getModelLoadAllowedIds(selectedTab as string);
       if (response.ok) {
         const data = await response.json();
-        setallowedRemoteProjectId(data as number);
+        setallowedRemoteProjectId(data as string);
       } else {
         const errorMessage = await response.json();
         setMessage(errorMessage.detail);
@@ -438,6 +541,12 @@ export function ModelLoadModal({
                       <Text>From Gitlab</Text>
                     </Item>
                   ) : null}
+                  {loadMethods?.includes("hugging_face") ? (
+                    <Item key="hugging_face" aria-label="From HuggingFace Tab">
+                      <HuggingFaceIcon />
+                      <Text>From HuggingFace</Text>
+                    </Item>
+                  ) : null}
                 </TabList>
                 <TabPanels>
                   {loadMethods?.includes("local") ? (
@@ -454,7 +563,20 @@ export function ModelLoadModal({
                       <GitlabLoadTab
                         form={gitlabForm}
                         setForm={setGitlabForm}
-                        allowedGitlabProjectId={allowedRemoteProjectId}
+                        allowedGitlabProjectId={Number(allowedRemoteProjectId)}
+                        validationErrors={validationErrors}
+                      />
+                    </Item>
+                  ) : null}
+                  {loadMethods?.includes("hugging_face") ? (
+                    <Item
+                      key="hugging_face"
+                      aria-label="Load from HuggingFace form"
+                    >
+                      <HuggingfaceLoadTab
+                        form={huggingfaceForm}
+                        setForm={setHuggingfaceForm}
+                        allowedUserspace={allowedRemoteProjectId}
                         validationErrors={validationErrors}
                       />
                     </Item>
@@ -486,7 +608,9 @@ export function ModelLoadModal({
                 (selectedTab == "gitlab" &&
                   !GitlabLoadFormSchema.safeParse(gitlabForm).success) ||
                 (selectedTab == "local" &&
-                  !LocalLoadFormSchema.safeParse(localForm).success)
+                  !LocalLoadFormSchema.safeParse(localForm).success) ||
+                (selectedTab == "hugging_face" &&
+                  !HuggingfaceLoadFormSchema.safeParse(huggingfaceForm).success)
               }
             >
               Submit

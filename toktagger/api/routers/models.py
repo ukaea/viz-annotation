@@ -25,6 +25,7 @@ if models_dependencies_installed():
     from toktagger.api.worker import (
         load_model_local,
         load_model_gitlab,
+        load_model_huggingface,
         train_model,
         get_predictions,
     )
@@ -508,7 +509,7 @@ async def load_model_weights_hugging_face(
     project = await utils.get_project(db_client, project_id)
     model = await create_model(db_client, project, model_type)
 
-    task = load_model_gitlab.remote(project=project, model=model, params=params)
+    task = load_model_huggingface.remote(project=project, model=model, params=params)
 
     task_id = task_registry.register(task)
     task_registry.update_actors(model.id, False)

@@ -126,10 +126,6 @@ async def delete_project(
     """Permanently delete a project."""
     db_client = request.app.state.db_client
     await utils.delete_projects(db_client=db_client, project_id=project_id)
-    project_oid = convert_to_objectid(project_id, "projects")
-    await db_client.delete_filtered_documents(
-        "project_members", {"project_id": project_oid}
-    )
 
 
 @router.delete(

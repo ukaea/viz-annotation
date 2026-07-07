@@ -271,6 +271,12 @@ async def delete_projects(
         filters={"project_id": project_id} if project_id else {},
     )
 
+    # Clean up all associated project memberships
+    await db_client.delete_filtered_documents(
+        collection="project_members",
+        filters={"project_id": project_id} if project_id else {},
+    )
+
     # Delete this specific project
     result = await db_client.delete_filtered_documents(
         collection="projects", filters={"_id": project_id} if project_id else {}

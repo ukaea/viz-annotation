@@ -2,8 +2,8 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 
 from toktagger.api.auth.core import decode_token, get_internal_token
-from toktagger.api.schemas import convert_to_objectid
 from toktagger.api.schemas.users import UserOut
+from toktagger.api.crud import utils
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 
@@ -48,8 +48,6 @@ async def get_current_user(
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-    from toktagger.api.crud import utils
-
     db_client = request.app.state.db_client
     user = await utils.get_user_by_username(db_client, username)
     if not user:
@@ -77,18 +75,14 @@ async def get_project_membership(
         return None
 
     db_client = request.app.state.db_client
-    project_oid = convert_to_objectid(project_id, "projects")
-    user_oid = convert_to_objectid(current_user.id, "users")
-
-    docs = await db_client.get_filtered_documents(
-        "project_members",
-        filters={"project_id": project_oid, "user_id": user_oid},
+    membership = await utils.get_project_membership(
+        db_client, project_id, current_user.id
     )
-    if not docs:
+    if not membership:
         raise HTTPException(
             status_code=403, detail="You are not a member of this project"
         )
-    return docs[0]
+    return membership
 
 
 async def require_project_viewer(
@@ -120,8 +114,6 @@ async def require_project_admin_role(
 ) -> UserOut:
     if current_user.global_role == "admin":
         return current_user
-
-    from toktagger.api.crud import utils
 
     db_client = request.app.state.db_client
     membership = await utils.get_project_membership(

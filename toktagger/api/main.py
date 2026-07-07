@@ -1,4 +1,14 @@
 import os
+
+# Ray (>=2.43) detects when the driver is launched under `uv` and re-runs its
+# worker processes via `uv run`. That re-resolves the project environment
+# WITHOUT the optional `models` extra, so workers crash with
+# `ModuleNotFoundError: No module named 'ray'`. Disable the behaviour so workers
+# inherit the driver's interpreter (which has ray/torch). Must be set before
+# `import ray`, as Ray reads this flag at import time. setdefault so an operator
+# can still opt back in explicitly.
+os.environ.setdefault("RAY_ENABLE_UV_RUN_RUNTIME_ENV", "0")
+
 import pathlib
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -50,6 +60,12 @@ async def lifespan(app: FastAPI):
     yield
 
     await app.state.db_client.client.close()
+
+    # Tear down the Ray cluster we started so its raylet/worker processes don't
+    # outlive the server on a graceful shutdown (Ctrl-C / SIGTERM). Guarded so
+    # the `ray` global is only touched when models deps are installed.
+    if models_dependencies_installed() and ray.is_initialized():
+        ray.shutdown()
 
 
 class Server:

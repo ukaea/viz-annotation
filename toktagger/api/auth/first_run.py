@@ -1,4 +1,3 @@
-import secrets
 from pathlib import Path
 from filelock import FileLock
 from platformdirs import user_cache_dir
@@ -19,7 +18,7 @@ async def ensure_admin_user(db_client) -> bool:
         if users:
             return True
 
-        password = secrets.token_urlsafe(12)
+        password = "admin"
         admin = UserIn(
             username="admin",
             hashed_password=hash_password(password),
@@ -35,8 +34,8 @@ async def ensure_admin_user(db_client) -> bool:
     print("  Admin account created")
     print("  Username : admin")
     print(f"  Password : {password}")
-    print("  ⚠  This password will not be shown again.")
-    print("  Please change it after first login.")
+    print("  ⚠  This is an insecure default password.")
+    print("  ⚠  Change it immediately after first login.")
     print(f"{border}\n")
 
     return True

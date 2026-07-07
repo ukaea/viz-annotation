@@ -2,6 +2,7 @@
 
 import pytest
 
+from toktagger.api.auth.core import verify_password
 from toktagger.api.auth.first_run import ensure_admin_user
 
 
@@ -32,6 +33,13 @@ async def test_ensure_admin_user_password_is_hashed(auth_db_client):
     stored = users[0]["hashed_password"]
     # Must be stored in pbkdf2 format, not plain text
     assert stored.startswith("pbkdf2:")
+
+
+@pytest.mark.asyncio
+async def test_ensure_admin_user_default_password_is_admin(auth_db_client):
+    await ensure_admin_user(auth_db_client)
+    users = await auth_db_client.get_all_documents("users")
+    assert verify_password("admin", users[0]["hashed_password"])
 
 
 @pytest.mark.asyncio

@@ -2,7 +2,7 @@ from toktagger.api.schemas.annotations import TimePointBatch
 from toktagger.api.schemas.samples import SampleIn, TimeSeriesFileData
 import tests.db_definitions as db_definitions
 from toktagger.api.main import Server
-from toktagger.api.auth.core import get_internal_token
+from toktagger.api.auth.core import get_internal_token, create_access_token
 from httpx import AsyncClient, ASGITransport
 from bson.objectid import ObjectId
 import ray
@@ -47,12 +47,18 @@ async def models_api_client(monkeypatch, settings, db_client, ray_session):
     app = server.app
     app.state.db_client = db_client
     app.state.project = None
-    app.state.auth_required = False
     # This task ID is associated with a model in the db, so that cancelling training test works
     app.state.task_registry.tasks["abc123"] = "Ray Task Object"
 
+    # Auth is always required now — seed the admin user and authenticate as them
+    # by default, so existing tests keep behaving as an implicit admin.
+    await db_client.insert("users", db_definitions.USER_ADMIN)
+    admin_token = create_access_token({"sub": "admin"})
+
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {admin_token}"},
     ) as client:
         client.app = app
         yield client
@@ -66,26 +72,6 @@ async def models_api_client(monkeypatch, settings, db_client, ray_session):
             ray.kill(actor)
         except ValueError:
             continue
-
-
-@pytest_asyncio.fixture(scope="function")
-async def authenticated_models_api_client(models_api_client, db_client):
-    """models_api_client with real per-user JWT auth enabled (auth_required=True).
-
-    Seeds the built-in admin user directly (bypassing first-run bootstrap, which
-    only runs from the app's lifespan). db_client's underlying mongita store is
-    shared for the whole test session, so the seeded users are deleted again on
-    teardown rather than left to leak into later tests.
-    """
-    models_api_client.app.state.auth_required = True
-    await db_client.insert("users", db_definitions.USER_ADMIN)
-
-    yield models_api_client
-
-    # Clean up all users/memberships this test created — db_client's mongita store
-    # is shared for the whole session, and no other test expects data here.
-    await db_client.delete_filtered_documents(collection="users")
-    await db_client.delete_filtered_documents(collection="project_members")
 
 
 @pytest.fixture(scope="package")

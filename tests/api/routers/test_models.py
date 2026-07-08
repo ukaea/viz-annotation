@@ -242,7 +242,7 @@ async def test_model_sample_predict(models_api_client, db_client, setup_model_db
 @pytest.mark.asyncio
 @pytest.mark.models_enabled
 async def test_predict_endpoint_survives_same_named_human_save(
-    authenticated_models_api_client, db_client, setup_model_db
+    models_api_client, db_client, setup_model_db
 ):
     """A real prediction from the /predict endpoint (created_by="model::mock_disruption_cnn")
     must survive a human user named "mock_disruption_cnn" saving their own
@@ -252,9 +252,9 @@ async def test_predict_endpoint_survives_same_named_human_save(
     Unlike test_user_save_does_not_corrupt_model_prefixed_predictions in
     test_model_auth.py (which hand-crafts the "model::" annotation via a direct
     PUT with the internal token), this exercises the actual /predict endpoint and
-    Ray worker pipeline end to end, with real per-user JWT auth enabled.
+    Ray worker pipeline end to end, with real per-user JWT auth.
     """
-    client = authenticated_models_api_client
+    client = models_api_client
     project_id = setup_model_db["project_id"]
     sample_id = setup_model_db["sample_ids"][-1]
 

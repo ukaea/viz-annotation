@@ -4,6 +4,7 @@ import pytest
 import pytest_asyncio
 from toktagger.api.main import Server
 from toktagger.api.crud.db import MongoDBClient
+from toktagger.api.auth.core import create_access_token
 import tests.db_definitions as db_definitions
 from bson.objectid import ObjectId
 import asyncio
@@ -32,7 +33,6 @@ if MODELS_ENABLED:
         setup_model_samples as setup_model_samples,
         setup_model_db as setup_model_db,
         models_api_client as models_api_client,
-        authenticated_models_api_client as authenticated_models_api_client,
     )
 
 else:
@@ -57,10 +57,6 @@ else:
 
     @pytest.fixture()
     def models_api_client():
-        raise pytest.UsageError(_error_msg)
-
-    @pytest.fixture()
-    def authenticated_models_api_client():
         raise pytest.UsageError(_error_msg)
 
 
@@ -115,6 +111,8 @@ async def db_client(settings):
     await db_client.delete_filtered_documents("samples")
     await db_client.delete_filtered_documents("annotations")
     await db_client.delete_filtered_documents("models")
+    await db_client.delete_filtered_documents("users")
+    await db_client.delete_filtered_documents("project_members")
     await db_client.client.close()
 
 
@@ -135,10 +133,17 @@ async def api_client(monkeypatch, db_client):
     app = server.app
     app.state.db_client = db_client
     app.state.project = None
-    app.state.auth_required = False
+
+    # Auth is always required now — seed the admin user and authenticate as them
+    # by default, so existing tests (which don't pass their own Authorization
+    # header) keep behaving as an implicit admin, just via a real token now.
+    await db_client.insert("users", db_definitions.USER_ADMIN)
+    admin_token = create_access_token({"sub": "admin"})
 
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {admin_token}"},
     ) as client:
         client.app = app
         yield client
@@ -241,7 +246,6 @@ async def setup_db_small(db_client):
 
 
 def run_server():
-    os.environ["TOKTAGGER_AUTH_REQUIRED"] = "false"
     server = Server()
     server.testing_mode = True
     server.run()

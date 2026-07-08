@@ -45,7 +45,7 @@ async def auth_db_client(tmp_path):
 
 @pytest_asyncio.fixture(scope="function")
 async def api_client():
-    """Bare ASGI test client — db/auth state is wired in by setup_auth_db."""
+    """Bare ASGI test client — db state is wired in by consuming fixtures."""
     server = Server()
     server._setup_app()
     app = server.app
@@ -59,17 +59,8 @@ async def api_client():
 
 
 @pytest_asyncio.fixture(scope="function")
-async def setup_auth_db(api_client, auth_db_client):
-    """Wires an empty mongita-backed db into api_client (auth_required=False) — for first_run tests."""
-    api_client.app.state.db_client = auth_db_client
-    api_client.app.state.auth_required = False
-
-    yield auth_db_client
-
-
-@pytest_asyncio.fixture(scope="function")
 async def auth_setup(tmp_path):
-    """Auth-aware fixture: auth_required=True with three pre-seeded users.
+    """Auth-aware fixture with three pre-seeded users.
 
     Yields a dict with:
       - client:    AsyncClient for making requests
@@ -83,7 +74,6 @@ async def auth_setup(tmp_path):
     server._setup_app()
     app = server.app
     app.state.db_client = db
-    app.state.auth_required = True
     app.state.project = None
 
     admin_id = await db.insert("users", db_definitions.USER_ADMIN)

@@ -56,12 +56,8 @@ async def lifespan(app: FastAPI):
     )
     app.state.project = None
 
-    # Bootstrap admin user on first run; set auth_required flag.
-    # TOKTAGGER_AUTH_REQUIRED=false disables auth (tests only).
-    if os.environ.get("TOKTAGGER_AUTH_REQUIRED", "true").lower() == "false":
-        app.state.auth_required = False
-    else:
-        app.state.auth_required = await ensure_admin_user(app.state.db_client)
+    # Bootstrap admin user on first run.
+    await ensure_admin_user(app.state.db_client)
 
     yield
 

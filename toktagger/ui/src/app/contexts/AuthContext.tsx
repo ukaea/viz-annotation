@@ -30,9 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Validate stored token on mount. Also handles auth-not-required mode:
-  // when the server has TOKTAGGER_AUTH_REQUIRED=false it returns a synthetic
-  // admin from /auth/me with no token, so we always call the endpoint.
+  // Validate stored token on mount. Always calls /auth/me since auth is required.
   useEffect(() => {
     const validate = async () => {
       const stored = localStorage.getItem(TOKEN_KEY);

@@ -7,14 +7,6 @@ from toktagger.api.crud import utils
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 
-_PASSTHROUGH_USER = UserOut(
-    id="000000000000000000000000",
-    username="admin",
-    email="",
-    global_role="admin",
-    is_active=True,
-)
-
 _INTERNAL_USER = UserOut(
     id="000000000000000000000001",
     username="__internal__",
@@ -28,18 +20,9 @@ async def get_current_user(
     request: Request,
     token: str | None = Depends(oauth2_scheme),
 ) -> UserOut:
-    # Internal server-to-server token used by Ray-worker callbacks (sender.py) is
-    # checked first and unconditionally: it authenticates a trusted internal
-    # caller, not a human user, so passthrough mode must never let it fall through
-    # to the passthrough admin identity (which would silently reattribute
-    # worker-authored writes, e.g. model predictions, to "admin").
+    # Internal server-to-server token used by Ray-worker callbacks (sender.py).
     if token is not None and token == get_internal_token():
         return _INTERNAL_USER
-
-    # Passthrough mode: auth disabled (e.g. first-install with no users yet).
-    # Default True means auth IS required — the safe default.
-    if not getattr(request.app.state, "auth_required", True):
-        return _PASSTHROUGH_USER
 
     if token is None:
         raise HTTPException(status_code=401, detail="Not authenticated")

@@ -107,7 +107,25 @@ async def delete_user(
     user_id: str = Path(...),
     _: UserOut = Depends(require_global_admin),
 ):
-    await utils.delete_user(request.app.state.db_client, user_id)
+    db_client = request.app.state.db_client
+
+    # Prevent deleting the last active admin (mirrors the demote/deactivate guard
+    # in update_user — otherwise the account list becomes unmanageable).
+    all_users = await utils.get_all_users(db_client)
+    target = next((u for u in all_users if u.id == user_id), None)
+    if target and target.global_role == "admin" and target.is_active:
+        remaining_admins = [
+            u
+            for u in all_users
+            if u.global_role == "admin" and u.is_active and u.id != user_id
+        ]
+        if not remaining_admins:
+            raise HTTPException(
+                status_code=422,
+                detail="Cannot delete the last active admin account",
+            )
+
+    await utils.delete_user(db_client, user_id)
 
 
 # ---------------------------------------------------------------------------

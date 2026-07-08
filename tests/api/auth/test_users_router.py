@@ -123,12 +123,46 @@ async def test_update_other_user_as_non_admin_forbidden(auth_setup):
 
 
 @pytest.mark.asyncio
+async def test_update_other_user_as_admin(auth_setup):
+    client = auth_setup["client"]
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
+    bob_id = auth_setup["bob_id"]
+    response = await client.put(
+        f"/users/{bob_id}",
+        json={"email": "bob_new@test.com"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 200
+
+    # Verify the update via GET /users/{bob_id}
+    get_resp = await client.get(
+        f"/users/{bob_id}", headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert get_resp.status_code == 200
+    assert get_resp.json()["email"] == "bob_new@test.com"
+
+
+@pytest.mark.asyncio
 async def test_delete_user_as_non_admin_forbidden(auth_setup):
     client = auth_setup["client"]
     token = await get_auth_token(client, "alice", "alice_pass")
     bob_id = auth_setup["bob_id"]
     response = await client.delete(
         f"/users/{bob_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_delete_own_user_as_non_admin_forbidden(auth_setup):
+    """Delete requires global admin unconditionally — there's no self-service
+    exception the way update_user has (current_user.id == user_id)."""
+    client = auth_setup["client"]
+    token = await get_auth_token(client, "alice", "alice_pass")
+    alice_id = auth_setup["alice_id"]
+    response = await client.delete(
+        f"/users/{alice_id}",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 403
@@ -149,6 +183,58 @@ async def test_delete_user_as_admin(auth_setup):
     login_resp = await client.post(
         "/auth/token",
         data={"username": "bob", "password": "bob_pass"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert login_resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_admin_cannot_delete_own_user_as_last_admin(auth_setup):
+    """Deleting the sole active admin must be blocked — mirrors the
+    demote/deactivate guard in update_user. Without it, the account list
+    becomes unmanageable (no admin left to fix it)."""
+    client = auth_setup["client"]
+    token = await get_auth_token(client, "admin", "admin_pass")
+    admin_id = auth_setup["admin_id"]
+    response = await client.delete(
+        f"/users/{admin_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 422
+
+    # Admin still exists and can still log in
+    login_resp = await client.post(
+        "/auth/token",
+        data={"username": "admin", "password": "admin_pass"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert login_resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_admin_can_delete_own_user_when_another_admin_remains(auth_setup):
+    client = auth_setup["client"]
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
+    admin_id = auth_setup["admin_id"]
+
+    # Promote alice to admin so deleting the original admin is no longer
+    # deleting the *last* one.
+    promote_resp = await client.put(
+        f"/users/{auth_setup['alice_id']}",
+        json={"global_role": "admin"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert promote_resp.status_code == 200
+
+    response = await client.delete(
+        f"/users/{admin_id}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 200
+
+    login_resp = await client.post(
+        "/auth/token",
+        data={"username": "admin", "password": "admin_pass"},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     assert login_resp.status_code == 401

@@ -10,6 +10,7 @@ Key invariants under test:
 """
 
 import pytest
+import pytest_asyncio
 
 from tests.api.auth.conftest import get_auth_token
 
@@ -75,11 +76,26 @@ async def get_annotations(client, project_id, sample_id, token):
     return resp.json()
 
 
-@pytest.mark.asyncio
-async def test_user_save_does_not_overwrite_other_users_annotations(auth_setup):
+@pytest_asyncio.fixture
+async def project_setup(auth_setup):
+    """auth_setup, plus an admin-created project with one sample."""
     client = auth_setup["client"]
     admin_token = await get_auth_token(client, "admin", "admin_pass")
     project_id, sample_id = await create_project_and_sample(client, admin_token)
+    return {
+        **auth_setup,
+        "admin_token": admin_token,
+        "project_id": project_id,
+        "sample_id": sample_id,
+    }
+
+
+@pytest.mark.asyncio
+async def test_user_save_does_not_overwrite_other_users_annotations(project_setup):
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
+    sample_id = project_setup["sample_id"]
 
     for username in ("alice", "bob"):
         await client.post(
@@ -108,11 +124,12 @@ async def test_user_save_does_not_overwrite_other_users_annotations(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_user_save_replaces_only_own_previous_annotations(auth_setup):
+async def test_user_save_replaces_only_own_previous_annotations(project_setup):
     """Saving twice as the same user replaces only that user's annotations."""
-    client = auth_setup["client"]
-    admin_token = await get_auth_token(client, "admin", "admin_pass")
-    project_id, sample_id = await create_project_and_sample(client, admin_token)
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
+    sample_id = project_setup["sample_id"]
 
     for username in ("alice", "bob"):
         await client.post(
@@ -137,10 +154,11 @@ async def test_user_save_replaces_only_own_previous_annotations(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_server_overwrites_created_by_from_jwt(auth_setup):
-    client = auth_setup["client"]
-    admin_token = await get_auth_token(client, "admin", "admin_pass")
-    project_id, sample_id = await create_project_and_sample(client, admin_token)
+async def test_server_overwrites_created_by_from_jwt(project_setup):
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
+    sample_id = project_setup["sample_id"]
 
     await client.post(
         f"/projects/{project_id}/members",
@@ -177,12 +195,13 @@ async def test_server_overwrites_created_by_from_jwt(auth_setup):
     "show_others,expect_bobs_label", [(False, False), (True, True)]
 )
 async def test_show_others_annotations_filter(
-    auth_setup, show_others, expect_bobs_label
+    project_setup, show_others, expect_bobs_label
 ):
     """When show_others_annotations is toggled, alice's view changes accordingly."""
-    client = auth_setup["client"]
-    admin_token = await get_auth_token(client, "admin", "admin_pass")
-    project_id, sample_id = await create_project_and_sample(client, admin_token)
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
+    sample_id = project_setup["sample_id"]
 
     for username in ("alice", "bob"):
         await client.post(
@@ -198,7 +217,7 @@ async def test_show_others_annotations_filter(
     await put_annotations(client, project_id, sample_id, bob_token, "bob_ann")
 
     await client.put(
-        f"/projects/{project_id}/members/{auth_setup['alice_id']}",
+        f"/projects/{project_id}/members/{project_setup['alice_id']}",
         json={"show_others_annotations": show_others},
         headers={"Authorization": f"Bearer {alice_token}"},
     )
@@ -210,10 +229,11 @@ async def test_show_others_annotations_filter(
 
 
 @pytest.mark.asyncio
-async def test_viewer_cannot_put_annotations(auth_setup):
-    client = auth_setup["client"]
-    admin_token = await get_auth_token(client, "admin", "admin_pass")
-    project_id, sample_id = await create_project_and_sample(client, admin_token)
+async def test_viewer_cannot_put_annotations(project_setup):
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
+    sample_id = project_setup["sample_id"]
 
     await client.post(
         f"/projects/{project_id}/members",
@@ -229,10 +249,10 @@ async def test_viewer_cannot_put_annotations(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_non_member_cannot_get_annotations(auth_setup):
-    client = auth_setup["client"]
-    admin_token = await get_auth_token(client, "admin", "admin_pass")
-    project_id, sample_id = await create_project_and_sample(client, admin_token)
+async def test_non_member_cannot_get_annotations(project_setup):
+    client = project_setup["client"]
+    project_id = project_setup["project_id"]
+    sample_id = project_setup["sample_id"]
 
     bob_token = await get_auth_token(client, "bob", "bob_pass")
     resp = await client.get(
@@ -243,10 +263,8 @@ async def test_non_member_cannot_get_annotations(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_non_member_cannot_see_project_in_list(auth_setup):
-    client = auth_setup["client"]
-    admin_token = await get_auth_token(client, "admin", "admin_pass")
-    await create_project_and_sample(client, admin_token)
+async def test_non_member_cannot_see_project_in_list(project_setup):
+    client = project_setup["client"]
 
     bob_token = await get_auth_token(client, "bob", "bob_pass")
     resp = await client.get(
@@ -258,10 +276,10 @@ async def test_non_member_cannot_see_project_in_list(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_member_can_see_project_in_list(auth_setup):
-    client = auth_setup["client"]
-    admin_token = await get_auth_token(client, "admin", "admin_pass")
-    project_id, _ = await create_project_and_sample(client, admin_token)
+async def test_member_can_see_project_in_list(project_setup):
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
 
     await client.post(
         f"/projects/{project_id}/members",

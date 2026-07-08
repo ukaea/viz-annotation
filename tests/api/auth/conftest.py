@@ -8,8 +8,7 @@ import toktagger.api.config as config
 import toktagger.api.auth.core as auth_core
 from toktagger.api.main import Server
 from toktagger.api.crud.db import MongoDBClient
-from toktagger.api.auth.core import hash_password
-from toktagger.api.schemas.users import UserIn
+import tests.db_definitions as db_definitions
 
 
 @pytest.fixture(autouse=True)
@@ -87,36 +86,9 @@ async def auth_setup(tmp_path):
     app.state.auth_required = True
     app.state.project = None
 
-    admin_id = await db.insert(
-        "users",
-        UserIn(
-            username="admin",
-            hashed_password=hash_password("admin_pass"),
-            email="admin@test.com",
-            global_role="admin",
-            is_active=True,
-        ),
-    )
-    alice_id = await db.insert(
-        "users",
-        UserIn(
-            username="alice",
-            hashed_password=hash_password("alice_pass"),
-            email="alice@test.com",
-            global_role="user",
-            is_active=True,
-        ),
-    )
-    bob_id = await db.insert(
-        "users",
-        UserIn(
-            username="bob",
-            hashed_password=hash_password("bob_pass"),
-            email="bob@test.com",
-            global_role="user",
-            is_active=True,
-        ),
-    )
+    admin_id = await db.insert("users", db_definitions.USER_ADMIN)
+    alice_id = await db.insert("users", db_definitions.USER_ALICE)
+    bob_id = await db.insert("users", db_definitions.USER_BOB)
 
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"

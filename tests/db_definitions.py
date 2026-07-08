@@ -1,4 +1,5 @@
 import pathlib
+from toktagger.api.auth.core import hash_password
 from toktagger.api.schemas.annotators import AnnotatorTypes
 from toktagger.api.schemas.projects import ProjectIn, Task, QueryStrategyType
 from toktagger.api.schemas.samples import (
@@ -10,6 +11,7 @@ from toktagger.api.schemas.annotations import (
     TimeRegionBatch,
     TimePointBatch,
 )
+from toktagger.api.schemas.users import UserIn
 
 import importlib
 
@@ -118,4 +120,27 @@ ANNOTATION_5 = TimePointBatch(
     validated=False,
     uncertainty=0.8,
     created_by=AnnotatorTypes.PEAK_DETECTION,
+)
+
+
+USER_ADMIN = UserIn(
+    username="admin",
+    hashed_password=hash_password("admin_pass"),
+    email="admin@test.com",
+    global_role="admin",
+    is_active=True,
+)
+USER_ALICE = UserIn(
+    username="alice",
+    hashed_password=hash_password("alice_pass"),
+    email="alice@test.com",
+    global_role="user",
+    is_active=True,
+)
+USER_BOB = UserIn(
+    username="bob",
+    hashed_password=hash_password("bob_pass"),
+    email="bob@test.com",
+    global_role="user",
+    is_active=True,
 )

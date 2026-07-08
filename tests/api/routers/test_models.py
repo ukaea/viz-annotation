@@ -616,7 +616,8 @@ async def test_model_load_local(models_api_client, db_client, setup_model_db):
         tempf.write("Model Weights")
         tempf.flush()
         response = await models_api_client.post(
-            f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load?method=local&weights_path={str(tempf.name)}"
+            f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load/local",
+            json={"weights_path": str(tempf.name)},
         )
         assert response.status_code == 200
         model_id = response.json()["model_id"]
@@ -663,7 +664,8 @@ async def test_model_load_local_missing_file(
 ):
     # Try loading nonexistent file
     response = await models_api_client.post(
-        f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load?method=local&weights_path=non_existant_path.model"
+        f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load/local",
+        json={"weights_path": "non_existing_path.model"},
     )
     assert response.status_code == 422
     assert response.json()["detail"] == "Weights file not found at specified path!"
@@ -677,7 +679,8 @@ async def test_model_load_local_disabled(models_api_client, db_client, setup_mod
         tempf.write("Model Weights")
         tempf.flush()
         response = await models_api_client.post(
-            f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load?method=local&weights_path={str(tempf.name)}"
+            f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load/local",
+            json={"weights_path": str(tempf.name)},
         )
     config.settings.models.local_load_enabled = True
     assert response.status_code == 403
@@ -693,7 +696,8 @@ async def test_model_load_local_failed(models_api_client, db_client, setup_model
         tempf.write(b"\xff")
         tempf.flush()
         response = await models_api_client.post(
-            f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load?method=local&weights_path={str(tempf.name)}"
+            f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load/local",
+            json={"weights_path": str(tempf.name)},
         )
         # Successfully submits the load job
         assert response.status_code == 200

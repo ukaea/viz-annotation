@@ -425,7 +425,7 @@ async def load_model_weights_local(
         project=project, model=model, weights_path=weights_path
     )
     task_id = task_registry.register(task)
-    task_registry.update_actors(model.id)
+    task_registry.update_actors(model.id, use_gpu=False)
 
     # Associate the task ID with the model in the database
     await utils.update_model(
@@ -471,7 +471,7 @@ async def load_model_weights_gitlab(
     task = load_model_gitlab.remote(project=project, model=model, params=params)
 
     task_id = task_registry.register(task)
-    task_registry.update_actors(model.id, False)
+    task_registry.update_actors(model.id, use_gpu=False)
 
     # Associate the task ID with the model in the database
     await utils.update_model(
@@ -512,7 +512,7 @@ async def load_model_weights_hugging_face(
     task = load_model_huggingface.remote(project=project, model=model, params=params)
 
     task_id = task_registry.register(task)
-    task_registry.update_actors(model.id, False)
+    task_registry.update_actors(model.id, use_gpu=False)
 
     # Associate the task ID with the model in the database
     await utils.update_model(

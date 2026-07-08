@@ -82,6 +82,18 @@ async def update_user(
     if current_user.global_role != "admin" and current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
+    # Self-edit is allowed for email/password (profile page), but a non-admin
+    # must not be able to change global_role or is_active — even on their own
+    # account. Without this, self != other-user check above lets any user
+    # PUT their own record with global_role="admin" and self-promote.
+    if current_user.global_role != "admin" and (
+        body.global_role is not None or body.is_active is not None
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Only an admin can change global_role or is_active",
+        )
+
     db_client = request.app.state.db_client
 
     # Prevent demoting or deactivating the last active admin

@@ -11,10 +11,10 @@ from tests.endpoints import (
     create_uda_samples,
     create_model_samples,
     create_query_strategy_samples,
+    session,
 )
 from tests.end_to_end import form_check
 import time
-import requests
 import tempfile
 import pytest
 import json
@@ -274,7 +274,7 @@ def test_samples_sorting(server_setup, page: Page):
     sample_ids = create_uda_samples(project_id, shot_ids=[10000])
 
     # Set 10000 sample to be validated
-    requests.put(
+    session.put(
         f"http://localhost:8002/projects/{project_id}/samples",
         json=[{"id": sample_ids[0], "updates": {"validated_annotations": True}}],
     )
@@ -461,7 +461,7 @@ def test_create_samples_shot_data_range(server_setup, page: Page):
     expect(page.get_by_role("row").nth(6)).to_contain_text("12385")
 
     # Check 6 samples added (12380 to 12385 inclusive)
-    response = requests.get(f"http://localhost:8002/projects/{project_id}/samples")
+    response = session.get(f"http://localhost:8002/projects/{project_id}/samples")
     samples = response.json()
     assert len(samples) == 6
     assert all(
@@ -531,7 +531,7 @@ def test_create_samples_shot_data_file(server_setup, page: Page):
     expect(page.get_by_role("row").nth(6)).to_contain_text("12385")
 
     # Check 6 samples added (12380 to 12385 inclusive)
-    response = requests.get(f"http://localhost:8002/projects/{project_id}/samples")
+    response = session.get(f"http://localhost:8002/projects/{project_id}/samples")
     samples = response.json()
     assert len(samples) == 6
     assert all(
@@ -592,7 +592,7 @@ def test_create_samples_file_data(server_setup, page: Page, file_type: str):
         expect(page.get_by_role("row").nth(2)).to_contain_text("10001")
 
         # Check 2 samples added (10000 and 10001)
-        response = requests.get(f"http://localhost:8002/projects/{project_id}/samples")
+        response = session.get(f"http://localhost:8002/projects/{project_id}/samples")
         samples = response.json()
         assert len(samples) == 2
         assert all(
@@ -690,7 +690,7 @@ def test_clear_samples(server_setup, page: Page):
     expect(page.get_by_role("row").nth(1)).to_contain_text("10000")
     expect(page.get_by_role("row").nth(2)).to_contain_text("10001")
 
-    response = requests.get(f"http://localhost:8002/projects/{project_id}/samples")
+    response = session.get(f"http://localhost:8002/projects/{project_id}/samples")
     samples = response.json()
     assert len(samples) == 2
 
@@ -706,7 +706,7 @@ def test_clear_samples(server_setup, page: Page):
 
     expect(page.get_by_role("row").nth(1)).to_be_hidden()
 
-    response = requests.get(f"http://localhost:8002/projects/{project_id}/samples")
+    response = session.get(f"http://localhost:8002/projects/{project_id}/samples")
     samples = response.json()
     assert len(samples) == 0
 
@@ -810,7 +810,7 @@ def test_samples_page_export_annotations(server_setup, page: Page):
         label="Flat Top", created_by="peak_detection", time_min=50, time_max=70
     )
     disruption = TimePoint(label="Disruption", created_by="peak_detection", time=71)
-    response = requests.put(
+    response = session.put(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_ids[0]}/annotations",
         json=[model.model_dump(mode="json") for model in (flat_top, disruption)],
     )
@@ -820,7 +820,7 @@ def test_samples_page_export_annotations(server_setup, page: Page):
         label="Ramp Up", created_by="peak_detection", time_min=40, time_max=60
     )
     control_loss = TimePoint(label="Control Loss", created_by="peak_detection", time=61)
-    response = requests.put(
+    response = session.put(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_ids[1]}/annotations",
         json=[model.model_dump(mode="json") for model in (ramp_up, control_loss)],
     )
@@ -992,7 +992,7 @@ def test_model_train_predict(server_setup, setup_model_samples, page: Page, mode
     time.sleep(1)
 
     # Check 10 * 3 non-validated predictions added
-    response = requests.get(
+    response = session.get(
         f"http://localhost:8002/projects/{project_id}/annotations?validated=False",
     )
     assert response.status_code == 200
@@ -1074,7 +1074,7 @@ def test_model_load_predict(server_setup, setup_model_samples, page: Page):
         expect(page.get_by_role("button", name="Submit", exact=True)).to_be_hidden()
 
         # Check model has had a copy of the weights file added to cache
-        response = requests.get(
+        response = session.get(
             f"http://localhost:8002/projects/{project_id}/models/mock_params_timeseries_cnn",
         )
         assert response.status_code == 200
@@ -1151,7 +1151,7 @@ def test_model_load_predict(server_setup, setup_model_samples, page: Page):
         time.sleep(1)
 
         # Check 10 * 3 non-validated predictions added
-        response = requests.get(
+        response = session.get(
             f"http://localhost:8002/projects/{project_id}/annotations?validated=False",
         )
         assert response.status_code == 200

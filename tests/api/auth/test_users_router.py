@@ -110,6 +110,42 @@ async def test_update_own_user(auth_setup):
 
 
 @pytest.mark.asyncio
+async def test_user_cannot_self_promote_global_role(auth_setup):
+    """A non-admin editing their own record must not be able to set
+    global_role — self-edit bypasses the "editing someone else" check, so
+    this has to be enforced separately or any user could self-promote."""
+    client = auth_setup["client"]
+    token = await get_auth_token(client, "alice", "alice_pass")
+    alice_id = auth_setup["alice_id"]
+    response = await client.put(
+        f"/users/{alice_id}",
+        json={"global_role": "admin"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403
+
+    get_resp = await client.get(
+        f"/users/{alice_id}", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert get_resp.json()["global_role"] == "user"
+
+
+@pytest.mark.asyncio
+async def test_user_cannot_self_reactivate_via_is_active(auth_setup):
+    """Same guard, is_active side: a non-admin must not be able to flip their
+    own is_active flag either."""
+    client = auth_setup["client"]
+    token = await get_auth_token(client, "alice", "alice_pass")
+    alice_id = auth_setup["alice_id"]
+    response = await client.put(
+        f"/users/{alice_id}",
+        json={"is_active": False},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_update_other_user_as_non_admin_forbidden(auth_setup):
     client = auth_setup["client"]
     token = await get_auth_token(client, "alice", "alice_pass")

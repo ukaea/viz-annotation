@@ -36,7 +36,9 @@ import {
   getProject,
   deleteSample,
   deleteSamples,
+  ApiError,
 } from "@/app/core";
+import ErrorView from "@/app/views/error";
 import { ModelTrainModal } from "@/app/components/tools/modelTrain";
 import { ModelPredictModal } from "@/app/components/tools/modelPredict";
 import { ModelLoadModal } from "@/app/components/tools/modelLoad";
@@ -182,6 +184,7 @@ export default function ProjectView() {
   });
   const [samples, setSamples] = useState<Sample[]>([]);
   const [project, setProject] = useState<Project | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const { modelsEnabled } = useServerHealth();
 
   useEffect(() => {
@@ -189,6 +192,31 @@ export default function ProjectView() {
       if (!hasId) {
         return;
       }
+      try {
+        const samples = await getSamples(
+          sortDescriptor,
+          project_id,
+          currentPage,
+          samplesPerPage,
+          shotId,
+        );
+        setSamples(samples);
+        const project = await getProject(project_id);
+        setProject(project);
+      } catch (err) {
+        setLoadError(
+          err instanceof ApiError ? err.message : "Failed to load project.",
+        );
+      }
+    };
+    fetchData();
+  }, [project_id, shotId, currentPage, samplesPerPage, sortDescriptor, hasId]);
+
+  const refreshSamples = useCallback(async () => {
+    if (!hasId) {
+      return;
+    }
+    try {
       const samples = await getSamples(
         sortDescriptor,
         project_id,
@@ -199,24 +227,11 @@ export default function ProjectView() {
       setSamples(samples);
       const project = await getProject(project_id);
       setProject(project);
-    };
-    fetchData();
-  }, [project_id, shotId, currentPage, samplesPerPage, sortDescriptor, hasId]);
-
-  const refreshSamples = useCallback(async () => {
-    if (!hasId) {
-      return;
+    } catch (err) {
+      setLoadError(
+        err instanceof ApiError ? err.message : "Failed to load project.",
+      );
     }
-    const samples = await getSamples(
-      sortDescriptor,
-      project_id,
-      currentPage,
-      samplesPerPage,
-      shotId,
-    );
-    setSamples(samples);
-    const project = await getProject(project_id);
-    setProject(project);
   }, [project_id, shotId, currentPage, samplesPerPage, sortDescriptor, hasId]);
 
   useEffect(() => {
@@ -230,6 +245,10 @@ export default function ProjectView() {
     sortDescriptor,
     hasId,
   ]);
+
+  if (loadError) {
+    return <ErrorView message={loadError} />;
+  }
 
   if (!project || !hasId) {
     return;

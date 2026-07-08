@@ -28,6 +28,35 @@ export function apiFetch(
   return fetch(url, { ...options, headers });
 }
 
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+// Fetch helpers below cast the response body directly, so a non-2xx response
+// (e.g. 403 for a project you're not a member of) would otherwise be silently
+// cast as if it were valid data. Call this before reading the body so callers
+// get a real error to catch instead of garbage state.
+export async function ensureOk(response: Response): Promise<Response> {
+  if (!response.ok) {
+    let detail = response.statusText;
+    try {
+      const body = await response.json();
+      if (body && typeof body.detail === "string") {
+        detail = body.detail;
+      }
+    } catch {
+      // Body wasn't JSON — fall back to statusText.
+    }
+    throw new ApiError(response.status, detail);
+  }
+  return response;
+}
+
 export const getURL = async (url: string) => {
   const response = await apiFetch(url);
   const payload = await response.json();
@@ -62,7 +91,7 @@ export const getSamples = async (
   }
 
   const url = `${BACKEND_API_URL}/projects/${project_id}/samples?${params.toString()}`;
-  const response = await apiFetch(url);
+  const response = await ensureOk(await apiFetch(url));
   const data = await response.json();
   const samples = data as Sample[];
   return samples;
@@ -136,10 +165,10 @@ export const getProjects = async (
   return projects;
 };
 
-export const getProject = async (
-  project_id: string,
-): Promise<Project | null> => {
-  const response = await apiFetch(`${BACKEND_API_URL}/projects/${project_id}`);
+export const getProject = async (project_id: string): Promise<Project> => {
+  const response = await ensureOk(
+    await apiFetch(`${BACKEND_API_URL}/projects/${project_id}`),
+  );
   const data = await response.json();
   const project = data as Project;
   return project;

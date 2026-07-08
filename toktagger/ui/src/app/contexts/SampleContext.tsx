@@ -23,7 +23,7 @@ import {
   TaskType,
   DataParams,
 } from "@/types";
-import { BACKEND_API_URL, apiFetch } from "@/app/core";
+import { BACKEND_API_URL, apiFetch, ensureOk } from "@/app/core";
 
 interface SampleContextType {
   project: Project | null;
@@ -56,7 +56,7 @@ interface SampleProviderProps {
 }
 
 async function getData<T>(url: string): Promise<T> {
-  const response = await apiFetch(url);
+  const response = await ensureOk(await apiFetch(url));
   const payload = await response.json();
   return payload as T;
 }

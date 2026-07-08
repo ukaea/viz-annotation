@@ -3,9 +3,13 @@ import pytest
 pytest.importorskip("playwright")
 from playwright.sync_api import Page, expect
 import pathlib
-from tests.endpoints import create_project, create_local_samples, create_model_samples
+from tests.endpoints import (
+    create_project,
+    create_local_samples,
+    create_model_samples,
+    session,
+)
 import pytest
-import requests
 import time
 from toktagger.api.schemas.annotations import TimePoint, TimeRegion
 from typing import Literal, Tuple, Callable
@@ -349,7 +353,7 @@ def test_timeseries_save_annotations(server_setup, page: Page):
         page.get_by_role("button", name="Save").click(force=True)
 
     # Check annotation stored in db
-    response = requests.get(
+    response = session.get(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations"
     )
     assert response.status_code == 200
@@ -389,7 +393,7 @@ def test_timeseries_load_annotations(server_setup, page: Page):
     )
     disruption = TimePoint(label="Disruption", created_by="peak_detection", time=91)
     # Add annotations
-    response = requests.put(
+    response = session.put(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations",
         json=[
             model.model_dump(mode="json")
@@ -447,7 +451,7 @@ def test_timeseries_update_annotations(server_setup, page: Page):
     )
     disruption = TimePoint(label="Disruption", created_by="peak_detection", time=71)
     # Add annotations
-    response = requests.put(
+    response = session.put(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations",
         json=[model.model_dump(mode="json") for model in (rampup, flattop, disruption)],
     )
@@ -487,7 +491,7 @@ def test_timeseries_update_annotations(server_setup, page: Page):
         page.get_by_role("button", name="Save").click(force=True)
 
     # Check annotation stored in db
-    response = requests.get(
+    response = session.get(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations"
     )
     assert response.status_code == 200

@@ -8,12 +8,12 @@ from tests.endpoints import (
     create_local_samples,
     create_uda_samples,
     create_query_strategy_samples,
+    session,
 )
 import pytest
 import tempfile
 import json
 from toktagger.api.schemas.annotations import TimePoint, TimeRegion
-import requests
 import time
 
 
@@ -37,11 +37,11 @@ def setup_annotations(page: Page, num_annotations: int, go_to_next: bool = False
             validated=False,
             uncertainty=0.9,
         )
-        response = requests.put(
+        response = session.put(
             f"http://localhost:8002/projects/{project_id}/samples/{sample_ids[0]}/annotations",
             json=[flat_top.model_dump(mode="json")],
         )
-        response = requests.put(
+        response = session.put(
             f"http://localhost:8002/projects/{project_id}/samples/{sample_ids[1]}/annotations",
             json=[flat_top.model_dump(mode="json")],
         )
@@ -344,7 +344,7 @@ def test_export_annotations(server_setup, page: Page, all_samples: bool):
         label="Flat Top", created_by="peak_detection", time_min=50, time_max=70
     )
     disruption = TimePoint(label="Disruption", created_by="peak_detection", time=71)
-    response = requests.put(
+    response = session.put(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_ids[0]}/annotations",
         json=[model.model_dump(mode="json") for model in (flat_top, disruption)],
     )
@@ -354,7 +354,7 @@ def test_export_annotations(server_setup, page: Page, all_samples: bool):
         label="Ramp Up", created_by="peak_detection", time_min=40, time_max=60
     )
     control_loss = TimePoint(label="Control Loss", created_by="peak_detection", time=61)
-    response = requests.put(
+    response = session.put(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_ids[1]}/annotations",
         json=[model.model_dump(mode="json") for model in (ramp_up, control_loss)],
     )
@@ -450,7 +450,7 @@ def test_save_button(server_setup, page: Page, num_annotations: int):
     expect(page.get_by_text(f"Saved {num_annotations} annotations!")).to_be_visible()
 
     # Pull from backend, check correct number of annotations saved
-    response = requests.get(
+    response = session.get(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations"
     )
     assert response.status_code == 200
@@ -463,7 +463,7 @@ def test_save_button(server_setup, page: Page, num_annotations: int):
         assert annotation["validated"]
 
     # Check sample is now marked as validated
-    response = requests.get(
+    response = session.get(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}"
     )
     assert response.status_code == 200
@@ -510,7 +510,7 @@ def test_save_on_navigate(
         page.get_by_role("button", name=f"{navigate_direction}").click()
 
     # Check if annotations saved
-    response = requests.get(
+    response = session.get(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations"
     )
     assert response.status_code == 200
@@ -529,7 +529,7 @@ def test_save_on_navigate(
     time.sleep(1)
 
     # Check sample is now marked as validated if saved
-    response = requests.get(
+    response = session.get(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}"
     )
     assert response.status_code == 200
@@ -564,7 +564,7 @@ def test_clear_button(server_setup, page: Page):
     page.get_by_role("button", name="Save").click()
 
     # Pull from backend, check correct number of annotations saved
-    response = requests.get(
+    response = session.get(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations"
     )
     assert response.status_code == 200

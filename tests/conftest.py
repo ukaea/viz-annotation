@@ -6,6 +6,7 @@ from toktagger.api.main import Server
 from toktagger.api.crud.db import MongoDBClient
 from toktagger.api.auth.core import create_access_token
 import tests.db_definitions as db_definitions
+import tests.endpoints as endpoints
 from bson.objectid import ObjectId
 import asyncio
 from httpx import AsyncClient, ASGITransport
@@ -253,7 +254,14 @@ def run_server():
 
 @pytest.fixture(scope="package")
 def start_server(settings):
-    proc = multiprocessing.Process(target=run_server)
+    # Explicit "fork" context (not just multiprocessing.Process, which defaults
+    # to "spawn" on macOS since Python 3.8): "spawn" re-imports this module in
+    # a fresh interpreter, so run_server() never sees the settings fixture's
+    # mutated config.settings (temp cache dirs) and _setup_app()'s safety check
+    # ("cache directories must be in temp directory") kills the child before it
+    # can bind the port. "fork" inherits the parent's memory, including that
+    # mutation, same as Linux's default start method (so this is a no-op on CI).
+    proc = multiprocessing.get_context("fork").Process(target=run_server)
     proc.start()
     # Wait for server to start
     server_up = False
@@ -289,8 +297,25 @@ def start_server(settings):
     proc.join()
 
 
+@pytest.fixture(scope="package")
+def admin_token(start_server) -> str:
+    """Log in as the bootstrap admin (created by ensure_admin_user on first
+    server start, see toktagger/api/auth/first_run.py) and authenticate all
+    tests.endpoints.* requests as them for the rest of this server's lifetime.
+    """
+    response = requests.post(
+        "http://localhost:8002/auth/token",
+        data={"username": "admin", "password": "admin"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert response.status_code == 200, response.text
+    token = response.json()["access_token"]
+    endpoints.set_auth_token(token)
+    return token
+
+
 @pytest.fixture(scope="function")
-def server_setup(start_server):
+def server_setup(start_server, admin_token):
     yield
     response = requests.get(
         "http://localhost:8002/health",
@@ -300,5 +325,6 @@ def server_setup(start_server):
     else:
         response = requests.delete(
             "http://localhost:8002/projects",
+            headers={"Authorization": f"Bearer {admin_token}"},
         )
         assert response.status_code == 200

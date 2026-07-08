@@ -1,12 +1,11 @@
 import pytest
 
 pytest.importorskip("playwright")
-import requests
 from playwright.sync_api import Page, expect
 import re
 from datetime import datetime
 import time
-from tests.endpoints import create_project
+from tests.endpoints import create_project, session
 import pytest
 
 
@@ -380,7 +379,7 @@ def test_edit_project(server_setup, page: Page):
     expect(page.get_by_role("row").nth(1)).to_contain_text("Updated Project")
 
     # Get back project from server to check it updated
-    response = requests.get("http://localhost:8002/projects")
+    response = session.get("http://localhost:8002/projects")
     project = response.json()[0]
     assert project["name"] == "Updated Project"
     assert project["query_strategy"] == "sequential"
@@ -536,7 +535,7 @@ def test_create_project(
     expect(page.get_by_role("row").nth(1)).to_contain_text("Test Project")
 
     # Get project from API, check details are all correct
-    response = requests.get("http://localhost:8002/projects")
+    response = session.get("http://localhost:8002/projects")
     project = response.json()[0]
     assert project["name"] == "Test Project"
     assert project["query_strategy"] == "random"

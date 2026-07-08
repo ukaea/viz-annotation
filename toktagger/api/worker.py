@@ -96,8 +96,7 @@ def check_safetensor(
             with safe_open(weights_path, framework="pt", device="cpu") as f:
                 _ = list(f.keys())
         except Exception:
-            # Not a safetensors object, delete local file and return error
-            pathlib.Path(weights_path).unlink()
+            # Not a safetensors object, return error
             logger.error(
                 "Only permitted to load SafeTensors files due to env var setting!"
             )
@@ -251,6 +250,8 @@ def load_model_gitlab(
     # Check if this file is a safetensor, if required
     unsafe = check_safetensor(weights_path, project.id, model.id)
     if unsafe:
+        # Delete downloaded file
+        pathlib.Path(weights_path).unlink()
         return unsafe
 
     # Try loading actor with weights file, catch and reraise any errors
@@ -324,6 +325,8 @@ def load_model_huggingface(
     # Check if this file is a safetensor, if required
     unsafe = check_safetensor(weights_path, project.id, model.id)
     if unsafe:
+        # Delete downloaded file
+        pathlib.Path(weights_path).unlink()
         return unsafe
 
     # Try loading actor with weights file, catch and reraise any errors

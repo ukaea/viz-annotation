@@ -45,15 +45,11 @@ async def auth_db_client(tmp_path):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def auth_api_client(tmp_path):
-    """Passthrough API client (auth_required=False) — for first_run tests."""
-    db = MongoDBClient("default", "annotate_db", cache_dir=str(tmp_path))
-
+async def api_client():
+    """Bare ASGI test client — db/auth state is wired in by setup_auth_db."""
     server = Server()
     server._setup_app()
     app = server.app
-    app.state.db_client = db
-    app.state.auth_required = False
     app.state.project = None
 
     async with AsyncClient(
@@ -62,7 +58,14 @@ async def auth_api_client(tmp_path):
         client.app = app
         yield client
 
-    await db.client.close()
+
+@pytest_asyncio.fixture(scope="function")
+async def setup_auth_db(api_client, auth_db_client):
+    """Wires an empty mongita-backed db into api_client (auth_required=False) — for first_run tests."""
+    api_client.app.state.db_client = auth_db_client
+    api_client.app.state.auth_required = False
+
+    yield auth_db_client
 
 
 @pytest_asyncio.fixture(scope="function")

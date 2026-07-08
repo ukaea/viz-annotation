@@ -3,7 +3,6 @@ import pytest
 pytest.importorskip("ray")
 
 from toktagger.api.schemas.models import ModelUpdate
-from toktagger.api.models.base import ActorRegistry
 from toktagger.api.core.sender import (
     send_batch_samples,
     send_batch_annotations,
@@ -14,15 +13,21 @@ from unittest.mock import patch
 from bson import ObjectId
 import tempfile
 import asyncio
+import time
 import toktagger.api.config as config
 
 from tests.api.auth.conftest import get_auth_token
 
 
-def wait_for_results(task_registry: ActorRegistry, task_id: str):
-    task = task_registry.get(task_id)
-    results = ray.get(task, timeout=30)
-    return results
+def wait_for_results(
+    task_registry: ray.actor.ActorHandle, task_id: str, timeout: float = 30
+):
+    deadline = time.monotonic() + timeout
+    while not ray.get(task_registry.is_ready.remote(task_id)):
+        if time.monotonic() > deadline:
+            raise TimeoutError(f"Task {task_id} did not complete within {timeout}s")
+        time.sleep(0.1)
+    return ray.get(task_registry.get_result.remote(task_id))
 
 
 async def collect_predict_results(models_api_client, task_id):
@@ -626,10 +631,7 @@ async def test_model_delete_type_version(models_api_client, db_client, setup_mod
 
 @pytest.mark.asyncio
 @pytest.mark.models_enabled
-@patch("ray.cancel")
-async def test_model_stop_training(
-    mock_func, models_api_client, db_client, setup_model_db
-):
+async def test_model_stop_training(models_api_client, db_client, setup_model_db):
     response = await models_api_client.delete(
         f"/projects/{setup_model_db['project_id']}/models/disruption_cnn/train"
     )
@@ -644,8 +646,6 @@ async def test_model_stop_training(
     )
     model = models[0]
     assert model["training_status"] == "aborted"
-
-    assert mock_func.call_count > 0
 
 
 @pytest.mark.asyncio

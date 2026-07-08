@@ -188,7 +188,7 @@ async def start_model_training(
     task_registry = request.app.state.task_registry
 
     # If GPU requested but not available, return error
-    if use_gpu and not task_registry.gpu_enabled:
+    if use_gpu and not ray.get(task_registry.gpu_enabled.remote()):
         raise HTTPException(
             status_code=409,
             detail="GPU was requested but GPU support not enabled on server!",
@@ -268,7 +268,7 @@ async def start_model_training(
 
     model = Model(**model_in.model_dump(), id=model_id, project_id=project.id)
 
-    task_registry.update_actors(model.id, use_gpu)
+    ray.get(task_registry.update_actors.remote(model.id, use_gpu))
 
     train_task = train_model.remote(
         model=model,
@@ -279,7 +279,7 @@ async def start_model_training(
         use_gpu=use_gpu,
     )
 
-    task_id = task_registry.register(train_task)
+    task_id = ray.get(task_registry.register.remote(train_task))
 
     # Associate the task ID with the model in the database
     await utils.update_model(
@@ -331,9 +331,7 @@ async def stop_model_training(
     # Get the task IDs and stop them
     for model in models:
         if model.task_id:
-            task = task_registry.get(model.task_id)
-            if task is not None:
-                ray.cancel(task)
+            ray.get(task_registry.cancel.remote(model.task_id))
             try:
                 actor = ray.get_actor(model.id)
                 ray.kill(actor)
@@ -425,14 +423,14 @@ async def load_model_weights(
             db_client, project.id, model_type=model_type, model_id=model_id
         )
 
-        task_registry.update_actors(model.id, False)
+        ray.get(task_registry.update_actors.remote(model.id, False))
 
         task = load_model.remote(
             project=project,
             model=model,
             weights_path=weights_path,
         )
-        task_id = task_registry.register(task)
+        task_id = ray.get(task_registry.register.remote(task))
 
         # Associate the task ID with the model in the database
         await utils.update_model(
@@ -466,62 +464,59 @@ async def get_load_model_status(
         )
 
     # Check whether predictions are complete
-    task = task_registry.get(task_id)
-    if task is None:
+    is_ready = ray.get(task_registry.is_ready.remote(task_id))
+    if is_ready is None:
         raise HTTPException(detail="Load task not found with that ID!", status_code=404)
 
-    ready, waiting = ray.wait([task], timeout=0)
-
-    if waiting:
+    if not is_ready:
         return JSONResponse(
             content={"message": "Load task in the queue!"}, status_code=202
         )
-    elif ready:
-        # Get model which has this task ID associated
-        model = await utils.get_model(
-            db_client,
-            project_id,
-            model_type=model_type,
-            task_id=task_id,
+
+    # Get model which has this task ID associated
+    model = await utils.get_model(
+        db_client,
+        project_id,
+        model_type=model_type,
+        task_id=task_id,
+    )
+    try:
+        result: dict[str, str | None] = ray.get(
+            task_registry.get_result.remote(task_id)
         )
-        try:
-            result: dict[str, str | None] = ray.get(task)
 
-        except Exception as e:
-            # Find model ID of latest in progress model
+    except Exception as e:
+        # Find model ID of latest in progress model
 
-            await utils.update_model(
-                db_client=db_client,
-                model_id=model.id,
-                updates=ModelUpdate(training_status="failed", progress=0),
-            )
-            raise HTTPException(
-                detail=f"Load task failed unexpectedly - {e}.",
-                status_code=500,
-            )
+        await utils.update_model(
+            db_client=db_client,
+            model_id=model.id,
+            updates=ModelUpdate(training_status="failed", progress=0),
+        )
+        raise HTTPException(
+            detail=f"Load task failed unexpectedly - {e}.",
+            status_code=500,
+        )
 
-        if result.get("message"):
-            await utils.update_model(
-                db_client=db_client,
-                model_id=result["model_id"],
-                updates=ModelUpdate(training_status="failed", progress=0),
-            )
-            raise HTTPException(
-                detail=f"Load task failed - {result['message']}.",
-                status_code=500,
-            )
-
-        # Update model to be completed and ready for predictions
+    if result.get("message"):
         await utils.update_model(
             db_client=db_client,
             model_id=result["model_id"],
-            updates=ModelUpdate(training_status="completed", progress=100),
+            updates=ModelUpdate(training_status="failed", progress=0),
+        )
+        raise HTTPException(
+            detail=f"Load task failed - {result['message']}.",
+            status_code=500,
         )
 
-        return True
+    # Update model to be completed and ready for predictions
+    await utils.update_model(
+        db_client=db_client,
+        model_id=result["model_id"],
+        updates=ModelUpdate(training_status="completed", progress=100),
+    )
 
-    else:
-        raise HTTPException(status_code=404, detail="Load task not found with that ID!")
+    return True
 
 
 @router.post("/models/{model_type}/predict")
@@ -552,7 +547,7 @@ async def predict(
     task_registry = request.app.state.task_registry
 
     # If GPU requested but not available, return error
-    if use_gpu and not task_registry.gpu_enabled:
+    if use_gpu and not ray.get(task_registry.gpu_enabled.remote()):
         raise HTTPException(
             status_code=409,
             detail="GPU was requested but GPU support not enabled on server!",
@@ -609,7 +604,7 @@ async def predict(
     else:
         samples = random.sample(selected_samples, num_predictions)
 
-    task_registry.update_actors(model.id, use_gpu)
+    ray.get(task_registry.update_actors.remote(model.id, use_gpu))
 
     predict_task = get_predictions.remote(
         project=project,
@@ -618,7 +613,7 @@ async def predict(
         params=params_validated,
         use_gpu=use_gpu,
     )
-    task_id = task_registry.register(predict_task)
+    task_id = ray.get(task_registry.register.remote(predict_task))
 
     return {"task_id": task_id}
 
@@ -681,7 +676,7 @@ async def create_sample_predictions(
     task_registry = request.app.state.task_registry
 
     # If GPU requested but not available, return error
-    if use_gpu and not task_registry.gpu_enabled:
+    if use_gpu and not ray.get(task_registry.gpu_enabled.remote()):
         raise HTTPException(
             status_code=409,
             detail="GPU was requested but GPU support not enabled on server!",
@@ -705,7 +700,7 @@ async def create_sample_predictions(
 
     sample = await utils.get_sample(db_client, project_id, sample_id)
 
-    task_registry.update_actors(model.id, use_gpu)
+    ray.get(task_registry.update_actors.remote(model.id, use_gpu))
 
     task = get_predictions.remote(
         project=project,
@@ -715,7 +710,7 @@ async def create_sample_predictions(
         data_params=data_params,
         use_gpu=use_gpu,
     )
-    task_id = task_registry.register(task)
+    task_id = ray.get(task_registry.register.remote(task))
 
     return {"task_id": task_id}
 
@@ -747,55 +742,49 @@ async def get_sample_predictions(
     await utils.get_sample(db_client, project_id, sample_id)
 
     # Check whether predictions are complete
-    task = task_registry.get(task_id)
-    if task is None:
+    is_ready = ray.get(task_registry.is_ready.remote(task_id))
+    if is_ready is None:
         raise HTTPException(
             detail="Predict task not found with that ID!", status_code=404
         )
 
-    ready, waiting = ray.wait([task], timeout=0)
-
-    if waiting:
+    if not is_ready:
         return JSONResponse(
             content={"message": "Predict task in the queue!"}, status_code=202
         )
-    elif ready:
-        try:
-            result = ray.get(task)
-        except Exception as e:
-            raise HTTPException(
-                detail="Predict task failed - no predictions available",
-                status_code=500,
-            ) from e
 
-        # Check project ID and model type match those expected by user
-        if result["project_id"] != project_id:
-            raise HTTPException(
-                detail="Project ID for this task does not match!", status_code=422
-            )
-
-        # Check model type matches
-        if result["model_type"] != model_type:
-            raise HTTPException(
-                detail="Model used for this task does not match!", status_code=422
-            )
-
-        prediction_annotations = result.get("annotations_batch")
-
-        # Check that annotations contain results for this sample ID
-        if prediction_annotations and not all(
-            ann.sample_id == sample_id for ann in prediction_annotations
-        ):
-            raise HTTPException(
-                status_code=404,
-                detail="This task does not have results for the specified sample!",
-            )
-
-        return prediction_annotations
-    else:
+    try:
+        result = ray.get(task_registry.get_result.remote(task_id))
+    except Exception as e:
         raise HTTPException(
-            status_code=404, detail="Predict task not found with that ID!"
+            detail="Predict task failed - no predictions available",
+            status_code=500,
+        ) from e
+
+    # Check project ID and model type match those expected by user
+    if result["project_id"] != project_id:
+        raise HTTPException(
+            detail="Project ID for this task does not match!", status_code=422
         )
+
+    # Check model type matches
+    if result["model_type"] != model_type:
+        raise HTTPException(
+            detail="Model used for this task does not match!", status_code=422
+        )
+
+    prediction_annotations = result.get("annotations_batch")
+
+    # Check that annotations contain results for this sample ID
+    if prediction_annotations and not all(
+        ann.sample_id == sample_id for ann in prediction_annotations
+    ):
+        raise HTTPException(
+            status_code=404,
+            detail="This task does not have results for the specified sample!",
+        )
+
+    return prediction_annotations
 
 
 @router.put("/models/{model_id}")

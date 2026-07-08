@@ -4,6 +4,9 @@ from importlib.metadata import version, PackageNotFoundError
 from toktagger.api.models import models_dependencies_installed
 from toktagger.api.crud import utils
 
+if models_dependencies_installed():
+    import ray
+
 router = APIRouter(
     prefix="",
     tags=["Base"],
@@ -39,7 +42,9 @@ async def health_check(request: Request) -> dict:
     # If available, check whether GPUs enabled for model tasks
     model_gpu_available = False
     if hasattr(request.app.state, "task_registry"):
-        model_gpu_available = request.app.state.task_registry.gpu_enabled
+        model_gpu_available = ray.get(
+            request.app.state.task_registry.gpu_enabled.remote()
+        )
 
     # Return info
     return {

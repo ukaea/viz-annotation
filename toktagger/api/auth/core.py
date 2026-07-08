@@ -1,4 +1,5 @@
 import hashlib
+import os
 import secrets
 from datetime import timedelta
 from pathlib import Path
@@ -15,8 +16,19 @@ _internal_token: str | None = None
 
 
 def get_internal_token() -> str:
-    """Return a stable per-process internal token for trusted server-to-server calls."""
+    """Return a stable internal token for trusted server-to-server calls.
+
+    Under multiple Gunicorn workers, all workers share one Ray cluster and
+    call back into each other's server-to-server endpoints, so they must all
+    use the same token. TOKTAGGER_INTERNAL_TOKEN is set once by the parent
+    process (see `run_with_gunicorn` in main.py) and inherited by every
+    worker; falling back to a random per-process token is only correct when
+    there is a single process (e.g. --workers 1).
+    """
     global _internal_token
+    env_token = os.environ.get("TOKTAGGER_INTERNAL_TOKEN")
+    if env_token:
+        return env_token
     if _internal_token is None:
         _internal_token = secrets.token_urlsafe(32)
     return _internal_token

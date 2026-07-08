@@ -10,6 +10,8 @@ import os
 os.environ.setdefault("RAY_ENABLE_UV_RUN_RUNTIME_ENV", "0")
 
 import pathlib
+import subprocess
+import sys
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -69,34 +71,105 @@ async def lifespan(app: FastAPI):
         ray.shutdown()
 
 
+# Ray places detached actors in an anonymous, per-driver namespace unless one
+# is given explicitly - each `ray.init()` call (i.e. each Gunicorn worker)
+# would otherwise get its own anonymous namespace and be unable to see named
+# actors (WorkerModelRegistry, TaskRegistry, per-model actors) created by
+# other workers, even when all workers share the same underlying cluster.
+RAY_NAMESPACE = "toktagger"
+
+
+def _ray_runtime_env() -> dict:
+    return {
+        "env_vars": {
+            "API_URL": f"http://{config.settings.server.host}:{config.settings.server.port}",
+            "MODEL_STORAGE": str(config.settings.models.cache_dir),
+            "API_TOKEN": get_internal_token(),
+        }
+    }
+
+
+def start_ray_head() -> None:
+    """Start a new Ray cluster head node.
+
+    Call this once, in the parent process, before spawning Gunicorn workers -
+    each worker then attaches to this cluster (see `run_with_gunicorn`) instead
+    of independently starting its own.
+    """
+    num_gpus = None
+    # ALlow the user to force overriding of number of GPUs available
+    # This is so that eg Mac can work correctly
+    if (
+        config.settings.models.force_num_gpus
+        and config.settings.models.max_gpu_actors is not None
+    ):
+        print("Warning: Overriding automatically detected GPU availablity!")
+        num_gpus = config.settings.models.max_gpu_actors
+
+    ray.init(
+        num_gpus=num_gpus,
+        namespace=RAY_NAMESPACE,
+        ignore_reinit_error=True,
+        include_dashboard=False,
+        runtime_env=_ray_runtime_env(),
+    )
+
+
+def run_with_gunicorn(host: str, port: int, workers: int) -> None:
+    """Launch the app under Gunicorn with the given number of worker processes.
+
+    Starts a single shared Ray cluster head node up front (if models are
+    installed) and points workers at it via RAY_ADDRESS, since each Gunicorn
+    worker attaching independently would otherwise bootstrap its own separate
+    cluster.
+    """
+    if models_dependencies_installed():
+        os.environ["TOKTAGGER_INTERNAL_TOKEN"] = get_internal_token()
+        start_ray_head()
+        os.environ["RAY_ADDRESS"] = "auto"
+
+    try:
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "gunicorn",
+                "toktagger.api.asgi:app",
+                "--worker-class",
+                "uvicorn.workers.UvicornWorker",
+                "--workers",
+                str(workers),
+                "--bind",
+                f"{host}:{port}",
+            ],
+            check=True,
+        )
+    finally:
+        if models_dependencies_installed() and ray.is_initialized():
+            ray.shutdown()
+
+
 class Server:
     def __init__(self):
         self.frontend_path = pathlib.Path(__file__).parent / "static"
         self.testing_mode = False
 
     def _setup_ray(self):
-        num_gpus = None
-        # ALlow the user to force overriding of number of GPUs available
-        # This is so that eg Mac can work correctly
-        if (
-            config.settings.models.force_num_gpus
-            and config.settings.models.max_gpu_actors is not None
-        ):
-            print("Warning: Overriding automatically detected GPU availablity!")
-            num_gpus = config.settings.models.max_gpu_actors
+        # If RAY_ADDRESS is set, a Ray cluster head node was already started
+        # elsewhere (see start_ray_head/run_with_gunicorn) - attach to it
+        # instead of starting a new one. Ray forbids passing num_cpus/num_gpus
+        # when connecting to an existing cluster, so that config only applies
+        # to start_ray_head().
+        if "RAY_ADDRESS" in os.environ:
+            ray.init(
+                namespace=RAY_NAMESPACE,
+                ignore_reinit_error=True,
+                include_dashboard=False,
+                runtime_env=_ray_runtime_env(),
+            )
+        else:
+            start_ray_head()
 
-        ray.init(
-            num_gpus=num_gpus,
-            ignore_reinit_error=True,
-            include_dashboard=False,
-            runtime_env={
-                "env_vars": {
-                    "API_URL": f"http://{config.settings.server.host}:{config.settings.server.port}",
-                    "MODEL_STORAGE": str(config.settings.models.cache_dir),
-                    "API_TOKEN": get_internal_token(),
-                }
-            },
-        )
         # Detect available resources
         cluster_resources = ray.cluster_resources()
         cpus_available = int(cluster_resources.get("CPU", 0))
@@ -140,10 +213,17 @@ class Server:
                 name="WorkerLoaderRegistry", lifetime="detached"
             ).remote(LoaderRegistry._registry)
 
-        self.app.state.task_registry = ActorRegistry(
-            max_actors=max_actors,
-            max_gpu_actors=max_gpu_actors,
-        )
+        # Create a ray actor for use as the shared task/actor registry, so
+        # max_actors/max_gpu_actors limits and in-flight task IDs are tracked
+        # cluster-wide rather than independently per Gunicorn worker.
+        try:
+            ray.get_actor("TaskRegistry")
+        except ValueError:
+            ActorRegistry.options(name="TaskRegistry", lifetime="detached").remote(
+                max_actors=max_actors,
+                max_gpu_actors=max_gpu_actors,
+            )
+        self.app.state.task_registry = ray.get_actor("TaskRegistry")
 
     def _setup_app(self):
         # Check cache dirs are in /tmp if testing mode enabled

@@ -1,8 +1,8 @@
-import subprocess
 import uvicorn
 import os
 
 from toktagger.api.config import settings
+from toktagger.api.main import run_with_gunicorn
 
 if __name__ == "__main__":
     host = settings.server.host
@@ -13,19 +13,7 @@ if __name__ == "__main__":
     os.environ["API_URL"] = f"http://{host}:{port}"
 
     if workers > 1:
-        subprocess.run(
-            [
-                "gunicorn",
-                "toktagger.api.asgi:app",
-                "--worker-class",
-                "uvicorn.workers.UvicornWorker",
-                "--workers",
-                str(workers),
-                "--bind",
-                f"{host}:{port}",
-            ],
-            check=True,
-        )
+        run_with_gunicorn(host, port, workers)
     else:
         uvicorn.run(
             "toktagger.api.cli:create_app",

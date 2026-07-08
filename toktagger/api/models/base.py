@@ -378,8 +378,14 @@ class WorkerRegistry:
         return registered
 
 
+@ray.remote(num_cpus=0.1)
 class ActorRegistry:
-    """Registry to keep track of Ray actors, and the task they are associated with."""
+    """Registry to keep track of Ray actors, and the task they are associated with.
+
+    Runs as a single named, detached Ray actor shared by all Gunicorn workers,
+    so actor limits and task IDs are tracked cluster-wide rather than
+    independently per worker process.
+    """
 
     def __init__(self, max_actors: int, max_gpu_actors: int):
         """Create task registry
@@ -397,43 +403,65 @@ class ActorRegistry:
                 "Insufficient CPU cores available for ML model functionality"
             )
 
-        self.gpu_enabled = True if max_gpu_actors > 0 else False
+        self._gpu_enabled = True if max_gpu_actors > 0 else False
         self.max_actors = max_actors
         self.max_gpu_actors = max_gpu_actors
         self.tasks = {}
         self.actors = OrderedDict()
 
-    def register(self, task_ref: ray.ObjectRef) -> str:
-        """Store a Ray task reference in the registry and associate with a UUID.
+    def gpu_enabled(self) -> bool:
+        return self._gpu_enabled
+
+    def list_actors(self) -> list[str]:
+        return list(self.actors.keys())
+
+    def register(self, task_ref: ray.ObjectRef, task_id: str | None = None) -> str:
+        """Store a Ray task reference in the registry and associate with an ID.
 
         Parameters
         ----------
         task_ref : ray.ObjectRef
             The reference to the Ray task
+        task_id : str | None
+            The ID to store the task under, generated automatically if not given
 
         Returns
         -------
         str
-            A unique identifier for this task
+            The identifier for this task
         """
-        task_id = str(uuid.uuid4())
+        task_id = task_id or str(uuid.uuid4())
         self.tasks[task_id] = task_ref
         return task_id
 
-    def get(self, task_id: str) -> ray.ObjectRef | None:
-        """Convert a task ID back into the Ray task reference
+    def is_ready(self, task_id: str) -> bool | None:
+        """Non-blocking check of whether a task has finished.
 
-        Parameters
-        ----------
-        task_id : str
-            The unique identifier for this task
+        Ray automatically dereferences an ObjectRef returned (even nested) from
+        a remote call, so the raw task ref itself can't be handed back to
+        callers across the actor boundary - wait/get/cancel on it must happen
+        here, inside this actor, instead.
 
         Returns
         -------
-        ray.ObjectRef | None
-            The Ray task reference, if it exists in the Registry
+        bool | None
+            True/False if the task is known, None if task_id isn't registered
         """
-        return self.tasks.get(task_id)
+        task_ref = self.tasks.get(task_id)
+        if task_ref is None:
+            return None
+        ready, _ = ray.wait([task_ref], timeout=0)
+        return bool(ready)
+
+    def get_result(self, task_id: str):
+        """Blocking fetch of a finished task's result (raises if the task raised)."""
+        return ray.get(self.tasks[task_id])
+
+    def cancel(self, task_id: str) -> None:
+        """Cancel a registered task, if it exists."""
+        task_ref = self.tasks.get(task_id)
+        if task_ref is not None:
+            ray.cancel(task_ref)
 
     def update_actors(self, actor_name: str, use_gpu: bool) -> None:
         """Record that a Ray Actor has been accessed, and kill any stale Actors.

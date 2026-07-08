@@ -1,8 +1,6 @@
 import webbrowser
 import argparse
-import subprocess
-import sys
-from toktagger.api.main import Server
+from toktagger.api.main import Server, run_with_gunicorn
 from toktagger.api.models import models_dependencies_installed
 import uvicorn
 import time
@@ -64,21 +62,7 @@ def main():
     if args.workers > 1:
         if args.reload:
             print("Warning: --reload is ignored when --workers > 1 (gunicorn mode)")
-        subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "gunicorn",
-                "toktagger.api.asgi:app",
-                "--worker-class",
-                "uvicorn.workers.UvicornWorker",
-                "--workers",
-                str(args.workers),
-                "--bind",
-                f"{args.host}:{args.port}",
-            ],
-            check=True,
-        )
+        run_with_gunicorn(args.host, args.port, args.workers)
     else:
         uvicorn.run(
             "toktagger.api.cli:create_app",

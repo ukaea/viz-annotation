@@ -15,7 +15,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import uvicorn
-import warnings
 import tempfile
 from toktagger.api.routers.annotations import router as annotations_router
 from toktagger.api.routers.annotators import router as annotators_router
@@ -194,35 +193,8 @@ class Server:
         self.app.include_router(meta_router)
         self.app.include_router(base_router)
 
-    def run(self, host: str | None = None, port: int | None = None):
-        """
-        Launch the TokTagger server.
-
-        Parameters
-        ----------
-        host : str
-            DEPRECATED - use config file or environment variables instead.
-            The host to launch the server on, by default 'localhost'
-        port : int
-            DEPRECATED - use config file or environment variables instead.
-            The port to launch the server on, by default 8002
-        """
-        # Provide deprecation warning
-        if host or port:
-            warnings.warn(
-                """
-                Specifying host and port within Server.run() is deprecated and will be removed in a future version.
-                Please provide these arguments via configuration file or environment variable instead.
-                See https://ukaea.github.io/toktagger/configuration for details.
-                """,
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        if host:
-            config.settings.server.host = host
-        if port:
-            config.settings.server.port = port
-
+    def run(self):
+        """Launch the TokTagger server using the host/port from configuration."""
         self._setup_app()
         # Setup ray if required
         if models_dependencies_installed():

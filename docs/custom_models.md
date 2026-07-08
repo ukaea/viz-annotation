@@ -464,12 +464,13 @@ If you are using the docker compose option to run the server, you can provide a 
 # custom_toktagger.py
 from toktagger.api.main import Server
 from my_models import MyCustomModel  # Import to register
+import toktagger.api.config as config
+
+config.settings.server.host = "0.0.0.0"
+config.settings.server.port = 8002
 
 server = Server()
-server.run(
-    host="0.0.0.0",
-    port=8002
-)
+server.run()
 ```
 
 Then provide the path to your script when running docker compose:

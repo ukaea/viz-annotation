@@ -52,6 +52,11 @@ class Server(pydantic.BaseModel):
         False,
         description="Whether to hot reload the TokTagger server on changes to files.",
     )
+    workers: int = pydantic.Field(
+        1,
+        description="The number of Gunicorn worker processes to use. If set to 1, runs a single-process uvicorn server instead.",
+        gt=0,
+    )
     cache_dir: pathlib.Path = pydantic.Field(
         user_cache_dir("toktagger", "ukaea"),
         description="The directory to use for storing entries in the Mongita database, if used.",

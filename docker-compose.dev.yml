@@ -53,8 +53,9 @@ services:
       SAL_HOST: "https://sal.jetdata.eu"
       MODEL_STORAGE: "/app/data/models"
       API_URL: "http://api_app:8002"
-      RELOAD: "true"
-      WORKERS: "1"
+      SERVER_HOST: "0.0.0.0"
+      SERVER_RELOAD: "true"
+      SERVER_WORKERS: "1"
     working_dir: /app
     command: ["python", "run.py"]
     networks:

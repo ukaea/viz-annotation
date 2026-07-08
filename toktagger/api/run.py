@@ -2,11 +2,13 @@ import subprocess
 import uvicorn
 import os
 
+from toktagger.api.config import settings
+
 if __name__ == "__main__":
-    host = os.environ.get("HOST", "0.0.0.0")
-    port = int(os.environ.get("PORT", 8002))
-    workers = int(os.environ.get("WORKERS", 1))
-    reload = os.environ.get("RELOAD", "false").lower() == "true"
+    host = settings.server.host
+    port = settings.server.port
+    workers = settings.server.workers
+    reload = settings.server.reload
 
     os.environ["API_URL"] = f"http://{host}:{port}"
 

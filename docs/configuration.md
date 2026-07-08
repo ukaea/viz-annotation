@@ -13,6 +13,7 @@ These settings should be defined under the `[server]` heading in the TOML file:
 | host            | SERVER_HOST             | str          | localhost                               | Address of the host to launch TokTagger on.                              |
 | port            | SERVER_PORT             | int          | 8002                                    | The port to use for the TokTagger Rest API.                              |
 | reload          | SERVER_RELOAD           | bool         | False                                   | Whether to hot reload the TokTagger server on changes to files.          |
+| workers         | SERVER_WORKERS          | int          | 1                                        | The number of Gunicorn worker processes to use. If set to 1, runs a single-process uvicorn server instead. |
 | cache_dir       | SERVER_CACHE_DIR        | pathlib.Path | ~/.cache/toktagger                      | The directory to use for storing entries in the Mongita database.        |
 
 ## Database Settings

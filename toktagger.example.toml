@@ -39,6 +39,9 @@
 # Whether to hot reload the TokTagger server on changes to files.
 # reload = false
 
+# The number of Gunicorn worker processes to use. If set to 1, runs a single-process uvicorn server instead.
+# workers = 1
+
 # The directory to use for storing entries in the Mongita database, if used.
 # cache_dir = '/home/runner/.cache/toktagger'
 

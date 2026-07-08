@@ -15,6 +15,7 @@ ENV_VARS = [
     "SERVER_HOST",
     "SERVER_PORT",
     "SERVER_RELOAD",
+    "SERVER_WORKERS",
     "SERVER_CACHE_DIR",
     "DATABASE_MONGO_URL",
     "UDA_HOST",
@@ -53,6 +54,7 @@ def test_default_settings(setup_test_settings):
     assert settings.server.host == "localhost"
     assert settings.server.port == 8002
     assert settings.server.reload is False
+    assert settings.server.workers == 1
     assert isinstance(settings.server.cache_dir, pathlib.Path)
 
     assert settings.database.mongo_url == "./toktagger_db"
@@ -73,6 +75,7 @@ def test_env_overrides_simple_nested_fields(monkeypatch, setup_test_settings):
     monkeypatch.setenv("SERVER_HOST", "0.0.0.0")
     monkeypatch.setenv("SERVER_PORT", "9000")
     monkeypatch.setenv("SERVER_RELOAD", "true")
+    monkeypatch.setenv("SERVER_WORKERS", "4")
     monkeypatch.setenv("UDA_HOST", "uda-test-host")
     monkeypatch.setenv("SAL_HOST", "https://sal.example.com")
 
@@ -81,6 +84,7 @@ def test_env_overrides_simple_nested_fields(monkeypatch, setup_test_settings):
     assert settings.server.host == "0.0.0.0"
     assert settings.server.port == 9000
     assert settings.server.reload is True
+    assert settings.server.workers == 4
     assert settings.uda.host == "uda-test-host"
     assert settings.sal.host == "https://sal.example.com"
 

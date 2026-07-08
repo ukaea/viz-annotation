@@ -20,6 +20,9 @@
 # Force the set number of GPU actors available, even if insufficient available GPU cores detected on hardware.
 # force_num_gpus = false
 
+# Whether to only allow loading of SafeTensors files for added security.
+# load_safetensors_only = false
+
 # Whether to enable the loading of model weights files from local disk. Should be disabled for production servers.
 # local_load_enabled = true
 

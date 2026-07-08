@@ -85,6 +85,10 @@ class Models(pydantic.BaseModel):
         False,
         description="Force the set number of GPU actors available, even if insufficient available GPU cores detected on hardware.",
     )
+    load_safetensors_only: bool = pydantic.Field(
+        False,
+        description="Whether to only allow loading of SafeTensors files for added security.",
+    )
     local_load_enabled: bool = pydantic.Field(
         True,
         description="Whether to enable the loading of model weights files from local disk. Should be disabled for production servers.",

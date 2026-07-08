@@ -21,6 +21,9 @@ def ray_session(settings):
             "env_vars": {
                 "MODEL_STORAGE": str(config.settings.models.cache_dir),
                 "API_URL": "",
+                "MODELS_SAFETENSORS_ONLY": str(
+                    config.settings.models.load_safetensors_only
+                ),
             }
         },
     )

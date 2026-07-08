@@ -150,7 +150,7 @@ function GitlabLoadTab({
         marginTop={"size-100"}
         width={"100%"}
         label="Model Version"
-        value={form.model_version}
+        value={form.model_version ?? undefined}
         validationState={
           "model_version" in validationErrors ? "invalid" : undefined
         }
@@ -158,7 +158,7 @@ function GitlabLoadTab({
         onChange={(model_version) =>
           setForm({
             ...form,
-            model_version,
+            model_version: model_version ?? null,
           })
         }
         description="Optional: The semantic version of the model to download, eg v1.0.0"
@@ -238,7 +238,7 @@ function HuggingfaceLoadTab({
         marginTop={"size-100"}
         width={"100%"}
         label="Model Version"
-        value={form.model_version}
+        value={form.model_version ?? undefined}
         validationState={
           "model_version" in validationErrors ? "invalid" : undefined
         }
@@ -246,7 +246,7 @@ function HuggingfaceLoadTab({
         onChange={(model_version) =>
           setForm({
             ...form,
-            model_version,
+            model_version: model_version ?? null,
           })
         }
         description="Optional: The semantic version or revision of the model to download, eg v1.0.0."
@@ -304,13 +304,13 @@ export function ModelLoadModal({
     gitlab_project_id: 0,
     model_name: "",
     weights_path: "",
-    model_version: undefined,
+    model_version: null,
   });
 
   const [huggingfaceForm, setHuggingfaceForm] = useState<HuggingfaceLoadForm>({
     model_name: "",
     weights_path: "",
-    model_version: undefined,
+    model_version: null,
     huggingface_userspace: "",
   });
 

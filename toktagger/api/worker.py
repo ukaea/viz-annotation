@@ -26,6 +26,7 @@ from platformdirs import user_cache_dir
 import pydantic
 from mlflow import MlflowClient, MlflowException
 from huggingface_hub import hf_hub_download
+from safetensors import safe_open
 
 logger = logging.getLogger("ray")
 logger.setLevel("DEBUG")
@@ -87,6 +88,32 @@ def get_actor(project: Project, model: Model, use_gpu: bool):
     return ml_model
 
 
+def check_safetensor(
+    weights_path: str | pathlib.Path, project_id: str, model_id: str
+) -> dict[str, str | ModelUpdate] | None:
+    if os.environ.get("MODELS_SAFETENSORS_ONLY", "False").lower() == "true":
+        try:
+            with safe_open(weights_path, framework="pt", device="cpu") as f:
+                _ = list(f.keys())
+        except Exception:
+            # Not a safetensors object, delete local file and return error
+            pathlib.Path(weights_path).unlink()
+            logger.error(
+                "Only permitted to load SafeTensors files due to env var setting!"
+            )
+            send_model_updates(
+                project_id=project_id,
+                model_id=model_id,
+                updates=ModelUpdate(training_status="failed"),
+            )
+            return {
+                "project_id": project_id,
+                "model_id": model_id,
+                "message": "Failed to load weights - retrieved file is not a SafeTensor!",
+            }
+        return None
+
+
 @ray.remote(num_cpus=0.1)
 def load_model_local(
     model: Model, project: Project, weights_path: pathlib.Path
@@ -114,6 +141,11 @@ def load_model_local(
             "model_id": model.id,
             "message": f"Worker node cannot find weights file at location {weights_path}",
         }
+    # Check if this file is a safetensor, if required
+    unsafe = check_safetensor(weights_path, project.id, model.id)
+    if unsafe:
+        return unsafe
+
     model_actor = get_actor(project=project, model=model, use_gpu=False)
     # Try loading actor with weights file, catch and reraise any errors
     try:
@@ -216,27 +248,10 @@ def load_model_gitlab(
         run_id=mlflow_model.run_id, path=params.weights_path, dst_path=str(model_dir)
     )
 
-    # If only safetensors allowed, check it is one
-    # if os.environ.get("MODELS_SAFETENSORS_ONLY"):
-    #     try:
-    #         with safe_open(weights_path, framework="pt", device="cpu") as f:
-    #             _ = list(f.keys())
-    #     except Exception:
-    #         # Not a safetensors object, delete local file and return error
-    #         pathlib.Path(weights_path).unlink()
-    #         logger.error(
-    #             "Only permitted to load SafeTensors files due to env var setting!"
-    #         )
-    #         send_model_updates(
-    #             project_id=project.id,
-    #             model_id=model.id,
-    #             updates=ModelUpdate(training_status="failed"),
-    #         )
-    #         return {
-    #             "project_id": project.id,
-    #             "model_id": model.id,
-    #             "message": "Failed to load weights - retrieved file is not a SafeTensor!",
-    #         }
+    # Check if this file is a safetensor, if required
+    unsafe = check_safetensor(weights_path, project.id, model.id)
+    if unsafe:
+        return unsafe
 
     # Try loading actor with weights file, catch and reraise any errors
     try:
@@ -292,8 +307,9 @@ def load_model_huggingface(
             revision=params.model_version,
             local_dir=str(model_dir),
         )
-    except Exception:
-        logger.error("Requested version of selected model could not be found!")
+    except Exception as e:
+        logger.error("Requested model could not be found!")
+        logger.error(e)
         send_model_updates(
             project_id=project.id,
             model_id=model.id,
@@ -302,30 +318,13 @@ def load_model_huggingface(
         return {
             "project_id": project.id,
             "model_id": model.id,
-            "message": "Failed to load weights - requested version of selected model could not be found!",
+            "message": "Failed to load weights - requested model could not be found!",
         }
 
-    # If only safetensors allowed, check it is one
-    # if os.environ.get("MODELS_SAFETENSORS_ONLY"):
-    #     try:
-    #         with safe_open(weights_path, framework="pt", device="cpu") as f:
-    #             _ = list(f.keys())
-    #     except Exception:
-    #         # Not a safetensors object, delete local file and return error
-    #         pathlib.Path(weights_path).unlink()
-    #         logger.error(
-    #             "Only permitted to load SafeTensors files due to env var setting!"
-    #         )
-    #         send_model_updates(
-    #             project_id=project.id,
-    #             model_id=model.id,
-    #             updates=ModelUpdate(training_status="failed"),
-    #         )
-    #         return {
-    #             "project_id": project.id,
-    #             "model_id": model.id,
-    #             "message": "Failed to load weights - retrieved file is not a SafeTensor!",
-    #         }
+    # Check if this file is a safetensor, if required
+    unsafe = check_safetensor(weights_path, project.id, model.id)
+    if unsafe:
+        return unsafe
 
     # Try loading actor with weights file, catch and reraise any errors
     try:

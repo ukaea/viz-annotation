@@ -266,7 +266,7 @@ export type LocalLoadForm = z.infer<typeof LocalLoadFormSchema>;
 export const GitlabLoadFormSchema = z.object({
   model_name: z.string().min(1),
   weights_path: z.string().min(1),
-  model_version: z.string().optional(),
+  model_version: z.string().nullish(),
   gitlab_project_id: z.number().min(1),
 });
 export type GitlabLoadForm = z.infer<typeof GitlabLoadFormSchema>;
@@ -274,7 +274,7 @@ export type GitlabLoadForm = z.infer<typeof GitlabLoadFormSchema>;
 export const HuggingfaceLoadFormSchema = z.object({
   model_name: z.string().min(1),
   weights_path: z.string().min(1),
-  model_version: z.string().optional(),
+  model_version: z.string().nullish(),
   huggingface_userspace: z.string().min(1),
 });
 export type HuggingfaceLoadForm = z.infer<typeof HuggingfaceLoadFormSchema>;

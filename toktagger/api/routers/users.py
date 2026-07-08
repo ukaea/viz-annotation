@@ -39,10 +39,14 @@ async def create_user(
     body: UserCreate,
     _: UserOut = Depends(require_global_admin),
 ):
-    # Reserved prefixes protect the internal worker namespace and model annotation namespace.
-    # NOTE: model predictions currently don't set created_by="model::<name>" — this is a known
-    # gap that should be addressed in the models sender.
-    if body.username.startswith("model::") or body.username.startswith("__"):
+    # Reserved prefixes protect the internal worker namespace and the synthetic
+    # created_by values stamped on ML-model predictions (worker.py) and built-in
+    # annotator suggestions (core/annotators.py), so a real user can't collide with them.
+    if (
+        body.username.startswith("model::")
+        or body.username.startswith("annotators::")
+        or body.username.startswith("__")
+    ):
         raise HTTPException(status_code=422, detail="Username uses a reserved prefix")
     user = UserIn(
         username=body.username,

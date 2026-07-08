@@ -9,7 +9,7 @@ import {
   Switch,
 } from "@adobe/react-spectrum";
 import { Annotation, MultiVariateTimeSeriesData } from "@/types";
-import { AnnotatorTypes } from "./types";
+import { AnnotatorTypes, annotatorCreatedBy } from "./types";
 import { BACKEND_API_URL, apiFetch } from "@/app/core";
 import { useSample } from "@/app/contexts/SampleContext";
 
@@ -42,7 +42,9 @@ export function ChangePointDetectionTool({
 
   const [isEnabled, setIsEnabled] = useState<boolean>(() => {
     return annotations.some(
-      (ann) => ann.created_by === AnnotatorTypes.CHANGE_POINT_DETECTION,
+      (ann) =>
+        ann.created_by ===
+        annotatorCreatedBy(AnnotatorTypes.CHANGE_POINT_DETECTION),
     );
   });
 
@@ -60,7 +62,8 @@ export function ChangePointDetectionTool({
         setAnnotations((previousAnnotations: Annotation[]) => {
           const otherAnnotations = previousAnnotations.filter(
             (annotation: Annotation) =>
-              annotation.created_by !== AnnotatorTypes.CHANGE_POINT_DETECTION ||
+              annotation.created_by !==
+                annotatorCreatedBy(AnnotatorTypes.CHANGE_POINT_DETECTION) ||
               annotation.validated,
           );
           return otherAnnotations;
@@ -94,7 +97,8 @@ export function ChangePointDetectionTool({
       setAnnotations((previousAnnotations) => {
         const otherAnnotations = previousAnnotations.filter(
           (annotation: Annotation) =>
-            annotation.created_by !== AnnotatorTypes.CHANGE_POINT_DETECTION ||
+            annotation.created_by !==
+              annotatorCreatedBy(AnnotatorTypes.CHANGE_POINT_DETECTION) ||
             annotation.validated,
         );
         return otherAnnotations.concat(payload);

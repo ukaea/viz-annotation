@@ -2,6 +2,7 @@ from toktagger.api.schemas.annotations import TimePointBatch
 from toktagger.api.schemas.samples import SampleIn, TimeSeriesFileData
 import tests.db_definitions as db_definitions
 from toktagger.api.main import Server
+from toktagger.api.auth.core import get_internal_token
 from httpx import AsyncClient, ASGITransport
 from bson.objectid import ObjectId
 import ray
@@ -36,6 +37,10 @@ async def models_api_client(monkeypatch, settings, db_client, ray_session):
     monkeypatch.setenv("API_URL", "http://test")
     monkeypatch.setenv("MAX_GPU_ACTORS", 1)
     monkeypatch.setenv("FORCE_NUM_GPUS", True)
+    # So send_batch_annotations/send_batch_samples (replayed from the test process
+    # in collect_predict_results) authenticate as the internal worker user, matching
+    # what main.py._setup_ray does for real Ray workers in production.
+    monkeypatch.setenv("API_TOKEN", get_internal_token())
 
     server._setup_app()
     server._setup_ray()
@@ -61,6 +66,26 @@ async def models_api_client(monkeypatch, settings, db_client, ray_session):
             ray.kill(actor)
         except ValueError:
             continue
+
+
+@pytest_asyncio.fixture(scope="function")
+async def authenticated_models_api_client(models_api_client, db_client):
+    """models_api_client with real per-user JWT auth enabled (auth_required=True).
+
+    Seeds the built-in admin user directly (bypassing first-run bootstrap, which
+    only runs from the app's lifespan). db_client's underlying mongita store is
+    shared for the whole test session, so the seeded users are deleted again on
+    teardown rather than left to leak into later tests.
+    """
+    models_api_client.app.state.auth_required = True
+    await db_client.insert("users", db_definitions.USER_ADMIN)
+
+    yield models_api_client
+
+    # Clean up all users/memberships this test created — db_client's mongita store
+    # is shared for the whole session, and no other test expects data here.
+    await db_client.delete_filtered_documents(collection="users")
+    await db_client.delete_filtered_documents(collection="project_members")
 
 
 @pytest.fixture(scope="package")

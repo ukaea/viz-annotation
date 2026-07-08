@@ -358,7 +358,7 @@ class DisruptionCNN(Model):
                     uncertainty=stds[i].item(),
                     label="Disruption",
                     time=means[i].item(),
-                    created_by=self.type,
+                    created_by=f"model::{self.type}",
                 )
             ]
             for i in range(len(samples))

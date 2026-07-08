@@ -32,6 +32,7 @@ if MODELS_ENABLED:
         setup_model_samples as setup_model_samples,
         setup_model_db as setup_model_db,
         models_api_client as models_api_client,
+        authenticated_models_api_client as authenticated_models_api_client,
     )
 
 else:
@@ -56,6 +57,10 @@ else:
 
     @pytest.fixture()
     def models_api_client():
+        raise pytest.UsageError(_error_msg)
+
+    @pytest.fixture()
+    def authenticated_models_api_client():
         raise pytest.UsageError(_error_msg)
 
 

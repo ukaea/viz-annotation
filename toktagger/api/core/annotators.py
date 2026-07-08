@@ -237,7 +237,7 @@ class PeakDetectionAnnotator(DataAnnotator):
                     label="Unknown",
                     time_min=max(float(peak_time - width), np.min(time)),
                     time_max=min(float(peak_time + width), np.max(time)),
-                    created_by=AnnotatorTypes.PEAK_DETECTION,
+                    created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
                 )
                 regions.append(region)
 
@@ -309,7 +309,7 @@ class OutlierDetectionAnnotator(DataAnnotator):
                 time_min=time[imin],
                 time_max=time[imax],
                 label="Unknown",
-                created_by=AnnotatorTypes.OUTLIER_DETECTION,
+                created_by=f"annotators::{AnnotatorTypes.OUTLIER_DETECTION.value}",
             )
             for imin, imax in bounds
         ]
@@ -334,7 +334,7 @@ class OutlierDetectionAnnotator(DataAnnotator):
                 time_min=time[imin],
                 time_max=time[imax],
                 label="Unknown",
-                created_by=AnnotatorTypes.OUTLIER_DETECTION,
+                created_by=f"annotators::{AnnotatorTypes.OUTLIER_DETECTION.value}",
             )
             for imin, imax in bounds
         ]
@@ -419,7 +419,7 @@ class ChangePointDetectionAnnotator(DataAnnotator):
                 time_min=time[imin],
                 time_max=time[imax],
                 label="Unknown",
-                created_by=AnnotatorTypes.CHANGE_POINT_DETECTION,
+                created_by=f"annotators::{AnnotatorTypes.CHANGE_POINT_DETECTION.value}",
             )
             for imin, imax in zip(result, result[1:])
         ]
@@ -457,7 +457,7 @@ class ChangePointDetectionAnnotator(DataAnnotator):
                 time_min=tmin,
                 time_max=tmax,
                 label="Unknown",
-                created_by=AnnotatorTypes.CHANGE_POINT_DETECTION,
+                created_by=f"annotators::{AnnotatorTypes.CHANGE_POINT_DETECTION.value}",
             )
             for (tmin, tmax) in bounds
         ]
@@ -541,7 +541,7 @@ class JumpDetectionAnnotator(DataAnnotator):
                     time_min=tmin,
                     time_max=tmax,
                     label="Unknown",
-                    created_by=AnnotatorTypes.JUMP_DETECTION,
+                    created_by=f"annotators::{AnnotatorTypes.JUMP_DETECTION.value}",
                 )
             )
 
@@ -582,7 +582,7 @@ class SpectrogramThresholdAnnotator:
         return SpectrogramMask(
             label="SpectrogramMask",
             values=threshold_mask.tolist(),
-            created_by=AnnotatorTypes.SPECTROGRAM_THRESHOLD,
+            created_by=f"annotators::{AnnotatorTypes.SPECTROGRAM_THRESHOLD.value}",
         )
 
 

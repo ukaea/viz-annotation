@@ -4,7 +4,7 @@ Tests for model × auth interactions:
   2. Unauthenticated sender is rejected when auth is required.
   3. Non-admin bulk import enforces created_by = current user.
   4. Global admin bulk import allows arbitrary created_by.
-  5. Usernames with reserved prefixes ("model::", "__") are rejected.
+  5. Usernames with reserved prefixes ("model::", "annotators::", "__") are rejected.
   6. A user whose username matches a model-type string cannot corrupt
      "model::<type>" prefixed predictions.
 """
@@ -187,6 +187,23 @@ async def test_username_with_model_prefix_rejected(auth_setup):
 
 
 @pytest.mark.asyncio
+async def test_username_with_annotators_prefix_rejected(auth_setup):
+    client = auth_setup["client"]
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
+    resp = await client.post(
+        "/users",
+        json={
+            "username": "annotators::peak_detection",
+            "password": "pass123",
+            "email": "",
+            "global_role": "user",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_username_with_dunder_prefix_rejected(auth_setup):
     client = auth_setup["client"]
     admin_token = await get_auth_token(client, "admin", "admin_pass")
@@ -207,6 +224,13 @@ async def test_username_with_dunder_prefix_rejected(auth_setup):
 async def test_user_save_does_not_corrupt_model_prefixed_predictions(auth_setup):
     """A human user named 'disruption_cnn' saving annotations must NOT delete
     model predictions stored as 'model::disruption_cnn'. The prefix is the separator.
+
+    This hand-crafts the "model::" annotation via a direct PUT with the internal
+    token, so it only proves the import endpoint's exemption logic — not that the
+    real /predict pipeline actually produces that prefix. For the real end-to-end
+    version (actual /predict call, real Ray worker, real per-user JWTs), see
+    test_predict_endpoint_survives_same_named_human_save in
+    tests/api/routers/test_models.py.
     """
     client = auth_setup["client"]
     admin_token = await get_auth_token(client, "admin", "admin_pass")

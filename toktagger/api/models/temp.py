@@ -46,7 +46,7 @@ class VideoCNN(Model):
                             x_min=0,
                             y_min=0,
                             frame=data.frame,
-                            created_by="video-cnn",
+                            created_by=f"model::{self.type}",
                             track_id="test",
                         )
                     ]
@@ -64,7 +64,7 @@ class VideoCNN(Model):
                         x_min=0,
                         y_min=0,
                         frame=data.frame,
-                        created_by="video-cnn",
+                        created_by=f"model::{self.type}",
                         track_id="test",
                     )
                 ]
@@ -82,7 +82,7 @@ class VideoCNN(Model):
                                 x_min=0,
                                 y_min=0,
                                 frame=data.frame,
-                                created_by="video-cnn",
+                                created_by=f"model::{self.type}",
                                 track_id="test",
                             )
                         )

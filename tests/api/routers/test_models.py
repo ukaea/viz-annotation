@@ -16,6 +16,8 @@ import tempfile
 import asyncio
 import toktagger.api.config as config
 
+from tests.api.auth.conftest import get_auth_token
+
 
 def wait_for_results(task_registry: ActorRegistry, task_id: str):
     task = task_registry.get(task_id)
@@ -73,6 +75,14 @@ async def test_model_batch_predict_num_predictions(
 
     # Check latest version of model has been used by default (annotation label set to model ID in Mock)
     assert all(ann["label"] == setup_model_db["model_id_2"] for ann in annotations)
+
+    # Predictions from the real worker pipeline (get_predictions in worker.py) must be
+    # stamped "model::<type>", not the raw type — this is what lets a human user with
+    # the same name as a model type import annotations without corrupting predictions
+    # (see test_user_save_does_not_corrupt_model_prefixed_predictions in test_model_auth.py,
+    # which only exercises the import-endpoint side of that guarantee via a hand-crafted
+    # payload; this is the counterpart that proves the worker actually produces it).
+    assert all(ann["created_by"] == "model::mock_disruption_cnn" for ann in annotations)
 
 
 @pytest.mark.asyncio
@@ -227,6 +237,90 @@ async def test_model_sample_predict(models_api_client, db_client, setup_model_db
 
     # Check it corresponds to sample ID we asked for predictions on
     assert str(annotations[0]["sample_id"]) == setup_model_db["sample_ids"][-1]
+
+
+@pytest.mark.asyncio
+@pytest.mark.models_enabled
+async def test_predict_endpoint_survives_same_named_human_save(
+    authenticated_models_api_client, db_client, setup_model_db
+):
+    """A real prediction from the /predict endpoint (created_by="model::mock_disruption_cnn")
+    must survive a human user named "mock_disruption_cnn" saving their own
+    annotation for the same sample — the "model::" prefix is the namespace
+    separator that prevents the collision from corrupting either author's data.
+
+    Unlike test_user_save_does_not_corrupt_model_prefixed_predictions in
+    test_model_auth.py (which hand-crafts the "model::" annotation via a direct
+    PUT with the internal token), this exercises the actual /predict endpoint and
+    Ray worker pipeline end to end, with real per-user JWT auth enabled.
+    """
+    client = authenticated_models_api_client
+    project_id = setup_model_db["project_id"]
+    sample_id = setup_model_db["sample_ids"][-1]
+
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
+
+    # Create a human user whose name matches the model type (the collision scenario).
+    create_resp = await client.post(
+        "/users",
+        json={
+            "username": "mock_disruption_cnn",
+            "password": "pass123",
+            "global_role": "user",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert create_resp.status_code == 200, create_resp.text
+
+    await client.post(
+        f"/projects/{project_id}/members",
+        json={"username": "mock_disruption_cnn", "role": "annotator"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+
+    # Run a REAL prediction through the actual /predict endpoint.
+    predict_resp = await client.post(
+        f"/projects/{project_id}/samples/{sample_id}/models/mock_disruption_cnn/predict",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert predict_resp.status_code == 200, predict_resp.text
+    await collect_predict_results(client, predict_resp.json()["task_id"])
+
+    model_annotations = await db_client.get_filtered_documents(
+        collection="annotations",
+        filters={
+            "created_by": "model::mock_disruption_cnn",
+            "sample_id": ObjectId(sample_id),
+        },
+    )
+    assert len(model_annotations) == 1
+
+    # The human user (same name as the model) saves their own annotation for the
+    # same sample. update_annotations only replaces the CALLER's own annotations.
+    human_token = await get_auth_token(client, "mock_disruption_cnn", "pass123")
+    save_resp = await client.put(
+        f"/projects/{project_id}/samples/{sample_id}/annotations",
+        json=[
+            {
+                "label": "human_ann",
+                "time_min": 0.0,
+                "time_max": 1.0,
+                "type": "time_region",
+                "validated": True,
+                "created_by": "placeholder",  # server overwrites from JWT
+            }
+        ],
+        headers={"Authorization": f"Bearer {human_token}"},
+    )
+    assert save_resp.status_code == 200, save_resp.text
+
+    # Both the real model prediction and the human's own annotation must survive.
+    annotations = await db_client.get_filtered_documents(
+        collection="annotations", filters={"sample_id": ObjectId(sample_id)}
+    )
+    labels_by_author = {a["created_by"]: a["label"] for a in annotations}
+    assert labels_by_author.get("model::mock_disruption_cnn") is not None
+    assert labels_by_author.get("mock_disruption_cnn") == "human_ann"
 
 
 @pytest.mark.asyncio

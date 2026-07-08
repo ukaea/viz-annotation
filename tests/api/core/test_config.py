@@ -18,6 +18,7 @@ ENV_VARS = [
     "SERVER_WORKERS",
     "SERVER_CACHE_DIR",
     "DATABASE_MONGO_URL",
+    "AUTH_SECRET_KEY",
     "UDA_HOST",
     "UDA_META_PLUGINNAME",
     "UDA_METANEW_PLUGINNAME",
@@ -59,6 +60,8 @@ def test_default_settings(setup_test_settings):
 
     assert settings.database.mongo_url == "./toktagger_db"
 
+    assert settings.auth.secret_key is None
+
     assert settings.uda.host == "uda2.mast.l"
     assert settings.uda.meta_pluginname == "MASTU_DB"
     assert settings.uda.metanew_pluginname == "MAST_DB"
@@ -76,6 +79,7 @@ def test_env_overrides_simple_nested_fields(monkeypatch, setup_test_settings):
     monkeypatch.setenv("SERVER_PORT", "9000")
     monkeypatch.setenv("SERVER_RELOAD", "true")
     monkeypatch.setenv("SERVER_WORKERS", "4")
+    monkeypatch.setenv("AUTH_SECRET_KEY", "test-secret")
     monkeypatch.setenv("UDA_HOST", "uda-test-host")
     monkeypatch.setenv("SAL_HOST", "https://sal.example.com")
 
@@ -85,6 +89,7 @@ def test_env_overrides_simple_nested_fields(monkeypatch, setup_test_settings):
     assert settings.server.port == 9000
     assert settings.server.reload is True
     assert settings.server.workers == 4
+    assert settings.auth.secret_key == "test-secret"
     assert settings.uda.host == "uda-test-host"
     assert settings.sal.host == "https://sal.example.com"
 

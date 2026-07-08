@@ -39,6 +39,13 @@ class Database(pydantic.BaseModel):
     )
 
 
+class Auth(pydantic.BaseModel):
+    secret_key: str | None = pydantic.Field(
+        None,
+        description="Secret key used to sign auth tokens. If unset, a key is generated and persisted to secret.key under the server cache_dir on first run. Set this explicitly for multi-worker/multi-process deployments so all processes share the same signing key.",
+    )
+
+
 class Server(pydantic.BaseModel):
     host: str = pydantic.Field(
         "localhost",
@@ -99,6 +106,7 @@ class Models(pydantic.BaseModel):
 class Settings(BaseSettings):
     server: Server = pydantic.Field(default_factory=Server)
     database: Database = pydantic.Field(default_factory=Database)
+    auth: Auth = pydantic.Field(default_factory=Auth)
     uda: UDA = pydantic.Field(default_factory=UDA)
     sal: SAL = pydantic.Field(default_factory=SAL)
     models: Models = pydantic.Field(default_factory=Models)

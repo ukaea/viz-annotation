@@ -23,6 +23,13 @@ These settings should be defined under the `[database]` heading in the TOML file
 |-----------------|-------------------------|--------------|-----------------------------------------|---------------------------------------------------------------------------------------------|
 | mongo_url       | DATABASE_MONGO_URL      | str          | ./toktagger_db                          | URL of the MongoDB server to connect to as a backend, by default uses local Mongita client. |
 
+## Auth Settings
+These settings should be defined under the `[auth]` heading in the TOML file:
+
+| Setting         | Environment Variable    | Type         | Default                                 | Description                                                              |
+|-----------------|-------------------------|--------------|-----------------------------------------|--------------------------------------------------------------------------|
+| secret_key      | AUTH_SECRET_KEY         | str          | None                                    | Secret key used to sign auth tokens. If unset, a key is generated and persisted to `secret.key` under the server `cache_dir` on first run. Set this explicitly for multi-worker/multi-process deployments so all processes share the same signing key. |
+
 ## Models Settings
 These settings should be defined under the `[models]` heading in the TOML file:
 

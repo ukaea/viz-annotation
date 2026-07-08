@@ -2,6 +2,11 @@
 # All settings are optional, and default values are indicated below. 
 # To override a setting, uncomment the line and provide your value.
 
+[auth]
+# Secret key used to sign auth tokens. If unset, a key is generated and persisted to secret.key under the server cache_dir on first run. Set this explicitly for multi-worker/multi-process deployments so all processes share the same signing key.
+# secret_key = None
+
+
 [database]
 # URL of the MongoDB server to connect to as a backend. If not set, uses a local mongita client.
 # mongo_url = './toktagger_db'

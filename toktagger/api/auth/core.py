@@ -1,5 +1,4 @@
 import hashlib
-import os
 import secrets
 from datetime import timedelta
 from pathlib import Path
@@ -28,9 +27,8 @@ def _get_serializer() -> URLSafeTimedSerializer:
     if _serializer is not None:
         return _serializer
 
-    env_key = os.environ.get("AUTH_SECRET_KEY")
-    if env_key:
-        secret = env_key
+    if config.settings.auth.secret_key:
+        secret = config.settings.auth.secret_key
     else:
         cache_dir = Path(config.settings.server.cache_dir)
         cache_dir.mkdir(parents=True, exist_ok=True)

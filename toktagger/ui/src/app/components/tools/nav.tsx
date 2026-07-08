@@ -27,6 +27,7 @@ import {
   BACKEND_API_URL,
   apiFetch,
   getAnnotationsForSample,
+  ApiError,
 } from "@/app/core";
 import { useAuth } from "@/app/contexts/AuthContext";
 import {
@@ -138,7 +139,7 @@ function NextButton({
         setIsValidated(true);
       }
     } catch (err) {
-      if ((err as any).status === 403) {
+      if (err instanceof ApiError && err.status === 403) {
         onPermissionError();
       } else {
         const message = err instanceof Error ? err.message : String(err);
@@ -240,7 +241,7 @@ function PreviousButton({
         setIsValidated(true);
       }
     } catch (err) {
-      if ((err as any).status === 403) {
+      if (err instanceof ApiError && err.status === 403) {
         onPermissionError();
       } else {
         const message = err instanceof Error ? err.message : String(err);
@@ -318,7 +319,7 @@ function SaveButton({
       });
       setIsValidated(true);
     } catch (err) {
-      if ((err as any).status === 403) {
+      if (err instanceof ApiError && err.status === 403) {
         onPermissionError();
       } else {
         const message = err instanceof Error ? err.message : String(err);

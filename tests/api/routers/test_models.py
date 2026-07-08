@@ -742,9 +742,10 @@ async def test_model_load_local_failed(models_api_client, db_client, setup_model
 
 
 @pytest.mark.models_enabled
-@pytest.mark.parametrize("safetensors_only", (True, False))
+@pytest.mark.parametrize("safetensors_only", ("True", "False"))
 @pytest.mark.parametrize("filename", ("model.pt", "model.safetensors"))
-def test_check_safetensors(monkeypatch, safetensors_only, filename):
+@patch("toktagger.api.worker.send_model_updates")
+def test_check_safetensors(mock_func, monkeypatch, safetensors_only, filename):
     monkeypatch.setenv("MODELS_SAFETENSORS_ONLY", safetensors_only)
     src_path = pathlib.Path(__file__).parents[2].joinpath(filename)
     with tempfile.TemporaryDirectory() as tempd:
@@ -758,10 +759,13 @@ def test_check_safetensors(monkeypatch, safetensors_only, filename):
             "model_id",
         )
 
-        if safetensors_only and filename == "model.pt":
+        if safetensors_only == "True" and filename == "model.pt":
+            assert unsafe
             assert (
                 unsafe.get("message")
                 == "Failed to load weights - retrieved file is not a SafeTensor!"
             )
+            assert mock_func.call_count > 0
         else:
             assert not unsafe
+            assert mock_func.call_count == 0

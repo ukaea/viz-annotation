@@ -15,30 +15,6 @@ from tests.api.auth.conftest import get_auth_token
 from toktagger.api.auth.core import get_internal_token
 
 
-async def create_project_and_sample(client, token):
-    proj = await client.post(
-        "/projects",
-        json={
-            "name": "model_auth_test",
-            "task": "time-series",
-            "query_strategy": "sequential",
-            "data_loader": "tabular",
-        },
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert proj.status_code == 200, proj.text
-    project_id = proj.json()["_id"]
-
-    sample = await client.post(
-        f"/projects/{project_id}/samples",
-        json=[{"shot_id": 1, "data": {"file_name": "t.csv", "type": "csv"}}],
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert sample.status_code == 200, sample.text
-    sample_id = sample.json()[0]
-    return project_id, sample_id
-
-
 def annotation_payload(
     label: str = "lbl", created_by: str = "placeholder", shot_id: int = 1
 ):
@@ -60,11 +36,10 @@ def annotation_payload(
 
 
 @pytest.mark.asyncio
-async def test_internal_token_accepted_for_import(auth_setup):
+async def test_internal_token_accepted_for_import(project_setup):
     """PUT /annotations with the server-internal token should be accepted as admin."""
-    client = auth_setup["client"]
-    admin_token = await get_auth_token(client, "admin", "admin_pass")
-    project_id, sample_id = await create_project_and_sample(client, admin_token)
+    client = project_setup["client"]
+    project_id = project_setup["project_id"]
 
     internal_token = get_internal_token()
     resp = await client.put(
@@ -76,11 +51,10 @@ async def test_internal_token_accepted_for_import(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_no_token_rejected_for_import_in_auth_mode(auth_setup):
+async def test_no_token_rejected_for_import_in_auth_mode(project_setup):
     """PUT /annotations with no token must be rejected when auth is required."""
-    client = auth_setup["client"]
-    admin_token = await get_auth_token(client, "admin", "admin_pass")
-    project_id, _ = await create_project_and_sample(client, admin_token)
+    client = project_setup["client"]
+    project_id = project_setup["project_id"]
 
     resp = await client.put(
         f"/projects/{project_id}/annotations",
@@ -90,11 +64,11 @@ async def test_no_token_rejected_for_import_in_auth_mode(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_import_non_admin_created_by_overwritten(auth_setup):
+async def test_import_non_admin_created_by_overwritten(project_setup):
     """An annotator importing with a spoofed created_by should have it replaced."""
-    client = auth_setup["client"]
-    admin_token = await get_auth_token(client, "admin", "admin_pass")
-    project_id, sample_id = await create_project_and_sample(client, admin_token)
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
 
     await client.post(
         f"/projects/{project_id}/members",
@@ -122,12 +96,12 @@ async def test_import_non_admin_created_by_overwritten(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_import_admin_is_attributed_as_self(auth_setup):
+async def test_import_admin_is_attributed_as_self(project_setup):
     """A global admin importing annotations is recorded as the author; a
     supplied created_by is ignored so authorship stays auditable."""
-    client = auth_setup["client"]
-    admin_token = await get_auth_token(client, "admin", "admin_pass")
-    project_id, sample_id = await create_project_and_sample(client, admin_token)
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
 
     resp = await client.put(
         f"/projects/{project_id}/annotations",
@@ -146,11 +120,11 @@ async def test_import_admin_is_attributed_as_self(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_internal_token_preserves_arbitrary_created_by(auth_setup):
+async def test_internal_token_preserves_arbitrary_created_by(project_setup):
     """The internal token (Ray worker) can import with model:: prefixed created_by."""
-    client = auth_setup["client"]
-    admin_token = await get_auth_token(client, "admin", "admin_pass")
-    project_id, sample_id = await create_project_and_sample(client, admin_token)
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
 
     internal_token = get_internal_token()
     resp = await client.put(
@@ -221,7 +195,7 @@ async def test_username_with_dunder_prefix_rejected(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_user_save_does_not_corrupt_model_prefixed_predictions(auth_setup):
+async def test_user_save_does_not_corrupt_model_prefixed_predictions(project_setup):
     """A human user named 'disruption_cnn' saving annotations must NOT delete
     model predictions stored as 'model::disruption_cnn'. The prefix is the separator.
 
@@ -232,9 +206,10 @@ async def test_user_save_does_not_corrupt_model_prefixed_predictions(auth_setup)
     test_predict_endpoint_survives_same_named_human_save in
     tests/api/routers/test_models.py.
     """
-    client = auth_setup["client"]
-    admin_token = await get_auth_token(client, "admin", "admin_pass")
-    project_id, sample_id = await create_project_and_sample(client, admin_token)
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
+    sample_id = project_setup["sample_id"]
 
     # Create a human user whose name matches a model type (the collision scenario).
     create_resp = await client.post(
@@ -248,7 +223,7 @@ async def test_user_save_does_not_corrupt_model_prefixed_predictions(auth_setup)
     )
     assert create_resp.status_code == 200
 
-    # Insert a model prediction via the internal token.
+    # Insert a model prediction via the internal tokens.
     internal_token = get_internal_token()
     await client.put(
         f"/projects/{project_id}/annotations",

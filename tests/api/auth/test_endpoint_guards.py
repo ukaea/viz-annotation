@@ -15,33 +15,8 @@ below rather than relying on weaker roles being implied by stronger ones:
 import typing
 
 import pytest
-import pytest_asyncio
 
 from tests.api.auth.conftest import get_auth_token
-
-
-async def create_project_and_sample(client, token):
-    proj_resp = await client.post(
-        "/projects",
-        json={
-            "name": "guard_test",
-            "task": "time-series",
-            "query_strategy": "sequential",
-            "data_loader": "tabular",
-        },
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert proj_resp.status_code == 200, proj_resp.text
-    project_id = proj_resp.json()["_id"]
-
-    sample_resp = await client.post(
-        f"/projects/{project_id}/samples",
-        json=[{"shot_id": 1, "data": {"file_name": "t.csv", "type": "csv"}}],
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert sample_resp.status_code == 200, sample_resp.text
-    sample_id = sample_resp.json()[0]
-    return project_id, sample_id
 
 
 async def add_member(client, token, project_id, username, role):
@@ -227,20 +202,14 @@ ACTIONS: dict[str, Action] = {
 }
 
 
-@pytest_asyncio.fixture
-async def action_context(auth_setup):
-    """Admin-created project with one sample, ready for per-role permission checks."""
-    client = auth_setup["client"]
-    admin_token = await get_auth_token(client, "admin", "admin_pass")
-    project_id, sample_id = await create_project_and_sample(client, admin_token)
-    return client, admin_token, project_id, sample_id
-
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize("role", ROLES)
 @pytest.mark.parametrize("action_name", list(ACTIONS))
-async def test_permission_matrix(action_context, action_name, role):
-    client, admin_token, project_id, sample_id = action_context
+async def test_permission_matrix(project_setup, action_name, role):
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
+    sample_id = project_setup["sample_id"]
     action = ACTIONS[action_name]
 
     token = await _get_role_token(client, admin_token, project_id, role)

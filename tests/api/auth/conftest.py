@@ -102,3 +102,50 @@ async def auth_setup(tmp_path):
         }
 
     await db.client.close()
+
+
+async def create_project(
+    client: AsyncClient, token: str, name: str = "test_project"
+) -> str:
+    """Create a project as the given token; return the project_id."""
+    resp = await client.post(
+        "/projects",
+        json={
+            "name": name,
+            "task": "time-series",
+            "query_strategy": "sequential",
+            "data_loader": "tabular",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200, resp.text
+    return resp.json()["_id"]
+
+
+async def create_project_and_sample(
+    client: AsyncClient, token: str, name: str = "test_project"
+) -> tuple[str, str]:
+    """Create a project then add one sample; return (project_id, sample_id)."""
+    project_id = await create_project(client, token, name=name)
+    sample_resp = await client.post(
+        f"/projects/{project_id}/samples",
+        json=[{"shot_id": 1, "data": {"file_name": "t.csv", "type": "csv"}}],
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert sample_resp.status_code == 200, sample_resp.text
+    sample_id = sample_resp.json()[0]
+    return project_id, sample_id
+
+
+@pytest_asyncio.fixture(scope="function")
+async def project_setup(auth_setup):
+    """auth_setup, plus an admin-created project with one sample."""
+    client = auth_setup["client"]
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
+    project_id, sample_id = await create_project_and_sample(client, admin_token)
+    return {
+        **auth_setup,
+        "admin_token": admin_token,
+        "project_id": project_id,
+        "sample_id": sample_id,
+    }

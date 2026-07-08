@@ -10,39 +10,8 @@ Key invariants under test:
 """
 
 import pytest
-import pytest_asyncio
 
 from tests.api.auth.conftest import get_auth_token
-
-
-async def create_project_and_sample(client, token):
-    """Create a project then add one sample; return (project_id, sample_id)."""
-    proj_resp = await client.post(
-        "/projects",
-        json={
-            "name": "concurrency_test",
-            "task": "time-series",
-            "query_strategy": "sequential",
-            "data_loader": "tabular",
-        },
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert proj_resp.status_code == 200, proj_resp.text
-    project_id = proj_resp.json()["_id"]
-
-    sample_resp = await client.post(
-        f"/projects/{project_id}/samples",
-        json=[
-            {
-                "shot_id": 42,
-                "data": {"file_name": "test.csv", "type": "csv"},
-            }
-        ],
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert sample_resp.status_code == 200, sample_resp.text
-    sample_id = sample_resp.json()[0]
-    return project_id, sample_id
 
 
 def annotation_payload(label: str):
@@ -74,20 +43,6 @@ async def get_annotations(client, project_id, sample_id, token):
     )
     assert resp.status_code == 200, resp.text
     return resp.json()
-
-
-@pytest_asyncio.fixture
-async def project_setup(auth_setup):
-    """auth_setup, plus an admin-created project with one sample."""
-    client = auth_setup["client"]
-    admin_token = await get_auth_token(client, "admin", "admin_pass")
-    project_id, sample_id = await create_project_and_sample(client, admin_token)
-    return {
-        **auth_setup,
-        "admin_token": admin_token,
-        "project_id": project_id,
-        "sample_id": sample_id,
-    }
 
 
 @pytest.mark.asyncio

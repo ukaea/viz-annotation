@@ -5,21 +5,6 @@ import pytest
 from tests.api.auth.conftest import get_auth_token
 
 
-async def create_project(client, token):
-    resp = await client.post(
-        "/projects",
-        json={
-            "name": "test_project",
-            "task": "time-series",
-            "query_strategy": "sequential",
-            "data_loader": "tabular",
-        },
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert resp.status_code == 200, resp.text
-    return resp.json()["_id"]
-
-
 @pytest.mark.asyncio
 async def test_list_users_as_admin(auth_setup):
     client = auth_setup["client"]
@@ -170,10 +155,10 @@ async def test_delete_user_as_admin(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_add_and_list_project_members(auth_setup):
-    client = auth_setup["client"]
-    admin_token = await get_auth_token(client, "admin", "admin_pass")
-    project_id = await create_project(client, admin_token)
+async def test_add_and_list_project_members(project_setup):
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
 
     # Add alice as annotator (uses username, not user_id)
     resp = await client.post(
@@ -195,11 +180,10 @@ async def test_add_and_list_project_members(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_add_member_non_admin_forbidden(auth_setup):
-    client = auth_setup["client"]
-    admin_token = await get_auth_token(client, "admin", "admin_pass")
+async def test_add_member_non_admin_forbidden(project_setup):
+    client = project_setup["client"]
+    project_id = project_setup["project_id"]
     alice_token = await get_auth_token(client, "alice", "alice_pass")
-    project_id = await create_project(client, admin_token)
 
     resp = await client.post(
         f"/projects/{project_id}/members",
@@ -210,11 +194,11 @@ async def test_add_member_non_admin_forbidden(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_update_member_show_others_annotations(auth_setup):
-    client = auth_setup["client"]
-    admin_token = await get_auth_token(client, "admin", "admin_pass")
+async def test_update_member_show_others_annotations(project_setup):
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
     alice_token = await get_auth_token(client, "alice", "alice_pass")
-    project_id = await create_project(client, admin_token)
 
     # Add alice as annotator (uses username, not user_id)
     await client.post(
@@ -225,7 +209,7 @@ async def test_update_member_show_others_annotations(auth_setup):
 
     # Alice updates her own show_others_annotations preference
     resp = await client.put(
-        f"/projects/{project_id}/members/{auth_setup['alice_id']}",
+        f"/projects/{project_id}/members/{project_setup['alice_id']}",
         json={"show_others_annotations": False},
         headers={"Authorization": f"Bearer {alice_token}"},
     )
@@ -241,10 +225,10 @@ async def test_update_member_show_others_annotations(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_remove_project_member(auth_setup):
-    client = auth_setup["client"]
-    admin_token = await get_auth_token(client, "admin", "admin_pass")
-    project_id = await create_project(client, admin_token)
+async def test_remove_project_member(project_setup):
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
 
     await client.post(
         f"/projects/{project_id}/members",
@@ -253,7 +237,7 @@ async def test_remove_project_member(auth_setup):
     )
 
     del_resp = await client.delete(
-        f"/projects/{project_id}/members/{auth_setup['alice_id']}",
+        f"/projects/{project_id}/members/{project_setup['alice_id']}",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert del_resp.status_code == 200

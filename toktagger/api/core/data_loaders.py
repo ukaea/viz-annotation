@@ -414,6 +414,9 @@ class UDACameraDataLoader(DataLoader):
             if params.frame is None:
                 params.frame = 0  # Default to first frame if not specified
 
+            print(
+                f"Loading image signal '{signal_name}' for shot ID '{sample.shot_id}' at frame {params.frame}..."
+            )
             signal = xr.open_dataset(
                 f"uda://{signal_name}:{sample.shot_id}",
                 engine="uda",
@@ -422,6 +425,26 @@ class UDACameraDataLoader(DataLoader):
 
             image_array = signal["data"].values
             image_array = np.squeeze(image_array)
+
+            # Ensure at least 2D for Pillow (squeeze can reduce to 0D or 1D for tiny images)
+            if image_array.ndim == 0:
+                image_array = image_array.reshape(1, 1)
+            elif image_array.ndim == 1:
+                if image_array.shape[0] in (3, 4):
+                    image_array = image_array.reshape(1, 1, -1)  # single pixel RGB/RGBA
+                else:
+                    image_array = image_array.reshape(-1, 1)  # 1D grayscale strip
+
+            # Convert uint16 to uint8 for Pillow compatibility (Pillow doesn't support u2)
+            if image_array.dtype == np.uint16:
+                if np.any(image_array > 255):
+                    val_range = image_array.max() - image_array.min()
+                    image_array = image_array - image_array.min()
+                    if val_range:
+                        image_array = image_array / val_range
+                    image_array = (image_array * 255).astype(np.uint8)
+                else:
+                    image_array = image_array.astype(np.uint8)
 
             im = Image.fromarray(image_array)
             buffer = io.BytesIO()

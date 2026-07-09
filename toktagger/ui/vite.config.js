@@ -1,9 +1,19 @@
 import { defineConfig } from "vite";
 import path from "path";
 import react from "@vitejs/plugin-react";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    svelte({
+      compilerOptions: {
+        compatibility: {
+          componentApi: 4,
+        },
+      },
+    }),
+    react(),
+  ],
   publicDir: "public",
   build: {
     outDir: path.resolve(__dirname, "../api/static"),

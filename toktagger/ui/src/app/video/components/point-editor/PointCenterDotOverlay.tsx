@@ -22,10 +22,13 @@ type ScreenPoint = {
   id: string;
   imageX: number;
   imageY: number;
+  selected: boolean;
 };
 
 const RING_RADIUS_PX = 9;
 const DOT_RADIUS_PX = 2.25;
+const POINT_RING_STROKE = "#ffffff";
+const SELECTED_POINT_RING_STROKE = "#38bdf8";
 
 export function PointCenterDotOverlay(props: {
   api: AnnotoriousOpenSeadragonAnnotator | undefined;
@@ -41,20 +44,24 @@ export function PointCenterDotOverlay(props: {
     hidden,
     skipSelectedEditable = false,
   } = props;
-  const svgRef = useRef<SVGSVGElement | null>(null);
   const markerRefs = useRef(new Map<string, SVGGElement>());
+
+  const selectedAnnotationIds = useMemo(
+    () =>
+      new Set(
+        selectedAnnotations
+          .map((annotation) =>
+            annotation.id == null ? null : String(annotation.id),
+          )
+          .filter((id): id is string => id !== null),
+      ),
+    [selectedAnnotations],
+  );
 
   const skippedAnnotationIds = useMemo(() => {
     if (!skipSelectedEditable) return new Set<string>();
-
-    return new Set(
-      selectedAnnotations
-        .map((annotation) =>
-          annotation.id == null ? null : String(annotation.id),
-        )
-        .filter((id): id is string => id !== null),
-    );
-  }, [selectedAnnotations, skipSelectedEditable]);
+    return selectedAnnotationIds;
+  }, [selectedAnnotationIds, skipSelectedEditable]);
 
   const points = useMemo<ScreenPoint[]>(() => {
     if (hidden || !api?.viewer) return [];
@@ -93,10 +100,20 @@ export function PointCenterDotOverlay(props: {
           id: String(annotation.id ?? `${geometry.x}-${geometry.y}`),
           imageX: geometry.x,
           imageY: geometry.y,
+          selected:
+            annotation.id != null &&
+            selectedAnnotationIds.has(String(annotation.id)),
         },
       ];
     });
-  }, [api, annotations, hidden, selectedAnnotations, skippedAnnotationIds]);
+  }, [
+    api,
+    annotations,
+    hidden,
+    selectedAnnotations,
+    selectedAnnotationIds,
+    skippedAnnotationIds,
+  ]);
 
   const updateMarkerPositions = useCallback(() => {
     const viewer = api?.viewer;
@@ -143,7 +160,6 @@ export function PointCenterDotOverlay(props: {
 
   return (
     <svg
-      ref={svgRef}
       className="pointer-events-none absolute inset-0 z-10 h-full w-full"
       width="100%"
       height="100%"
@@ -161,10 +177,16 @@ export function PointCenterDotOverlay(props: {
           }}
         >
           <circle
-            r={RING_RADIUS_PX}
-            fill="rgba(255, 255, 255, 0.12)"
-            stroke="#ffffff"
-            strokeWidth={2}
+            r={point.selected ? RING_RADIUS_PX + 2 : RING_RADIUS_PX}
+            fill={
+              point.selected
+                ? "rgba(56, 189, 248, 0.18)"
+                : "rgba(255, 255, 255, 0.12)"
+            }
+            stroke={
+              point.selected ? SELECTED_POINT_RING_STROKE : POINT_RING_STROKE
+            }
+            strokeWidth={point.selected ? 2.5 : 2}
           />
           <circle
             r={DOT_RADIUS_PX}

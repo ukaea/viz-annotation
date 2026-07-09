@@ -17,6 +17,7 @@
   const dispatch = createEventDispatcher<PointEditorEvents>();
   const RING_RADIUS_PX = 9;
   const DOT_RADIUS_PX = 2.25;
+  const SELECTED_RING_RADIUS_PX = RING_RADIUS_PX + 2;
 
   let grabbedPointerId: number | null = null;
   let origin: [number, number] | null = null;
@@ -25,10 +26,10 @@
 
   $: geom = shape.geometry;
   $: scale = Math.max(Number(viewportScale) || 1, 0.0001);
-  $: ringRadius = RING_RADIUS_PX / scale;
+  $: ringRadius = SELECTED_RING_RADIUS_PX / scale;
   $: markerRadius = DOT_RADIUS_PX / scale;
-  $: hitRx = Math.max(ringRadius, 8 / scale);
-  $: hitRy = Math.max(ringRadius, 8 / scale);
+  $: hitRx = ringRadius;
+  $: hitRy = ringRadius;
 
   const eventToImagePoint = (evt: PointerEvent): [number, number] => {
     if (svgEl) {
@@ -153,10 +154,10 @@
   }
 
   .point-marker-ring {
-    fill: rgba(255, 255, 255, 0.12);
+    fill: rgba(56, 189, 248, 0.18);
     pointer-events: all;
-    stroke: #fff;
-    stroke-width: 2px;
+    stroke: #38bdf8;
+    stroke-width: 2.5px;
     vector-effect: non-scaling-stroke;
   }
 

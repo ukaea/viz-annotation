@@ -20,8 +20,10 @@ import { Item, Menu, Submenu, useContextMenu } from "react-contexify";
 import { useVideoSession } from "@/app/video/components/video-session";
 import { useSample } from "@/app/contexts/SampleContext";
 import { useVideoUiState } from "@/app/video/components/video-context";
-import { registerPointEditor } from "@/app/video/components/point-editor";
-import { PointCenterDotOverlay } from "@/app/video/components/point-editor/PointCenterDotOverlay";
+import {
+  PointCenterDotOverlay,
+  registerPointEditor,
+} from "@/app/video/components/point-editor";
 import {
   getLabelTrack,
   isPointAnno,
@@ -635,10 +637,11 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
           autoSave
           style={(annotation: ImageAnnotation, state?: AnnotationState) =>
             isPointAnno(annotation)
-              ? {
+              ? // Point visuals are drawn by PointCenterDotOverlay. The native
+                // ellipse remains as the Annotorious geometry and hit target.
+                {
                   fillOpacity: 0,
                   strokeOpacity: 0,
-                  strokeWidth: 0,
                 }
               : {
                   strokeWidth: state?.selected ? 3 : 2,
@@ -695,7 +698,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
           annotations={frameAnnotations}
           selectedAnnotations={selectedAnnotations}
           hidden={hideAnnotations}
-          skipSelectedEditable={!panMode}
+          isEditMode={!panMode}
         />
 
         <Menu

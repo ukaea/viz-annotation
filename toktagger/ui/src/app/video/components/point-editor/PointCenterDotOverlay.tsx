@@ -13,96 +13,69 @@ import type {
   ImageAnnotation,
 } from "@annotorious/react";
 
-import {
-  isPointAnno,
-  readPointGeometry,
-} from "@/app/video/components/anno-utils";
+import { readPointGeometry } from "@/app/video/components/anno-utils";
+import { POINT_MARKER } from "./marker-style";
 
-type ScreenPoint = {
+/** A point marker stored in image coordinates and projected on viewport updates. */
+type MarkerPoint = {
   id: string;
   imageX: number;
   imageY: number;
   selected: boolean;
 };
 
-const RING_RADIUS_PX = 9;
-const DOT_RADIUS_PX = 2.25;
-const POINT_RING_STROKE = "#ffffff";
-const SELECTED_POINT_RING_STROKE = "#38bdf8";
-
 export function PointCenterDotOverlay(props: {
   api: AnnotoriousOpenSeadragonAnnotator | undefined;
   annotations: ImageAnnotation[];
   selectedAnnotations?: ImageAnnotation[];
   hidden: boolean;
-  skipSelectedEditable?: boolean;
+  isEditMode: boolean;
 }) {
   const {
     api,
     annotations,
     selectedAnnotations = [],
     hidden,
-    skipSelectedEditable = false,
+    isEditMode,
   } = props;
   const markerRefs = useRef(new Map<string, SVGGElement>());
+  const pointsRef = useRef<MarkerPoint[]>([]);
 
   const selectedAnnotationIds = useMemo(
-    () =>
-      new Set(
-        selectedAnnotations
-          .map((annotation) =>
-            annotation.id == null ? null : String(annotation.id),
-          )
-          .filter((id): id is string => id !== null),
-      ),
+    () => new Set(selectedAnnotations.map((annotation) => annotation.id)),
     [selectedAnnotations],
   );
 
   const skippedAnnotationIds = useMemo(() => {
-    if (!skipSelectedEditable) return new Set<string>();
+    // In edit mode, PointEditor.svelte draws the selected annotation so it can
+    // track live drag geometry without a duplicated overlay marker.
+    if (!isEditMode) return new Set<string>();
     return selectedAnnotationIds;
-  }, [selectedAnnotationIds, skipSelectedEditable]);
+  }, [isEditMode, selectedAnnotationIds]);
 
-  const points = useMemo<ScreenPoint[]>(() => {
+  const points = useMemo<MarkerPoint[]>(() => {
     if (hidden || !api?.viewer) return [];
 
     const annotationsById = new Map<string, ImageAnnotation>();
 
-    for (const annotation of annotations) {
-      annotationsById.set(
-        String(annotation.id ?? annotationsById.size),
-        annotation,
-      );
-    }
-
-    for (const annotation of selectedAnnotations) {
-      annotationsById.set(
-        String(annotation.id ?? annotationsById.size),
-        annotation,
-      );
+    // Selected annotations can carry fresher geometry than the session store
+    // while editing, so they intentionally overwrite frame-list entries.
+    for (const annotation of [...annotations, ...selectedAnnotations]) {
+      annotationsById.set(annotation.id, annotation);
     }
 
     return [...annotationsById.values()].flatMap((annotation) => {
-      if (
-        annotation.id != null &&
-        skippedAnnotationIds.has(String(annotation.id))
-      ) {
-        return [];
-      }
-
-      if (!isPointAnno(annotation)) return [];
+      if (skippedAnnotationIds.has(annotation.id)) return [];
 
       const geometry = readPointGeometry(annotation);
       if (!geometry) return [];
 
       return [
         {
-          id: String(annotation.id ?? `${geometry.x}-${geometry.y}`),
+          id: annotation.id,
           imageX: geometry.x,
           imageY: geometry.y,
-          selected:
-            annotation.id != null &&
-            selectedAnnotationIds.has(String(annotation.id)),
+          selected: selectedAnnotationIds.has(annotation.id),
         },
       ];
     });
@@ -114,12 +87,13 @@ export function PointCenterDotOverlay(props: {
     selectedAnnotationIds,
     skippedAnnotationIds,
   ]);
+  pointsRef.current = points;
 
   const updateMarkerPositions = useCallback(() => {
     const viewer = api?.viewer;
     if (!viewer) return;
 
-    for (const point of points) {
+    for (const point of pointsRef.current) {
       const marker = markerRefs.current.get(point.id);
       if (!marker) continue;
 
@@ -132,11 +106,11 @@ export function PointCenterDotOverlay(props: {
         `translate(${screenPoint.x} ${screenPoint.y})`,
       );
     }
-  }, [api, points]);
+  }, [api]);
 
   useLayoutEffect(() => {
     updateMarkerPositions();
-  }, [updateMarkerPositions]);
+  }, [points, updateMarkerPositions]);
 
   useEffect(() => {
     const viewer = api?.viewer;
@@ -177,22 +151,32 @@ export function PointCenterDotOverlay(props: {
           }}
         >
           <circle
-            r={point.selected ? RING_RADIUS_PX + 2 : RING_RADIUS_PX}
+            r={
+              point.selected
+                ? POINT_MARKER.selectedRingRadiusPx
+                : POINT_MARKER.ringRadiusPx
+            }
             fill={
               point.selected
-                ? "rgba(56, 189, 248, 0.18)"
-                : "rgba(255, 255, 255, 0.12)"
+                ? POINT_MARKER.selectedRingFill
+                : POINT_MARKER.ringFill
             }
             stroke={
-              point.selected ? SELECTED_POINT_RING_STROKE : POINT_RING_STROKE
+              point.selected
+                ? POINT_MARKER.selectedRingStroke
+                : POINT_MARKER.ringStroke
             }
-            strokeWidth={point.selected ? 2.5 : 2}
+            strokeWidth={
+              point.selected
+                ? POINT_MARKER.selectedRingStrokePx
+                : POINT_MARKER.ringStrokePx
+            }
           />
           <circle
-            r={DOT_RADIUS_PX}
-            fill="#ffffff"
-            stroke="rgba(0, 0, 0, 0.9)"
-            strokeWidth={1.1}
+            r={POINT_MARKER.dotRadiusPx}
+            fill={POINT_MARKER.dotFill}
+            stroke={POINT_MARKER.dotStroke}
+            strokeWidth={POINT_MARKER.dotStrokePx}
           />
         </g>
       ))}

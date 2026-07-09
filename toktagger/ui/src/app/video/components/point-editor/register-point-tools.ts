@@ -2,19 +2,33 @@ import {
   ShapeType,
   type AnnotoriousOpenSeadragonAnnotator,
 } from "@annotorious/react";
-import type { ComponentConstructorOptions, SvelteComponent } from "svelte";
+import type { Ellipse, Transform } from "@annotorious/annotorious";
+import type { SvelteComponent } from "svelte";
 import { asClassComponent } from "svelte/legacy";
 
 import PointEditor from "./PointEditor.svelte";
 
-type PointEditorComponentOptions = ComponentConstructorOptions<
-  Record<string, unknown>
->;
+/** Props Annotorious pushes into a registered shape editor. */
+interface PointEditorProps {
+  shape: Ellipse;
+  computedStyle?: string;
+  transform: Transform;
+  viewportScale: number;
+  svgEl?: SVGSVGElement;
+}
+
+interface PointEditorComponentOptions {
+  target: Element;
+  props: PointEditorProps;
+}
 
 type PointEditorComponentInstance = SvelteComponent & {
-  $$set: (props: Record<string, unknown>) => void;
+  $set: (props: Partial<PointEditorProps>) => void;
+  $$set: (props: Partial<PointEditorProps>) => void;
 };
 
+// Annotorious still instantiates shape editors with the Svelte 4 class API.
+// Keep this legacy bridge until the adapter is rewritten with Svelte 5 mount().
 const LegacyPointEditor = asClassComponent(PointEditor) as new (
   options: PointEditorComponentOptions,
 ) => PointEditorComponentInstance;
@@ -22,7 +36,10 @@ const LegacyPointEditor = asClassComponent(PointEditor) as new (
 class PointEditorComponent extends LegacyPointEditor {
   constructor(options: PointEditorComponentOptions) {
     super(options);
-    this.$$set = (props: Record<string, unknown>) => this.$set(props);
+    // Annotorious calls `$$set` directly after editor "change" events
+    // (`u.$$set({ shape: d.detail })`). asClassComponent provides `$set`, but
+    // not `$$set`; removing this breaks point dragging.
+    this.$$set = (props: Partial<PointEditorProps>) => this.$set(props);
   }
 }
 
@@ -31,6 +48,10 @@ export function registerPointEditor(
 ) {
   api.registerShapeEditor(
     ShapeType.ELLIPSE,
-    PointEditorComponent as typeof SvelteComponent,
+    // registerShapeEditor is typed for a Svelte 4 component constructor. This
+    // adapter implements the required new/$set/$$set/$on/$destroy contract.
+    PointEditorComponent as unknown as Parameters<
+      typeof api.registerShapeEditor
+    >[1],
   );
 }

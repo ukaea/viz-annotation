@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import type { Ellipse, Transform } from "@annotorious/annotorious";
+  import { POINT_MARKER } from "./marker-style";
 
   type PointEditorEvents = {
     change: Ellipse;
@@ -9,15 +10,14 @@
   };
 
   export let shape: Ellipse;
+  // Annotorious pushes this prop to registered editors. Point marker styling is
+  // intentionally fixed here so it matches PointCenterDotOverlay exactly.
   export let computedStyle: string | undefined;
   export let transform: Transform;
   export let viewportScale = 1;
   export let svgEl: SVGSVGElement | undefined;
 
   const dispatch = createEventDispatcher<PointEditorEvents>();
-  const RING_RADIUS_PX = 9;
-  const DOT_RADIUS_PX = 2.25;
-  const SELECTED_RING_RADIUS_PX = RING_RADIUS_PX + 2;
 
   let grabbedPointerId: number | null = null;
   let origin: [number, number] | null = null;
@@ -26,8 +26,8 @@
 
   $: geom = shape.geometry;
   $: scale = Math.max(Number(viewportScale) || 1, 0.0001);
-  $: ringRadius = SELECTED_RING_RADIUS_PX / scale;
-  $: markerRadius = DOT_RADIUS_PX / scale;
+  $: ringRadius = POINT_MARKER.selectedRingRadiusPx / scale;
+  $: markerRadius = POINT_MARKER.dotRadiusPx / scale;
   $: hitRx = ringRadius;
   $: hitRy = ringRadius;
 
@@ -135,6 +135,9 @@
     cy={geom.cy}
     rx={ringRadius}
     ry={ringRadius}
+    fill={POINT_MARKER.selectedRingFill}
+    stroke={POINT_MARKER.selectedRingStroke}
+    stroke-width={POINT_MARKER.selectedRingStrokePx}
   />
 
   <circle
@@ -142,6 +145,9 @@
     cx={geom.cx}
     cy={geom.cy}
     r={markerRadius}
+    fill={POINT_MARKER.dotFill}
+    stroke={POINT_MARKER.dotStroke}
+    stroke-width={POINT_MARKER.dotStrokePx}
   />
 </g>
 
@@ -154,21 +160,12 @@
   }
 
   .point-marker-ring {
-    fill: rgba(56, 189, 248, 0.18);
     pointer-events: all;
-    stroke: #38bdf8;
-    stroke-width: 2.5px;
     vector-effect: non-scaling-stroke;
   }
 
   .point-center-dot {
     pointer-events: none;
     vector-effect: non-scaling-stroke;
-  }
-
-  .point-center-dot {
-    fill: #fff;
-    stroke: rgba(0, 0, 0, 0.9);
-    stroke-width: 1.25px;
   }
 </style>

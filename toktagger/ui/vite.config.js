@@ -6,6 +6,8 @@ import { svelte } from "@sveltejs/vite-plugin-svelte";
 export default defineConfig({
   plugins: [
     svelte({
+      // Annotorious's editor host still instantiates registered shape editors
+      // with the Svelte 4 class API. See point-editor/register-point-tools.ts.
       compilerOptions: {
         compatibility: {
           componentApi: 4,

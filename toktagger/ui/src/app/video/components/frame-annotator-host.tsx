@@ -633,9 +633,17 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
           drawingEnabled={annotoriousDrawingEnabled}
           drawingMode="drag"
           autoSave
-          style={(_annotation: ImageAnnotation, state?: AnnotationState) => ({
-            strokeWidth: state?.selected ? 3 : 2,
-          })}
+          style={(annotation: ImageAnnotation, state?: AnnotationState) =>
+            isPointAnno(annotation)
+              ? {
+                  fillOpacity: 0,
+                  strokeOpacity: 0,
+                  strokeWidth: 0,
+                }
+              : {
+                  strokeWidth: state?.selected ? 3 : 2,
+                }
+          }
         >
           <OpenSeadragonViewer
             className="h-full w-full select-none"
@@ -687,6 +695,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
           annotations={frameAnnotations}
           selectedAnnotations={selectedAnnotations}
           hidden={hideAnnotations}
+          skipSelectedEditable={!panMode}
         />
 
         <Menu

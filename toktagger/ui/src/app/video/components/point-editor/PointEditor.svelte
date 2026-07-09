@@ -15,9 +15,8 @@
   export let svgEl: SVGSVGElement | undefined;
 
   const dispatch = createEventDispatcher<PointEditorEvents>();
-  const maskId = `point-editor-mask-${Math.random()
-    .toString(36)
-    .substring(2, 12)}`;
+  const RING_RADIUS_PX = 9;
+  const DOT_RADIUS_PX = 2.25;
 
   let grabbedPointerId: number | null = null;
   let origin: [number, number] | null = null;
@@ -26,16 +25,10 @@
 
   $: geom = shape.geometry;
   $: scale = Math.max(Number(viewportScale) || 1, 0.0001);
-  $: hitRx = Math.max(geom.rx, 8 / scale);
-  $: hitRy = Math.max(geom.ry, 8 / scale);
-  $: markerRadius = 2.4 / scale;
-  $: maskPadding = 2 / scale;
-  $: mask = {
-    x: geom.bounds.minX - maskPadding,
-    y: geom.bounds.minY - maskPadding,
-    w: geom.bounds.maxX - geom.bounds.minX + 2 * maskPadding,
-    h: geom.bounds.maxY - geom.bounds.minY + 2 * maskPadding,
-  };
+  $: ringRadius = RING_RADIUS_PX / scale;
+  $: markerRadius = DOT_RADIUS_PX / scale;
+  $: hitRx = Math.max(ringRadius, 8 / scale);
+  $: hitRy = Math.max(ringRadius, 8 / scale);
 
   const eventToImagePoint = (evt: PointerEvent): [number, number] => {
     if (svgEl) {
@@ -123,13 +116,6 @@
   on:pointerup={releaseShape}
   on:pointercancel={releaseShape}
 >
-  <defs>
-    <mask id={maskId} class="point-editor-mask">
-      <rect x={mask.x} y={mask.y} width={mask.w} height={mask.h} />
-      <ellipse cx={geom.cx} cy={geom.cy} rx={geom.rx} ry={geom.ry} />
-    </mask>
-  </defs>
-
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <ellipse
     class="point-hit-target a9s-shape-handle"
@@ -142,24 +128,12 @@
 
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <ellipse
-    class="a9s-outer"
-    mask={`url(#${maskId})`}
+    class="point-marker-ring a9s-shape-handle"
     on:pointerdown={grabShape}
     cx={geom.cx}
     cy={geom.cy}
-    rx={geom.rx}
-    ry={geom.ry}
-  />
-
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <ellipse
-    class="a9s-inner a9s-shape-handle"
-    style={computedStyle}
-    on:pointerdown={grabShape}
-    cx={geom.cx}
-    cy={geom.cy}
-    rx={geom.rx}
-    ry={geom.ry}
+    rx={ringRadius}
+    ry={ringRadius}
   />
 
   <circle
@@ -171,19 +145,19 @@
 </g>
 
 <style>
-  mask.point-editor-mask > rect {
-    fill: #fff;
-  }
-
-  mask.point-editor-mask > ellipse {
-    fill: #000;
-  }
-
   .point-hit-target {
     fill: transparent;
     pointer-events: all;
     stroke: transparent;
     stroke-width: 0;
+  }
+
+  .point-marker-ring {
+    fill: rgba(255, 255, 255, 0.12);
+    pointer-events: all;
+    stroke: #fff;
+    stroke-width: 2px;
+    vector-effect: non-scaling-stroke;
   }
 
   .point-center-dot {

@@ -458,10 +458,17 @@ class ActorRegistry:
         return ray.get(self.tasks[task_id])
 
     def cancel(self, task_id: str) -> None:
-        """Cancel a registered task, if it exists."""
+        """Cancel a registered task, if it exists.
+
+        force=True: a cooperative cancel only raises an exception at the task's
+        next bytecode instruction, which never arrives for a task blocked in a
+        C-level call (e.g. time.sleep, as used by the test suite's long-running
+        pending task) - the task keeps its worker/CPU slot indefinitely instead
+        of being freed for reuse. Forcing the exit kills the worker outright.
+        """
         task_ref = self.tasks.get(task_id)
         if task_ref is not None:
-            ray.cancel(task_ref)
+            ray.cancel(task_ref, force=True)
 
     def update_actors(self, actor_name: str, use_gpu: bool) -> None:
         """Record that a Ray Actor has been accessed, and kill any stale Actors.

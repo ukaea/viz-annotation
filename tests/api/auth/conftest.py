@@ -59,7 +59,7 @@ async def api_client():
 
 
 @pytest_asyncio.fixture(scope="function")
-async def auth_setup(tmp_path):
+async def auth_setup(tmp_path, monkeypatch):
     """Auth-aware fixture with three pre-seeded users.
 
     Yields a dict with:
@@ -67,7 +67,14 @@ async def auth_setup(tmp_path):
       - admin_id, alice_id, bob_id: inserted user IDs
 
     Use get_auth_token(client, username, password) to obtain JWT tokens.
+
+    Self-isolates the auth cache dir (see _isolate_auth_cache) so it also
+    works when imported into conftests outside this directory, where that
+    autouse fixture isn't in effect.
     """
+    monkeypatch.setattr(config.settings.server, "cache_dir", tmp_path)
+    monkeypatch.setattr(auth_core, "_serializer", None)
+
     db = MongoDBClient("default", "annotate_db", cache_dir=str(tmp_path))
 
     server = Server()

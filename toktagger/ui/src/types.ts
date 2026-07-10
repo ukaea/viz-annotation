@@ -35,18 +35,22 @@ export type ClassLabel = z.infer<typeof ClassLabelSchema>;
 
 export const BoundingBoxSchema = BaseAnnotationSchema.extend({
   type: z.literal("bounding_box"),
-  height: z.number().int(),
-  width: z.number().int(),
-  x_min: z.number().int(),
-  y_min: z.number().int(),
+  height: z.number(),
+  width: z.number(),
+  x_min: z.number(),
+  y_min: z.number(),
 });
 
 export type BoundingBox = z.infer<typeof BoundingBoxSchema>;
 
-export const VideoBoundingBoxSchema = BoundingBoxSchema.extend({
+export const VideoBoundingBoxSchema = BaseAnnotationSchema.extend({
   type: z.literal("video_bounding_box"),
   frame: z.number().int(),
   track_id: z.string(), // force string
+  height: z.number().int(),
+  width: z.number().int(),
+  x_min: z.number().int(),
+  y_min: z.number().int(),
 });
 
 export type VideoBoundingBox = z.infer<typeof VideoBoundingBoxSchema>;
@@ -317,6 +321,7 @@ export enum ToolingTypes {
 export enum TimeSeriesAnnotationType {
   TIME_POINT = "TIME POINT",
   TIME_REGION = "TIME REGION",
+  BOUNDING_BOX = "BOUNDING BOX",
 }
 
 export type TimeSeriesToolDefinition = {

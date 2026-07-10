@@ -64,6 +64,13 @@ export const AnnotationsTable = () => {
           });
           data = `${points[0]} - ${points[1]}`;
           break;
+        case TimeSeriesAnnotationType.BOUNDING_BOX:
+          marker = {
+            width: "size-75",
+            height: "size-250",
+          };
+          data = `${annotation.points[0].x.toFixed(4)}`;
+          break;
         default:
           console.warn(
             `Could not parse data for ${annotation.type} when adding to table`,

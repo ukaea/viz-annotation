@@ -44,16 +44,20 @@ class TimeRegion(AnnotationBase):
 
 class BoundingBox(AnnotationBase):
     type: Literal["bounding_box"] = "bounding_box"
+    height: float
+    width: float
+    x_min: float
+    y_min: float
+
+
+class VideoBoundingBox(AnnotationBase):
+    type: Literal["video_bounding_box"] = "video_bounding_box"
+    frame: int
+    track_id: str
     height: int
     width: int
     x_min: int
     y_min: int
-
-
-class VideoBoundingBox(BoundingBox):
-    type: Literal["video_bounding_box"] = "video_bounding_box"
-    frame: int
-    track_id: str
 
 
 class VideoPolygon(AnnotationBase):

@@ -28,3 +28,14 @@ password=<your-password>
 
 ## FAIR MAST
 This data loader access data from the [FAIR MAST](https://mastapp.site) project.
+
+## Image
+This data loader will load PNG or JPEG image files stored locally on your computer. For each sample, it expects a directory named after the sample's shot ID, which contains a series of image files named `<frame_number>.<png/jpeg>`.
+
+## Image Array
+This data loader will load Numpy files (`.npy` / `.npz`) and display them as images. It expects a set of numpy files named `<shot_id>.<npy/npz>`, and each file should either contain:
+
+* A 3D array, with dimensions of: frame x height x width, or
+* A 4D array, with dimensions of: frame x height x width x RGB
+
+Values will be linearly scaled to be between 1-255 if required. If using a `.npz` file containing more than one named array, you should specify a `signal_name` which is the name of the array to use.

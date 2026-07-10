@@ -4,18 +4,7 @@ import react from "@vitejs/plugin-react";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 
 export default defineConfig({
-  plugins: [
-    svelte({
-      // Annotorious's editor host still instantiates registered shape editors
-      // with the Svelte 4 class API. See point-editor/register-point-tools.ts.
-      compilerOptions: {
-        compatibility: {
-          componentApi: 4,
-        },
-      },
-    }),
-    react(),
-  ],
+  plugins: [svelte(), react()],
   publicDir: "public",
   build: {
     outDir: path.resolve(__dirname, "../api/static"),

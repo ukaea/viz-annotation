@@ -1,35 +1,39 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
   import type { Ellipse, Transform } from "@annotorious/annotorious";
   import { POINT_MARKER } from "./marker-style";
 
-  type PointEditorEvents = {
-    change: Ellipse;
-    grab: PointerEvent;
-    release: PointerEvent;
+  type Props = {
+    shape: Ellipse;
+    // Annotorious pushes this prop to registered editors. Point marker styling
+    // is intentionally fixed here so it matches PointCenterDotOverlay exactly.
+    computedStyle?: string;
+    transform: Transform;
+    viewportScale?: number;
+    svgEl?: SVGSVGElement;
+    onchange?: (shape: Ellipse) => void;
+    ongrab?: (event: PointerEvent) => void;
+    onrelease?: (event: PointerEvent) => void;
   };
 
-  export let shape: Ellipse;
-  // Annotorious pushes this prop to registered editors. Point marker styling is
-  // intentionally fixed here so it matches PointCenterDotOverlay exactly.
-  export let computedStyle: string | undefined;
-  export let transform: Transform;
-  export let viewportScale = 1;
-  export let svgEl: SVGSVGElement | undefined;
-
-  const dispatch = createEventDispatcher<PointEditorEvents>();
+  let {
+    shape,
+    transform,
+    viewportScale = 1,
+    svgEl,
+    onchange,
+    ongrab,
+    onrelease,
+  }: Props = $props();
 
   let grabbedPointerId: number | null = null;
   let origin: [number, number] | null = null;
   let initialShape: Ellipse | null = null;
   let captureTarget: Element | null = null;
 
-  $: geom = shape.geometry;
-  $: scale = Math.max(Number(viewportScale) || 1, 0.0001);
-  $: ringRadius = POINT_MARKER.selectedRingRadiusPx / scale;
-  $: markerRadius = POINT_MARKER.dotRadiusPx / scale;
-  $: hitRx = ringRadius;
-  $: hitRy = ringRadius;
+  const geom = $derived(shape.geometry);
+  const scale = $derived(Math.max(Number(viewportScale) || 1, 0.0001));
+  const ringRadius = $derived(POINT_MARKER.selectedRingRadiusPx / scale);
+  const markerRadius = $derived(POINT_MARKER.dotRadiusPx / scale);
 
   const eventToImagePoint = (evt: PointerEvent): [number, number] => {
     if (svgEl) {
@@ -77,7 +81,7 @@
           : null;
 
     captureTarget?.setPointerCapture(evt.pointerId);
-    dispatch("grab", evt);
+    ongrab?.(evt);
   };
 
   const moveShape = (evt: PointerEvent) => {
@@ -90,8 +94,7 @@
     }
 
     const [x, y] = eventToImagePoint(evt);
-    shape = translateShape(initialShape, x - origin[0], y - origin[1]);
-    dispatch("change", shape);
+    onchange?.(translateShape(initialShape, x - origin[0], y - origin[1]));
   };
 
   const releaseShape = (evt: PointerEvent) => {
@@ -106,31 +109,31 @@
     initialShape = null;
     captureTarget = null;
 
-    dispatch("release", evt);
+    onrelease?.(evt);
   };
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <g
   class="a9s-annotation selected point-editor"
-  on:pointermove={moveShape}
-  on:pointerup={releaseShape}
-  on:pointercancel={releaseShape}
+  onpointermove={moveShape}
+  onpointerup={releaseShape}
+  onpointercancel={releaseShape}
 >
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <ellipse
     class="point-hit-target a9s-shape-handle"
-    on:pointerdown={grabShape}
+    onpointerdown={grabShape}
     cx={geom.cx}
     cy={geom.cy}
-    rx={hitRx}
-    ry={hitRy}
+    rx={ringRadius}
+    ry={ringRadius}
   />
 
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <ellipse
     class="point-marker-ring a9s-shape-handle"
-    on:pointerdown={grabShape}
+    onpointerdown={grabShape}
     cx={geom.cx}
     cy={geom.cy}
     rx={ringRadius}

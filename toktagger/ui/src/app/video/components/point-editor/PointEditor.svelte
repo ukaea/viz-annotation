@@ -103,7 +103,7 @@
 
     grabbedPointerId = null;
     origin = null;
-    initialShape = shape;
+    initialShape = null;
     captureTarget = null;
 
     dispatch("release", evt);
@@ -135,9 +135,9 @@
     cy={geom.cy}
     rx={ringRadius}
     ry={ringRadius}
-    fill={POINT_MARKER.selectedRingFill}
-    stroke={POINT_MARKER.selectedRingStroke}
-    stroke-width={POINT_MARKER.selectedRingStrokePx}
+    style="--ring-fill: {POINT_MARKER.selectedRingFill};
+      --ring-stroke: {POINT_MARKER.selectedRingStroke};
+      --ring-stroke-width: {POINT_MARKER.selectedRingStrokePx}px;"
   />
 
   <circle
@@ -145,9 +145,9 @@
     cx={geom.cx}
     cy={geom.cy}
     r={markerRadius}
-    fill={POINT_MARKER.dotFill}
-    stroke={POINT_MARKER.dotStroke}
-    stroke-width={POINT_MARKER.dotStrokePx}
+    style="--dot-fill: {POINT_MARKER.dotFill};
+      --dot-stroke: {POINT_MARKER.dotStroke};
+      --dot-stroke-width: {POINT_MARKER.dotStrokePx}px;"
   />
 </g>
 
@@ -160,12 +160,20 @@
   }
 
   .point-marker-ring {
+    /* Annotorious makes editor-layer ellipses transparent. Scoped CSS has
+       enough specificity to override it; SVG presentation attributes do not. */
+    fill: var(--ring-fill);
     pointer-events: all;
+    stroke: var(--ring-stroke);
+    stroke-width: var(--ring-stroke-width);
     vector-effect: non-scaling-stroke;
   }
 
   .point-center-dot {
+    fill: var(--dot-fill);
     pointer-events: none;
+    stroke: var(--dot-stroke);
+    stroke-width: var(--dot-stroke-width);
     vector-effect: non-scaling-stroke;
   }
 </style>

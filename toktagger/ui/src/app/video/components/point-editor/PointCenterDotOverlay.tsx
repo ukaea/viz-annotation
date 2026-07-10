@@ -1,6 +1,6 @@
 "use client";
 
-import React, {
+import {
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -87,7 +87,6 @@ export function PointCenterDotOverlay(props: {
     selectedAnnotationIds,
     skippedAnnotationIds,
   ]);
-  pointsRef.current = points;
 
   const updateMarkerPositions = useCallback(() => {
     const viewer = api?.viewer;
@@ -109,6 +108,7 @@ export function PointCenterDotOverlay(props: {
   }, [api]);
 
   useLayoutEffect(() => {
+    pointsRef.current = points;
     updateMarkerPositions();
   }, [points, updateMarkerPositions]);
 

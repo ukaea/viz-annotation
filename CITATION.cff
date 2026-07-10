@@ -33,6 +33,6 @@ authors:
     given-names: "Alejandra"
     orcid: "https://orcid.org/0000-0003-3499-8262"
 title: "TokTagger: An open source tool for labelling and tagging tokamak data."
-version: 0.3.0
-date-released: 2026-06-29
+version: 0.3.1
+date-released: 2026-07-03
 url: "https://github.com/ukaea/toktagger"

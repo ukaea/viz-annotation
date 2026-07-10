@@ -1,5 +1,8 @@
 # Change Log
 
+## [v0.3.1](https://github.com/ukaea/toktagger/releases/tag/v0.3.1) - 2025-07-03
+* Fixed bug related to loading float numpy arrays as images
+
 ## [v0.3.0](https://github.com/ukaea/toktagger/releases/tag/v0.3.0) - 2025-06-29
 * Added support for using GPUs to train / predict ML models
 * Added support for point annotations in video UI

@@ -60,7 +60,7 @@ async def models_api_client(monkeypatch, settings, db_client, ray_session):
     # real inside the TaskRegistry actor - it can't be mocked from this process.
     ray.get(
         app.state.task_registry.register.remote(
-            _pending_task.remote(), task_id="abc123"
+            [_pending_task.remote()], task_id="abc123"
         )
     )
 

@@ -415,13 +415,24 @@ class ActorRegistry:
     def list_actors(self) -> list[str]:
         return list(self.actors.keys())
 
-    def register(self, task_ref: ray.ObjectRef, task_id: str | None = None) -> str:
+    def register(
+        self, task_ref: list[ray.ObjectRef], task_id: str | None = None
+    ) -> str:
         """Store a Ray task reference in the registry and associate with an ID.
 
         Parameters
         ----------
-        task_ref : ray.ObjectRef
-            The reference to the Ray task
+        task_ref : list[ray.ObjectRef]
+            The reference to the Ray task, wrapped in a single-element list.
+
+            The wrapping is essential: Ray resolves any ObjectRef passed as a
+            top-level actor-method argument as a *dependency*, blocking the call
+            until that task finishes (and handing the method the dereferenced
+            value, not the ref). Since a registered task is typically still
+            running - the whole point is to poll it later via is_ready/get_result
+            - a bare ref would hang register.remote() until the task completed.
+            Ray does not recurse into containers, so a ref nested in a list is
+            passed through untouched.
         task_id : str | None
             The ID to store the task under, generated automatically if not given
 
@@ -431,7 +442,7 @@ class ActorRegistry:
             The identifier for this task
         """
         task_id = task_id or str(uuid.uuid4())
-        self.tasks[task_id] = task_ref
+        self.tasks[task_id] = task_ref[0]
         return task_id
 
     def is_ready(self, task_id: str) -> bool | None:

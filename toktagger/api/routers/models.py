@@ -279,7 +279,7 @@ async def start_model_training(
         use_gpu=use_gpu,
     )
 
-    task_id = ray.get(task_registry.register.remote(train_task))
+    task_id = ray.get(task_registry.register.remote([train_task]))
 
     # Associate the task ID with the model in the database
     await utils.update_model(
@@ -430,7 +430,7 @@ async def load_model_weights(
             model=model,
             weights_path=weights_path,
         )
-        task_id = ray.get(task_registry.register.remote(task))
+        task_id = ray.get(task_registry.register.remote([task]))
 
         # Associate the task ID with the model in the database
         await utils.update_model(
@@ -613,7 +613,7 @@ async def predict(
         params=params_validated,
         use_gpu=use_gpu,
     )
-    task_id = ray.get(task_registry.register.remote(predict_task))
+    task_id = ray.get(task_registry.register.remote([predict_task]))
 
     return {"task_id": task_id}
 
@@ -710,7 +710,7 @@ async def create_sample_predictions(
         data_params=data_params,
         use_gpu=use_gpu,
     )
-    task_id = ray.get(task_registry.register.remote(task))
+    task_id = ray.get(task_registry.register.remote([task]))
 
     return {"task_id": task_id}
 

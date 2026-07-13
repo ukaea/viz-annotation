@@ -16,12 +16,14 @@ import {
 import "@annotorious/react/annotorious-react.css";
 import "react-contexify/ReactContexify.css";
 import { Item, Menu, Submenu, useContextMenu } from "react-contexify";
-import { mountPlugin as mountToolsPlugin } from "@annotorious/plugin-tools";
-import "@annotorious/plugin-tools/annotorious-plugin-tools.css";
 
 import { useVideoSession } from "@/app/video/components/video-session";
 import { useSample } from "@/app/contexts/SampleContext";
 import { useVideoUiState } from "@/app/video/components/video-context";
+import {
+  PointCenterDotOverlay,
+  registerPointEditor,
+} from "@/app/video/components/point-editor";
 import {
   getLabelTrack,
   isPointAnno,
@@ -180,6 +182,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
     hideAnnotations,
     createPointAnnotation,
     deleteAnnotation,
+    getFrameList,
   } = useVideoSession();
   const api = useAnnotator<AnnotoriousOpenSeadragonAnnotator>();
   const { show: showCanvasMenu } = useContextMenu({
@@ -188,25 +191,29 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
   const [dismissedPopupAnnotationId, setDismissedPopupAnnotationId] = useState<
     string | null
   >(null);
-  const [isPointAnnotationSelected, setIsPointAnnotationSelected] =
-    useState(false);
+  const [selectedAnnotations, setSelectedAnnotations] = useState<
+    ImageAnnotation[]
+  >([]);
   const shiftDrawActiveRef = useRef(false);
   const classItems = useMemo(
     () => annotationLabels.map((label) => ({ name: label.name })),
     [annotationLabels],
+  );
+  const frameAnnotations = useMemo(
+    () => getFrameList(frame),
+    [frame, getFrameList],
   );
 
   useEffect(() => {
     if (!api?.on || !api?.off) return;
 
     const onSelectionChanged = (arr: ImageAnnotation[]) => {
+      setSelectedAnnotations(arr);
+
       if (arr.length === 0) {
-        setIsPointAnnotationSelected(false);
         setDismissedPopupAnnotationId(null);
         return;
       }
-
-      setIsPointAnnotationSelected(isPointAnno(arr[0]));
 
       const selectedId =
         typeof arr[0]?.id === "string" ? String(arr[0].id) : null;
@@ -230,11 +237,12 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
 
   useEffect(() => {
     if (!api) return;
-    mountToolsPlugin(api);
+    registerPointEditor(api);
   }, [api]);
 
   useEffect(() => {
     setDismissedPopupAnnotationId(null);
+    setSelectedAnnotations([]);
   }, [frame]);
 
   useEffect(() => {
@@ -529,9 +537,13 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
         ? isOverAnnotation
           ? "default"
           : ""
-        : isOverAnnotation
-          ? "pointer"
-          : "";
+        : drawingTool === "point"
+          ? isOverAnnotation
+            ? "pointer"
+            : "crosshair"
+          : isOverAnnotation
+            ? "pointer"
+            : "";
 
       setViewerCursor(viewerElement, cursor);
     };
@@ -548,7 +560,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
       viewerElement.removeEventListener("mouseleave", clearCursor);
       clearCursor();
     };
-  }, [api, drawingEnabled, hideAnnotations, panMode]);
+  }, [api, drawingEnabled, drawingTool, hideAnnotations, panMode]);
 
   const viewerOptions = useMemo<OpenSeadragon.Options>(
     () => ({
@@ -557,7 +569,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
         url: dataUrl,
       },
       minZoomImageRatio: 0.8,
-      maxZoomPixelRatio: 10,
+      maxZoomPixelRatio: 100,
       visibilityRatio: 0.5,
       constrainDuringPan: true,
       animationTime: 0.3,
@@ -606,11 +618,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
 
   return (
     <div className="w-full flex justify-center">
-      <div
-        className={`relative w-full max-w-[1100px] h-[calc(100dvh-240px)] min-h-[360px] ${
-          isPointAnnotationSelected ? "video-point-selected" : ""
-        }`}
-      >
+      <div className="relative w-full max-w-[1100px] h-[calc(100dvh-240px)] min-h-[360px]">
         <CanvasModeToolbar
           panMode={panMode}
           drawingTool={drawingTool}
@@ -627,9 +635,18 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
           drawingEnabled={annotoriousDrawingEnabled}
           drawingMode="drag"
           autoSave
-          style={(_annotation: ImageAnnotation, state?: AnnotationState) => ({
-            strokeWidth: state?.selected ? 3 : 2,
-          })}
+          style={(annotation: ImageAnnotation, state?: AnnotationState) =>
+            isPointAnno(annotation)
+              ? // Point visuals are drawn by PointCenterDotOverlay. The native
+                // ellipse remains as the Annotorious geometry and hit target.
+                {
+                  fillOpacity: 0,
+                  strokeOpacity: 0,
+                }
+              : {
+                  strokeWidth: state?.selected ? 3 : 2,
+                }
+          }
         >
           <OpenSeadragonViewer
             className="h-full w-full select-none"
@@ -676,15 +693,13 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
           />
         </OpenSeadragonAnnotator>
 
-        <style>{`
-          .video-point-selected .a9s-corner-top,
-          .video-point-selected .a9s-corner-handle-right,
-          .video-point-selected .a9s-corner-handle-bottom,
-          .video-point-selected .a9s-corner-handle-left {
-            display: none;
-            pointer-events: none;
-          }
-        `}</style>
+        <PointCenterDotOverlay
+          api={api}
+          annotations={frameAnnotations}
+          selectedAnnotations={selectedAnnotations}
+          hidden={hideAnnotations}
+          isEditMode={!panMode}
+        />
 
         <Menu
           id={VIDEO_CANVAS_MENU_ID}

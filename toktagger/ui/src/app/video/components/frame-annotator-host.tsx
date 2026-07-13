@@ -569,7 +569,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
         url: dataUrl,
       },
       minZoomImageRatio: 0.8,
-      maxZoomPixelRatio: 10,
+      maxZoomPixelRatio: 100,
       visibilityRatio: 0.5,
       constrainDuringPan: true,
       animationTime: 0.3,

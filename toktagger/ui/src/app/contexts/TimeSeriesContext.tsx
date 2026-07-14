@@ -115,6 +115,10 @@ export const TimeSeriesProvider = ({
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSyncCount = useRef<number>(0);
 
+  useEffect(() => {
+    console.log("Congoing action: ", ongoingAction)
+  }, [ongoingAction])
+
   const parseRawAnnotations = useCallback(
     (annotations: Annotation[]): TimeSeriesAnnotation[] => {
       const parsedAnnotations: TimeSeriesAnnotation[] = [];
@@ -194,6 +198,7 @@ export const TimeSeriesProvider = ({
   }, []);
 
   const syncAnnotations = useCallback(() => {
+    console.log("Sync start")
     if (ongoingAction) {
       if (syncTimeoutRef.current !== null) {
         clearTimeout(syncTimeoutRef.current);
@@ -201,6 +206,7 @@ export const TimeSeriesProvider = ({
       syncTimeoutRef.current = setTimeout(triggerSync, 100);
       return;
     }
+    console.log("Syncing")
     syncTimeoutRef.current = null;
     const rawAnnotations = parseTimeSeriesAnnotations(annotations);
     setRawAnnotations((_prev) => rawAnnotations);

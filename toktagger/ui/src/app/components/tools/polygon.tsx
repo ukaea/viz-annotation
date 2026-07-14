@@ -13,6 +13,7 @@ import {
   ToolingCallbacks,
   ToolingProps,
 } from "@/types";
+import { ToastQueue } from "@adobe/react-spectrum";
 import * as d3 from "d3";
 import { useEffect, useRef } from "react";
 import { useContextMenu } from "react-contexify";
@@ -32,6 +33,7 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
   const currentAnnotation = useRef<TimeSeriesAnnotation | null>(null);
   const dragOffset = useRef({ x: 0, y: 0 });
   const isUpdatingPolygon = useRef(false);
+  const hasDeletedVertex = useRef(false);
 
   // Hook to trigger the context provider to render context menu
   const { show } = useContextMenu({
@@ -57,6 +59,8 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
 
             if (Math.abs(x - currentAnnotation.current.points[0].x) < closeThreshold.x && Math.abs(y - currentAnnotation.current.points[0].y) < closeThreshold.y) {
                 if (pointArrayLength > 4) {
+                    console.log("End 1")
+                    setOngoingAction(false); // Since this has hover functionality the callback must end the ongoing action
                     isUpdatingPolygon.current = false
                     currentAnnotation.current.points.splice(pointArrayLength-2, 2)
                     updateAnnotation(currentAnnotation.current);
@@ -66,7 +70,6 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
 
             currentAnnotation.current.points[pointArrayLength - 2] = { x, y };
             currentAnnotation.current.points.splice(pointArrayLength-1, 0, {x, y})
-            console.log("Added: ", currentAnnotation.current.points)
             updateAnnotation(currentAnnotation.current);
             return
         }
@@ -165,14 +168,53 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
         }
       }
 
+      function handleClick(
+        event: MouseEvent,
+        annotation: TimeSeriesAnnotation,
+      ) {
+        selectAnnotations([annotation.id]); // Visually selects the annotation when editting starts
+      }
+
       const getVertexHandler = (index: number) =>
         d3.drag<SVGCircleElement, TimeSeriesAnnotation>()
-          .on("start", (_, d) => { selectAnnotations([d.id]); setOngoingAction(true); })
+          .on("start", function (_, d) { 
+            setOngoingAction(true);
+            const onKeyDown = (e: KeyboardEvent) => {
+              if (e.key === "Delete") {
+
+                if (d.points.length < 4) {
+                  ToastQueue.info(
+                    "Cannot delete a vertex for a polygon with fewer than four points, click on the polygon and press delete to remove the annotation",
+                    { timeout: 5000 },
+                  );
+                  return
+                }
+
+                d.points.splice(index, 1);
+                updateAnnotation(d);
+                hasDeletedVertex.current = true;
+              }
+            };
+
+          // Store the handler on the element so we can remove it later
+          (this as SVGCircleElement).__deleteHandler = onKeyDown;
+
+          window.addEventListener("keydown", onKeyDown); 
+          })
           .on("drag", (event, d) => {
+            if (hasDeletedVertex.current) return // If during this drag the vertex was deleted no action should be taken
             d.points[index] = { x: xAxis.p2d(event.x), y: yAxis.p2d(event.y) };
             updateAnnotation(d);
           })
-          .on("end", () => setOngoingAction(false));
+          .on("end", function () {
+            hasDeletedVertex.current = false;
+            setOngoingAction(false)
+            console.log("End 2")
+            const handler = (this as SVGCircleElement).__deleteHandler;
+            if (handler) {
+              window.removeEventListener("keydown", handler);
+            }
+          });
 
       for (const polygon of annotations) {
         if (polygon.type !== TimeSeriesAnnotationType.POLYGON)
@@ -203,47 +245,74 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
             .attr("stroke-width", 1)
             .attr("stroke", "gray")
             .datum(polygon)
+            .on("click", handleClick)
             .on("contextmenu", handleContextMenu);
 
-        if (!isInProgress) {
-          // Edge hit targets — appended before vertex circles so vertices take priority
-          convertedPoints.forEach((p, i) => {
-            const next = convertedPoints[(i + 1) % convertedPoints.length];
-            graphGroup
-              .append("line")
-              .attr("aria-label", "polygon-edge-handle")
-              .attr("class", "annotation polygon-edge disable-on-modifier")
-              .attr("x1", p.x).attr("y1", p.y)
-              .attr("x2", next.x).attr("y2", next.y)
-              .attr("stroke", "transparent")
-              .attr("stroke-width", 10)
-              .attr("style", `pointer-events: ${pointerEvent}; cursor: cell`)
-              .datum(polygon)
-              .on("click", (event, d) => {
-                const x = xAxis.p2d((p.x + next.x) / 2)
-                const y = yAxis.p2d((p.y + next.y) / 2)
+        if (editMode) {
+          if (!isInProgress) {
+            // Edge hit targets — appended before vertex circles so vertices take priority
+            convertedPoints.forEach((p, i) => {
+              const next = convertedPoints[(i + 1) % convertedPoints.length];
+              graphGroup
+                .append("line")
+                .attr("aria-label", "polygon-edge-handle")
+                .attr("class", "annotation polygon-edge disable-on-modifier")
+                .attr("x1", p.x).attr("y1", p.y)
+                .attr("x2", next.x).attr("y2", next.y)
+                .attr("stroke", "transparent")
+                .attr("stroke-width", 10)
+                .attr("style", `pointer-events: ${pointerEvent}; cursor: cell`)
+                .datum(polygon)
+                .on("click", (event, d) => {
+                  const x = xAxis.p2d((p.x + next.x) / 2)
+                  const y = yAxis.p2d((p.y + next.y) / 2)
 
-                d.points.splice(i + 1, 0, { x, y });
-                updateAnnotation(d);
-              });
-          });
+                  d.points.splice(i + 1, 0, { x, y });
+                  updateAnnotation(d);
+                });
+            });
 
-          convertedPoints.forEach((p, i) => {
+            convertedPoints.forEach((p, i) => {
+              graphGroup
+                .append("circle")
+                .attr("aria-label", "polygon-vertex")
+                .attr("class", "annotation polygon-vertex disable-on-modifier")
+                .attr("cx", p.x)
+                .attr("cy", p.y)
+                .attr("r", 3)
+                .attr("fill", "grey")
+                .attr("stroke", "grey")
+                .attr("stroke-width", 1)
+                .attr("style", `pointer-events: ${pointerEvent}; cursor: move`)
+
+                graphGroup
+                  .append("circle")
+                  .attr("aria-label", "polygon-vertex-handle")
+                  .attr("class", "annotation polygon-vertex disable-on-modifier")
+                  .attr("cx", p.x)
+                  .attr("cy", p.y)
+                  .attr("r", 15)
+                  .attr("fill", "transparent")
+                  .attr("stroke", "transparent")
+                  .attr("stroke-width", 1)
+                  .attr("style", `pointer-events: ${pointerEvent}; cursor: move`)
+                  .datum(polygon)
+                  .call(getVertexHandler(i))
+                  .on("contextmenu", handleContextMenu);
+            });
+          } else {
             graphGroup
-              .append("circle")
-              .attr("aria-label", "polygon-vertex-handle")
-              .attr("class", "annotation polygon-vertex disable-on-modifier")
-              .attr("cx", p.x)
-              .attr("cy", p.y)
-              .attr("r", 3)
-              .attr("fill", "grey")
-              .attr("stroke", "grey")
-              .attr("stroke-width", 1)
-              .attr("style", `pointer-events: ${pointerEvent}; cursor: move`)
-              .datum(polygon)
-              .call(getVertexHandler(i))
-              .on("contextmenu", handleContextMenu);
-          });
+                  .append("circle")
+                  .attr("aria-label", "polygon-vertex")
+                  .attr("class", "annotation polygon-vertex disable-on-modifier")
+                  .attr("cx", convertedPoints[0].x)
+                  .attr("cy", convertedPoints[0].y)
+                  .attr("r", 3)
+                  .attr("fill", "grey")
+                  .attr("stroke", "grey")
+                  .attr("stroke-width", 1)
+                  .attr("style", `pointer-events: ${pointerEvent}; cursor: move`);
+          }
         }
       }
     });

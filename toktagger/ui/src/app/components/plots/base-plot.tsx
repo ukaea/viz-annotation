@@ -413,14 +413,21 @@ export const BaseTimeSeriesPlot = ({
     };
 
     const finishAnnotationCreation = (event: MouseEvent) => {
-      setOngoingAction(false);
       isDraggingRef.current = false;
       if (activeAnnotationTool) {
         const clickLocation = getClickData(event, plot);
-        toolingCallbacks
-          .get(activeAnnotationTool.type)
-          ?.end(clickLocation.x, clickLocation.y);
+        const callback = toolingCallbacks
+          .get(activeAnnotationTool.type);
+        
+        // If hover behaviour is specified the callbacks should handle finishing the ongoing action
+        if (!callback?.hover) {
+          setOngoingAction(false);
+        }
+        callback?.end(clickLocation.x, clickLocation.y);
+        return;
       }
+
+      setOngoingAction(false); // Ensure this is always called even if the tool callback isn't found
     };
 
     draggableElements.forEach((element) => {

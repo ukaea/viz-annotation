@@ -116,10 +116,6 @@ export const TimeSeriesProvider = ({
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSyncCount = useRef<number>(0);
 
-  useEffect(() => {
-    console.log("Congoing action: ", ongoingAction)
-  }, [ongoingAction])
-
   const parseRawAnnotations = useCallback(
     (annotations: Annotation[]): TimeSeriesAnnotation[] => {
       const parsedAnnotations: TimeSeriesAnnotation[] = [];
@@ -143,6 +139,16 @@ export const TimeSeriesProvider = ({
     },
     [],
   );
+
+  // Discards any in-progress annotation for the currently active tool and clears the
+  // ongoing-action flag - used whenever a draw is abandoned rather than completed normally
+  const cancelOngoingAction = useCallback(() => {
+    if (!ongoingAction) return;
+    if (activeTool) {
+      toolingCallbacks.get(activeTool.type)?.cancel?.();
+    }
+    setOngoingAction(false);
+  }, [activeTool, ongoingAction, toolingCallbacks]);
 
   useEffect(() => {
     if (!project) return;
@@ -190,7 +196,14 @@ export const TimeSeriesProvider = ({
     setCategories(timeSeriesCategories);
   }, [project]);
 
+  // This is a reference to allow the up-to-date function to be called from within an effect without triggering a refresh
+  const cancelOngoingActionRef = useRef(cancelOngoingAction);
   useEffect(() => {
+    cancelOngoingActionRef.current = cancelOngoingAction;
+  }, [cancelOngoingAction]);
+
+  useEffect(() => {
+    cancelOngoingActionRef.current(); // If the annotations are changed, any ongoing annotations must be cancelled
     setAnnotations(parseRawAnnotations(rawAnnotations));
   }, [parseRawAnnotations, rawAnnotations]);
 
@@ -199,7 +212,6 @@ export const TimeSeriesProvider = ({
   }, []);
 
   const syncAnnotations = useCallback(() => {
-    console.log("Sync start")
     if (ongoingAction) {
       if (syncTimeoutRef.current !== null) {
         clearTimeout(syncTimeoutRef.current);
@@ -207,7 +219,6 @@ export const TimeSeriesProvider = ({
       syncTimeoutRef.current = setTimeout(triggerSync, 100);
       return;
     }
-    console.log("Syncing")
     syncTimeoutRef.current = null;
     const rawAnnotations = parseTimeSeriesAnnotations(annotations);
     setRawAnnotations((_prev) => rawAnnotations);
@@ -255,13 +266,16 @@ export const TimeSeriesProvider = ({
 
   const removeAnnotation = useCallback(
     (id: string) => {
-      const currentAnnotations = annotations;
-      const newAnnotations = currentAnnotations.filter(
-        (annotation) => annotation.id !== id,
+      if (syncTimeoutRef.current !== null) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+      syncTimeoutRef.current = setTimeout(triggerSync, 100);
+
+      setAnnotations((prev) =>
+        prev.filter((annotation) => annotation.id !== id),
       );
-      setRawAnnotations((_prev) => parseTimeSeriesAnnotations(newAnnotations));
     },
-    [annotations, parseTimeSeriesAnnotations, setRawAnnotations],
+    [triggerSync],
   );
 
   const getAnnotation = useCallback(
@@ -290,6 +304,7 @@ export const TimeSeriesProvider = ({
   const setAnnotationTool = useCallback(
     (tool: TimeSeriesToolDefinition | null) => {
       if (!tool || toolingCallbacks.has(tool.type)) {
+        cancelOngoingAction(); // Switching tools mid-draw abandons whatever was in progress
         setActiveTool(tool);
         return;
       }
@@ -297,8 +312,19 @@ export const TimeSeriesProvider = ({
         `Could not set ${tool.type} as active tool since no callback has been registered`,
       );
     },
-    [toolingCallbacks],
+    [cancelOngoingAction, toolingCallbacks],
   );
+
+  // Lets a mid-draw annotation be abandoned via Escape, in addition to switching tools
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        cancelOngoingAction();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [cancelOngoingAction]);
 
   const updateAnnotation = useCallback(
     (annotation: TimeSeriesAnnotation) => {

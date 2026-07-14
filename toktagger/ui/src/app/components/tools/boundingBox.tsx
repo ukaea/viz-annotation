@@ -29,6 +29,7 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
     registerTooling,
     createAnnotation,
     addAnnotation,
+    removeAnnotation,
     updateAnnotation,
     setOngoingAction,
     selectAnnotations,
@@ -98,12 +99,19 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
         currentAnnotation.current.points[1] = extreme;
         updateAnnotation(currentAnnotation.current);
       },
+      cancel() {
+        if (currentAnnotation.current) {
+          removeAnnotation(currentAnnotation.current.id);
+        }
+        currentAnnotation.current = null;
+      },
     };
     registerTooling(TimeSeriesAnnotationType.BOUNDING_BOX, toolingCallbacks);
   }, [
     addAnnotation,
     createAnnotation,
     registerTooling,
+    removeAnnotation,
     setOngoingAction,
     updateAnnotation,
   ]);

@@ -359,6 +359,9 @@ export type ToolingCallbacks = {
   move: (x: number, y: number) => void;
   end: (x: number, y: number) => void;
   hover?: (x: number, y: number) => void;
+  // Discards any in-progress annotation and resets tool-local state - called when a draw
+  // is abandoned (tool switched mid-draw, Escape pressed) rather than completed normally
+  cancel?: () => void;
 };
 
 export type PlotProps = {

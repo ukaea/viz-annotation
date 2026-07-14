@@ -21,6 +21,7 @@ export const TimeRegion = ({ plotId, plotReady }: ToolingProps) => {
     registerTooling,
     createAnnotation,
     addAnnotation,
+    removeAnnotation,
     updateAnnotation,
     setOngoingAction,
     selectAnnotations,
@@ -63,12 +64,19 @@ export const TimeRegion = ({ plotId, plotReady }: ToolingProps) => {
         updateAnnotation(currentAnnotation.current);
       },
       end(_x, _y) {},
+      cancel() {
+        if (currentAnnotation.current) {
+          removeAnnotation(currentAnnotation.current.id);
+        }
+        currentAnnotation.current = null;
+      },
     };
     registerTooling(TimeSeriesAnnotationType.TIME_REGION, toolingCallbacks);
   }, [
     addAnnotation,
     createAnnotation,
     registerTooling,
+    removeAnnotation,
     setOngoingAction,
     updateAnnotation,
   ]);

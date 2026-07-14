@@ -22,6 +22,7 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
     registerTooling,
     createAnnotation,
     addAnnotation,
+    removeAnnotation,
     updateAnnotation,
     setOngoingAction,
     selectAnnotations,
@@ -94,9 +95,24 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
         currentAnnotation.current.points[pointArrayLength - 2] = { x, y }; // Ensure the temporary hover vertex is kept up-to-date with the mouse position
         updateAnnotation(currentAnnotation.current);
       },
+      cancel() {
+        // Discards the half-drawn polygon if the tool is switched or drawing is escaped mid-draw
+        if (isUpdatingPolygon.current && currentAnnotation.current) {
+          removeAnnotation(currentAnnotation.current.id);
+        }
+        currentAnnotation.current = null;
+        isUpdatingPolygon.current = false;
+      },
     };
     registerTooling(TimeSeriesAnnotationType.POLYGON, toolingCallbacks);
-  }, [addAnnotation, createAnnotation, registerTooling, setOngoingAction, updateAnnotation]);
+  }, [
+    addAnnotation,
+    createAnnotation,
+    registerTooling,
+    removeAnnotation,
+    setOngoingAction,
+    updateAnnotation,
+  ]);
 
   // Main rendering effect
   useEffect(() => {

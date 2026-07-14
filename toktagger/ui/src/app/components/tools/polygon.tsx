@@ -202,6 +202,7 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
             setOngoingAction(true);
             const onKeyDown = (e: KeyboardEvent) => {
               if (e.key === "Delete") {
+                e.stopPropagation(); // prevents the whole annotation being deleted if selected and dragging vertex
 
                 if (d.points.length < 4) {
                   ToastQueue.info(
@@ -220,7 +221,8 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
           // Store the handler keyed by the element so we can remove it later
           deleteHandlers.set(this, onKeyDown);
 
-          window.addEventListener("keydown", onKeyDown);
+          // Run during capture-phase to prevent document-level listeners from getting the event
+          window.addEventListener("keydown", onKeyDown, true);
           })
           .on("drag", (event, d) => {
             if (hasDeletedVertex.current) return // If during this drag the vertex was deleted no action should be taken
@@ -230,10 +232,9 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
           .on("end", function () {
             hasDeletedVertex.current = false;
             setOngoingAction(false)
-            console.log("End 2")
             const handler = deleteHandlers.get(this);
             if (handler) {
-              window.removeEventListener("keydown", handler);
+              window.removeEventListener("keydown", handler, true);
               deleteHandlers.delete(this);
             }
           });

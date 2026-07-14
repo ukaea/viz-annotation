@@ -58,25 +58,29 @@ export const AnnotationsTable = () => {
             width: "size-250",
             height: "size-250",
           };
-          const points: string[] = [];
+          const timeRegionPoints: string[] = [];
           annotation.points.forEach((point) => {
-            points.push(`${point.x.toFixed(4)}`);
+            timeRegionPoints.push(`${point.x.toFixed(4)}`);
           });
-          data = `${points[0]} - ${points[1]}`;
+          data = `${timeRegionPoints[0]} - ${timeRegionPoints[1]}`;
           break;
         case TimeSeriesAnnotationType.BOUNDING_BOX:
           marker = {
             width: "size-75",
             height: "size-250",
           };
-          data = `${annotation.points[0].x.toFixed(4)}`;
+          const boundingBoxPoints: string[] = [];
+          annotation.points.forEach((point) => {
+            boundingBoxPoints.push(`(${point.x.toFixed(2)}, ${point.y.toFixed(2)})`)
+          })
+          data = `${boundingBoxPoints[0]} ${boundingBoxPoints[1]}`;
           break;
         case TimeSeriesAnnotationType.POLYGON:
           marker = {
             width: "size-75",
             height: "size-250",
           };
-          data = `${annotation.points[0].x.toFixed(4)}`;
+          data = `(${annotation.points[0].x.toFixed(2)}, ${annotation.points[0].y.toFixed(2)}) [${annotation.points.length}]`;
           break;
         default:
           console.warn(

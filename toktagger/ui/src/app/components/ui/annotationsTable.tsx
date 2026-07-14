@@ -61,7 +61,10 @@ const PolygonMarker = ({ color }: MarkerProps) => (
 );
 
 // One marker per annotation type - set when the annotation's category/type is resolved below
-const MARKER_ICONS: Record<TimeSeriesAnnotationType, ComponentType<MarkerProps>> = {
+const MARKER_ICONS: Record<
+  TimeSeriesAnnotationType,
+  ComponentType<MarkerProps>
+> = {
   [TimeSeriesAnnotationType.TIME_POINT]: TimePointMarker,
   [TimeSeriesAnnotationType.TIME_REGION]: TimeRegionMarker,
   [TimeSeriesAnnotationType.BOUNDING_BOX]: BoundingBoxMarker,
@@ -106,8 +109,10 @@ export const AnnotationsTable = () => {
         case TimeSeriesAnnotationType.BOUNDING_BOX: {
           const boundingBoxPoints: string[] = [];
           annotation.points.forEach((point) => {
-            boundingBoxPoints.push(`(${point.x.toFixed(2)}, ${point.y.toFixed(2)})`)
-          })
+            boundingBoxPoints.push(
+              `(${point.x.toFixed(2)}, ${point.y.toFixed(2)})`,
+            );
+          });
           data = `${boundingBoxPoints[0]} ${boundingBoxPoints[1]}`;
           break;
         }

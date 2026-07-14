@@ -122,15 +122,18 @@ export function convertRawAnnotationsToTimeSeries(
       created_by: polygon.created_by,
       label: polygon.label,
       type: TimeSeriesAnnotationType.POLYGON,
-      points: polygon.segmentation.reduce<TimeSeriesAnnotationPoint[]>((accumulator, _, i, arr) => {
-        if (i % 2 === 0) {
-          accumulator.push({
-            x: arr[i],
-            y: arr[i+1]
-          })
-        }
-        return accumulator
-      }, []),
+      points: polygon.segmentation.reduce<TimeSeriesAnnotationPoint[]>(
+        (accumulator, _, i, arr) => {
+          if (i % 2 === 0) {
+            accumulator.push({
+              x: arr[i],
+              y: arr[i + 1],
+            });
+          }
+          return accumulator;
+        },
+        [],
+      ),
       selected: false,
     };
   }
@@ -198,8 +201,8 @@ export function convertTimeSeriesToRawAnnotations(
       uncertainty: 1,
       created_by: annotation.created_by,
       type: "polygon",
-      segmentation: annotation.points.flatMap(({x, y}) => {
-        return [x, y]
+      segmentation: annotation.points.flatMap(({ x, y }) => {
+        return [x, y];
       }),
       label: annotation.label,
     };

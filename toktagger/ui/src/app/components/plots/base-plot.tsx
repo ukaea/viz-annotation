@@ -388,7 +388,8 @@ export const BaseTimeSeriesPlot = ({
         if (activeAnnotationTool) {
           // If a subplot has not been locked yet (e.g the annotation has just started) the current subplot should be stored
           if (!lockedSubplotElementRef.current) {
-            lockedSubplotElementRef.current = event.currentTarget as HTMLElement;
+            lockedSubplotElementRef.current =
+              event.currentTarget as HTMLElement;
           }
           setOngoingAction(true);
           isDraggingRef.current = true;
@@ -452,8 +453,7 @@ export const BaseTimeSeriesPlot = ({
           plot,
           lockedSubplotElementRef.current,
         );
-        const callback = toolingCallbacks
-          .get(activeAnnotationTool.type);
+        const callback = toolingCallbacks.get(activeAnnotationTool.type);
 
         // If hover behaviour is specified the callbacks should handle finishing the ongoing action
         if (!callback?.hover) {

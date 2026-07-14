@@ -44,37 +44,47 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
       // For polgons the start callback is responsible for creating the polygon but also appeanding vertices and closing shape too
       start: (x, y, label, axisSize) => {
         if (isUpdatingPolygon.current) {
-            if (!currentAnnotation.current) {
-                console.error("Could not find current annotation to add point to")
-                return
+          if (!currentAnnotation.current) {
+            console.error("Could not find current annotation to add point to");
+            return;
+          }
+
+          if (
+            currentAnnotation.current.type !== TimeSeriesAnnotationType.POLYGON
+          ) {
+            console.error("Could not add point to non-polygon annotation");
+            return;
+          }
+
+          const pointArrayLength = currentAnnotation.current.points.length;
+          const closeThreshold = { x: axisSize.x * 0.02, y: axisSize.y * 0.02 };
+
+          // Logic used to close the polygon when a vertex is added near the start point
+          if (
+            Math.abs(x - currentAnnotation.current.points[0].x) <
+              closeThreshold.x &&
+            Math.abs(y - currentAnnotation.current.points[0].y) <
+              closeThreshold.y
+          ) {
+            // The polygon should only be allowed to close if there are 4 points - if not this would reduce to 2 vertices which is not allowed
+            if (pointArrayLength > 4) {
+              setOngoingAction(false); // Since this has hover functionality the callback must end the ongoing action
+              isUpdatingPolygon.current = false;
+              currentAnnotation.current.points.splice(pointArrayLength - 2, 2); // This removes the temmporary point added to prevent polygons with 2 vertices
+              updateAnnotation(currentAnnotation.current);
             }
+            return;
+          }
 
-            if (currentAnnotation.current.type !== TimeSeriesAnnotationType.POLYGON) {
-                console.error("Could not add point to non-polygon annotation")
-                return
-            }
-
-            const pointArrayLength = currentAnnotation.current.points.length
-            const closeThreshold = { x: axisSize.x * 0.02, y: axisSize.y * 0.02};
-
-            // Logic used to close the polygon when a vertex is added near the start point
-            if (Math.abs(x - currentAnnotation.current.points[0].x) < closeThreshold.x && Math.abs(y - currentAnnotation.current.points[0].y) < closeThreshold.y) {
-              // The polygon should only be allowed to close if there are 4 points - if not this would reduce to 2 vertices which is not allowed  
-              if (pointArrayLength > 4) {
-                    setOngoingAction(false); // Since this has hover functionality the callback must end the ongoing action
-                    isUpdatingPolygon.current = false
-                    currentAnnotation.current.points.splice(pointArrayLength-2, 2) // This removes the temmporary point added to prevent polygons with 2 vertices
-                    updateAnnotation(currentAnnotation.current);
-                }
-                return
-            }
-
-            currentAnnotation.current.points[pointArrayLength - 2] = { x, y }; // Set penultimate point to be the click point
-            currentAnnotation.current.points.splice(pointArrayLength-1, 0, {x, y}) // Add a new temporary point to follow hover
-            updateAnnotation(currentAnnotation.current);
-            return
+          currentAnnotation.current.points[pointArrayLength - 2] = { x, y }; // Set penultimate point to be the click point
+          currentAnnotation.current.points.splice(pointArrayLength - 1, 0, {
+            x,
+            y,
+          }); // Add a new temporary point to follow hover
+          updateAnnotation(currentAnnotation.current);
+          return;
         }
-        
+
         const annotation = createAnnotation(
           TimeSeriesAnnotationType.POLYGON,
           label,
@@ -91,7 +101,7 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
       end(_x, _y) {}, // Shape is closed inside the start callback as it relies on clicks
       hover(x, y) {
         if (!currentAnnotation.current || !isUpdatingPolygon.current) return;
-        const pointArrayLength = currentAnnotation.current.points.length
+        const pointArrayLength = currentAnnotation.current.points.length;
         currentAnnotation.current.points[pointArrayLength - 2] = { x, y }; // Ensure the temporary hover vertex is kept up-to-date with the mouse position
         updateAnnotation(currentAnnotation.current);
       },
@@ -217,8 +227,9 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
       >();
 
       const getVertexHandler = (index: number) =>
-        d3.drag<SVGCircleElement, TimeSeriesAnnotation>()
-          .on("start", function (_, d) { 
+        d3
+          .drag<SVGCircleElement, TimeSeriesAnnotation>()
+          .on("start", function (_, d) {
             setOngoingAction(true);
             const onKeyDown = (e: KeyboardEvent) => {
               if (e.key === "Delete") {
@@ -229,7 +240,7 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
                     "Cannot delete a vertex for a polygon with fewer than four points, click on the polygon and press delete to remove the annotation",
                     { timeout: 5000 },
                   );
-                  return
+                  return;
                 }
 
                 d.points.splice(index, 1); // Deletes the point at the index
@@ -238,20 +249,20 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
               }
             };
 
-          // Store the handler keyed by the element so we can remove it later
-          deleteHandlers.set(this, onKeyDown);
+            // Store the handler keyed by the element so we can remove it later
+            deleteHandlers.set(this, onKeyDown);
 
-          // Run during capture-phase to prevent document-level listeners from getting the event
-          window.addEventListener("keydown", onKeyDown, true);
+            // Run during capture-phase to prevent document-level listeners from getting the event
+            window.addEventListener("keydown", onKeyDown, true);
           })
           .on("drag", (event, d) => {
-            if (hasDeletedVertex.current) return // If during this drag the vertex was deleted no action should be taken
+            if (hasDeletedVertex.current) return; // If during this drag the vertex was deleted no action should be taken
             d.points[index] = { x: xAxis.p2d(event.x), y: yAxis.p2d(event.y) };
             updateAnnotation(d);
           })
           .on("end", function () {
             hasDeletedVertex.current = false;
-            setOngoingAction(false)
+            setOngoingAction(false);
             const handler = deleteHandlers.get(this);
             if (handler) {
               window.removeEventListener("keydown", handler, true);
@@ -260,44 +271,46 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
           });
 
       for (const polygon of annotations) {
-        if (polygon.type !== TimeSeriesAnnotationType.POLYGON)
-          continue;
+        if (polygon.type !== TimeSeriesAnnotationType.POLYGON) continue;
         const opacity = polygon.selected ? 0.8 : 0.5;
         const pointerEvent = isDrawing || !editMode ? "none" : "all";
-        const isInProgress = currentAnnotation.current?.id === polygon.id && isUpdatingPolygon.current;
+        const isInProgress =
+          currentAnnotation.current?.id === polygon.id &&
+          isUpdatingPolygon.current;
 
         const convertedPoints = polygon.points.map((point) => ({
-            x: xAxis.d2p(point.x),
-            y: yAxis.d2p(point.y),
-        }))
+          x: xAxis.d2p(point.x),
+          y: yAxis.d2p(point.y),
+        }));
 
         const categoryId = `${polygon.type}_${polygon.label}`;
         const color = categories.get(categoryId)?.color || "black";
 
         // Render the actual polygon - noting this is why there can't be less than 3 vertices
         const polygonShape = graphGroup
-            .append("polygon")
-            .attr("aria-label", "polygon")
-            .attr(
-                "class",
-                "annotation polygon cursor-grab disable-on-modifier",
-            )
-            .attr("points", convertedPoints.map(p => (`${p.x}, ${p.y}`)).join(" ")) // x1, y1 x2, y2 ...
-            .attr("fill", color)
-            .attr("opacity", opacity)
-            .attr("style", `pointer-events: ${pointerEvent}`)
-            .attr("stroke-width", 1)
-            .attr("stroke", "gray")
-            .datum(polygon)
-            .on("click", handleClick)
-            .on("contextmenu", handleContextMenu);
+          .append("polygon")
+          .attr("aria-label", "polygon")
+          .attr("class", "annotation polygon cursor-grab disable-on-modifier")
+          .attr(
+            "points",
+            convertedPoints.map((p) => `${p.x}, ${p.y}`).join(" "),
+          ) // x1, y1 x2, y2 ...
+          .attr("fill", color)
+          .attr("opacity", opacity)
+          .attr("style", `pointer-events: ${pointerEvent}`)
+          .attr("stroke-width", 1)
+          .attr("stroke", "gray")
+          .datum(polygon)
+          .on("click", handleClick)
+          .on("contextmenu", handleContextMenu);
 
         if (editMode && !isInProgress) {
           polygonShape.style("cursor", "move").call(translateHandler);
         }
 
         // Edit geometery
-        if (editMode) { // Edit geometery only rendered when in edit mode
+        if (editMode) {
+          // Edit geometery only rendered when in edit mode
           // When an annotation is being drawn only the start vertex is rendered (makes it easy to see where to end the drawing)
           // otherwise all vertices are drawn with accompanying handles plus the edge handles
           if (!isInProgress) {
@@ -308,16 +321,18 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
                 .append("line")
                 .attr("aria-label", "polygon-edge-handle")
                 .attr("class", "annotation polygon-edge disable-on-modifier")
-                .attr("x1", p.x).attr("y1", p.y)
-                .attr("x2", next.x).attr("y2", next.y)
+                .attr("x1", p.x)
+                .attr("y1", p.y)
+                .attr("x2", next.x)
+                .attr("y2", next.y)
                 .attr("stroke", "transparent")
                 .attr("stroke-width", 10)
                 .attr("style", `pointer-events: ${pointerEvent}; cursor: cell`)
                 .datum(polygon)
                 .on("click", (event, d) => {
                   // Find halfway point along edge
-                  const x = xAxis.p2d((p.x + next.x) / 2)
-                  const y = yAxis.p2d((p.y + next.y) / 2)
+                  const x = xAxis.p2d((p.x + next.x) / 2);
+                  const y = yAxis.p2d((p.y + next.y) / 2);
 
                   d.points.splice(i + 1, 0, { x, y }); // Add new point at halfway point
                   updateAnnotation(d);
@@ -336,37 +351,37 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
                 .attr("fill", "grey")
                 .attr("stroke", "grey")
                 .attr("stroke-width", 1)
-                .attr("style", `pointer-events: ${pointerEvent}; cursor: move`)
+                .attr("style", `pointer-events: ${pointerEvent}; cursor: move`);
 
-                // Transparent vertex handles (functional)
-                graphGroup
-                  .append("circle")
-                  .attr("aria-label", "polygon-vertex-handle")
-                  .attr("class", "annotation polygon-vertex disable-on-modifier")
-                  .attr("cx", p.x)
-                  .attr("cy", p.y)
-                  .attr("r", 15)
-                  .attr("fill", "transparent")
-                  .attr("stroke", "transparent")
-                  .attr("stroke-width", 1)
-                  .attr("style", `pointer-events: ${pointerEvent}; cursor: move`)
-                  .datum(polygon)
-                  .call(getVertexHandler(i))
-                  .on("contextmenu", handleContextMenu);
+              // Transparent vertex handles (functional)
+              graphGroup
+                .append("circle")
+                .attr("aria-label", "polygon-vertex-handle")
+                .attr("class", "annotation polygon-vertex disable-on-modifier")
+                .attr("cx", p.x)
+                .attr("cy", p.y)
+                .attr("r", 15)
+                .attr("fill", "transparent")
+                .attr("stroke", "transparent")
+                .attr("stroke-width", 1)
+                .attr("style", `pointer-events: ${pointerEvent}; cursor: move`)
+                .datum(polygon)
+                .call(getVertexHandler(i))
+                .on("contextmenu", handleContextMenu);
             });
           } else {
             // Start vertex rendering
             graphGroup
-                  .append("circle")
-                  .attr("aria-label", "polygon-vertex")
-                  .attr("class", "annotation polygon-vertex disable-on-modifier")
-                  .attr("cx", convertedPoints[0].x)
-                  .attr("cy", convertedPoints[0].y)
-                  .attr("r", 3)
-                  .attr("fill", "grey")
-                  .attr("stroke", "grey")
-                  .attr("stroke-width", 1)
-                  .attr("style", `pointer-events: ${pointerEvent}; cursor: move`);
+              .append("circle")
+              .attr("aria-label", "polygon-vertex")
+              .attr("class", "annotation polygon-vertex disable-on-modifier")
+              .attr("cx", convertedPoints[0].x)
+              .attr("cy", convertedPoints[0].y)
+              .attr("r", 3)
+              .attr("fill", "grey")
+              .attr("stroke", "grey")
+              .attr("stroke-width", 1)
+              .attr("style", `pointer-events: ${pointerEvent}; cursor: move`);
           }
         }
       }

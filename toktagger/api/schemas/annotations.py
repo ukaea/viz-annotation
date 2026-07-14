@@ -59,6 +59,7 @@ class VideoBoundingBox(AnnotationBase):
     x_min: int
     y_min: int
 
+
 class Polygon(AnnotationBase):
     type: Literal["polygon"] = "polygon"
     segmentation: list[float] = Field(
@@ -66,6 +67,7 @@ class Polygon(AnnotationBase):
         min_length=6,
         description="COCO polygon segmentation as a flat list: [x1, y1, x2, y2, ...].",
     )
+
 
 class VideoPolygon(AnnotationBase):
     type: Literal["video_polygon"] = "video_polygon"

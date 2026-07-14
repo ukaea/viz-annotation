@@ -51,27 +51,74 @@ class Server:
         self.testing_mode = False
 
     def _setup_ray(self):
-        if not ray.is_initialized():
-            ray.init(
-                runtime_env={
-                    "env_vars": {
-                        "API_URL": f"http://{config.settings.server.host}:{config.settings.server.port}",
-                        "MODEL_STORAGE": str(config.settings.models.cache_dir),
-                    }
-                },
+        num_gpus = None
+        # ALlow the user to force overriding of number of GPUs available
+        # This is so that eg Mac can work correctly
+        if (
+            config.settings.models.force_num_gpus
+            and config.settings.models.max_gpu_actors is not None
+        ):
+            print("Warning: Overriding automatically detected GPU availablity!")
+            num_gpus = config.settings.models.max_gpu_actors
+
+        ray.init(
+            num_gpus=num_gpus,
+            ignore_reinit_error=True,
+            include_dashboard=False,
+            runtime_env={
+                "env_vars": {
+                    "API_URL": f"http://{config.settings.server.host}:{config.settings.server.port}",
+                    "MODEL_STORAGE": str(config.settings.models.cache_dir),
+                }
+            },
+        )
+        # Detect available resources
+        cluster_resources = ray.cluster_resources()
+        cpus_available = int(cluster_resources.get("CPU", 0))
+        gpus_available = int(cluster_resources.get("GPU", 0))
+
+        if not cpus_available:
+            raise RuntimeError("Ray failed to detect any CPUs!")
+
+        max_gpu_actors = (
+            config.settings.models.max_gpu_actors
+            if config.settings.models.max_gpu_actors is not None
+            else gpus_available
+        )
+
+        max_actors = (
+            config.settings.models.max_actors
+            if config.settings.models.max_actors is not None
+            else cpus_available
+        )
+
+        if max_gpu_actors > gpus_available:
+            raise RuntimeError("More GPU actors requested than hardware supports!")
+
+        if max_actors > cpus_available + gpus_available:
+            raise RuntimeError(
+                "More model actors requested than the detected hardware supports!"
             )
-            # Create a ray actor for use as a model registry
+
+        # Create a ray actor for use as a model registry
+        try:
+            ray.get_actor("WorkerModelRegistry")
+        except ValueError:
             WorkerRegistry.options(
                 name="WorkerModelRegistry", lifetime="detached"
             ).remote(ModelRegistry._registry)
-            # And one for use as a dataloader registry
+        # And one for use as a dataloader registry
+        try:
+            ray.get_actor("WorkerLoaderRegistry")
+        except ValueError:
             WorkerRegistry.options(
                 name="WorkerLoaderRegistry", lifetime="detached"
             ).remote(LoaderRegistry._registry)
 
         # Create a task registry
         self.app.state.task_registry = ActorRegistry(
-            max_actors=config.settings.models.max_actors
+            max_actors=max_actors,
+            max_gpu_actors=max_gpu_actors,
         )
 
     def _setup_app(self):

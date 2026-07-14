@@ -256,6 +256,7 @@ def test_fair_mast_dataloader():
         "single_arr.npz",
         "single_arr.npy",
         "rgb_arr.npz",
+        "floats_arr.npy",
     ],
 )
 @pytest.mark.parametrize("frame", [None, 1])

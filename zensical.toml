@@ -41,6 +41,9 @@ Home = "index.md"
 "Time Series Labelling" = "time_series.md"
 
 [[project.nav]]
+"Video Labelling" = "video.md"
+
+[[project.nav]]
 Annotators = "annotators.md"
 
 [[project.nav]]

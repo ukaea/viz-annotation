@@ -20,7 +20,6 @@ MODELS_ENABLED = importlib.util.find_spec("ray") is not None
 
 @pytest.fixture(autouse=True)
 def check_models_status(request):
-    print()
     if MODELS_ENABLED and request.node.get_closest_marker("models_disabled"):
         pytest.skip("This test requires models dependencies to not be installed!")
     elif not MODELS_ENABLED and request.node.get_closest_marker("models_enabled"):
@@ -32,8 +31,8 @@ if MODELS_ENABLED:
         ray_session as ray_session,
         setup_model_samples as setup_model_samples,
         setup_model_db as setup_model_db,
+        models_api_client as models_api_client,
     )
-    from toktagger.api.models.base import ActorRegistry
 
 else:
     error_msg = """ You have attempted to run a test which uses a fixture that requires models,
@@ -52,6 +51,10 @@ else:
 
     @pytest.fixture()
     def setup_model_db():
+        raise pytest.UsageError(error_msg)
+
+    @pytest.fixture()
+    def models_api_client():
         raise pytest.UsageError(error_msg)
 
 
@@ -104,7 +107,7 @@ async def db_client(settings):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def api_client(db_client):
+async def api_client(monkeypatch, db_client):
     # Have hit various issues getting this setup
     # Using fastAPI TestClient() doesn't play well with async pymongo as it tries to do stuff in different event loops
     # So have to use this AsyncClient from httpx, but this no longer just accepts an app
@@ -115,14 +118,12 @@ async def api_client(db_client):
     os.environ["API_URL"] = "http://test"
     server = Server()
     server.testing_mode = True
-    os.environ["API_URL"] = ""
+    monkeypatch.setenv("API_URL", "http://test")
     server._setup_app()
     app = server.app
     app.state.db_client = db_client
     app.state.project = None
-    if MODELS_ENABLED:
-        app.state.task_registry = ActorRegistry(max_actors=1)
-        app.state.task_registry.tasks["abc123"] = "Ray Task Object"
+
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:

@@ -455,9 +455,9 @@ async def test_update_model(db_client, setup_model_db):
     await utils.update_model(
         db_client, model_id=setup_model_db["model_id_3"], updates=model_updates
     )
-    # Check model has been updates
+    # Check model has been updated
     model_updated = await db_client.get_document_by_id(
-        "models", ObjectId(setup_model_db["model_id_1"])
+        "models", ObjectId(setup_model_db["model_id_3"])
     )
     assert model_updated["training_status"] == "completed"
     assert model_updated["progress"] == 100

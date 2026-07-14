@@ -114,6 +114,14 @@ class DisruptionCNN(Model):
     ) -> float:
         self.log_progress(training_status="started")
 
+        if not self.gpu_available() and params.device != "cpu":
+            raise ValueError(
+                "Only CPU available on current worker node, but non-CPU device requested!"
+            )
+
+        device = torch.device(params.device)
+        self.model.to(device)
+
         # Remove any samples which don't have annotations
         new_samples = []
         new_annotations = []
@@ -185,8 +193,8 @@ class DisruptionCNN(Model):
 
             for batch_samples, batch_annotations in train_loader:
                 batch_samples = batch_samples.unsqueeze(1)
-                batch_samples = batch_samples.to(params.device)
-                batch_annotations = batch_annotations.float().to(params.device)
+                batch_samples = batch_samples.to(device)
+                batch_annotations = batch_annotations.float().to(device)
 
                 outputs = self.model(batch_samples).squeeze(1)
                 loss = criterion(outputs, batch_annotations)
@@ -220,8 +228,8 @@ class DisruptionCNN(Model):
                 with torch.no_grad():
                     for batch_samples, batch_annotations in val_loader:
                         batch_samples = batch_samples.unsqueeze(1)
-                        batch_samples = batch_samples.to(params.device)
-                        batch_annotations = batch_annotations.float().to(params.device)
+                        batch_samples = batch_samples.to(device)
+                        batch_annotations = batch_annotations.float().to(device)
 
                         outputs = self.model(batch_samples).squeeze(1)
                         loss = criterion(outputs, batch_annotations)
@@ -279,8 +287,8 @@ class DisruptionCNN(Model):
             with torch.no_grad():
                 for batch_samples, batch_annotations in test_loader:
                     batch_samples = batch_samples.unsqueeze(1)
-                    batch_samples = batch_samples.to(params.device)
-                    batch_annotations = batch_annotations.float().to(params.device)
+                    batch_samples = batch_samples.to(device)
+                    batch_annotations = batch_annotations.float().to(device)
 
                     outputs = self.model(batch_samples).squeeze(1)
 
@@ -309,6 +317,13 @@ class DisruptionCNN(Model):
         params: DisruptionCNNPredictParams,
         data_params: DataParams | None = None,
     ) -> list[list[TimePoint]]:
+        if not self.gpu_available() and params.device != "cpu":
+            raise ValueError(
+                "Only CPU available on current worker node, but non-CPU device requested!"
+            )
+
+        device = torch.device(params.device)
+        self.model.to(device)
         num_mc_samples = 20  # Should let user choose num mc samples? TODO
         dataset = DisruptionDataset(
             self.project, samples, annotations=None, data_loader=self.data_loader
@@ -323,7 +338,7 @@ class DisruptionCNN(Model):
             with torch.no_grad():
                 for batch_samples in dataloader:
                     batch_samples = batch_samples.unsqueeze(1)
-                    batch_samples = batch_samples.to(params.device)
+                    batch_samples = batch_samples.to(device)
                     predictions.append(self.model(batch_samples))
 
             all_predictions.append(torch.cat(predictions, dim=0))
@@ -331,7 +346,8 @@ class DisruptionCNN(Model):
         stacked_predictions = torch.stack(all_predictions)
         # Because we've done 50x mc samples, just use the first lot of scaling values...
         scaling = torch.tensor(
-            dataset.time_scaling[: int(len(dataset.time_scaling) / num_mc_samples)]
+            dataset.time_scaling[: int(len(dataset.time_scaling) / num_mc_samples)],
+            device=device,
         ).squeeze()
         means = stacked_predictions.mean(dim=0).squeeze(dim=1) * scaling
         stds = stacked_predictions.std(dim=0).squeeze(dim=1) * scaling
@@ -339,9 +355,9 @@ class DisruptionCNN(Model):
             [
                 TimePoint(
                     validated=False,
-                    uncertainty=stds[i],
+                    uncertainty=stds[i].item(),
                     label="Disruption",
-                    time=means[i],
+                    time=means[i].item(),
                     created_by=self.type,
                 )
             ]
@@ -352,4 +368,4 @@ class DisruptionCNN(Model):
         torch.save(self.model.state_dict(), f"{file_stem}.model")
 
     def load(self, file_path: str):
-        self.model.load_state_dict(torch.load(file_path))
+        self.model.load_state_dict(torch.load(file_path, map_location="cpu"))

@@ -45,6 +45,8 @@ def create_default_toml_file(file_path: pathlib.Path | str):
                 default = values.get("default", "<your value here>")
                 if type(default) is str:
                     default = f"'{default}'"
+                if type(default) is bool:
+                    default = "true" if default is True else "false"
 
                 file.write(f"# {key} = {default}\n\n")
         file.write("\n")

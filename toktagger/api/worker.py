@@ -1,5 +1,6 @@
 import os
 import ray
+from ray.exceptions import ActorDiedError
 import pathlib
 from toktagger.api.schemas.projects import Project
 from toktagger.api.schemas.samples import Sample, SampleUpdate, SampleUpdateBatchItem
@@ -32,12 +33,27 @@ models_dir_default.mkdir(parents=True, exist_ok=True)
 os.environ["MODEL_STORAGE"] = os.environ.get("MODEL_STORAGE", str(models_dir_default))
 
 
-def get_actor(project, model):
+def get_actor(project: Project, model: Model, use_gpu: bool):
     try:
         logger.info(f"Finding actor for model {model.id}")
         ml_model = ray.get_actor(model.id)
         logger.info("Found existing actor!")
     except ValueError:
+        ml_model = None
+
+    # Check if actor has GPU enabled
+    if ml_model:
+        gpu_available = ray.get(ml_model.gpu_available.remote())
+        if use_gpu and not gpu_available:
+            # Stop existing actor
+            logger.info("Existing Actor does not have access to a GPU!")
+            try:
+                ray.get(ml_model.__ray_terminate__.remote())
+            except ActorDiedError:
+                ml_model = None
+                logger.info("Stopped existing Actor, restarting with GPU...")
+
+    if not ml_model:
         # Actor not alive, so load from weights
         logger.info("Actor not found, loading from disk...")
 
@@ -45,7 +61,7 @@ def get_actor(project, model):
         model_type = ray.get(model_registry.get.remote(model.type))
 
         ml_model = (
-            ray.remote(model_type)
+            ray.remote(num_gpus=1 if use_gpu else 0)(model_type)
             .options(name=model.id, lifetime="detached")
             .remote(
                 model_id=str(model.id),
@@ -64,10 +80,10 @@ def get_actor(project, model):
     return ml_model
 
 
-@ray.remote
+@ray.remote(num_cpus=0.1)
 def load_model(
     model: Model, project: Project, weights_path: pathlib.Path
-) -> tuple[str, str | None]:
+) -> dict[str : str | None]:
     # Change status to started
     send_model_updates(
         project_id=project.id,
@@ -91,8 +107,7 @@ def load_model(
             "model_id": model.id,
             "message": f"Worker node cannot find weights file at location {weights_path}",
         }
-
-    model_actor = get_actor(project=project, model=model)
+    model_actor = get_actor(project=project, model=model, use_gpu=False)
     # Try loading actor with weights file, catch and reraise any errors
     try:
         load_temp_weights_task = model_actor.wrapped_load.remote(str(weights_path))
@@ -119,15 +134,16 @@ def load_model(
     return {"project_id": project.id, "model_id": model.id, "message": None}
 
 
-@ray.remote
+@ray.remote(num_cpus=0.1)
 def train_model(
     model: Model,
     project: Project,
     samples: list[Sample],
     annotations: list[list[AnnotationOutTypes]],
     params: pydantic.BaseModel | None,
+    use_gpu: bool = False,
 ):  # TODO: do we want to support retraining where we only get annotations not previously put into model?
-    model_actor = get_actor(project=project, model=model)
+    model_actor = get_actor(project=project, model=model, use_gpu=use_gpu)
     try:
         logger.info(f"Running model training for project {project.id}")
         model_actor.log_progress.remote(training_status="started", progress=0)
@@ -163,13 +179,14 @@ def train_model(
         raise e
 
 
-@ray.remote
+@ray.remote(num_cpus=0.1)
 def get_predictions(
     project: Project,
     model: Model,
     samples: list[Sample],
     params: pydantic.BaseModel,
     data_params: DataParamTypes | None = None,
+    use_gpu: bool = False,
 ):
     # For a first pass, when you get next sample on the web UI, run the model to get predictions
     # In the future, can improve that for smarter sampling in active learning
@@ -177,7 +194,7 @@ def get_predictions(
     logger.info(
         f"Creating predictions for project {project.id} on {len(samples)} samples."
     )
-    model_actor = get_actor(project=project, model=model)
+    model_actor = get_actor(project=project, model=model, use_gpu=use_gpu)
 
     predictions_task = model_actor.wrapped_predict.remote(
         samples=samples, params=params, data_params=data_params

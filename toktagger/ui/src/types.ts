@@ -44,20 +44,24 @@ export const BoundingBoxSchema = BaseAnnotationSchema.extend({
 
 export type BoundingBox = z.infer<typeof BoundingBoxSchema>;
 
+export const VideoBoundingBoxSchema = BaseAnnotationSchema.extend({
+  type: z.literal("video_bounding_box"),
+  frame: z.number().int(),
+  track_id: z.string(), // force string
+  height: z.number().int(),
+  width: z.number().int(),
+  x_min: z.number().int(),
+  y_min: z.number().int(),
+});
+
+export type VideoBoundingBox = z.infer<typeof VideoBoundingBoxSchema>;
+
 export const PolygonSchema = BaseAnnotationSchema.extend({
   type: z.literal("polygon"),
   segmentation: z.array(z.number()).min(6),
 });
 
 export type Polygon = z.infer<typeof PolygonSchema>;
-
-export const VideoBoundingBoxSchema = BoundingBoxSchema.extend({
-  type: z.literal("video_bounding_box"),
-  frame: z.number().int(),
-  track_id: z.string(), // force string
-});
-
-export type VideoBoundingBox = z.infer<typeof VideoBoundingBoxSchema>;
 
 export const VideoPolygonSchema = BaseAnnotationSchema.extend({
   type: z.literal("video_polygon"),
@@ -306,6 +310,7 @@ export const HealthInfoSchema = z.object({
   version: z.string(),
   db_connected: z.boolean(),
   models_enabled: z.boolean(),
+  gpu_available: z.boolean(),
 });
 export type HealthInfo = z.infer<typeof HealthInfoSchema>;
 
@@ -355,7 +360,12 @@ export type TimeSeriesAnnotation = {
 };
 
 export type ToolingCallbacks = {
-  start: (x: number, y: number, label: string, axisSize: { x: number; y: number }) => void;
+  start: (
+    x: number,
+    y: number,
+    label: string,
+    axisSize: { x: number; y: number },
+  ) => void;
   move: (x: number, y: number) => void;
   end: (x: number, y: number) => void;
   hover?: (x: number, y: number) => void;

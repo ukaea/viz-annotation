@@ -105,10 +105,10 @@ export function convertRawAnnotationsToTimeSeries(
       label: boundingBox.label,
       type: TimeSeriesAnnotationType.BOUNDING_BOX,
       points: [
-        { x: boundingBox.x_min, y: boundingBox.y_min },
+        { x: boundingBox.x_min, y: boundingBox.y_min + boundingBox.height },
         {
           x: boundingBox.x_min + boundingBox.width,
-          y: boundingBox.y_min + boundingBox.height,
+          y: boundingBox.y_min,
         },
       ],
       selected: false,

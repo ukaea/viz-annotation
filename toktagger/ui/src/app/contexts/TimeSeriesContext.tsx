@@ -56,6 +56,7 @@ type TimeSeriesState = {
   toolingCallbacks: Map<TimeSeriesAnnotationType, ToolingCallbacks>;
   forceUpdate: number;
   isDrawing: boolean;
+  ongoingAction: boolean;
   categories: Map<string, TimeSeriesCategory>;
   editMode: boolean;
 };
@@ -450,6 +451,7 @@ export const TimeSeriesProvider = ({
       toolingCallbacks,
       forceUpdate: updateCounter,
       isDrawing,
+      ongoingAction,
       categories,
       editMode,
     }),
@@ -459,6 +461,7 @@ export const TimeSeriesProvider = ({
       toolingCallbacks,
       updateCounter,
       isDrawing,
+      ongoingAction,
       categories,
       editMode,
     ],

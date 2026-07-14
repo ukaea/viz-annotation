@@ -8,7 +8,6 @@ import {
 import {
   ExtendedPlotlyHTMLElement,
   TimeSeriesAnnotation,
-  TimeSeriesAnnotationPoint,
   TimeSeriesAnnotationType,
   ToolingCallbacks,
   ToolingProps,
@@ -31,7 +30,6 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
     useTimeSeriesState();
 
   const currentAnnotation = useRef<TimeSeriesAnnotation | null>(null);
-  const dragOffset = useRef({ x: 0, y: 0 });
   const isUpdatingPolygon = useRef(false);
   const hasDeletedVertex = useRef(false);
 

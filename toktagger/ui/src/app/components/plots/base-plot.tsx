@@ -67,12 +67,18 @@ export const BaseTimeSeriesPlot = ({
     findSelectedAnnotations,
     setOngoingAction,
   } = useTimeSeriesActions();
-  const { activeAnnotationTool, toolingCallbacks, isDrawing, editMode } =
-    useTimeSeriesState();
+  const {
+    activeAnnotationTool,
+    toolingCallbacks,
+    isDrawing,
+    ongoingAction,
+    editMode,
+  } = useTimeSeriesState();
 
   const isDraggingRef = useRef(false);
   const allowRelayout = useRef(true);
   const lastHoverTime = useRef(0);
+  const lockedSubplotElementRef = useRef<HTMLElement | null>(null); // used to track which subplot an annotation was started on
 
   const plotId = externalId || "time-series";
 
@@ -273,6 +279,12 @@ export const BaseTimeSeriesPlot = ({
     };
   }, [editMode, findSelectedAnnotations, plotId, plotReady]);
 
+  // The subplot lock whilst drawing is cleared once an action is no longer ongoing
+  useEffect(() => {
+    if (ongoingAction) return;
+    lockedSubplotElementRef.current = null;
+  }, [ongoingAction]);
+
   useEffect(() => {
     if (!plotReady) {
       // Plot may not have loaded yet - this will rerun after loading
@@ -306,18 +318,20 @@ export const BaseTimeSeriesPlot = ({
     }
 
     function getClickData(
-      event: MouseEvent,
+      event: PointerEvent,
       _plot: PlotlyHTMLElement,
+      resolveAgainst?: HTMLElement | null, // This is used to ensure the annotation is resolved against the starting subplot
     ): TimeSeriesAnnotationPoint & { axisSize: { x: number; y: number } } {
       const plot = _plot as ExtendedPlotlyHTMLElement;
       let xaxis = plot._fullLayout.xaxis; // x-axis descriptor
       let yaxis = plot._fullLayout.yaxis; // y-axis descriptor
 
-      const bb = (event.target as HTMLElement).getBoundingClientRect();
+      const target = resolveAgainst ?? (event.target as HTMLElement); // If a resolve target is not set, the event target is used instead
+      const bb = target.getBoundingClientRect();
       const relX = event.clientX - bb.left; // click X in pixels, relative to plot
       const relY = event.clientY - bb.top; // click Y in pixels, relative to plot
 
-      const subplotId = (event.target as HTMLElement).dataset.subplot; // e.g. "x2y2"
+      const subplotId = target.dataset.subplot; // e.g. "x2y2"
       if (subplotId) {
         const m = subplotId.match(/^x(\d*)y(\d*)$/); // ['', '2', '2']
         // m[1]/m[2] hold numeric suffixes empty string -> primary axis
@@ -356,13 +370,13 @@ export const BaseTimeSeriesPlot = ({
       event.preventDefault();
     };
 
-    const handleCancelSelection = (event: MouseEvent) => {
+    const handleCancelSelection = (event: PointerEvent) => {
       if (!event.ctrlKey) {
         findSelectedAnnotations(null);
       }
     };
 
-    const startAnnotationCreation = (event: MouseEvent) => {
+    const startAnnotationCreation = (event: PointerEvent) => {
       if (event.ctrlKey) {
         if (!editMode) {
           ToastQueue.info(
@@ -372,9 +386,17 @@ export const BaseTimeSeriesPlot = ({
           return;
         }
         if (activeAnnotationTool) {
+          // If a subplot has not been locked yet (e.g the annotation has just started) the current subplot should be stored
+          if (!lockedSubplotElementRef.current) {
+            lockedSubplotElementRef.current = event.currentTarget as HTMLElement;
+          }
           setOngoingAction(true);
           isDraggingRef.current = true;
-          const clickLocation = getClickData(event, plot);
+          const clickLocation = getClickData(
+            event,
+            plot,
+            lockedSubplotElementRef.current,
+          );
           toolingCallbacks
             .get(activeAnnotationTool.type)
             ?.start(
@@ -392,33 +414,47 @@ export const BaseTimeSeriesPlot = ({
       }
     };
 
-    const updateAnnotation = (event: MouseEvent) => {
+    const updateAnnotation = (event: PointerEvent) => {
       if (activeAnnotationTool && isDraggingRef.current) {
-        const clickLocation = getClickData(event, plot);
+        const clickLocation = getClickData(
+          event,
+          plot,
+          lockedSubplotElementRef.current,
+        );
         toolingCallbacks
           .get(activeAnnotationTool.type)
           ?.move(clickLocation.x, clickLocation.y);
       }
     };
 
-    const hoverAnnotation = (event: MouseEvent) => {
+    const hoverAnnotation = (event: PointerEvent) => {
       if (!activeAnnotationTool) return;
       const now = Date.now();
       if (now - lastHoverTime.current < 20) return;
       lastHoverTime.current = now;
-      const clickLocation = getClickData(event, plot);
+      const clickLocation = getClickData(
+        event,
+        plot,
+        lockedSubplotElementRef.current,
+      );
       toolingCallbacks
         .get(activeAnnotationTool.type)
         ?.hover?.(clickLocation.x, clickLocation.y);
     };
 
-    const finishAnnotationCreation = (event: MouseEvent) => {
+    const finishAnnotationCreation = (event: PointerEvent) => {
       isDraggingRef.current = false;
+      // Subplot lock release is handled by the ongoingAction effect above -
+      // for hover-based tools (e.g. polygon) the session continues past this pointerup
       if (activeAnnotationTool) {
-        const clickLocation = getClickData(event, plot);
+        const clickLocation = getClickData(
+          event,
+          plot,
+          lockedSubplotElementRef.current,
+        );
         const callback = toolingCallbacks
           .get(activeAnnotationTool.type);
-        
+
         // If hover behaviour is specified the callbacks should handle finishing the ongoing action
         if (!callback?.hover) {
           setOngoingAction(false);
@@ -432,24 +468,24 @@ export const BaseTimeSeriesPlot = ({
 
     draggableElements.forEach((element) => {
       element.addEventListener("contextmenu", handleContextMenu);
-      element.addEventListener("mousedown", handleCancelSelection);
-      element.addEventListener("mousedown", startAnnotationCreation);
-      element.addEventListener("mousemove", hoverAnnotation);
+      element.addEventListener("pointerdown", handleCancelSelection);
+      element.addEventListener("pointerdown", startAnnotationCreation);
+      element.addEventListener("pointermove", hoverAnnotation);
 
       if (editMode) {
-        element.addEventListener("mousemove", updateAnnotation);
-        element.addEventListener("mouseup", finishAnnotationCreation);
+        element.addEventListener("pointermove", updateAnnotation);
+        element.addEventListener("pointerup", finishAnnotationCreation);
       }
     });
 
     return () => {
       draggableElements.forEach((element) => {
         element.removeEventListener("contextmenu", handleContextMenu);
-        element.removeEventListener("mousedown", handleCancelSelection);
-        element.removeEventListener("mousedown", startAnnotationCreation);
-        element.removeEventListener("mousemove", hoverAnnotation);
-        element.removeEventListener("mousemove", updateAnnotation);
-        element.removeEventListener("mouseup", finishAnnotationCreation);
+        element.removeEventListener("pointerdown", handleCancelSelection);
+        element.removeEventListener("pointerdown", startAnnotationCreation);
+        element.removeEventListener("pointermove", hoverAnnotation);
+        element.removeEventListener("pointermove", updateAnnotation);
+        element.removeEventListener("pointerup", finishAnnotationCreation);
       });
     };
   }, [

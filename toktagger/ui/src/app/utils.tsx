@@ -148,7 +148,6 @@ export function convertTimeSeriesToRawAnnotations(
     const timePoint: TimePoint = {
       project_id: null,
       sample_id: null,
-      id: annotation.id,
       validated: false,
       uncertainty: 1,
       created_by: annotation.created_by,
@@ -163,7 +162,6 @@ export function convertTimeSeriesToRawAnnotations(
     const timePoint: TimeRegion = {
       project_id: null,
       sample_id: null,
-      id: annotation.id,
       validated: false,
       uncertainty: 1,
       created_by: annotation.created_by,
@@ -179,7 +177,6 @@ export function convertTimeSeriesToRawAnnotations(
     const boundingBox: BoundingBox = {
       project_id: null,
       sample_id: null,
-      id: annotation.id,
       validated: false,
       uncertainty: 1,
       created_by: annotation.created_by,
@@ -197,7 +194,6 @@ export function convertTimeSeriesToRawAnnotations(
     const polygon: Polygon = {
       project_id: null,
       sample_id: null,
-      id: annotation.id,
       validated: false,
       uncertainty: 1,
       created_by: annotation.created_by,

@@ -40,6 +40,7 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
 
   useEffect(() => {
     const toolingCallbacks: ToolingCallbacks = {
+      // For polgons the start callback is responsible for creating the polygon but also appeanding vertices and closing shape too
       start: (x, y, label, axisSize) => {
         if (isUpdatingPolygon.current) {
             if (!currentAnnotation.current) {
@@ -55,19 +56,20 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
             const pointArrayLength = currentAnnotation.current.points.length
             const closeThreshold = { x: axisSize.x * 0.02, y: axisSize.y * 0.02};
 
+            // Logic used to close the polygon when a vertex is added near the start point
             if (Math.abs(x - currentAnnotation.current.points[0].x) < closeThreshold.x && Math.abs(y - currentAnnotation.current.points[0].y) < closeThreshold.y) {
-                if (pointArrayLength > 4) {
-                    console.log("End 1")
+              // The polygon should only be allowed to close if there are 4 points - if not this would reduce to 2 vertices which is not allowed  
+              if (pointArrayLength > 4) {
                     setOngoingAction(false); // Since this has hover functionality the callback must end the ongoing action
                     isUpdatingPolygon.current = false
-                    currentAnnotation.current.points.splice(pointArrayLength-2, 2)
+                    currentAnnotation.current.points.splice(pointArrayLength-2, 2) // This removes the temmporary point added to prevent polygons with 2 vertices
                     updateAnnotation(currentAnnotation.current);
                 }
                 return
             }
 
-            currentAnnotation.current.points[pointArrayLength - 2] = { x, y };
-            currentAnnotation.current.points.splice(pointArrayLength-1, 0, {x, y})
+            currentAnnotation.current.points[pointArrayLength - 2] = { x, y }; // Set penultimate point to be the click point
+            currentAnnotation.current.points.splice(pointArrayLength-1, 0, {x, y}) // Add a new temporary point to follow hover
             updateAnnotation(currentAnnotation.current);
             return
         }
@@ -77,18 +79,19 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
           label,
         );
         currentAnnotation.current = annotation;
-        annotation.points.push({ x, y });
-        annotation.points.push({ x, y });
-        annotation.points.push({ x, y });
+        // Polygons need at least three points so the following are added:
+        annotation.points.push({ x, y }); // Start vertex (persistent)
+        annotation.points.push({ x, y }); // Point to follow mouse hover - persistent whilst polygon not closed
+        annotation.points.push({ x, y }); // Temporary vertex to close polygon whilst it is being drawn - removed when shape is actually closed
         isUpdatingPolygon.current = true;
         addAnnotation(annotation);
       },
-      move(_x, _y) {},
-      end(_x, _y) {},
+      move(_x, _y) {}, // Points are added using clicks so this is not needed
+      end(_x, _y) {}, // Shape is closed inside the start callback as it relies on clicks
       hover(x, y) {
         if (!currentAnnotation.current || !isUpdatingPolygon.current) return;
         const pointArrayLength = currentAnnotation.current.points.length
-        currentAnnotation.current.points[pointArrayLength - 2] = { x, y };
+        currentAnnotation.current.points[pointArrayLength - 2] = { x, y }; // Ensure the temporary hover vertex is kept up-to-date with the mouse position
         updateAnnotation(currentAnnotation.current);
       },
     };
@@ -191,6 +194,7 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
           setOngoingAction(false);
         });
 
+      // Stores the vertex delete handlers so that they can be deleted later
       const deleteHandlers = new WeakMap<
         SVGCircleElement,
         (e: KeyboardEvent) => void
@@ -212,9 +216,9 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
                   return
                 }
 
-                d.points.splice(index, 1);
+                d.points.splice(index, 1); // Deletes the point at the index
                 updateAnnotation(d);
-                hasDeletedVertex.current = true;
+                hasDeletedVertex.current = true; // Required to prevent the drag handler from readding the point if the mouse is moved
               }
             };
 
@@ -254,6 +258,7 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
         const categoryId = `${polygon.type}_${polygon.label}`;
         const color = categories.get(categoryId)?.color || "black";
 
+        // Render the actual polygon - noting this is why there can't be less than 3 vertices
         const polygonShape = graphGroup
             .append("polygon")
             .attr("aria-label", "polygon")
@@ -261,7 +266,7 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
                 "class",
                 "annotation polygon cursor-grab disable-on-modifier",
             )
-            .attr("points", convertedPoints.map(p => (`${p.x}, ${p.y}`)).join(" "))
+            .attr("points", convertedPoints.map(p => (`${p.x}, ${p.y}`)).join(" ")) // x1, y1 x2, y2 ...
             .attr("fill", color)
             .attr("opacity", opacity)
             .attr("style", `pointer-events: ${pointerEvent}`)
@@ -275,9 +280,12 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
           polygonShape.style("cursor", "move").call(translateHandler);
         }
 
-        if (editMode) {
+        // Edit geometery
+        if (editMode) { // Edit geometery only rendered when in edit mode
+          // When an annotation is being drawn only the start vertex is rendered (makes it easy to see where to end the drawing)
+          // otherwise all vertices are drawn with accompanying handles plus the edge handles
           if (!isInProgress) {
-            // Edge hit targets — appended before vertex circles so vertices take priority
+            // Edge hit targets (for adding new points) — appended before vertex circles so vertices take priority
             convertedPoints.forEach((p, i) => {
               const next = convertedPoints[(i + 1) % convertedPoints.length];
               graphGroup
@@ -291,14 +299,16 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
                 .attr("style", `pointer-events: ${pointerEvent}; cursor: cell`)
                 .datum(polygon)
                 .on("click", (event, d) => {
+                  // Find halfway point along edge
                   const x = xAxis.p2d((p.x + next.x) / 2)
                   const y = yAxis.p2d((p.y + next.y) / 2)
 
-                  d.points.splice(i + 1, 0, { x, y });
+                  d.points.splice(i + 1, 0, { x, y }); // Add new point at halfway point
                   updateAnnotation(d);
                 });
             });
 
+            // Vertex rendering (non-functional)
             convertedPoints.forEach((p, i) => {
               graphGroup
                 .append("circle")
@@ -312,6 +322,7 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
                 .attr("stroke-width", 1)
                 .attr("style", `pointer-events: ${pointerEvent}; cursor: move`)
 
+                // Transparent vertex handles (functional)
                 graphGroup
                   .append("circle")
                   .attr("aria-label", "polygon-vertex-handle")
@@ -328,6 +339,7 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
                   .on("contextmenu", handleContextMenu);
             });
           } else {
+            // Start vertex rendering
             graphGroup
                   .append("circle")
                   .attr("aria-label", "polygon-vertex")

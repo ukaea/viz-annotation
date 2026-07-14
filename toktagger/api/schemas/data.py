@@ -1,6 +1,7 @@
 from typing import Union, Literal
 from pydantic import BaseModel
 from toktagger.api.schemas import ConfiguredModel
+from PIL.Image import Image as PILImage
 
 
 class Data(BaseModel):
@@ -35,9 +36,20 @@ class DataParams(ConfiguredModel):
     name: Literal["identity"] = "identity"
 
 
+class RawImageData():
+    def __init__(self, frame: int, values: PILImage):
+        """
+        Return a raw image without any encoding for ML use.
+        RawImageData is not the part of the API schema.
+        """
+        self.frame = frame
+        self.values = values
+
+
 class ImageParams(DataParams):
     name: Literal["image"] = "image"
     frame: int | None
+    return_raw: bool = False # optional boolean flag to return raw image
 
 
 DataResponseType = Union[

@@ -17,6 +17,7 @@ from toktagger.api.schemas.data import (
     Data,
     DataParamTypes,
     ImageParams,
+    RawImageData,
     DataParams,
     ImageData,
     MultiVariateTimeSeriesData,
@@ -124,7 +125,7 @@ class ImageDataLoader(DataLoader):
         return ImageFileData
 
     @pydantic.validate_call
-    def get_sample(self, sample: Sample, params: ImageParams, **kwargs) -> ImageData:
+    def get_sample(self, sample: Sample, params: ImageParams, **kwargs) -> ImageData | RawImageData:
         if not isinstance(sample.data, ImageFileData):
             raise TypeError(
                 f"Expected sample data of type 'ImageFileData' but got '{type(sample.data)}'"
@@ -153,6 +154,13 @@ class ImageDataLoader(DataLoader):
                 f"Could not find image file at '{file_path}', relative to {pathlib.Path().cwd()}"
             )
         im = Image.open(file_path)
+        # return a raw image if the user says return_raw=True
+        if params.return_raw:
+            return RawImageData(
+                frame=int(file_path.stem),
+                values=im,
+            )
+
         buffer = io.BytesIO()
         im.save(buffer, format="PNG")
         buffer.seek(0)

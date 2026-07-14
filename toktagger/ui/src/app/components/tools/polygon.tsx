@@ -175,6 +175,29 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
         selectAnnotations([annotation.id]); // Visually selects the annotation when editting starts
       }
 
+      const translateHandler = d3
+        .drag<SVGPolygonElement, TimeSeriesAnnotation>()
+        .on("start", function (_event, d) {
+          selectAnnotations([d.id]); // Visually selects the annotation when editting starts
+          setOngoingAction(true);
+        })
+        .on("drag", function (event, d) {
+          // d3 drag events expose dx/dy as pixel deltas since the last event,
+          // convert using the linear axis scale so it applies irrespective of origin
+          const dx = xAxis.p2d(event.dx) - xAxis.p2d(0);
+          const dy = yAxis.p2d(event.dy) - yAxis.p2d(0);
+          d.points = d.points.map((p) => ({ x: p.x + dx, y: p.y + dy }));
+          updateAnnotation(d); // Global refresh must be triggered to update all linked plots
+        })
+        .on("end", function () {
+          setOngoingAction(false);
+        });
+
+      const deleteHandlers = new WeakMap<
+        SVGCircleElement,
+        (e: KeyboardEvent) => void
+      >();
+
       const getVertexHandler = (index: number) =>
         d3.drag<SVGCircleElement, TimeSeriesAnnotation>()
           .on("start", function (_, d) { 
@@ -196,10 +219,10 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
               }
             };
 
-          // Store the handler on the element so we can remove it later
-          (this as SVGCircleElement).__deleteHandler = onKeyDown;
+          // Store the handler keyed by the element so we can remove it later
+          deleteHandlers.set(this, onKeyDown);
 
-          window.addEventListener("keydown", onKeyDown); 
+          window.addEventListener("keydown", onKeyDown);
           })
           .on("drag", (event, d) => {
             if (hasDeletedVertex.current) return // If during this drag the vertex was deleted no action should be taken
@@ -210,9 +233,10 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
             hasDeletedVertex.current = false;
             setOngoingAction(false)
             console.log("End 2")
-            const handler = (this as SVGCircleElement).__deleteHandler;
+            const handler = deleteHandlers.get(this);
             if (handler) {
               window.removeEventListener("keydown", handler);
+              deleteHandlers.delete(this);
             }
           });
 
@@ -231,7 +255,7 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
         const categoryId = `${polygon.type}_${polygon.label}`;
         const color = categories.get(categoryId)?.color || "black";
 
-        graphGroup
+        const polygonShape = graphGroup
             .append("polygon")
             .attr("aria-label", "polygon")
             .attr(
@@ -247,6 +271,10 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
             .datum(polygon)
             .on("click", handleClick)
             .on("contextmenu", handleContextMenu);
+
+        if (editMode && !isInProgress) {
+          polygonShape.style("cursor", "move").call(translateHandler);
+        }
 
         if (editMode) {
           if (!isInProgress) {

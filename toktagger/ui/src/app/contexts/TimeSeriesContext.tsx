@@ -44,9 +44,7 @@ type TimeSeriesActions = {
   ) => void;
   triggerUpdate: () => void;
   selectAnnotations: (ids: string[]) => void;
-  findSelectedAnnotations: (
-    range: SelectionRange | null,
-  ) => void;
+  findSelectedAnnotations: (range: SelectionRange | null) => void;
   setEditMode: (turnOn: boolean) => void;
   setOngoingAction: (state: boolean) => void;
 };
@@ -414,16 +412,16 @@ export const TimeSeriesProvider = ({
             const selected =
               annotation.points.length > 0 &&
               annotation.points.every(
-                point =>
+                (point) =>
                   point.x >= range.x.low &&
                   point.x <= range.x.high &&
                   point.y >= range.y.low &&
-                  point.y <= range.y.high
+                  point.y <= range.y.high,
               );
 
             return {
               ...annotation,
-              selected
+              selected,
             };
           }
           return { ...annotation, selected: false };

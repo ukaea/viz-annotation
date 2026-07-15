@@ -73,7 +73,7 @@ export function convertRawAnnotationsToTimeSeries(
   if (TimeRegionSchema.safeParse(annotation).success) {
     const timeRegion = TimeRegionSchema.parse(annotation);
     return {
-      id: annotation.id || uuidv4(),
+      id: uuidv4(),
       created_by: timeRegion.created_by,
       label: timeRegion.label,
       type: TimeSeriesAnnotationType.TIME_REGION,
@@ -88,7 +88,7 @@ export function convertRawAnnotationsToTimeSeries(
   if (TimePointSchema.safeParse(annotation).success) {
     const timePoint = TimePointSchema.parse(annotation);
     return {
-      id: annotation.id || uuidv4(),
+      id: uuidv4(),
       created_by: timePoint.created_by,
       label: timePoint.label,
       type: TimeSeriesAnnotationType.TIME_POINT,
@@ -100,7 +100,7 @@ export function convertRawAnnotationsToTimeSeries(
   if (BoundingBoxSchema.safeParse(annotation).success) {
     const boundingBox = BoundingBoxSchema.parse(annotation);
     return {
-      id: annotation.id || uuidv4(),
+      id: uuidv4(),
       created_by: boundingBox.created_by,
       label: boundingBox.label,
       type: TimeSeriesAnnotationType.BOUNDING_BOX,
@@ -118,7 +118,7 @@ export function convertRawAnnotationsToTimeSeries(
   if (PolygonSchema.safeParse(annotation).success) {
     const polygon = PolygonSchema.parse(annotation);
     return {
-      id: annotation.id || uuidv4(),
+      id: uuidv4(),
       created_by: polygon.created_by,
       label: polygon.label,
       type: TimeSeriesAnnotationType.POLYGON,

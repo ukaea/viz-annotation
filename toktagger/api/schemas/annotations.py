@@ -1,6 +1,6 @@
 from typing import Literal, Optional, Union
 
-from pydantic import Field, TypeAdapter, create_model, model_validator
+from pydantic import Field, TypeAdapter, create_model, field_validator, model_validator
 
 from toktagger.api.schemas import ConfiguredModel
 
@@ -68,6 +68,13 @@ class Polygon(AnnotationBase):
         description="COCO polygon segmentation as a flat list: [x1, y1, x2, y2, ...].",
     )
 
+    @field_validator("segmentation")
+    @classmethod
+    def validate_segmentation(cls, v: list[int]) -> list[int]:
+        if len(v) % 2 != 0:
+            raise ValueError("Segmentation must contain an even number of coordinates.")
+        return v
+
 
 class VideoPolygon(AnnotationBase):
     type: Literal["video_polygon"] = "video_polygon"
@@ -78,6 +85,13 @@ class VideoPolygon(AnnotationBase):
         min_length=6,
         description="COCO polygon segmentation as a flat list: [x1, y1, x2, y2, ...].",
     )
+
+    @field_validator("segmentation")
+    @classmethod
+    def validate_segmentation(cls, v: list[int]) -> list[int]:
+        if len(v) % 2 != 0:
+            raise ValueError("Segmentation must contain an even number of coordinates.")
+        return v
 
 
 class VideoPoint(AnnotationBase):

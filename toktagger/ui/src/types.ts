@@ -5,7 +5,6 @@ export const BaseAnnotationSchema = z.object({
   project_id: z.string().nullable().default(null),
   sample_id: z.string().nullable().default(null),
   shot_id: z.number().optional(),
-  id: z.string().optional(),
   timestamp: z.string().optional(),
   validated: z.boolean().nullable().default(null),
   uncertainty: z.number().nullable().default(1),
@@ -389,4 +388,15 @@ type PlotlyAxisTransforms = {
 };
 export interface ExtendedPlotlyHTMLElement extends PlotlyHTMLElement {
   _fullLayout: Record<string, PlotlyAxisTransforms>;
+}
+
+export interface SelectionRange {
+  x: {
+    low: number;
+    high: number;
+  };
+  y: {
+    low: number;
+    high: number;
+  };
 }

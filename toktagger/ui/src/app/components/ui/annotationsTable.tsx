@@ -119,13 +119,6 @@ export const AnnotationsTable = () => {
         case TimeSeriesAnnotationType.POLYGON:
           data = `(${annotation.points[0].x.toFixed(2)}, ${annotation.points[0].y.toFixed(2)}) [${annotation.points.length}]`;
           break;
-        case TimeSeriesAnnotationType.BOUNDING_BOX:
-          marker = {
-            width: "size-75",
-            height: "size-250",
-          };
-          data = `${annotation.points[0].x.toFixed(4)}`;
-          break;
         default:
           console.warn(
             `Could not parse data for ${annotation.type} when adding to table`,

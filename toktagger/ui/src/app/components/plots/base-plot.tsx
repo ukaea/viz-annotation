@@ -14,7 +14,7 @@ import {
   useTimeSeriesActions,
   useTimeSeriesState,
 } from "@/app/contexts/TimeSeriesContext";
-import { ExtendedPlotlyHTMLElement, TimeSeriesAnnotationPoint } from "@/types";
+import { ExtendedPlotlyHTMLElement, SelectionRange, TimeSeriesAnnotationPoint } from "@/types";
 import React from "react";
 import { arrayMax, arrayMin } from "@/app/utils";
 import { ToastQueue } from "@adobe/react-spectrum";
@@ -264,10 +264,18 @@ export const BaseTimeSeriesPlot = ({
             { timeout: 5000 },
           );
         }
-        findSelectedAnnotations({
-          low: eventData.range.x[0],
-          high: eventData.range.x[1],
-        });
+        const selection: SelectionRange = {
+          x: {
+            low: eventData.range.x[0],
+            high: eventData.range.x[1],
+          },
+          y: {
+            low: eventData.range.y[0],
+            high: eventData.range.y[1],
+          }
+        }
+        console.log(selection)
+        findSelectedAnnotations(selection);
       }
       relayout(plot, EMPTY_PLOTLY_SELECTION); // Immediately remove selection indicator
     };

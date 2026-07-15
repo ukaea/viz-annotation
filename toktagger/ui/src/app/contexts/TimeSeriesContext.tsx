@@ -2,6 +2,7 @@
 
 import {
   Annotation,
+  SelectionRange,
   TimeSeriesAnnotation,
   TimeSeriesAnnotationType,
   TimeSeriesCategory,
@@ -44,7 +45,7 @@ type TimeSeriesActions = {
   triggerUpdate: () => void;
   selectAnnotations: (ids: string[]) => void;
   findSelectedAnnotations: (
-    range: { low: number; high: number } | null,
+    range: SelectionRange | null,
   ) => void;
   setEditMode: (turnOn: boolean) => void;
   setOngoingAction: (state: boolean) => void;
@@ -183,8 +184,8 @@ export const TimeSeriesProvider = ({
         });
       });
     }
-    if (project.bounding_box_labels) {
-      project.bounding_box_labels.forEach((label, index) => {
+    if (project.polygon_labels) {
+      project.polygon_labels.forEach((label, index) => {
         const category_id = `${TimeSeriesAnnotationType.POLYGON}_${label}`;
         timeSeriesCategories.set(category_id, {
           label,
@@ -367,7 +368,7 @@ export const TimeSeriesProvider = ({
   );
 
   const findSelectedAnnotations = useCallback(
-    (range: { low: number; high: number } | null) => {
+    (range: SelectionRange | null) => {
       if (!editMode) return;
 
       if (!range) {
@@ -382,8 +383,8 @@ export const TimeSeriesProvider = ({
         (annotation) => {
           if (annotation.type === TimeSeriesAnnotationType.TIME_REGION) {
             if (
-              annotation.points[0].x > range.low &&
-              annotation.points[1].x < range.high
+              annotation.points[0].x > range.x.low &&
+              annotation.points[1].x < range.x.high
             ) {
               return { ...annotation, selected: true };
             }
@@ -391,8 +392,8 @@ export const TimeSeriesProvider = ({
           }
           if (annotation.type === TimeSeriesAnnotationType.TIME_POINT) {
             if (
-              annotation.points[0].x > range.low &&
-              annotation.points[0].x < range.high
+              annotation.points[0].x > range.x.low &&
+              annotation.points[0].x < range.x.high
             ) {
               return { ...annotation, selected: true };
             }
@@ -400,12 +401,30 @@ export const TimeSeriesProvider = ({
           }
           if (annotation.type === TimeSeriesAnnotationType.BOUNDING_BOX) {
             if (
-              annotation.points[0].x > range.low &&
-              annotation.points[0].x < range.high
+              annotation.points[0].x > range.x.low &&
+              annotation.points[1].x < range.x.high &&
+              annotation.points[1].y > range.y.low &&
+              annotation.points[0].y < range.y.high
             ) {
               return { ...annotation, selected: true };
             }
             return { ...annotation, selected: false };
+          }
+          if (annotation.type === TimeSeriesAnnotationType.POLYGON) {
+            const selected =
+              annotation.points.length > 0 &&
+              annotation.points.every(
+                point =>
+                  point.x >= range.x.low &&
+                  point.x <= range.x.high &&
+                  point.y >= range.y.low &&
+                  point.y <= range.y.high
+              );
+
+            return {
+              ...annotation,
+              selected
+            };
           }
           return { ...annotation, selected: false };
         },

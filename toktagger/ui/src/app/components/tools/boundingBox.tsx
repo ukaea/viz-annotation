@@ -29,6 +29,7 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
     registerTooling,
     createAnnotation,
     addAnnotation,
+    removeAnnotation,
     updateAnnotation,
     setOngoingAction,
     selectAnnotations,
@@ -46,7 +47,7 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
 
   useEffect(() => {
     const toolingCallbacks: ToolingCallbacks = {
-      start: (x, y, label) => {
+      start: (x, y, label, _axisSize) => {
         const annotation = createAnnotation(
           TimeSeriesAnnotationType.BOUNDING_BOX,
           label,
@@ -73,13 +74,13 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
       end(_x, _y) {
         if (!currentAnnotation.current) return;
 
-        // Once the user has drawn the annotation the points are recalculated to ensure the bottom left and top right are stored
+        // Once the user has drawn the annotation the points are recalculated to ensure the top left and bottom right are stored
         const origin: TimeSeriesAnnotationPoint = {
           x: Math.min(
             currentAnnotation.current.points[0].x,
             currentAnnotation.current.points[1].x,
           ),
-          y: Math.min(
+          y: Math.max(
             currentAnnotation.current.points[0].y,
             currentAnnotation.current.points[1].y,
           ),
@@ -89,7 +90,7 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
             currentAnnotation.current.points[0].x,
             currentAnnotation.current.points[1].x,
           ),
-          y: Math.max(
+          y: Math.min(
             currentAnnotation.current.points[0].y,
             currentAnnotation.current.points[1].y,
           ),
@@ -98,12 +99,19 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
         currentAnnotation.current.points[1] = extreme;
         updateAnnotation(currentAnnotation.current);
       },
+      cancel() {
+        if (currentAnnotation.current) {
+          removeAnnotation(currentAnnotation.current.id);
+        }
+        currentAnnotation.current = null;
+      },
     };
     registerTooling(TimeSeriesAnnotationType.BOUNDING_BOX, toolingCallbacks);
   }, [
     addAnnotation,
     createAnnotation,
     registerTooling,
+    removeAnnotation,
     setOngoingAction,
     updateAnnotation,
   ]);
@@ -193,7 +201,7 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
           // Calculate the mouse offset from the origin when the annotation is clicked
           dragOffset.current = {
             x: xAxis.d2p(d.points[0].x) - event.x,
-            y: event.y - yAxis.d2p(d.points[0].y),
+            y: yAxis.d2p(d.points[0].y) - event.y,
           };
         })
         .on("drag", function (event, d) {
@@ -327,7 +335,7 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
         const OUTER_HANDLE_PX = 10; // fixed, always clickable outside the zone
         const INNER_HANDLE_MAX_PX = 10; // cap inside portion so handles don't dominate
         const MIN_CENTER_DRAG_PX = 6; // keep a gap so the middle stays draggable
-        const EDGE_PERCENTAGE = 0.5;
+        const EDGE_PERCENTAGE = 0.75;
         const EDGE_BUFFER = (1 - EDGE_PERCENTAGE) / 2;
 
         // inside portion per side; shrink when zone is tiny to keep a center gap
@@ -416,7 +424,7 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
             "annotation bounding-box leftHandle disable-on-modifier",
           )
           .attr("x", px0 - OUTER_HANDLE_PX)
-          .attr("y", py1 + boxHeight * EDGE_BUFFER)
+          .attr("y", py0 + boxHeight * EDGE_BUFFER)
           .attr("width", totalHandleWidth)
           .attr("height", boxHeight * EDGE_PERCENTAGE)
           .attr("fill", "transparent")
@@ -434,7 +442,7 @@ export const BoundingBox = ({ plotId, plotReady }: ToolingProps) => {
             "annotation bounding-box rightHandle disable-on-modifier",
           )
           .attr("x", px1 - (totalHandleWidth - OUTER_HANDLE_PX))
-          .attr("y", py1 + boxHeight * EDGE_BUFFER)
+          .attr("y", py0 + boxHeight * EDGE_BUFFER)
           .attr("width", totalHandleWidth)
           .attr("height", boxHeight * EDGE_PERCENTAGE)
           .attr("fill", "transparent")

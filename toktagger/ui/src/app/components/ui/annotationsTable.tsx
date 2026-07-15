@@ -1,7 +1,7 @@
 "use client";
 
 import { TimeSeriesAnnotationType, TimeSeriesCategory } from "@/types";
-import { useMemo } from "react";
+import { ComponentType, useMemo } from "react";
 import {
   TableView,
   TableHeader,
@@ -10,19 +10,72 @@ import {
   Row,
   Cell,
   Flex,
-  View,
-  DimensionValue,
 } from "@adobe/react-spectrum";
 import { useTimeSeriesState } from "@/app/contexts/TimeSeriesContext";
+
+interface MarkerProps {
+  color: string;
+}
+
+const MARKER_VIEWBOX = "0 0 24 24";
+
+// Shape mirrors how each annotation type actually renders on the plot, so the
+// marker doubles as a legend for the tool - stroked/filled with the category color
+const TimePointMarker = ({ color }: MarkerProps) => (
+  <svg width="10" height="20" viewBox={MARKER_VIEWBOX}>
+    <line x1="12" y1="1" x2="12" y2="40" stroke={color} strokeWidth="4" />
+  </svg>
+);
+
+const TimeRegionMarker = ({ color }: MarkerProps) => (
+  <svg width="20" height="20" viewBox={MARKER_VIEWBOX}>
+    <rect x="6" y="6" width="12" height="20" rx="2" fill={color} />
+  </svg>
+);
+
+const BoundingBoxMarker = ({ color }: MarkerProps) => (
+  <svg width="20" height="20" viewBox={MARKER_VIEWBOX}>
+    <rect
+      x="3"
+      y="5"
+      width="18"
+      height="14"
+      rx="1"
+      fill="none"
+      stroke={color}
+      strokeWidth="2.5"
+    />
+  </svg>
+);
+
+const PolygonMarker = ({ color }: MarkerProps) => (
+  <svg width="20" height="20" viewBox={MARKER_VIEWBOX}>
+    <polygon
+      points="12,2 22,9.5 18,21 6,21 2,9.5"
+      fill="none"
+      stroke={color}
+      strokeWidth="2.5"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+// One marker per annotation type - set when the annotation's category/type is resolved below
+const MARKER_ICONS: Record<
+  TimeSeriesAnnotationType,
+  ComponentType<MarkerProps>
+> = {
+  [TimeSeriesAnnotationType.TIME_POINT]: TimePointMarker,
+  [TimeSeriesAnnotationType.TIME_REGION]: TimeRegionMarker,
+  [TimeSeriesAnnotationType.BOUNDING_BOX]: BoundingBoxMarker,
+  [TimeSeriesAnnotationType.POLYGON]: PolygonMarker,
+};
 
 interface TableEntry {
   id: string;
   category: TimeSeriesCategory;
   data: string;
-  marker: {
-    width: DimensionValue;
-    height: DimensionValue;
-  };
+  marker: ComponentType<MarkerProps>;
 }
 
 export const AnnotationsTable = () => {
@@ -41,35 +94,30 @@ export const AnnotationsTable = () => {
       }
 
       let data: string;
-      let marker: TableEntry["marker"] = {
-        width: "size-250",
-        height: "size-250",
-      };
       switch (annotation.type) {
         case TimeSeriesAnnotationType.TIME_POINT:
-          marker = {
-            width: "size-75",
-            height: "size-250",
-          };
           data = `${annotation.points[0].x.toFixed(4)}`;
           break;
-        case TimeSeriesAnnotationType.TIME_REGION:
-          marker = {
-            width: "size-250",
-            height: "size-250",
-          };
-          const points: string[] = [];
+        case TimeSeriesAnnotationType.TIME_REGION: {
+          const timeRegionPoints: string[] = [];
           annotation.points.forEach((point) => {
-            points.push(`${point.x.toFixed(4)}`);
+            timeRegionPoints.push(`${point.x.toFixed(4)}`);
           });
-          data = `${points[0]} - ${points[1]}`;
+          data = `${timeRegionPoints[0]} - ${timeRegionPoints[1]}`;
           break;
-        case TimeSeriesAnnotationType.BOUNDING_BOX:
-          marker = {
-            width: "size-75",
-            height: "size-250",
-          };
-          data = `${annotation.points[0].x.toFixed(4)}`;
+        }
+        case TimeSeriesAnnotationType.BOUNDING_BOX: {
+          const boundingBoxPoints: string[] = [];
+          annotation.points.forEach((point) => {
+            boundingBoxPoints.push(
+              `(${point.x.toFixed(2)}, ${point.y.toFixed(2)})`,
+            );
+          });
+          data = `${boundingBoxPoints[0]} ${boundingBoxPoints[1]}`;
+          break;
+        }
+        case TimeSeriesAnnotationType.POLYGON:
+          data = `(${annotation.points[0].x.toFixed(2)}, ${annotation.points[0].y.toFixed(2)}) [${annotation.points.length}]`;
           break;
         default:
           console.warn(
@@ -82,7 +130,7 @@ export const AnnotationsTable = () => {
         id: annotation.id,
         category,
         data,
-        marker,
+        marker: MARKER_ICONS[annotation.type],
       });
     });
 
@@ -115,12 +163,7 @@ export const AnnotationsTable = () => {
             <Row key={item.id}>
               <Cell>
                 <Flex justifyContent="center">
-                  <View
-                    width={item.marker.width}
-                    height={item.marker.height}
-                    borderRadius="small"
-                    UNSAFE_style={{ backgroundColor: item.category.color }}
-                  />
+                  <item.marker color={item.category.color} />
                 </Flex>
               </Cell>
               <Cell>

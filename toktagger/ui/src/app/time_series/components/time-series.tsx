@@ -13,6 +13,7 @@ import { Flex, View } from "@adobe/react-spectrum";
 import { AnnotationsTable } from "@/app/components/ui/annotationsTable";
 import { AnnotationToolbar } from "@/app/components/tools/annotationToolbar";
 import { BoundingBox } from "@/app/components/tools/boundingBox";
+import { Polygon } from "@/app/components/tools/polygon";
 
 export const TimeSeriesView = () => {
   const { data } = useSample();
@@ -138,6 +139,7 @@ export const TimeSeriesView = () => {
                 <TimeRegion />
                 <TimePoint />
                 <BoundingBox />
+                <Polygon />
               </BaseTimeSeriesPlot>
               <AnnotationsTable />
             </Flex>

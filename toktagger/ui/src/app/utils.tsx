@@ -8,6 +8,9 @@ import {
   TimeSeriesAnnotationType,
   BoundingBox,
   BoundingBoxSchema,
+  Polygon,
+  PolygonSchema,
+  TimeSeriesAnnotationPoint,
 } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 
@@ -102,16 +105,37 @@ export function convertRawAnnotationsToTimeSeries(
       label: boundingBox.label,
       type: TimeSeriesAnnotationType.BOUNDING_BOX,
       points: [
-        { x: boundingBox.x_min, y: boundingBox.y_min },
+        { x: boundingBox.x_min, y: boundingBox.y_min + boundingBox.height },
         {
           x: boundingBox.x_min + boundingBox.width,
-          y: boundingBox.y_min + boundingBox.height,
+          y: boundingBox.y_min,
         },
       ],
       selected: false,
     };
-  } else {
-    console.log(BoundingBoxSchema.safeParse(annotation).error?.message);
+  }
+
+  if (PolygonSchema.safeParse(annotation).success) {
+    const polygon = PolygonSchema.parse(annotation);
+    return {
+      id: uuidv4(),
+      created_by: polygon.created_by,
+      label: polygon.label,
+      type: TimeSeriesAnnotationType.POLYGON,
+      points: polygon.segmentation.reduce<TimeSeriesAnnotationPoint[]>(
+        (accumulator, _, i, arr) => {
+          if (i % 2 === 0) {
+            accumulator.push({
+              x: arr[i],
+              y: arr[i + 1],
+            });
+          }
+          return accumulator;
+        },
+        [],
+      ),
+      selected: false,
+    };
   }
 
   console.warn(
@@ -167,6 +191,22 @@ export function convertTimeSeriesToRawAnnotations(
       label: annotation.label,
     };
     return boundingBox;
+  }
+
+  if (annotation.type === TimeSeriesAnnotationType.POLYGON) {
+    const polygon: Polygon = {
+      project_id: null,
+      sample_id: null,
+      validated: false,
+      uncertainty: 1,
+      created_by: annotation.created_by,
+      type: "polygon",
+      segmentation: annotation.points.flatMap(({ x, y }) => {
+        return [x, y];
+      }),
+      label: annotation.label,
+    };
+    return polygon;
   }
 
   console.warn(

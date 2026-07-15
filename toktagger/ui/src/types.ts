@@ -55,6 +55,13 @@ export const VideoBoundingBoxSchema = BaseAnnotationSchema.extend({
 
 export type VideoBoundingBox = z.infer<typeof VideoBoundingBoxSchema>;
 
+export const PolygonSchema = BaseAnnotationSchema.extend({
+  type: z.literal("polygon"),
+  segmentation: z.array(z.number()).min(6),
+});
+
+export type Polygon = z.infer<typeof PolygonSchema>;
+
 export const VideoPolygonSchema = BaseAnnotationSchema.extend({
   type: z.literal("video_polygon"),
   frame: z.number().int(),
@@ -79,6 +86,7 @@ export const AnnotationSchema = z.union([
   TimeRegionSchema,
   ClassLabelSchema,
   BoundingBoxSchema,
+  PolygonSchema,
   VideoBoundingBoxSchema,
   VideoPolygonSchema,
   VideoPointSchema,
@@ -322,6 +330,7 @@ export enum TimeSeriesAnnotationType {
   TIME_POINT = "TIME POINT",
   TIME_REGION = "TIME REGION",
   BOUNDING_BOX = "BOUNDING BOX",
+  POLYGON = "POLYGON",
 }
 
 export type TimeSeriesToolDefinition = {
@@ -350,9 +359,18 @@ export type TimeSeriesAnnotation = {
 };
 
 export type ToolingCallbacks = {
-  start: (x: number, y: number, label: string) => void;
+  start: (
+    x: number,
+    y: number,
+    label: string,
+    axisSize: { x: number; y: number },
+  ) => void;
   move: (x: number, y: number) => void;
   end: (x: number, y: number) => void;
+  hover?: (x: number, y: number) => void;
+  // Discards any in-progress annotation and resets tool-local state - called when a draw
+  // is abandoned (tool switched mid-draw, Escape pressed) rather than completed normally
+  cancel?: () => void;
 };
 
 export type PlotProps = {
@@ -370,4 +388,15 @@ type PlotlyAxisTransforms = {
 };
 export interface ExtendedPlotlyHTMLElement extends PlotlyHTMLElement {
   _fullLayout: Record<string, PlotlyAxisTransforms>;
+}
+
+export interface SelectionRange {
+  x: {
+    low: number;
+    high: number;
+  };
+  y: {
+    low: number;
+    high: number;
+  };
 }

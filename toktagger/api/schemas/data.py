@@ -38,9 +38,8 @@ class DataParams(ConfiguredModel):
 class ImageParams(DataParams):
     name: Literal["image"] = "image"
     frame: int | None
-    return_raw: bool = (
-        False  # Optional: Return raw encoded image bytes instead of base64.
-    )
+    # Optional: Return raw encoded image bytes instead of base64.
+    return_raw: bool = False
 
 
 DataResponseType = Union[

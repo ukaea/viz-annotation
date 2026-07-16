@@ -18,6 +18,7 @@ from toktagger.api.schemas.data import (
 )
 import pathlib
 import numpy
+import xarray
 from PIL import Image
 import base64
 import io
@@ -163,6 +164,106 @@ def test_uda_camera_loader(uda_env_vars):
     base64_decoded = base64.b64decode(data.values)
     image = Image.open(io.BytesIO(base64_decoded))
     assert numpy.array(image).shape == (912, 768)
+
+
+def test_uda_camera_loader_bit_depth_scaling(monkeypatch):
+    # UDA can return a uint16 array even though the camera's declared bit
+    # depth is smaller, e.g. RCO reports depth=8 for shot 54339. Conversion
+    # to uint8 should use that declared depth rather than each frame's own
+    # min/max, so scaling is consistent across frames.
+    camera_name = "rco"
+    uda_shot = ShotData(protocol="uda", signal_names=[camera_name])
+    sample = Sample(
+        shot_id=54339,
+        data=uda_shot,
+        _id="test",
+        project_id="test",
+        validated_annotations=False,
+    )
+
+    raw_values = numpy.array([[0, 128], [200, 255]], dtype=numpy.uint16)
+    fake_dataset = xarray.Dataset(
+        {"data": xarray.DataArray(raw_values, dims=["x", "y"], attrs={"depth": 8})}
+    )
+    monkeypatch.setattr(
+        data_loaders.xr, "open_dataset", lambda *args, **kwargs: fake_dataset
+    )
+
+    data_loader = data_loaders.UDACameraDataLoader()
+    image_data = data_loader.get_sample(
+        sample, params=ImageParams(name="image", frame=0)
+    )
+    base64_decoded = base64.b64decode(image_data.values)
+    frame_arr = numpy.array(Image.open(io.BytesIO(base64_decoded)))
+
+    # depth=8 means the declared max value is 255, so scaling is a no-op
+    # and every value maps to itself.
+    assert numpy.array_equal(frame_arr, raw_values.astype(numpy.uint8))
+
+
+def test_uda_camera_loader_constant_frame_above_bit_depth_range(monkeypatch):
+    # Regression test: a frame with a single constant value above 255 used
+    # to be rescaled to all zeros (completely black), since the old code
+    # computed range = max - min = 0 for a constant frame. Scaling by the
+    # camera's declared bit depth avoids this.
+    camera_name = "rco"
+    uda_shot = ShotData(protocol="uda", signal_names=[camera_name])
+    sample = Sample(
+        shot_id=54339,
+        data=uda_shot,
+        _id="test",
+        project_id="test",
+        validated_annotations=False,
+    )
+
+    raw_values = numpy.full((4, 4), 300, dtype=numpy.uint16)
+    fake_dataset = xarray.Dataset(
+        {"data": xarray.DataArray(raw_values, dims=["x", "y"], attrs={"depth": 8})}
+    )
+    monkeypatch.setattr(
+        data_loaders.xr, "open_dataset", lambda *args, **kwargs: fake_dataset
+    )
+
+    data_loader = data_loaders.UDACameraDataLoader()
+    image_data = data_loader.get_sample(
+        sample, params=ImageParams(name="image", frame=0)
+    )
+    base64_decoded = base64.b64decode(image_data.values)
+    frame_arr = numpy.array(Image.open(io.BytesIO(base64_decoded)))
+
+    # Value is clipped to the top of the 8-bit range (255), not zeroed out.
+    assert numpy.all(frame_arr == 255)
+
+
+def test_uda_camera_loader_no_bit_depth_falls_back_to_clip(monkeypatch):
+    # When the bit depth attribute isn't present, fall back to a plain
+    # clip to the uint8 range rather than a per-frame min/max rescale.
+    camera_name = "rco"
+    uda_shot = ShotData(protocol="uda", signal_names=[camera_name])
+    sample = Sample(
+        shot_id=54339,
+        data=uda_shot,
+        _id="test",
+        project_id="test",
+        validated_annotations=False,
+    )
+
+    raw_values = numpy.array([[0, 100], [300, 500]], dtype=numpy.uint16)
+    fake_dataset = xarray.Dataset(
+        {"data": xarray.DataArray(raw_values, dims=["x", "y"])}
+    )
+    monkeypatch.setattr(
+        data_loaders.xr, "open_dataset", lambda *args, **kwargs: fake_dataset
+    )
+
+    data_loader = data_loaders.UDACameraDataLoader()
+    image_data = data_loader.get_sample(
+        sample, params=ImageParams(name="image", frame=0)
+    )
+    base64_decoded = base64.b64decode(image_data.values)
+    frame_arr = numpy.array(Image.open(io.BytesIO(base64_decoded)))
+
+    assert numpy.array_equal(frame_arr, numpy.array([[0, 100], [255, 255]]))
 
 
 def test_uda_loader_data_doesnt_exist(uda_env_vars):

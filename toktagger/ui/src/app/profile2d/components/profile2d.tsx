@@ -18,7 +18,7 @@ import * as d3 from "d3";
 import { AnnotationsTable } from "@/app/components/ui/annotationsTable";
 import { useSample } from "@/app/contexts/SampleContext";
 import { useEffect, useState } from "react";
-import { Flex } from "@adobe/react-spectrum";
+import { Flex, View } from "@adobe/react-spectrum";
 import { Plotly } from "plotly.js-dist-min";
 
 // The heatmap is drawn against yaxis2, so annotations carrying real y values belong to
@@ -232,7 +232,9 @@ export const Profile2dView = () => {
   ];
 
   let plotLayout: Partial<Plotly.Layout> = {
-    width: window.innerWidth * 0.84,
+    // Sized by the flex container rather than the viewport, so the annotation
+    // toolbar beside the plot is not pushed off the page.
+    autosize: true,
     height: window.innerHeight * 0.9,
     xaxis: {
       title: {
@@ -293,29 +295,31 @@ export const Profile2dView = () => {
   }
 
   return (
-    <Flex justifyContent="center" alignItems="center">
-      <TimeSeriesProvider signalName={viewParams.signal_name}>
-        <Flex direction="row" flex justifyContent="space-between">
-          <Flex direction="column" gap="size-200">
-            <BaseTimeSeriesPlot
-              plotId="Profile2DView"
-              plotConfig={{
-                data: plotData,
-                config: plotConfig,
-                layout: plotLayout,
-              }}
-              rescaleOnZoom={false}
-            >
-              <TimeRegion />
-              <TimePoint />
-              <BoundingBox subplot={HEATMAP_SUBPLOT} />
-              <Polygon subplot={HEATMAP_SUBPLOT} />
-            </BaseTimeSeriesPlot>
-            <AnnotationsTable />
+    <View width="100%">
+      <Flex justifyContent="center" alignItems="center">
+        <TimeSeriesProvider signalName={viewParams.signal_name}>
+          <Flex direction="row" flex justifyContent="space-between">
+            <Flex direction="column" flex gap="size-200">
+              <BaseTimeSeriesPlot
+                plotId="Profile2DView"
+                plotConfig={{
+                  data: plotData,
+                  config: plotConfig,
+                  layout: plotLayout,
+                }}
+                rescaleOnZoom={false}
+              >
+                <TimeRegion />
+                <TimePoint />
+                <BoundingBox subplot={HEATMAP_SUBPLOT} />
+                <Polygon subplot={HEATMAP_SUBPLOT} />
+              </BaseTimeSeriesPlot>
+              <AnnotationsTable />
+            </Flex>
+            <AnnotationToolbar />
           </Flex>
-          <AnnotationToolbar />
-        </Flex>
-      </TimeSeriesProvider>
-    </Flex>
+        </TimeSeriesProvider>
+      </Flex>
+    </View>
   );
 };

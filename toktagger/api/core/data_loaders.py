@@ -414,9 +414,6 @@ class UDACameraDataLoader(DataLoader):
             if params.frame is None:
                 params.frame = 0  # Default to first frame if not specified
 
-            print(
-                f"Loading image signal '{signal_name}' for shot ID '{sample.shot_id}' at frame {params.frame}..."
-            )
             signal = xr.open_dataset(
                 f"uda://{signal_name}:{sample.shot_id}",
                 engine="uda",
@@ -435,16 +432,18 @@ class UDACameraDataLoader(DataLoader):
                 else:
                     image_array = image_array.reshape(-1, 1)  # 1D grayscale strip
 
-            # Convert uint16 to uint8 for Pillow compatibility (Pillow doesn't support u2)
+            # Convert uint16 to uint8 for Pillow compatibility (Pillow doesn't support u2).
+            # Scale using the camera's declared bit depth (not the per-frame min/max) so
+            # brightness stays consistent across frames, e.g. RCO reports depth=8 even
+            # though UDA returns a uint16 array for shot 54339.
             if image_array.dtype == np.uint16:
-                if np.any(image_array > 255):
-                    val_range = image_array.max() - image_array.min()
-                    image_array = image_array - image_array.min()
-                    if val_range:
-                        image_array = image_array / val_range
-                    image_array = (image_array * 255).astype(np.uint8)
+                bit_depth = signal["data"].attrs.get("depth")
+                if bit_depth:
+                    max_value = 2**bit_depth - 1
+                    scaled = image_array.astype(np.float64) * (255 / max_value)
+                    image_array = np.clip(scaled, 0, 255).astype(np.uint8)
                 else:
-                    image_array = image_array.astype(np.uint8)
+                    image_array = np.clip(image_array, 0, 255).astype(np.uint8)
 
             im = Image.fromarray(image_array)
             buffer = io.BytesIO()

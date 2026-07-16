@@ -14,10 +14,11 @@ import {
   useTimeSeriesActions,
   useTimeSeriesState,
 } from "@/app/contexts/TimeSeriesContext";
-import { ExtendedPlotlyHTMLElement, TimeSeriesAnnotationPoint } from "@/types";
+import { SelectionRange } from "@/types";
 import React from "react";
 import { arrayMax, arrayMin } from "@/app/utils";
 import { ToastQueue } from "@adobe/react-spectrum";
+import { useAnnotationTooling } from "./useAnnotationTooling";
 
 const DEFAULT_PLOTLY_CONFIG: Partial<Config> = {
   modeBarButtons: [
@@ -60,22 +61,14 @@ export const BaseTimeSeriesPlot = ({
 }: TimeSeriesPlotProps) => {
   const [plotReady, setPlotReady] = useState(false);
 
-  const {
-    createAnnotation,
-    addAnnotation,
-    triggerUpdate,
-    findSelectedAnnotations,
-    setOngoingAction,
-  } = useTimeSeriesActions();
-  const { activeAnnotationTool, toolingCallbacks, isDrawing, editMode } =
-    useTimeSeriesState();
+  const { triggerUpdate, findSelectedAnnotations } = useTimeSeriesActions();
+  const { editMode } = useTimeSeriesState();
 
-  const isDraggingRef = useRef(false);
   const allowRelayout = useRef(true);
 
   const plotId = externalId || "time-series";
 
-  if (!isDrawing) isDraggingRef.current = false;
+  useAnnotationTooling({ plotId, plotReady });
 
   useEffect(() => {
     const plot = document.getElementById(plotId) as PlotlyHTMLElement;
@@ -257,10 +250,18 @@ export const BaseTimeSeriesPlot = ({
             { timeout: 5000 },
           );
         }
-        findSelectedAnnotations({
-          low: eventData.range.x[0],
-          high: eventData.range.x[1],
-        });
+        const selection: SelectionRange = {
+          x: {
+            low: eventData.range.x[0],
+            high: eventData.range.x[1],
+          },
+          y: {
+            low: eventData.range.y[0],
+            high: eventData.range.y[1],
+          },
+        };
+        console.log(selection);
+        findSelectedAnnotations(selection);
       }
       relayout(plot, EMPTY_PLOTLY_SELECTION); // Immediately remove selection indicator
     };
@@ -271,172 +272,6 @@ export const BaseTimeSeriesPlot = ({
       plot.removeAllListeners("plotly_selected");
     };
   }, [editMode, findSelectedAnnotations, plotId, plotReady]);
-
-  useEffect(() => {
-    if (!plotReady) {
-      // Plot may not have loaded yet - this will rerun after loading
-      return;
-    }
-
-    const plot = document.getElementById(plotId);
-
-    if (!plot) {
-      console.error("Could not locate plot to set drag mode");
-      return;
-    }
-
-    if (isDrawing) {
-      relayout(plot, { dragmode: false });
-      return;
-    }
-
-    relayout(plot, { dragmode: "pan" });
-  }, [isDrawing, plotId, plotReady]);
-
-  useEffect(() => {
-    if (!plotReady) {
-      // Plot may not have loaded yet - this will rerun after loading
-      return;
-    }
-    const plot = document.getElementById(plotId) as PlotlyHTMLElement;
-    if (!plot) {
-      console.error("Could not locate plot to assign click handler");
-      return;
-    }
-
-    function getClickData(
-      event: MouseEvent,
-      _plot: PlotlyHTMLElement,
-    ): TimeSeriesAnnotationPoint {
-      const plot = _plot as ExtendedPlotlyHTMLElement;
-      let xaxis = plot._fullLayout.xaxis; // x-axis descriptor
-      let yaxis = plot._fullLayout.yaxis; // y-axis descriptor
-
-      const bb = (event.target as HTMLElement).getBoundingClientRect();
-      const relX = event.clientX - bb.left; // click X in pixels, relative to plot
-      const relY = event.clientY - bb.top; // click Y in pixels, relative to plot
-
-      const subplotId = (event.target as HTMLElement).dataset.subplot; // e.g. "x2y2"
-      if (subplotId) {
-        const m = subplotId.match(/^x(\d*)y(\d*)$/); // ['', '2', '2']
-        // m[1]/m[2] hold numeric suffixes empty string -> primary axis
-        if (m) {
-          const suffixX = m[1] ?? ""; // '' -> xaxis
-          const suffixY = m[2] ?? ""; // '' -> yaxis
-          // Swap to subplot-specific axes if they exist
-          xaxis = plot._fullLayout[`xaxis${suffixX}`] ?? plot._fullLayout.xaxis;
-          yaxis = plot._fullLayout[`yaxis${suffixY}`] ?? plot._fullLayout.yaxis;
-        }
-      }
-      // final catch-all fallback – runs whether or not we found a subplotId
-      xaxis = xaxis ?? plot._fullLayout.xaxis;
-      yaxis = yaxis ?? plot._fullLayout.yaxis;
-
-      // Coordinates in data space
-      const x = xaxis.p2d(relX); // data-space X at click
-      const y = yaxis.p2d(relY); // data-space Y at click
-
-      return { x, y };
-    }
-
-    const draggableElements =
-      plot.querySelectorAll<HTMLDivElement>(".nsewdrag");
-    if (draggableElements.length === 0) {
-      console.error("Could not locate drag element to assign click handler");
-      return;
-    }
-
-    const handleContextMenu = (event: MouseEvent) => {
-      event.preventDefault();
-    };
-
-    const handleCancelSelection = (event: MouseEvent) => {
-      if (!event.ctrlKey) {
-        findSelectedAnnotations(null);
-      }
-    };
-
-    const startAnnotationCreation = (event: MouseEvent) => {
-      if (event.ctrlKey) {
-        console.log(editMode);
-        if (!editMode) {
-          ToastQueue.info(
-            "Change to Edit Mode to draw annotations - see help popup in annotation toolbar for more info",
-            { timeout: 5000 },
-          );
-          return;
-        }
-        if (activeAnnotationTool) {
-          setOngoingAction(true);
-          isDraggingRef.current = true;
-          const clickLocation = getClickData(event, plot);
-          toolingCallbacks
-            .get(activeAnnotationTool.type)
-            ?.start(
-              clickLocation.x,
-              clickLocation.y,
-              activeAnnotationTool.label,
-            );
-        } else {
-          ToastQueue.info(
-            "Select a tool to draw annotation - see help popup in annotation toolbar for more info",
-            { timeout: 5000 },
-          );
-        }
-      }
-    };
-
-    const updateAnnotation = (event: MouseEvent) => {
-      if (activeAnnotationTool && isDraggingRef.current) {
-        const clickLocation = getClickData(event, plot);
-        toolingCallbacks
-          .get(activeAnnotationTool.type)
-          ?.move(clickLocation.x, clickLocation.y);
-      }
-    };
-
-    const finishAnnotationCreation = (event: MouseEvent) => {
-      setOngoingAction(false);
-      isDraggingRef.current = false;
-      if (activeAnnotationTool) {
-        const clickLocation = getClickData(event, plot);
-        toolingCallbacks
-          .get(activeAnnotationTool.type)
-          ?.end(clickLocation.x, clickLocation.y);
-      }
-    };
-
-    draggableElements.forEach((element) => {
-      element.addEventListener("contextmenu", handleContextMenu);
-      element.addEventListener("mousedown", handleCancelSelection);
-      element.addEventListener("mousedown", startAnnotationCreation);
-
-      if (editMode) {
-        element.addEventListener("mousemove", updateAnnotation);
-        element.addEventListener("mouseup", finishAnnotationCreation);
-      }
-    });
-
-    return () => {
-      draggableElements.forEach((element) => {
-        element.removeEventListener("contextmenu", handleContextMenu);
-        element.removeEventListener("mousedown", handleCancelSelection);
-        element.removeEventListener("mousedown", startAnnotationCreation);
-        element.removeEventListener("mousemove", updateAnnotation);
-        element.removeEventListener("mouseup", finishAnnotationCreation);
-      });
-    };
-  }, [
-    activeAnnotationTool,
-    addAnnotation,
-    createAnnotation,
-    editMode,
-    findSelectedAnnotations,
-    plotId,
-    plotReady,
-    setOngoingAction,
-    toolingCallbacks,
-  ]);
 
   return (
     <div className="w-full px-6 py-3 space-y-3 flex-col">

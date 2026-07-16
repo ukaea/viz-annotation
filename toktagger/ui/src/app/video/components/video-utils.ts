@@ -3,7 +3,7 @@
 import type { ImageAnnotation } from "@annotorious/react";
 import type { Annotation } from "@/types";
 import {
-  VideoBoundingBoxAnnotationSchema,
+  VideoBoundingBoxSchema,
   VideoPointSchema,
   VideoPolygonSchema,
 } from "@/types";
@@ -190,7 +190,7 @@ export function buildNextTrackIdState(
   for (const annotation of annotations) {
     const parsed =
       annotation.type === "video_bounding_box"
-        ? VideoBoundingBoxAnnotationSchema.safeParse(annotation)
+        ? VideoBoundingBoxSchema.safeParse(annotation)
         : annotation.type === "video_polygon"
           ? VideoPolygonSchema.safeParse(annotation)
           : annotation.type === "video_point"

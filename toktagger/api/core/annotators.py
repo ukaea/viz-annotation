@@ -1,7 +1,7 @@
 import numpy as np
 import ruptures as rpt
 import hmmlearn.hmm as hmm
-from typing import Iterable, List, Tuple, TypedDict, Union
+from typing import Iterable, List, Tuple
 from abc import ABC, abstractmethod
 from scipy.signal import find_peaks, peak_widths, stft
 from scipy.ndimage import uniform_filter1d, gaussian_filter, uniform_filter
@@ -21,12 +21,13 @@ from toktagger.api.schemas.annotators import (
     JumpDetectionParams,
     OutlierDetectionParams,
 )
-from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry import Polygon
 
 from toktagger.api.schemas.data import TimeSeriesData
 from toktagger.api.schemas.annotations import TimeRegion
 from toktagger.api.schemas.annotations import (
-    PolygonAnnotation,
+    # Aliased to avoid clashing with shapely's Polygon, used below for geometry.
+    Polygon as PolygonAnnotation,
 )
 from toktagger.api.schemas.annotators import (
     Profile2DThresholdParams,
@@ -166,56 +167,6 @@ def _coords_to_flat_list(coords: Iterable[Tuple[float, float]]) -> List[float]:
         flat.append(float(x))
         flat.append(float(y))
     return flat
-
-
-class CocoPolygonAnnotation(TypedDict):
-    segmentation: List[List[float]]
-    area: float
-    bbox: List[float]
-
-
-def shapely_to_coco_style_annotation(
-    geom: Union[Polygon, MultiPolygon],
-) -> CocoPolygonAnnotation:
-    """
-    Convert a Shapely Polygon or MultiPolygon to a COCO annotation dict (polygon segmentation).
-    Returns a dict with keys: segmentation, area, bbox.
-    """
-    segs: List[List[float]] = []
-    if geom.is_empty:
-        raise ValueError("Geometry is empty")
-
-    def handle_polygon(poly: Polygon):
-        # exterior
-        exterior_coords = _coords_to_flat_list(poly.exterior.coords)
-        if exterior_coords:
-            segs.append(exterior_coords)
-        # interiors (holes) - add as separate polygons (common practice)
-        for interior in poly.interiors:
-            interior_coords = _coords_to_flat_list(interior.coords)
-            if interior_coords:
-                segs.append(interior_coords)
-
-    if isinstance(geom, Polygon):
-        handle_polygon(geom)
-    elif isinstance(geom, MultiPolygon):
-        for p in geom.geoms:
-            handle_polygon(p)
-    else:
-        raise TypeError("geom must be shapely.geometry.Polygon or MultiPolygon")
-
-    minx, miny, maxx, maxy = geom.bounds
-    width = float(maxx - minx)
-    height = float(maxy - miny)
-    bbox = [float(minx), float(miny), width, height]
-    area = float(geom.area)
-
-    annotation: CocoPolygonAnnotation = {
-        "segmentation": segs,
-        "area": area,
-        "bbox": bbox,
-    }
-    return annotation
 
 
 def smooth_binary_mask(mask: np.ndarray, radius: int = 3) -> np.ndarray:
@@ -732,18 +683,14 @@ class Profile2DThresholdAnnotator:
                 # if poly.is_valid and poly.area > 0:
                 polygons.append(poly)
 
-        polygons_dict: list[CocoPolygonAnnotation] = [
-            shapely_to_coco_style_annotation(polygon) for polygon in polygons
-        ]
-
         annotations = [
             PolygonAnnotation(
-                **poly,
+                segmentation=_coords_to_flat_list(polygon.exterior.coords),
                 label="Unknown",
                 created_by=AnnotatorTypes.PROFILE_2D_THRESHOLD,
                 signal_name=self.params.signal_name,
             )
-            for poly in polygons_dict
+            for polygon in polygons
         ]
         return annotations
 

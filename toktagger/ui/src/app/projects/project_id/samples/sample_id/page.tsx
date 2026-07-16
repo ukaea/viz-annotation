@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo } from "react";
+import React from "react";
 import {
   Provider,
   defaultTheme,
@@ -8,7 +8,7 @@ import {
   ToastContainer,
   Flex,
 } from "@adobe/react-spectrum";
-import { Category, Project, Sample, TaskType } from "@/types";
+import { Project, Sample, TaskType } from "@/types";
 import { TimeSeriesView } from "@/app/time_series/components/time-series";
 import { Profile2dView } from "@/app/profile2d/components/profile2d";
 import ToolBar from "@/app/components/tools/toolbar";
@@ -16,14 +16,8 @@ import { useHref, useNavigate, useParams } from "react-router-dom";
 import ErrorView from "@/app/views/error";
 import LoadingView from "@/app/views/loading";
 import { SampleProvider, useSample } from "@/app/contexts/SampleContext";
-import { BoundingBoxProvider } from "@/app/components/providers/bounding-box-provider";
-import { ContextMenuProvider } from "@/app/components/providers/annotation-provider";
-import { ZoneProvider } from "@/app/components/providers/zone-provider";
-import { VSpanProvider } from "@/app/components/providers/vpsan-provider";
-import { PolygonProvider } from "@/app/components/providers/polygon-provider";
 import { VideoProviders, VideoView } from "@/app/video/components/video-view";
 import { SampleHistoryProvider } from "@/app/contexts/SampleHistoryContext";
-import { randomColor } from "@/app/utils";
 
 type SampleDataBreadCrumbsInfo = {
   project: Project;
@@ -63,70 +57,12 @@ const SampleView = () => {
 function SampleTaskProviders({ children }: { children: React.ReactNode }) {
   const { project } = useSample();
 
-  const zoneCategories: Category[] = useMemo(() => {
-    const timeRegionLabels = project?.time_region_labels || [];
-    return timeRegionLabels.map((label, index) => ({
-      name: label,
-      color: randomColor(index),
-    }));
-  }, [project?.time_region_labels]);
-
-  const vspanCategories: Category[] = useMemo(() => {
-    const timePointLabels = project?.time_point_labels || [];
-    return timePointLabels.map((label, index) => ({
-      name: label,
-      color: randomColor(index),
-    }));
-  }, [project?.time_point_labels]);
-
-  const polygonCategories: Category[] = useMemo(() => {
-    const polygonLabels = project?.polygon_labels || [];
-    return polygonLabels.map((label, index) => ({
-      name: label,
-      color: randomColor(index),
-    }));
-  }, [project?.polygon_labels]);
-
-  const boundingBoxCategories: Category[] = useMemo(() => {
-    const boundingBoxLabels = project?.bounding_box_labels || [];
-    return boundingBoxLabels.map((label, index) => ({
-      name: label,
-      color: randomColor(index),
-    }));
-  }, [project?.bounding_box_labels]);
-
   if (project?.task === TaskType.Video) {
     return <VideoProviders>{children}</VideoProviders>;
-  } else if (project?.task == TaskType.TimeSeries) {
-    return (
-      <ContextMenuProvider menuId="time-series-menu">
-        <ZoneProvider categories={zoneCategories}>
-          <VSpanProvider categories={vspanCategories}>
-            <PolygonProvider categories={[]}>
-              <BoundingBoxProvider categories={[]}>
-                {children}
-              </BoundingBoxProvider>
-            </PolygonProvider>
-          </VSpanProvider>
-        </ZoneProvider>
-      </ContextMenuProvider>
-    );
-  } else if (project?.task == TaskType.Profile2D) {
-    return (
-      <ContextMenuProvider menuId="profile2d-menu">
-        <ZoneProvider categories={zoneCategories}>
-          <VSpanProvider categories={vspanCategories}>
-            <BoundingBoxProvider categories={[...boundingBoxCategories]}>
-              <PolygonProvider categories={[...polygonCategories]}>
-                {children}
-              </PolygonProvider>
-            </BoundingBoxProvider>
-          </VSpanProvider>
-        </ZoneProvider>
-      </ContextMenuProvider>
-    );
   }
 
+  // Time series and profile 2D annotations are held on the TimeSeriesContext, which each
+  // view provides itself so that it can bind annotations to the signal it is showing.
   return <>{children}</>;
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { JSX, useMemo } from "react";
+import { TimeSeriesAnnotationType, TimeSeriesCategory } from "@/types";
+import { ComponentType, useMemo } from "react";
 import {
   TableView,
   TableHeader,
@@ -10,151 +11,170 @@ import {
   Cell,
   Flex,
 } from "@adobe/react-spectrum";
-import { useSample } from "@/app/contexts/SampleContext";
-import {
-  RectangleHorizontal,
-  RectangleVertical,
-  Pentagon,
-  Square,
-  Tag,
-  HelpCircle,
-} from "lucide-react";
-import {
-  Annotation,
-  BoundingBoxAnnotationSchema,
-  PolygonAnnotationSchema,
-  TimePointSchema,
-  TimeRegionSchema,
-} from "@/types";
+import { useTimeSeriesState } from "@/app/contexts/TimeSeriesContext";
+
+interface MarkerProps {
+  color: string;
+}
+
+const MARKER_VIEWBOX = "0 0 24 24";
+
+// Shape mirrors how each annotation type actually renders on the plot, so the
+// marker doubles as a legend for the tool - stroked/filled with the category color
+const TimePointMarker = ({ color }: MarkerProps) => (
+  <svg width="10" height="20" viewBox={MARKER_VIEWBOX}>
+    <line x1="12" y1="1" x2="12" y2="40" stroke={color} strokeWidth="4" />
+  </svg>
+);
+
+const TimeRegionMarker = ({ color }: MarkerProps) => (
+  <svg width="20" height="20" viewBox={MARKER_VIEWBOX}>
+    <rect x="6" y="6" width="12" height="20" rx="2" fill={color} />
+  </svg>
+);
+
+const BoundingBoxMarker = ({ color }: MarkerProps) => (
+  <svg width="20" height="20" viewBox={MARKER_VIEWBOX}>
+    <rect
+      x="3"
+      y="5"
+      width="18"
+      height="14"
+      rx="1"
+      fill="none"
+      stroke={color}
+      strokeWidth="2.5"
+    />
+  </svg>
+);
+
+const PolygonMarker = ({ color }: MarkerProps) => (
+  <svg width="20" height="20" viewBox={MARKER_VIEWBOX}>
+    <polygon
+      points="12,2 22,9.5 18,21 6,21 2,9.5"
+      fill="none"
+      stroke={color}
+      strokeWidth="2.5"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+// One marker per annotation type - set when the annotation's category/type is resolved below
+const MARKER_ICONS: Record<
+  TimeSeriesAnnotationType,
+  ComponentType<MarkerProps>
+> = {
+  [TimeSeriesAnnotationType.TIME_POINT]: TimePointMarker,
+  [TimeSeriesAnnotationType.TIME_REGION]: TimeRegionMarker,
+  [TimeSeriesAnnotationType.BOUNDING_BOX]: BoundingBoxMarker,
+  [TimeSeriesAnnotationType.POLYGON]: PolygonMarker,
+};
 
 interface TableEntry {
   id: string;
-  type: string;
-  label: string;
-  created_by: string;
-  icon: JSX.Element;
-  position: string;
+  category: TimeSeriesCategory;
+  data: string;
+  marker: ComponentType<MarkerProps>;
 }
 
-const AnnotationTypeNames: Record<string, string> = {
-  time_point: "Time Point",
-  time_region: "Time Region",
-  polygon: "Polygon",
-  bounding_box: "Bounding Box",
-  class_label: "Class Label",
-};
-
-const getIconForType = (type: string) => {
-  const iconProps = { size: 20, strokeWidth: 2 };
-
-  switch (type) {
-    case "time_region":
-      return <RectangleHorizontal {...iconProps} className="text-blue-500" />;
-    case "time_point":
-      return <RectangleVertical {...iconProps} className="text-green-500" />;
-    case "polygon":
-      return <Pentagon {...iconProps} className="text-red-500" />;
-    case "bounding_box":
-      return <Square {...iconProps} className="text-yellow-500" />;
-    case "class_label":
-      return <Tag {...iconProps} className="text-purple-500" />;
-    default:
-      return <HelpCircle {...iconProps} className="text-gray-500" />;
-  }
-};
-
-const getPositionForAnnotation = (annotation: Annotation) => {
-  switch (annotation.type) {
-    case "time_region":
-      const timeRegion = TimeRegionSchema.parse(annotation);
-      return `Time Min: ${timeRegion.time_min.toFixed(2)}, Time Max: ${timeRegion.time_max.toFixed(2)}`;
-    case "time_point":
-      const timePoint = TimePointSchema.parse(annotation);
-      return `Time: ${timePoint.time.toFixed(2)}`;
-
-    case "bounding_box":
-      const boundingBox = BoundingBoxAnnotationSchema.parse(annotation);
-      return `x_min: ${boundingBox.x_min.toFixed(2)}, y_min: ${boundingBox.y_min.toFixed(2)}, width: ${boundingBox.width.toFixed(2)}, height: ${boundingBox.height.toFixed(2)}`;
-    case "polygon":
-      const polygon = PolygonAnnotationSchema.parse(annotation);
-      const segmentation = polygon.segmentation[0];
-      const xCoords = segmentation.filter((_, index) => index % 2 === 0);
-      const yCoords = segmentation.filter((_, index) => index % 2 === 1);
-      const centerX = xCoords.reduce((sum, x) => sum + x, 0) / xCoords.length;
-      const centerY = yCoords.reduce((sum, y) => sum + y, 0) / yCoords.length;
-      return `Center: (${centerX.toFixed(2)}, ${centerY.toFixed(2)})`;
-
-    default:
-      return "--";
-  }
-};
-
 export const AnnotationsTable = () => {
-  const { annotations } = useSample();
+  const { annotations, categories } = useTimeSeriesState();
 
   const entries = useMemo<TableEntry[]>(() => {
     const entriesBuffer: TableEntry[] = [];
+    annotations.forEach((annotation) => {
+      const categoryId = `${annotation.type}_${annotation.label}`;
+      const category = categories.get(categoryId);
+      if (!category) {
+        console.error(
+          `Could not locate ${categoryId} when assigning table entry`,
+        );
+        return;
+      }
 
-    for (const [index, annotation] of annotations.entries()) {
+      let data: string;
+      switch (annotation.type) {
+        case TimeSeriesAnnotationType.TIME_POINT:
+          data = `${annotation.points[0].x.toFixed(4)}`;
+          break;
+        case TimeSeriesAnnotationType.TIME_REGION: {
+          const timeRegionPoints: string[] = [];
+          annotation.points.forEach((point) => {
+            timeRegionPoints.push(`${point.x.toFixed(4)}`);
+          });
+          data = `${timeRegionPoints[0]} - ${timeRegionPoints[1]}`;
+          break;
+        }
+        case TimeSeriesAnnotationType.BOUNDING_BOX: {
+          const boundingBoxPoints: string[] = [];
+          annotation.points.forEach((point) => {
+            boundingBoxPoints.push(
+              `(${point.x.toFixed(2)}, ${point.y.toFixed(2)})`,
+            );
+          });
+          data = `${boundingBoxPoints[0]} ${boundingBoxPoints[1]}`;
+          break;
+        }
+        case TimeSeriesAnnotationType.POLYGON:
+          data = `(${annotation.points[0].x.toFixed(2)}, ${annotation.points[0].y.toFixed(2)}) [${annotation.points.length}]`;
+          break;
+        default:
+          console.warn(
+            `Could not parse data for ${annotation.type} when adding to table`,
+          );
+          data = "";
+      }
+
       entriesBuffer.push({
-        id: `annotation-${index}`,
-        type: AnnotationTypeNames[annotation.type],
-        label: annotation.label,
-        created_by: annotation.created_by,
-        icon: getIconForType(annotation.type),
-        position: getPositionForAnnotation(annotation),
+        id: annotation.id,
+        category,
+        data,
+        marker: MARKER_ICONS[annotation.type],
       });
-    }
+    });
 
     return entriesBuffer;
-  }, [annotations]);
+  }, [annotations, categories]);
 
   return (
-    <div className="relative w-[70%] shadow-md sm:rounded-lg ml-auto mr-auto p-4">
+    <div className="relative w-[70%] overflow-x-auto shadow-md sm:rounded-lg ml-auto mr-auto p-4">
       {/* <ToolingControls /> */}
       <Flex justifyContent="center" marginBottom="size-200">
         <h1 className="text-xl font-bold">Annotations</h1>
       </Flex>
-      <div className="overflow-x-auto">
-        <TableView aria-label="Annotations table" width="100%" height="200px">
-          <TableHeader>
-            <Column key="type" minWidth={150}>
-              Type
-            </Column>
-            <Column key="label" minWidth={120}>
-              Label
-            </Column>
-            <Column key="created_by" minWidth={120}>
-              Created By
-            </Column>
-            <Column key="position" minWidth={200}>
-              Position
-            </Column>
-          </TableHeader>
-          <TableBody items={entries}>
-            {(item) => (
-              <Row key={item.id}>
-                <Cell>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "12px",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {item.icon}
-                    <span>{item.type}</span>
-                  </div>
-                </Cell>
-                <Cell>{item.label}</Cell>
-                <Cell>{item.created_by}</Cell>
-                <Cell>{item.position}</Cell>
-              </Row>
-            )}
-          </TableBody>
-        </TableView>
-      </div>
+      <TableView aria-label="Annotations table" width="100%" height="200px">
+        <TableHeader>
+          <Column key="marker" width="2%">
+            <></>
+          </Column>
+          <Column key="category" width="28%">
+            Category
+          </Column>
+          <Column key="type" width="20%">
+            Type
+          </Column>
+          <Column key="data" width="50%">
+            Data
+          </Column>
+        </TableHeader>
+        <TableBody items={entries}>
+          {(item: TableEntry) => (
+            <Row key={item.id}>
+              <Cell>
+                <Flex justifyContent="center">
+                  <item.marker color={item.category.color} />
+                </Flex>
+              </Cell>
+              <Cell>
+                <span>{item.category.label}</span>
+              </Cell>
+              <Cell>{item.category.type}</Cell>
+              <Cell>{item.data}</Cell>
+            </Row>
+          )}
+        </TableBody>
+      </TableView>
     </div>
   );
 };

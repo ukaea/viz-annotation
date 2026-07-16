@@ -1,4 +1,4 @@
-import z, { ZodSchema } from "zod/v4";
+import z from "zod/v4";
 import {
   Annotation,
   TimeRegionSchema,
@@ -7,19 +7,14 @@ import {
   TimeRegion,
   TimeSeriesAnnotation,
   TimeSeriesAnnotationType,
-  PolygonAnnotationSchema,
+  BoundingBox,
+  BoundingBoxSchema,
   Polygon,
+  PolygonSchema,
+  TimeSeriesAnnotationPoint,
   Sample,
   TimeSeriesFileDataSchema,
   ShotDataSchema,
-  ViewParams,
-  Profile2DViewParams,
-  BoundingBoxAnnotationSchema,
-  BoundingBox,
-  BoundingBoxSchema,
-  PolygonSchema,
-  PolygonAnnotation,
-  BoundingBoxAnnotation,
 } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 
@@ -56,168 +51,6 @@ export const linspace = (start: number, end: number, num: number) => {
   return arr;
 };
 
-export const convertDisplayAnnotationToAnnotation = (
-  annotation: DisplayAnnotation,
-  viewParams: ViewParams,
-): Annotation => {
-  const signalName = (viewParams as Profile2DViewParams)?.signal_name || null;
-
-  if (ZoneSchema.safeParse(annotation).success) {
-    const zone = ZoneSchema.parse(annotation);
-    const timeRegion: TimeRegion = {
-      signal_name: signalName,
-      created_by: zone.created_by,
-      type: "time_region",
-      project_id: null,
-      sample_id: null,
-      validated: false,
-      uncertainty: 1,
-      time_min: zone.x0,
-      time_max: zone.x1,
-      label: zone.category.name,
-    };
-    return timeRegion;
-  } else if (VSpanSchema.safeParse(annotation).success) {
-    const vspan = VSpanSchema.parse(annotation);
-    const timePoint: TimePoint = {
-      signal_name: signalName,
-      validated: false,
-      uncertainty: 1,
-      created_by: vspan.created_by,
-      type: "time_point",
-      time: vspan.x,
-      label: vspan.category.name,
-    };
-    return timePoint;
-  } else if (PolygonSchema.safeParse(annotation).success) {
-    const polygon = PolygonSchema.parse(annotation);
-    const polygonAnnotation: PolygonAnnotation = {
-      signal_name: signalName,
-      validated: false,
-      uncertainty: 1,
-      created_by: polygon.created_by,
-      type: "polygon",
-      segmentation: [
-        polygon.x.reduce<number[]>((acc, x, index) => {
-          acc.push(x);
-          acc.push(polygon.y[index]);
-          return acc;
-        }, []),
-      ],
-      label: polygon.category.name,
-    };
-    return polygonAnnotation;
-  } else if (BoundingBoxSchema.safeParse(annotation).success) {
-    const bbox = BoundingBoxSchema.parse(annotation);
-    const bboxAnnotation: BoundingBoxAnnotation = {
-      signal_name: signalName,
-      validated: false,
-      uncertainty: 1,
-      created_by: bbox.created_by,
-      type: "bounding_box",
-      x0: bbox.x0,
-      y0: bbox.y0,
-      x1: bbox.x1,
-      y1: bbox.y1,
-      label: bbox.category.name,
-    };
-    return bboxAnnotation;
-  } else {
-    throw new Error("Unsupported annotation type");
-  }
-};
-
-export const createAnnotationToDisplayAnnotationFunc = (
-  colors: Record<string, string>,
-) => {
-  const convertAnnotationToDisplayAnnotation = (item: Annotation) => {
-    if (TimeRegionSchema.safeParse(item).success) {
-      const timeRegion = TimeRegionSchema.parse(item);
-      const zone: Zone = {
-        selected: false,
-        created_by: timeRegion.created_by,
-        x0: timeRegion.time_min,
-        x1: timeRegion.time_max,
-        category: {
-          name: timeRegion.label,
-          color: colors[timeRegion.label] || "rgb(150, 150, 150)",
-        },
-      };
-      return zone;
-    } else if (TimePointSchema.safeParse(item).success) {
-      const timePoint = TimePointSchema.parse(item);
-      const vspan: VSpan = {
-        selected: false,
-        created_by: timePoint.created_by,
-        x: timePoint.time,
-        category: {
-          name: timePoint.label,
-          color: colors[timePoint.label] || "rgb(150, 150, 150)",
-        },
-      };
-      return vspan;
-    } else if (PolygonAnnotationSchema.safeParse(item).success) {
-      const polygonData = PolygonAnnotationSchema.parse(item);
-      const polygon: Polygon = {
-        x: polygonData.segmentation[0].filter((_, index) => index % 2 === 0),
-        y: polygonData.segmentation[0].filter((_, index) => index % 2 === 1),
-        created_by: polygonData.created_by,
-        category: {
-          name: polygonData.label,
-          color: colors[polygonData.label] || "rgb(150, 150, 150)",
-        },
-        selected: false,
-      };
-      return polygon;
-    } else if (BoundingBoxAnnotationSchema.safeParse(item).success) {
-      const bboxData = BoundingBoxAnnotationSchema.parse(item);
-      const bbox: BoundingBox = {
-        x_min: bboxData.x_min,
-        y_min: bboxData.y_min,
-        width: bboxData.width,
-        height: bboxData.height,
-        created_by: bboxData.created_by,
-        category: {
-          name: bboxData.label,
-          color: colors[bboxData.label] || "rgb(150, 150, 150)",
-        },
-        selected: false,
-      };
-
-      return bbox;
-    } else {
-      console.error(
-        "annotation",
-        TimeRegionSchema.safeParse(item).error?.message,
-      );
-      throw new Error("Unsupported annotation type");
-    }
-  };
-  return convertAnnotationToDisplayAnnotation;
-};
-
-export function updateAnnotations<T>(
-  setAnnotations: (
-    updater: (annotations: Annotation[]) => Annotation[] | Annotation[],
-  ) => void,
-  newDisplayAnnotations: DisplayAnnotation[],
-  schema: ZodSchema<T>,
-  viewParams: ViewParams,
-): void {
-  setAnnotations((prevAnnotations: Annotation[]) => {
-    const otherAnnotations: Annotation[] = prevAnnotations.filter(
-      (item: Annotation) => !schema.safeParse(item).success,
-    );
-    let newAnnotations: Annotation[] = newDisplayAnnotations.map(
-      (displayAnnotation) =>
-        convertDisplayAnnotationToAnnotation(displayAnnotation, viewParams),
-    );
-
-    newAnnotations = newAnnotations.concat(otherAnnotations);
-    return newAnnotations;
-  });
-}
-
 // Utility function to find the maximum value in an array
 // Handles very large arrays efficiently
 export function arrayMax(arr: (number | null)[]): number {
@@ -247,6 +80,7 @@ export function convertRawAnnotationsToTimeSeries(
       id: uuidv4(),
       created_by: timeRegion.created_by,
       label: timeRegion.label,
+      signal_name: timeRegion.signal_name,
       type: TimeSeriesAnnotationType.TIME_REGION,
       points: [
         { x: timeRegion.time_min, y: 0 },
@@ -262,8 +96,52 @@ export function convertRawAnnotationsToTimeSeries(
       id: uuidv4(),
       created_by: timePoint.created_by,
       label: timePoint.label,
+      signal_name: timePoint.signal_name,
       type: TimeSeriesAnnotationType.TIME_POINT,
       points: [{ x: timePoint.time, y: 0 }],
+      selected: false,
+    };
+  }
+
+  if (BoundingBoxSchema.safeParse(annotation).success) {
+    const boundingBox = BoundingBoxSchema.parse(annotation);
+    return {
+      id: uuidv4(),
+      created_by: boundingBox.created_by,
+      label: boundingBox.label,
+      signal_name: boundingBox.signal_name,
+      type: TimeSeriesAnnotationType.BOUNDING_BOX,
+      points: [
+        { x: boundingBox.x_min, y: boundingBox.y_min + boundingBox.height },
+        {
+          x: boundingBox.x_min + boundingBox.width,
+          y: boundingBox.y_min,
+        },
+      ],
+      selected: false,
+    };
+  }
+
+  if (PolygonSchema.safeParse(annotation).success) {
+    const polygon = PolygonSchema.parse(annotation);
+    return {
+      id: uuidv4(),
+      created_by: polygon.created_by,
+      label: polygon.label,
+      signal_name: polygon.signal_name,
+      type: TimeSeriesAnnotationType.POLYGON,
+      points: polygon.segmentation.reduce<TimeSeriesAnnotationPoint[]>(
+        (accumulator, _, i, arr) => {
+          if (i % 2 === 0) {
+            accumulator.push({
+              x: arr[i],
+              y: arr[i + 1],
+            });
+          }
+          return accumulator;
+        },
+        [],
+      ),
       selected: false,
     };
   }
@@ -284,6 +162,7 @@ export function convertTimeSeriesToRawAnnotations(
       validated: false,
       uncertainty: 1,
       created_by: annotation.created_by,
+      signal_name: annotation.signal_name ?? null,
       type: "time_point",
       time: annotation.points[0].x,
       label: annotation.label,
@@ -298,12 +177,48 @@ export function convertTimeSeriesToRawAnnotations(
       validated: false,
       uncertainty: 1,
       created_by: annotation.created_by,
+      signal_name: annotation.signal_name ?? null,
       type: "time_region",
       time_min: annotation.points[0].x,
       time_max: annotation.points[1].x,
       label: annotation.label,
     };
     return timePoint;
+  }
+
+  if (annotation.type === TimeSeriesAnnotationType.BOUNDING_BOX) {
+    const boundingBox: BoundingBox = {
+      project_id: null,
+      sample_id: null,
+      validated: false,
+      uncertainty: 1,
+      created_by: annotation.created_by,
+      signal_name: annotation.signal_name ?? null,
+      type: "bounding_box",
+      x_min: Math.min(annotation.points[0].x, annotation.points[1].x),
+      y_min: Math.min(annotation.points[0].y, annotation.points[1].y),
+      height: Math.abs(annotation.points[0].y - annotation.points[1].y),
+      width: Math.abs(annotation.points[0].x - annotation.points[1].x),
+      label: annotation.label,
+    };
+    return boundingBox;
+  }
+
+  if (annotation.type === TimeSeriesAnnotationType.POLYGON) {
+    const polygon: Polygon = {
+      project_id: null,
+      sample_id: null,
+      validated: false,
+      uncertainty: 1,
+      created_by: annotation.created_by,
+      signal_name: annotation.signal_name ?? null,
+      type: "polygon",
+      segmentation: annotation.points.flatMap(({ x, y }) => {
+        return [x, y];
+      }),
+      label: annotation.label,
+    };
+    return polygon;
   }
 
   console.warn(

@@ -34,7 +34,7 @@ export const ClassLabelSchema = BaseAnnotationSchema.extend({
 });
 export type ClassLabel = z.infer<typeof ClassLabelSchema>;
 
-export const BoundingBoxAnnotationSchema = BaseAnnotationSchema.extend({
+export const BoundingBoxSchema = BaseAnnotationSchema.extend({
   type: z.literal("bounding_box"),
   height: z.number(),
   width: z.number(),
@@ -42,30 +42,32 @@ export const BoundingBoxAnnotationSchema = BaseAnnotationSchema.extend({
   y_min: z.number(),
 });
 
-export type BoundingBoxAnnotation = z.infer<typeof BoundingBoxAnnotationSchema>;
+export type BoundingBox = z.infer<typeof BoundingBoxSchema>;
 
-export const VideoBoundingBoxAnnotationSchema =
-  BoundingBoxAnnotationSchema.extend({
-    type: z.literal("video_bounding_box"),
-    frame: z.number().int(),
-    track_id: z.string(), // force string
-  });
-
-export type VideoBoundingBox = z.infer<typeof VideoBoundingBoxAnnotationSchema>;
-
-export const PolygonAnnotationSchema = BaseAnnotationSchema.extend({
-  type: z.literal("polygon"),
-  segmentation: z.array(z.array(z.number())),
-  area: z.number(),
-  bbox: z.array(z.number()),
+export const VideoBoundingBoxSchema = BaseAnnotationSchema.extend({
+  type: z.literal("video_bounding_box"),
+  frame: z.number().int(),
+  track_id: z.string(), // force string
+  height: z.number().int(),
+  width: z.number().int(),
+  x_min: z.number().int(),
+  y_min: z.number().int(),
 });
 
-export type PolygonAnnotation = z.infer<typeof PolygonAnnotationSchema>;
+export type VideoBoundingBox = z.infer<typeof VideoBoundingBoxSchema>;
 
-export const VideoPolygonSchema = PolygonAnnotationSchema.extend({
+export const PolygonSchema = BaseAnnotationSchema.extend({
+  type: z.literal("polygon"),
+  segmentation: z.array(z.number()).min(6),
+});
+
+export type Polygon = z.infer<typeof PolygonSchema>;
+
+export const VideoPolygonSchema = BaseAnnotationSchema.extend({
   type: z.literal("video_polygon"),
   frame: z.number().int(),
   track_id: z.string(),
+  segmentation: z.array(z.number().int()).min(6),
 });
 
 export type VideoPolygon = z.infer<typeof VideoPolygonSchema>;
@@ -84,9 +86,9 @@ export const AnnotationSchema = z.union([
   TimePointSchema,
   TimeRegionSchema,
   ClassLabelSchema,
-  BoundingBoxAnnotationSchema,
-  VideoBoundingBoxAnnotationSchema,
-  PolygonAnnotationSchema,
+  BoundingBoxSchema,
+  PolygonSchema,
+  VideoBoundingBoxSchema,
   VideoPolygonSchema,
   VideoPointSchema,
 ]);
@@ -176,25 +178,10 @@ export const Profile2DMaskSchema = BaseDisplayAnnotationSchema.extend({
 });
 export type Profile2DMask = z.infer<typeof Profile2DMaskSchema>;
 
-export const BoundingBoxSchema = BaseDisplayAnnotationSchema.extend({
-  x_min: z.number(),
-  y_min: z.number(),
-  width: z.number(),
-  height: z.number(),
-});
-export type BoundingBox = z.infer<typeof BoundingBoxSchema>;
-
-export const PolygonSchema = BaseDisplayAnnotationSchema.extend({
-  x: z.array(z.number()),
-  y: z.array(z.number()),
-});
-export type Polygon = z.infer<typeof PolygonSchema>;
-
 export const DisplayAnnotationSchema = z.union([
   ZoneSchema,
   VSpanSchema,
   Profile2DMaskSchema,
-  PolygonAnnotationSchema,
 ]);
 export type DisplayAnnotation = z.infer<typeof DisplayAnnotationSchema>;
 
@@ -340,18 +327,22 @@ export type ToolingProps = {
   forceUpdate?: number;
   onUpdate?: CallableFunction;
   selectedXRange?: [number, number];
+  // Restricts rendering to a single subplot (e.g. "xy2"). Tools whose annotations carry
+  // meaningful y values need this on plots where only one subplot shares their y axis.
+  // Defaults to rendering on every subplot.
+  subplot?: string;
 };
 
 export enum ToolingTypes {
   ZONE,
   VSPAN,
-  BOUNDING_BOX,
-  POLYGON,
 }
 
 export enum TimeSeriesAnnotationType {
   TIME_POINT = "TIME POINT",
   TIME_REGION = "TIME REGION",
+  BOUNDING_BOX = "BOUNDING BOX",
+  POLYGON = "POLYGON",
 }
 
 export type TimeSeriesToolDefinition = {
@@ -377,12 +368,24 @@ export type TimeSeriesAnnotation = {
   type: TimeSeriesAnnotationType;
   points: TimeSeriesAnnotationPoint[];
   selected: boolean;
+  // Binds the annotation to a specific signal. Null for plots that annotate a single
+  // implicit signal; profile 2D sets this from the active view params.
+  signal_name?: string | null;
 };
 
 export type ToolingCallbacks = {
-  start: (x: number, y: number, label: string) => void;
+  start: (
+    x: number,
+    y: number,
+    label: string,
+    axisSize: { x: number; y: number },
+  ) => void;
   move: (x: number, y: number) => void;
   end: (x: number, y: number) => void;
+  hover?: (x: number, y: number) => void;
+  // Discards any in-progress annotation and resets tool-local state - called when a draw
+  // is abandoned (tool switched mid-draw, Escape pressed) rather than completed normally
+  cancel?: () => void;
 };
 
 export type PlotProps = {
@@ -401,4 +404,15 @@ type PlotlyAxisTransforms = {
 };
 export interface ExtendedPlotlyHTMLElement extends PlotlyHTMLElement {
   _fullLayout: Record<string, PlotlyAxisTransforms>;
+}
+
+export interface SelectionRange {
+  x: {
+    low: number;
+    high: number;
+  };
+  y: {
+    low: number;
+    high: number;
+  };
 }

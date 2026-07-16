@@ -7,17 +7,23 @@ import {
   arrayMin,
   sumOverFirstAxis,
 } from "@/app/utils";
-import { PlotlyWidget } from "@/app/components/plots/plotly";
-import { Zones } from "@/app/components/tools/zones";
-import { VSpans } from "@/app/components/tools/vspans";
+import { BaseTimeSeriesPlot } from "@/app/components/plots/base-plot";
+import { TimeSeriesProvider } from "@/app/contexts/TimeSeriesContext";
+import { TimeRegion } from "@/app/components/tools/timeRegion";
+import { TimePoint } from "@/app/components/tools/timePoint";
+import { BoundingBox } from "@/app/components/tools/boundingBox";
+import { Polygon } from "@/app/components/tools/polygon";
+import { AnnotationToolbar } from "@/app/components/tools/annotationToolbar";
 import * as d3 from "d3";
 import { AnnotationsTable } from "@/app/components/ui/annotationsTable";
-import { useBoundingBoxContext } from "@/app/components/providers/bounding-box-provider";
-import { usePolygonContext } from "@/app/components/providers/polygon-provider";
 import { useSample } from "@/app/contexts/SampleContext";
 import { useEffect, useState } from "react";
 import { Flex } from "@adobe/react-spectrum";
 import { Plotly } from "plotly.js-dist-min";
+
+// The heatmap is drawn against yaxis2, so annotations carrying real y values belong to
+// this subplot only - the integrated-values subplot below it has an unrelated y scale.
+const HEATMAP_SUBPLOT = "xy2";
 
 const createLinearScalePlot = (
   data,
@@ -158,10 +164,7 @@ const createLogScalePlot = (
 };
 
 export const Profile2dView = () => {
-  const { data, annotations, plotProps, viewParams: viewParams_ } = useSample();
-  const { polygons } = usePolygonContext();
-  const { boundingBoxes } = useBoundingBoxContext();
-  const [shapes, setShapes] = useState<Partial<Plotly.Shape>[]>([]);
+  const { data, plotProps, viewParams: viewParams_ } = useSample();
   const [logScale, setLogScale] = useState<boolean>(false);
 
   const viewData: Profile2DData | null = data as Profile2DData | null;
@@ -173,63 +176,6 @@ export const Profile2dView = () => {
       setLogScale(viewParams.log_scale);
     }
   }, [viewParams]);
-
-  useEffect(() => {
-    if (!annotations || !viewData) return;
-
-    const paths = polygons.map((polygon) => {
-      let path = `M ${polygon.x[0]},${polygon.y[0]}`;
-      for (let i = 1; i < polygon.x.length; i++) {
-        path += ` L ${polygon.x[i]},${polygon.y[i]}`;
-      }
-      path += " Z"; // close path
-      return path;
-    });
-
-    const newShapes = paths.map((path) => ({
-      type: "path",
-      path: path,
-      xref: "x",
-      yref: "y2",
-      line: { color: "rgba(150, 150, 150, 1.0)", width: 5 },
-      fillcolor: "rgba(150, 150, 150, 0.5)",
-      editable: true,
-      layer: "above",
-    }));
-
-    polygons.forEach((polygon, index) => {
-      const isDefaultColor = polygon.category.color === "rgb(150, 150, 150)";
-      const lineColor = isDefaultColor
-        ? "rgb(255, 255, 255)"
-        : polygon.category.color;
-      newShapes[index].meta = { label: polygon.category.name };
-      newShapes[index].line = { color: lineColor, width: 3 };
-      newShapes[index].fillcolor = lineColor
-        .replace("rgb(", "rgba(")
-        .replace(")", ", 0.2)");
-    });
-
-    boundingBoxes.forEach((bbox) => {
-      newShapes.push({
-        type: "rect",
-        meta: { label: bbox.category.name },
-        xref: "x",
-        yref: "y2",
-        x0: bbox.x_min,
-        y0: bbox.y_min,
-        x1: bbox.x_min + bbox.width,
-        y1: bbox.y_min + bbox.height,
-        line: { color: "rgb(150, 150, 150)", width: 5 },
-        fillcolor: bbox.category.color
-          .replace("rgb(", "rgba(")
-          .replace(")", ", 0.5)"),
-        editable: true,
-        layer: "above",
-      });
-    });
-
-    setShapes(newShapes);
-  }, [annotations, viewData, polygons, boundingBoxes]);
 
   if (!viewData || !plotProps || !viewParams) {
     return null;
@@ -286,14 +232,6 @@ export const Profile2dView = () => {
   ];
 
   let plotLayout: Partial<Plotly.Layout> = {
-    shapes: shapes,
-    newshape: {
-      fillcolor: "rgba(150, 150, 150, 0.5)", // fill color
-      line: {
-        color: "rgba(150, 150, 150, 1)", // line color
-        width: 5,
-      },
-    },
     width: window.innerWidth * 0.84,
     height: window.innerHeight * 0.9,
     xaxis: {
@@ -336,18 +274,10 @@ export const Profile2dView = () => {
   };
 
   const plotConfig: Partial<Plotly.Config> = {
+    // Bounding boxes and polygons are drawn by the D3 annotation tools rather than
+    // Plotly's built-in shape editing, so the draw/erase shape buttons are omitted.
     modeBarButtons: [
-      [
-        "drawrect",
-        "drawclosedpath",
-        "eraseshape",
-        "zoom2d",
-        "select2d",
-        "pan2d",
-        "autoScale2d",
-        "resetScale2d",
-        "toImage",
-      ],
+      ["zoom2d", "select2d", "pan2d", "autoScale2d", "resetScale2d", "toImage"],
     ],
     dragmode: false,
     displaylogo: false,
@@ -364,21 +294,28 @@ export const Profile2dView = () => {
 
   return (
     <Flex justifyContent="center" alignItems="center">
-      <Flex direction="column" gap="size-200">
-        <PlotlyWidget
-          plotId="Profile2DView"
-          plotConfig={{
-            data: plotData,
-            config: plotConfig,
-            layout: plotLayout,
-          }}
-          rescaleOnZoom={false}
-        >
-          <Zones />
-          <VSpans />
-        </PlotlyWidget>
-        <AnnotationsTable />
-      </Flex>
+      <TimeSeriesProvider signalName={viewParams.signal_name}>
+        <Flex direction="row" flex justifyContent="space-between">
+          <Flex direction="column" gap="size-200">
+            <BaseTimeSeriesPlot
+              plotId="Profile2DView"
+              plotConfig={{
+                data: plotData,
+                config: plotConfig,
+                layout: plotLayout,
+              }}
+              rescaleOnZoom={false}
+            >
+              <TimeRegion />
+              <TimePoint />
+              <BoundingBox subplot={HEATMAP_SUBPLOT} />
+              <Polygon subplot={HEATMAP_SUBPLOT} />
+            </BaseTimeSeriesPlot>
+            <AnnotationsTable />
+          </Flex>
+          <AnnotationToolbar />
+        </Flex>
+      </TimeSeriesProvider>
     </Flex>
   );
 };

@@ -20,7 +20,7 @@ import type { Annotation } from "@/types";
 import { useSample } from "@/app/contexts/SampleContext";
 import { useVideoUiState } from "@/app/video/components/video-context";
 import {
-  VideoBoundingBoxAnnotationSchema,
+  VideoBoundingBoxSchema,
   VideoPointSchema,
   VideoPolygonSchema,
 } from "@/types";
@@ -153,7 +153,7 @@ type FocusRequest = {
 
 function parseVideoAnnotation(annotation: Annotation) {
   if (annotation.type === "video_bounding_box") {
-    return VideoBoundingBoxAnnotationSchema.safeParse(annotation);
+    return VideoBoundingBoxSchema.safeParse(annotation);
   }
 
   if (annotation.type === "video_polygon") {
@@ -337,12 +337,12 @@ function videoAnnotationsFromByFrame(byFrame: ByFrameMap): Annotation[] {
       if (!shape) continue;
 
       let parsed:
-        | ReturnType<typeof VideoBoundingBoxAnnotationSchema.safeParse>
+        | ReturnType<typeof VideoBoundingBoxSchema.safeParse>
         | ReturnType<typeof VideoPointSchema.safeParse>
         | ReturnType<typeof VideoPolygonSchema.safeParse>
         | null = null;
       if (shape.type === "video_bounding_box") {
-        parsed = VideoBoundingBoxAnnotationSchema.safeParse(shape);
+        parsed = VideoBoundingBoxSchema.safeParse(shape);
       } else if (shape.type === "video_polygon") {
         parsed = VideoPolygonSchema.safeParse(shape);
       } else if (shape.type === "video_point") {

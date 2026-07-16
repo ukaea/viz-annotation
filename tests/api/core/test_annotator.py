@@ -1,7 +1,7 @@
 import toktagger.api.core.annotators as annotators
 import numpy
 from scipy.datasets import electrocardiogram
-from toktagger.api.schemas.annotations import PolygonAnnotation
+from toktagger.api.schemas.annotations import Polygon as PolygonAnnotation
 from toktagger.api.schemas.data import TimeSeriesData, MultiVariateTimeSeriesData
 import numpy as np
 from toktagger.api.schemas.annotators import (

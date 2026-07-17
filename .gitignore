@@ -180,3 +180,5 @@ toktagger/ui/.vite/
 
 # Ignore config file
 toktagger.toml
+joss/*.pdf
+joss/jats

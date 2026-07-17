@@ -154,6 +154,14 @@ export const TimeSeriesProvider = ({
     [],
   );
 
+  // Every write back to the sample must re-attach the annotations this context does not
+  // manage, since it replaces the whole list rather than merging into it.
+  const toRawAnnotations = useCallback(
+    (items: TimeSeriesAnnotation[]): Annotation[] =>
+      parseTimeSeriesAnnotations(items).concat(unmanagedAnnotations.current),
+    [parseTimeSeriesAnnotations],
+  );
+
   // Discards any in-progress annotation for the currently active tool and clears the
   // ongoing-action flag - used whenever a draw is abandoned rather than completed normally
   const cancelOngoingAction = useCallback(() => {
@@ -234,14 +242,12 @@ export const TimeSeriesProvider = ({
       return;
     }
     syncTimeoutRef.current = null;
-    const rawAnnotations = parseTimeSeriesAnnotations(annotations).concat(
-      unmanagedAnnotations.current,
-    );
+    const rawAnnotations = toRawAnnotations(annotations);
     setRawAnnotations((_prev) => rawAnnotations);
   }, [
     annotations,
     ongoingAction,
-    parseTimeSeriesAnnotations,
+    toRawAnnotations,
     setRawAnnotations,
     triggerSync,
   ]);
@@ -463,17 +469,17 @@ export const TimeSeriesProvider = ({
         },
       );
 
-      setRawAnnotations((_prev) => parseTimeSeriesAnnotations(updatedState));
+      setRawAnnotations((_prev) => toRawAnnotations(updatedState));
     },
-    [annotations, parseTimeSeriesAnnotations, setRawAnnotations],
+    [annotations, toRawAnnotations, setRawAnnotations],
   );
 
   const batchDeleteAnnotations = useCallback(() => {
     const updatedState = annotations.filter(
       (annotation) => !annotation.selected,
     );
-    setRawAnnotations((_prev) => parseTimeSeriesAnnotations(updatedState));
-  }, [annotations, parseTimeSeriesAnnotations, setRawAnnotations]);
+    setRawAnnotations((_prev) => toRawAnnotations(updatedState));
+  }, [annotations, toRawAnnotations, setRawAnnotations]);
 
   const actionsValue: TimeSeriesActions = useMemo(
     () => ({

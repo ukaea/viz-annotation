@@ -44,6 +44,7 @@ dependencies = [
 models = [
   "torch",
   "ray>=2.49.1",
+  "ultralytics"
 ]
 
 

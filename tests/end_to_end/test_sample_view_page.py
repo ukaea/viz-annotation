@@ -153,9 +153,9 @@ def test_timeseries_navigation(data_loader, request, server_setup, page: Page):
     expect(page.get_by_text("Ip", exact=True)).to_be_visible()
 
     # Check Annotations table rendered
+    expect(page.get_by_role("columnheader", name="Category")).to_be_visible()
     expect(page.get_by_role("columnheader", name="Type")).to_be_visible()
-    expect(page.get_by_role("columnheader", name="Label")).to_be_visible()
-    expect(page.get_by_role("columnheader", name="Position")).to_be_visible()
+    expect(page.get_by_role("columnheader", name="Data")).to_be_visible()
 
     # Check Toolbox rendered
     expect(page.get_by_text("Toolbox")).to_be_visible()

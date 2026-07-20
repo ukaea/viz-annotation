@@ -21,6 +21,7 @@ export const TimePoint = ({ plotId, plotReady }: ToolingProps) => {
     registerTooling,
     createAnnotation,
     addAnnotation,
+    removeAnnotation,
     updateAnnotation,
     setOngoingAction,
     selectAnnotations,
@@ -38,7 +39,7 @@ export const TimePoint = ({ plotId, plotReady }: ToolingProps) => {
 
   useEffect(() => {
     const toolingCallbacks: ToolingCallbacks = {
-      start: (x, y, label) => {
+      start: (x, y, label, _axisSize) => {
         const annotation = createAnnotation(
           TimeSeriesAnnotationType.TIME_POINT,
           label,
@@ -58,12 +59,19 @@ export const TimePoint = ({ plotId, plotReady }: ToolingProps) => {
         updateAnnotation(currentAnnotation.current);
       },
       end(_x, _y) {},
+      cancel() {
+        if (currentAnnotation.current) {
+          removeAnnotation(currentAnnotation.current.id);
+        }
+        currentAnnotation.current = null;
+      },
     };
     registerTooling(TimeSeriesAnnotationType.TIME_POINT, toolingCallbacks);
   }, [
     addAnnotation,
     createAnnotation,
     registerTooling,
+    removeAnnotation,
     setOngoingAction,
     updateAnnotation,
   ]);

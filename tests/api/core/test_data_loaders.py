@@ -49,6 +49,36 @@ def test_image_file_loader_jpeg():
     assert numpy.array(image).shape == (1079, 881, 3)
 
 
+def test_image_file_loader_jpeg_raw():
+    img_file = ImageFileData(
+        file_name=str(pathlib.Path(__file__).parents[2].joinpath("mast_images")),
+        type="jpeg",
+        protocol="file",
+    )
+    sample = Sample(
+        shot_id=10000,
+        data=img_file,
+        _id="test",
+        project_id="test",
+        validated_annotations=False,
+    )
+    data_loader = data_loaders.ImageDataLoader()
+    image_data = data_loader.get_sample(
+        sample,
+        params=ImageParams(
+            name="image",
+            frame=1,
+            return_raw=True,
+        ),
+    )
+    assert isinstance(image_data, ImageData)
+    # Check we got back a list
+    assert isinstance(image_data.values, list)
+
+    image = Image.open(io.BytesIO(bytes(image_data.values)))
+    assert numpy.array(image).shape == (1079, 881, 3)
+
+
 def test_image_file_loader_png():
     img_file = ImageFileData(
         file_name=str(pathlib.Path(__file__).parents[2].joinpath("mast_images")),
@@ -72,6 +102,36 @@ def test_image_file_loader_png():
     # Convert back to numpy array
     base64_decoded = base64.b64decode(image_data.values)
     image = Image.open(io.BytesIO(base64_decoded))
+    assert numpy.array(image).shape == (1079, 881, 3)
+
+
+def test_image_file_loader_png_raw():
+    img_file = ImageFileData(
+        file_name=str(pathlib.Path(__file__).parents[2].joinpath("mast_images")),
+        type="png",
+        protocol="file",
+    )
+    sample = Sample(
+        shot_id=10000,
+        data=img_file,
+        _id="test",
+        project_id="test",
+        validated_annotations=False,
+    )
+    data_loader = data_loaders.ImageDataLoader()
+    image_data = data_loader.get_sample(
+        sample,
+        params=ImageParams(
+            name="image",
+            frame=1,
+            return_raw=True,
+        ),
+    )
+    assert isinstance(image_data, ImageData)
+    # Check we got back a list
+    assert isinstance(image_data.values, list)
+
+    image = Image.open(io.BytesIO(bytes(image_data.values)))
     assert numpy.array(image).shape == (1079, 881, 3)
 
 

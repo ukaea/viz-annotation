@@ -152,7 +152,15 @@ class ImageDataLoader(DataLoader):
             raise FileNotFoundError(
                 f"Could not find image file at '{file_path}', relative to {pathlib.Path().cwd()}"
             )
+        # return raw encoded file bytes if return_raw is True
+        if params.return_raw:
+            return ImageData(
+                frame=file_path.name.split(".")[0],
+                values=list(file_path.read_bytes()),
+            )
+
         im = Image.open(file_path)
+
         buffer = io.BytesIO()
         im.save(buffer, format="PNG")
         buffer.seek(0)

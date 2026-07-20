@@ -2,6 +2,7 @@
 
 import {
   Annotation,
+  SelectionRange,
   TimeSeriesAnnotation,
   TimeSeriesAnnotationType,
   TimeSeriesCategory,
@@ -43,9 +44,7 @@ type TimeSeriesActions = {
   ) => void;
   triggerUpdate: () => void;
   selectAnnotations: (ids: string[]) => void;
-  findSelectedAnnotations: (
-    range: { low: number; high: number } | null,
-  ) => void;
+  findSelectedAnnotations: (range: SelectionRange | null) => void;
   setEditMode: (turnOn: boolean) => void;
   setOngoingAction: (state: boolean) => void;
 };
@@ -56,6 +55,7 @@ type TimeSeriesState = {
   toolingCallbacks: Map<TimeSeriesAnnotationType, ToolingCallbacks>;
   forceUpdate: number;
   isDrawing: boolean;
+  ongoingAction: boolean;
   categories: Map<string, TimeSeriesCategory>;
   editMode: boolean;
 };
@@ -139,6 +139,16 @@ export const TimeSeriesProvider = ({
     [],
   );
 
+  // Discards any in-progress annotation for the currently active tool and clears the
+  // ongoing-action flag - used whenever a draw is abandoned rather than completed normally
+  const cancelOngoingAction = useCallback(() => {
+    if (!ongoingAction) return;
+    if (activeTool) {
+      toolingCallbacks.get(activeTool.type)?.cancel?.();
+    }
+    setOngoingAction(false);
+  }, [activeTool, ongoingAction, toolingCallbacks]);
+
   useEffect(() => {
     if (!project) return;
     const timeSeriesCategories: Map<string, TimeSeriesCategory> = new Map();
@@ -162,10 +172,37 @@ export const TimeSeriesProvider = ({
         });
       });
     }
+    if (project.bounding_box_labels) {
+      project.bounding_box_labels.forEach((label, index) => {
+        const category_id = `${TimeSeriesAnnotationType.BOUNDING_BOX}_${label}`;
+        timeSeriesCategories.set(category_id, {
+          label,
+          color: randomColor(index),
+          type: TimeSeriesAnnotationType.BOUNDING_BOX,
+        });
+      });
+    }
+    if (project.polygon_labels) {
+      project.polygon_labels.forEach((label, index) => {
+        const category_id = `${TimeSeriesAnnotationType.POLYGON}_${label}`;
+        timeSeriesCategories.set(category_id, {
+          label,
+          color: randomColor(index),
+          type: TimeSeriesAnnotationType.POLYGON,
+        });
+      });
+    }
     setCategories(timeSeriesCategories);
   }, [project]);
 
+  // This is a reference to allow the up-to-date function to be called from within an effect without triggering a refresh
+  const cancelOngoingActionRef = useRef(cancelOngoingAction);
   useEffect(() => {
+    cancelOngoingActionRef.current = cancelOngoingAction;
+  }, [cancelOngoingAction]);
+
+  useEffect(() => {
+    cancelOngoingActionRef.current(); // If the annotations are changed, any ongoing annotations must be cancelled
     setAnnotations(parseRawAnnotations(rawAnnotations));
   }, [parseRawAnnotations, rawAnnotations]);
 
@@ -228,13 +265,16 @@ export const TimeSeriesProvider = ({
 
   const removeAnnotation = useCallback(
     (id: string) => {
-      const currentAnnotations = annotations;
-      const newAnnotations = currentAnnotations.filter(
-        (annotation) => annotation.id !== id,
+      if (syncTimeoutRef.current !== null) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+      syncTimeoutRef.current = setTimeout(triggerSync, 100);
+
+      setAnnotations((prev) =>
+        prev.filter((annotation) => annotation.id !== id),
       );
-      setRawAnnotations((_prev) => parseTimeSeriesAnnotations(newAnnotations));
     },
-    [annotations, parseTimeSeriesAnnotations, setRawAnnotations],
+    [triggerSync],
   );
 
   const getAnnotation = useCallback(
@@ -263,6 +303,7 @@ export const TimeSeriesProvider = ({
   const setAnnotationTool = useCallback(
     (tool: TimeSeriesToolDefinition | null) => {
       if (!tool || toolingCallbacks.has(tool.type)) {
+        cancelOngoingAction(); // Switching tools mid-draw abandons whatever was in progress
         setActiveTool(tool);
         return;
       }
@@ -270,8 +311,19 @@ export const TimeSeriesProvider = ({
         `Could not set ${tool.type} as active tool since no callback has been registered`,
       );
     },
-    [toolingCallbacks],
+    [cancelOngoingAction, toolingCallbacks],
   );
+
+  // Lets a mid-draw annotation be abandoned via Escape, in addition to switching tools
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        cancelOngoingAction();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [cancelOngoingAction]);
 
   const updateAnnotation = useCallback(
     (annotation: TimeSeriesAnnotation) => {
@@ -314,7 +366,7 @@ export const TimeSeriesProvider = ({
   );
 
   const findSelectedAnnotations = useCallback(
-    (range: { low: number; high: number } | null) => {
+    (range: SelectionRange | null) => {
       if (!editMode) return;
 
       if (!range) {
@@ -329,8 +381,8 @@ export const TimeSeriesProvider = ({
         (annotation) => {
           if (annotation.type === TimeSeriesAnnotationType.TIME_REGION) {
             if (
-              annotation.points[0].x > range.low &&
-              annotation.points[1].x < range.high
+              annotation.points[0].x > range.x.low &&
+              annotation.points[1].x < range.x.high
             ) {
               return { ...annotation, selected: true };
             }
@@ -338,12 +390,39 @@ export const TimeSeriesProvider = ({
           }
           if (annotation.type === TimeSeriesAnnotationType.TIME_POINT) {
             if (
-              annotation.points[0].x > range.low &&
-              annotation.points[0].x < range.high
+              annotation.points[0].x > range.x.low &&
+              annotation.points[0].x < range.x.high
             ) {
               return { ...annotation, selected: true };
             }
             return { ...annotation, selected: false };
+          }
+          if (annotation.type === TimeSeriesAnnotationType.BOUNDING_BOX) {
+            if (
+              annotation.points[0].x > range.x.low &&
+              annotation.points[1].x < range.x.high &&
+              annotation.points[1].y > range.y.low &&
+              annotation.points[0].y < range.y.high
+            ) {
+              return { ...annotation, selected: true };
+            }
+            return { ...annotation, selected: false };
+          }
+          if (annotation.type === TimeSeriesAnnotationType.POLYGON) {
+            const selected =
+              annotation.points.length > 0 &&
+              annotation.points.every(
+                (point) =>
+                  point.x >= range.x.low &&
+                  point.x <= range.x.high &&
+                  point.y >= range.y.low &&
+                  point.y <= range.y.high,
+              );
+
+            return {
+              ...annotation,
+              selected,
+            };
           }
           return { ...annotation, selected: false };
         },
@@ -356,7 +435,7 @@ export const TimeSeriesProvider = ({
 
   const batchUpdateLabels = useCallback(
     (category: TimeSeriesCategory) => {
-      const updated_state: TimeSeriesAnnotation[] = annotations.map(
+      const updatedState: TimeSeriesAnnotation[] = annotations.map(
         (annotation) => {
           // Label should only be changed if it is the annotation is the correct type and selected
           if (annotation.type === category.type && annotation.selected) {
@@ -366,9 +445,9 @@ export const TimeSeriesProvider = ({
         },
       );
 
-      setAnnotations(updated_state);
+      setRawAnnotations((_prev) => parseTimeSeriesAnnotations(updatedState));
     },
-    [annotations],
+    [annotations, parseTimeSeriesAnnotations, setRawAnnotations],
   );
 
   const batchDeleteAnnotations = useCallback(() => {
@@ -415,6 +494,7 @@ export const TimeSeriesProvider = ({
       toolingCallbacks,
       forceUpdate: updateCounter,
       isDrawing,
+      ongoingAction,
       categories,
       editMode,
     }),
@@ -424,6 +504,7 @@ export const TimeSeriesProvider = ({
       toolingCallbacks,
       updateCounter,
       isDrawing,
+      ongoingAction,
       categories,
       editMode,
     ],

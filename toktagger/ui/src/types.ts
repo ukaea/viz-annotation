@@ -35,21 +35,32 @@ export type ClassLabel = z.infer<typeof ClassLabelSchema>;
 
 export const BoundingBoxSchema = BaseAnnotationSchema.extend({
   type: z.literal("bounding_box"),
+  height: z.number(),
+  width: z.number(),
+  x_min: z.number(),
+  y_min: z.number(),
+});
+
+export type BoundingBox = z.infer<typeof BoundingBoxSchema>;
+
+export const VideoBoundingBoxSchema = BaseAnnotationSchema.extend({
+  type: z.literal("video_bounding_box"),
+  frame: z.number().int(),
+  track_id: z.string(), // force string
   height: z.number().int(),
   width: z.number().int(),
   x_min: z.number().int(),
   y_min: z.number().int(),
 });
 
-export type BoundingBox = z.infer<typeof BoundingBoxSchema>;
+export type VideoBoundingBox = z.infer<typeof VideoBoundingBoxSchema>;
 
-export const VideoBoundingBoxSchema = BoundingBoxSchema.extend({
-  type: z.literal("video_bounding_box"),
-  frame: z.number().int(),
-  track_id: z.string(), // force string
+export const PolygonSchema = BaseAnnotationSchema.extend({
+  type: z.literal("polygon"),
+  segmentation: z.array(z.number()).min(6),
 });
 
-export type VideoBoundingBox = z.infer<typeof VideoBoundingBoxSchema>;
+export type Polygon = z.infer<typeof PolygonSchema>;
 
 export const VideoPolygonSchema = BaseAnnotationSchema.extend({
   type: z.literal("video_polygon"),
@@ -75,6 +86,7 @@ export const AnnotationSchema = z.union([
   TimeRegionSchema,
   ClassLabelSchema,
   BoundingBoxSchema,
+  PolygonSchema,
   VideoBoundingBoxSchema,
   VideoPolygonSchema,
   VideoPointSchema,
@@ -339,6 +351,8 @@ export enum ToolingTypes {
 export enum TimeSeriesAnnotationType {
   TIME_POINT = "TIME POINT",
   TIME_REGION = "TIME REGION",
+  BOUNDING_BOX = "BOUNDING BOX",
+  POLYGON = "POLYGON",
 }
 
 export type TimeSeriesToolDefinition = {
@@ -367,9 +381,18 @@ export type TimeSeriesAnnotation = {
 };
 
 export type ToolingCallbacks = {
-  start: (x: number, y: number, label: string) => void;
+  start: (
+    x: number,
+    y: number,
+    label: string,
+    axisSize: { x: number; y: number },
+  ) => void;
   move: (x: number, y: number) => void;
   end: (x: number, y: number) => void;
+  hover?: (x: number, y: number) => void;
+  // Discards any in-progress annotation and resets tool-local state - called when a draw
+  // is abandoned (tool switched mid-draw, Escape pressed) rather than completed normally
+  cancel?: () => void;
 };
 
 export type PlotProps = {
@@ -387,4 +410,15 @@ type PlotlyAxisTransforms = {
 };
 export interface ExtendedPlotlyHTMLElement extends PlotlyHTMLElement {
   _fullLayout: Record<string, PlotlyAxisTransforms>;
+}
+
+export interface SelectionRange {
+  x: {
+    low: number;
+    high: number;
+  };
+  y: {
+    low: number;
+    high: number;
+  };
 }

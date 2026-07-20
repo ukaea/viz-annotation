@@ -6,6 +6,11 @@ import {
   TimeRegion,
   TimeSeriesAnnotation,
   TimeSeriesAnnotationType,
+  BoundingBox,
+  BoundingBoxSchema,
+  Polygon,
+  PolygonSchema,
+  TimeSeriesAnnotationPoint,
 } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 import { Icon } from "@adobe/react-spectrum";
@@ -93,6 +98,47 @@ export function convertRawAnnotationsToTimeSeries(
     };
   }
 
+  if (BoundingBoxSchema.safeParse(annotation).success) {
+    const boundingBox = BoundingBoxSchema.parse(annotation);
+    return {
+      id: uuidv4(),
+      created_by: boundingBox.created_by,
+      label: boundingBox.label,
+      type: TimeSeriesAnnotationType.BOUNDING_BOX,
+      points: [
+        { x: boundingBox.x_min, y: boundingBox.y_min + boundingBox.height },
+        {
+          x: boundingBox.x_min + boundingBox.width,
+          y: boundingBox.y_min,
+        },
+      ],
+      selected: false,
+    };
+  }
+
+  if (PolygonSchema.safeParse(annotation).success) {
+    const polygon = PolygonSchema.parse(annotation);
+    return {
+      id: uuidv4(),
+      created_by: polygon.created_by,
+      label: polygon.label,
+      type: TimeSeriesAnnotationType.POLYGON,
+      points: polygon.segmentation.reduce<TimeSeriesAnnotationPoint[]>(
+        (accumulator, _, i, arr) => {
+          if (i % 2 === 0) {
+            accumulator.push({
+              x: arr[i],
+              y: arr[i + 1],
+            });
+          }
+          return accumulator;
+        },
+        [],
+      ),
+      selected: false,
+    };
+  }
+
   console.warn(
     `The following annotation could not be parsed into a time series annotation:\n ${annotation}`,
   );
@@ -129,6 +175,39 @@ export function convertTimeSeriesToRawAnnotations(
       label: annotation.label,
     };
     return timePoint;
+  }
+
+  if (annotation.type === TimeSeriesAnnotationType.BOUNDING_BOX) {
+    const boundingBox: BoundingBox = {
+      project_id: null,
+      sample_id: null,
+      validated: false,
+      uncertainty: 1,
+      created_by: annotation.created_by,
+      type: "bounding_box",
+      x_min: Math.min(annotation.points[0].x, annotation.points[1].x),
+      y_min: Math.min(annotation.points[0].y, annotation.points[1].y),
+      height: Math.abs(annotation.points[0].y - annotation.points[1].y),
+      width: Math.abs(annotation.points[0].x - annotation.points[1].x),
+      label: annotation.label,
+    };
+    return boundingBox;
+  }
+
+  if (annotation.type === TimeSeriesAnnotationType.POLYGON) {
+    const polygon: Polygon = {
+      project_id: null,
+      sample_id: null,
+      validated: false,
+      uncertainty: 1,
+      created_by: annotation.created_by,
+      type: "polygon",
+      segmentation: annotation.points.flatMap(({ x, y }) => {
+        return [x, y];
+      }),
+      label: annotation.label,
+    };
+    return polygon;
   }
 
   console.warn(

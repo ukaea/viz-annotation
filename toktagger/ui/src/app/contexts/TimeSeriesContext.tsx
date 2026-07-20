@@ -85,6 +85,17 @@ export const useTimeSeriesState = () => {
 
 export const TIME_SERIES_ANNOTATION_MENU = "time-series-annotation-menu";
 
+function isEditableEventTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  if (target instanceof HTMLTextAreaElement) return true;
+  if (target instanceof HTMLSelectElement) return true;
+  if (target instanceof HTMLInputElement) {
+    return target.type !== "checkbox" && target.type !== "radio";
+  }
+  return false;
+}
+
 export const TimeSeriesProvider = ({
   children,
 }: {
@@ -96,12 +107,19 @@ export const TimeSeriesProvider = ({
     project,
   } = useSample();
 
+  // project is guaranteed non-null here: TimeSeriesProvider is only rendered
+  // after SampleView confirms project is loaded.
+  const projectId = project?._id ?? '';
+
   const [annotations, setAnnotations] = useState<TimeSeriesAnnotation[]>([]);
   const [toolingCallbacks, setToolingCallbacks] = useState<
     Map<TimeSeriesAnnotationType, ToolingCallbacks>
   >(new Map());
   const [activeTool, setActiveTool] = useState<TimeSeriesToolDefinition | null>(
-    null,
+    () => {
+      const saved = sessionStorage.getItem(`ts-active-tool-${projectId}`);
+      return saved ? (JSON.parse(saved) as TimeSeriesToolDefinition) : null;
+    },
   );
   const [updateCounter, setUpdateCounter] = useState(0);
   const [syncCounter, setSyncCounter] = useState(0);
@@ -109,8 +127,22 @@ export const TimeSeriesProvider = ({
   const [categories, setCategories] = useState<Map<string, TimeSeriesCategory>>(
     new Map(),
   );
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState<boolean>(
+    () => sessionStorage.getItem(`ts-edit-mode-${projectId}`) === "true",
+  );
   const [ongoingAction, setOngoingAction] = useState(false);
+
+  // Persist editMode to sessionStorage on every change
+  useEffect(() => {
+    if (!projectId) return;
+    sessionStorage.setItem(`ts-edit-mode-${projectId}`, String(editMode));
+  }, [editMode, projectId]);
+
+  // Persist activeTool to sessionStorage on every change
+  useEffect(() => {
+    if (!projectId) return;
+    sessionStorage.setItem(`ts-active-tool-${projectId}`, JSON.stringify(activeTool));
+  }, [activeTool, projectId]);
 
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSyncCount = useRef<number>(0);
@@ -534,11 +566,14 @@ export const TimeSeriesProvider = ({
 
   useEffect(() => {
     const keyDownHandler = (event: KeyboardEvent) => {
+      if (isEditableEventTarget(event.target)) return;
+
       if (event.key === "Control") {
         setIsDrawing(true);
       }
 
       if (event.key === "e") {
+        setAnnotationTool(null);
         setEditMode((prev) => !prev);
       }
     };
@@ -556,7 +591,7 @@ export const TimeSeriesProvider = ({
       document.removeEventListener("keydown", keyDownHandler);
       document.removeEventListener("keyup", keyUpHandler);
     };
-  }, [editMode]);
+  }, [setAnnotationTool]);
 
   const annotationLabels = Array.from(categories.values()).map(
     (category, index) => {

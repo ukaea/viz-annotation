@@ -21,17 +21,22 @@ import {
 } from "@/app/contexts/TimeSeriesContext";
 import { useEffect, useState } from "react";
 import { TimeSeriesAnnotationType } from "@/types";
+import { useSample } from "@/app/contexts/SampleContext";
 
 export const AnnotationToolbar = () => {
   const { editMode, toolingCallbacks, categories, activeAnnotationTool } =
     useTimeSeriesState();
   const { setEditMode, setAnnotationTool } = useTimeSeriesActions();
+  const { project } = useSample();
+  const projectId = project?._id;
 
   const [categoryAllocations, setCategoryAllocations] = useState<
     Map<TimeSeriesAnnotationType, string>
   >(new Map());
 
-  const [firstTimeEdit, setFirstTimeEdit] = useState(true);
+  const [firstTimeEdit, setFirstTimeEdit] = useState(
+    () => localStorage.getItem("ts-help-seen") !== "true",
+  );
   const [contextHelpManualOpen, setContextHelpManualOpen] = useState<
     boolean | undefined
   >(undefined);
@@ -40,14 +45,39 @@ export const AnnotationToolbar = () => {
   const modeText = editMode ? "Edit Mode" : "View Mode";
 
   useEffect(() => {
+    if (!projectId) return;
+    const savedRaw = sessionStorage.getItem(`ts-category-allocs-${projectId}`);
+    const saved: Record<string, string> = savedRaw ? JSON.parse(savedRaw) : {};
+
     const categoryMap: Map<TimeSeriesAnnotationType, string> = new Map();
     categories.forEach((category) => {
       if (!categoryMap.has(category.type)) {
-        categoryMap.set(category.type, category.label);
+        const savedLabel = saved[category.type];
+        const savedValid =
+          savedLabel !== undefined &&
+          [...categories.values()].some(
+            (c) => c.type === category.type && c.label === savedLabel,
+          );
+        categoryMap.set(
+          category.type,
+          savedValid ? savedLabel : category.label,
+        );
       }
     });
     setCategoryAllocations(categoryMap);
-  }, [categories]);
+  }, [categories, projectId]);
+
+  useEffect(() => {
+    if (!projectId || categoryAllocations.size === 0) return;
+    const record: Record<string, string> = {};
+    categoryAllocations.forEach((label, type) => {
+      record[type] = label;
+    });
+    sessionStorage.setItem(
+      `ts-category-allocs-${projectId}`,
+      JSON.stringify(record),
+    );
+  }, [categoryAllocations, projectId]);
 
   return (
     <View
@@ -76,7 +106,8 @@ export const AnnotationToolbar = () => {
             Click to enter{" "}
             {editMode
               ? "view mode - annotations disabled"
-              : "edit mode - annotations enabled"}
+              : "edit mode - annotations enabled"}{" "}
+            (shortcut: e)
           </Tooltip>
         </TooltipTrigger>
         <Divider size="S" marginX="size-200" />
@@ -143,6 +174,7 @@ export const AnnotationToolbar = () => {
           isOpen={firstTimeEdit ? contextHelpManualOpen : undefined}
           onOpenChange={() => {
             setFirstTimeEdit(false);
+            localStorage.setItem("ts-help-seen", "true");
           }}
           aria-label="annotation-context-help"
         >
@@ -150,7 +182,7 @@ export const AnnotationToolbar = () => {
           <Content>
             <Text>
               Use the top button to switch between <b>edit mode</b> and{" "}
-              <b>view mode</b>.
+              <b>view mode</b>. Press <b>e</b> to toggle quickly.
               <br />
               <br />
               Activate the desired tool using the list of buttons - use the

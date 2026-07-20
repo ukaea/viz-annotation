@@ -9,19 +9,19 @@
 
 [models]
 # The directory to use for storing ML model weights.
-# cache_dir = '/home/runner/.cache/toktagger/models'
+# cache_dir = '/home/wk9874/.cache/toktagger/models'
 
 # The maximum number of ML models which can be loaded concurrently, set to None to detect automatically and use all available cores.
 # max_actors = 5
 
 # The maximum number of GPUs to use for ML model tasks, leave blank to detect automatically and use all available cores.
-# max_gpu_actors = None
+# max_gpu_actors = '<your value here>'
 
 # Force the set number of GPU actors available, even if insufficient available GPU cores detected on hardware.
-# force_num_gpus = false
+# force_num_gpus = '<your value here>'
 
 # Whether to only allow loading of SafeTensors files for added security.
-# load_safetensors_only = false
+# load_safetensors_only = '<your value here>'
 
 # Whether to enable the loading of model weights files from local disk. Should be disabled for production servers.
 # local_load_enabled = true
@@ -30,19 +30,19 @@
 # gitlab_load_enabled = true
 
 # The URL of the Gitlab server to load ML model weights from.
-# gitlab_url = None
+# gitlab_url = '<your value here>'
 
 # The PAT Token to use when connecting to Gitlab to load model weights.
-# gitlab_token = None
+# gitlab_token = '<your value here>'
 
 # Limit the user to load ML model weights from a specific Gitlab project. Leave blank to allow the user to choose.
-# gitlab_project_id = None
+# gitlab_project_id = '<your value here>'
 
 # Whether to enable the loading of model weights files from Hugging Face.
 # huggingface_load_enabled = true
 
 # Limit the user to load ML model weights from a specific Hugging Face userspace / organisation. Leave blank to allow the user to choose.
-# huggingface_userspace = None
+# huggingface_userspace = '<your value here>'
 
 
 [sal]
@@ -58,10 +58,10 @@
 # port = 8002
 
 # Whether to hot reload the TokTagger server on changes to files.
-# reload = false
+# reload = '<your value here>'
 
 # The directory to use for storing entries in the Mongita database, if used.
-# cache_dir = '/home/runner/.cache/toktagger'
+# cache_dir = '/home/wk9874/.cache/toktagger'
 
 
 [uda]

@@ -119,6 +119,11 @@ class Models(pydantic.BaseModel):
 
 
 class Settings(BaseSettings):
+    # Note if adding extra settings to this object, all sections should have one level of nesting only
+    # Ie, everything inside Settings should point to a BaseModel as a default factory
+    # And everything inside that BaseModel should be a flat field, not another BaseModel
+    # This is because more indentation would make the environment variables unintuitive,
+    # As they would not be able to just use single underscores (since different levels of nesting requires a different delimiter)
     server: Server = pydantic.Field(default_factory=Server)
     database: Database = pydantic.Field(default_factory=Database)
     uda: UDA = pydantic.Field(default_factory=UDA)

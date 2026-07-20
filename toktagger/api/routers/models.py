@@ -449,7 +449,9 @@ async def load_model_weights_gitlab(
         )
 
     # Check if required env vars have been set
-    if not all(config.settings.models.gitlab_url, config.settings.models.gitlab_token):
+    if not all(
+        (config.settings.models.gitlab_url, config.settings.models.gitlab_token)
+    ):
         raise HTTPException(
             status_code=409,
             detail="Gitlab URL and Token env vars must be set for ML Model loading from Gitlab.",

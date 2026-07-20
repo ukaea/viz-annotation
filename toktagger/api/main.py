@@ -61,19 +61,22 @@ class Server:
             print("Warning: Overriding automatically detected GPU availablity!")
             num_gpus = config.settings.models.max_gpu_actors
 
+        _env_vars = {
+            "API_URL": f"http://{config.settings.server.host}:{config.settings.server.port}",
+            "MODEL_STORAGE": str(config.settings.models.cache_dir),
+            "MODELS_SAFETENSORS_ONLY": str(
+                config.settings.models.load_safetensors_only
+            ),
+        }
+        if _gitlab_url := config.settings.models.gitlab_url:
+            _env_vars["MODELS_GITLAB_URL"] = _gitlab_url
+        if _gitlab_token := config.settings.models.gitlab_token:
+            _env_vars["MODELS_GITLAB_TOKEN"] = _gitlab_token
         ray.init(
             num_gpus=num_gpus,
             ignore_reinit_error=True,
             include_dashboard=False,
-            runtime_env={
-                "env_vars": {
-                    "API_URL": f"http://{config.settings.server.host}:{config.settings.server.port}",
-                    "MODEL_STORAGE": str(config.settings.models.cache_dir),
-                    "MODELS_SAFETENSORS_ONLY": str(
-                        config.settings.models.load_safetensors_only
-                    ),
-                }
-            },
+            runtime_env={"env_vars": _env_vars},
         )
         # Detect available resources
         cluster_resources = ray.cluster_resources()

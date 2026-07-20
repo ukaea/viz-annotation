@@ -191,9 +191,11 @@ def load_model_gitlab(
 
     # Construct URI required
     if not all(
-        os.environ.get("MODELS_GITLAB_URL"),
-        os.environ.get("MODELS_GITLAB_TOKEN"),
-        params.gitlab_project_id,
+        (
+            os.environ.get("MODELS_GITLAB_URL"),
+            os.environ.get("MODELS_GITLAB_TOKEN"),
+            params.gitlab_project_id,
+        )
     ):
         logger.error(
             "Gitlab URL, Token or Project ID not specified when trying to load ML model!"

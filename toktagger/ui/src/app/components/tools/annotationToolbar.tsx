@@ -23,6 +23,32 @@ import { useEffect, useState } from "react";
 import { TimeSeriesAnnotationType } from "@/types";
 import { useSample } from "@/app/contexts/SampleContext";
 
+const categoryAllocsKey = (projectId: string) =>
+  `ts-category-allocs-${projectId}`;
+
+// Reads the saved category -> label allocations, discarding corrupt storage.
+// Individual labels are still checked against the project's categories below.
+function readSavedAllocations(projectId: string): Record<string, string> {
+  const savedRaw = sessionStorage.getItem(categoryAllocsKey(projectId));
+  if (!savedRaw) return {};
+
+  try {
+    const parsed: unknown = JSON.parse(savedRaw);
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      !Array.isArray(parsed)
+    ) {
+      return parsed as Record<string, string>;
+    }
+  } catch {
+    // Malformed JSON - fall through and discard.
+  }
+
+  sessionStorage.removeItem(categoryAllocsKey(projectId));
+  return {};
+}
+
 export const AnnotationToolbar = () => {
   const { editMode, toolingCallbacks, categories, activeAnnotationTool } =
     useTimeSeriesState();
@@ -46,8 +72,7 @@ export const AnnotationToolbar = () => {
 
   useEffect(() => {
     if (!projectId) return;
-    const savedRaw = sessionStorage.getItem(`ts-category-allocs-${projectId}`);
-    const saved: Record<string, string> = savedRaw ? JSON.parse(savedRaw) : {};
+    const saved = readSavedAllocations(projectId);
 
     const categoryMap: Map<TimeSeriesAnnotationType, string> = new Map();
     categories.forEach((category) => {
@@ -74,7 +99,7 @@ export const AnnotationToolbar = () => {
       record[type] = label;
     });
     sessionStorage.setItem(
-      `ts-category-allocs-${projectId}`,
+      categoryAllocsKey(projectId),
       JSON.stringify(record),
     );
   }, [categoryAllocations, projectId]);

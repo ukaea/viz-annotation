@@ -13,19 +13,20 @@ import toktagger.api.config as config
 
 @pytest.fixture(scope="module")
 def ray_session(settings):
+    _env_vars = {
+        "API_URL": f"http://{config.settings.server.host}:{config.settings.server.port}",
+        "MODEL_STORAGE": str(config.settings.models.cache_dir),
+        "MODELS_SAFETENSORS_ONLY": str(config.settings.models.load_safetensors_only),
+    }
+    if _gitlab_url := config.settings.models.gitlab_url:
+        _env_vars["MODELS_GITLAB_URL"] = _gitlab_url
+    if _gitlab_token := config.settings.models.gitlab_token:
+        _env_vars["MODELS_GITLAB_TOKEN"] = _gitlab_token
     ray.init(
         num_gpus=1,  # Due to env vars set in models_api_client
         ignore_reinit_error=True,
         include_dashboard=False,
-        runtime_env={
-            "env_vars": {
-                "MODEL_STORAGE": str(config.settings.models.cache_dir),
-                "API_URL": "",
-                "MODELS_SAFETENSORS_ONLY": str(
-                    config.settings.models.load_safetensors_only
-                ),
-            }
-        },
+        runtime_env={"env_vars": _env_vars},
     )
 
     yield

@@ -266,6 +266,57 @@ def test_uda_camera_loader_no_bit_depth_falls_back_to_clip(monkeypatch):
     assert numpy.array_equal(frame_arr, numpy.array([[0, 100], [255, 255]]))
 
 
+def test_uda_camera_loader_rco_rgb_uint16(monkeypatch):
+    # Regression test for https://github.com/ukaea/toktagger/issues/320: RCO
+    # returns a leading time dimension plus three-channel uint16 pixel data,
+    # e.g. (1, height, width, 3), with a declared depth of 8. The loader should
+    # squeeze the time dimension and convert to a (height, width, 3) uint8 PNG.
+    camera_name = "rco"
+    uda_shot = ShotData(protocol="uda", signal_names=[camera_name])
+    sample = Sample(
+        shot_id=54339,
+        data=uda_shot,
+        _id="test",
+        project_id="test",
+        validated_annotations=False,
+    )
+
+    raw_values = numpy.array(
+        [
+            [
+                [[0, 64, 128], [255, 200, 100]],
+                [[10, 20, 30], [40, 50, 60]],
+            ]
+        ],
+        dtype=numpy.uint16,
+    )
+    fake_dataset = xarray.Dataset(
+        {
+            "data": xarray.DataArray(
+                raw_values,
+                dims=["time", "height", "width", "channel"],
+                attrs={"depth": 8},
+            )
+        }
+    )
+    monkeypatch.setattr(
+        data_loaders.xr, "open_dataset", lambda *args, **kwargs: fake_dataset
+    )
+
+    data_loader = data_loaders.UDACameraDataLoader()
+    image_data = data_loader.get_sample(
+        sample, params=ImageParams(name="image", frame=0)
+    )
+    base64_decoded = base64.b64decode(image_data.values)
+    frame_arr = numpy.array(Image.open(io.BytesIO(base64_decoded)))
+
+    # depth=8 means the declared max value is 255, so scaling is a no-op and
+    # every channel value maps to itself.
+    assert frame_arr.shape == (2, 2, 3)
+    assert frame_arr.dtype == numpy.uint8
+    assert numpy.array_equal(frame_arr, numpy.squeeze(raw_values).astype(numpy.uint8))
+
+
 def test_uda_loader_data_doesnt_exist(uda_env_vars):
     try:
         import pyuda

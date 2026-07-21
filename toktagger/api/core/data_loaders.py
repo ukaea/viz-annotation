@@ -428,6 +428,28 @@ class UDACameraDataLoader(DataLoader):
             image_array = signal["data"].values
             image_array = np.squeeze(image_array)
 
+            # Ensure at least 2D for Pillow (squeeze can reduce to 0D or 1D for tiny images)
+            if image_array.ndim == 0:
+                image_array = image_array.reshape(1, 1)
+            elif image_array.ndim == 1:
+                if image_array.shape[0] in (3, 4):
+                    image_array = image_array.reshape(1, 1, -1)  # single pixel RGB/RGBA
+                else:
+                    image_array = image_array.reshape(-1, 1)  # 1D grayscale strip
+
+            # Convert uint16 to uint8 for Pillow compatibility (Pillow doesn't support u2).
+            # Scale using the camera's declared bit depth (not the per-frame min/max) so
+            # brightness stays consistent across frames, e.g. RCO reports depth=8 even
+            # though UDA returns a uint16 array for shot 54339.
+            if image_array.dtype == np.uint16:
+                bit_depth = signal["data"].attrs.get("depth")
+                if bit_depth:
+                    max_value = 2**bit_depth - 1
+                    scaled = image_array.astype(np.float64) * (255 / max_value)
+                    image_array = np.clip(scaled, 0, 255).astype(np.uint8)
+                else:
+                    image_array = np.clip(image_array, 0, 255).astype(np.uint8)
+
             im = Image.fromarray(image_array)
             buffer = io.BytesIO()
             im.save(buffer, format="PNG")

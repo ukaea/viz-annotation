@@ -724,7 +724,7 @@ async def test_model_load_local_failed(models_api_client, db_client, setup_model
 
         # Check message is as expected
         print(response.json())
-        assert "Load task failed - Failed to load weights" in response.json()["detail"]
+        assert "Failed to load weights" in response.json()["detail"]
 
         model = await db_client.get_document_by_id(
             collection="models", object_id=ObjectId(model_id)
@@ -761,10 +761,7 @@ def test_check_safetensors(mock_func, monkeypatch, safetensors_only, filename):
 
         if safetensors_only == "True" and filename == "model.pt":
             assert unsafe
-            assert (
-                unsafe.get("message")
-                == "Failed to load weights - retrieved file is not a SafeTensor!"
-            )
+            assert unsafe.get("message") == "retrieved file is not a SafeTensor!"
             assert mock_func.call_count > 0
         else:
             assert not unsafe

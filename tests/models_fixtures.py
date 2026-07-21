@@ -14,7 +14,7 @@ import toktagger.api.config as config
 @pytest.fixture(scope="module")
 def ray_session(settings):
     _env_vars = {
-        "API_URL": f"http://{config.settings.server.host}:{config.settings.server.port}",
+        "API_URL": "",
         "MODEL_STORAGE": str(config.settings.models.cache_dir),
         "MODELS_SAFETENSORS_ONLY": str(config.settings.models.load_safetensors_only),
     }

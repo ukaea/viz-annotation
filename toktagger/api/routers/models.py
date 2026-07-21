@@ -584,7 +584,7 @@ async def get_load_model_status(
                 updates=ModelUpdate(training_status="failed", progress=0),
             )
             raise HTTPException(
-                detail=f"Load task failed - {result['message']}.",
+                detail=f"Failed to load weights - {result['message']}",
                 status_code=500,
             )
 

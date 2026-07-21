@@ -27,6 +27,7 @@ import pydantic
 from mlflow import MlflowClient, MlflowException
 from huggingface_hub import hf_hub_download
 from safetensors import safe_open
+import requests
 
 logger = logging.getLogger("ray")
 logger.setLevel("DEBUG")
@@ -108,7 +109,7 @@ def check_safetensor(
             return {
                 "project_id": project_id,
                 "model_id": model_id,
-                "message": "Failed to load weights - retrieved file is not a SafeTensor!",
+                "message": "retrieved file is not a SafeTensor!",
             }
         return None
 
@@ -160,7 +161,7 @@ def load_model_local(
         return {
             "project_id": project.id,
             "model_id": model.id,
-            "message": f"Failed to load weights - {str(e)}",
+            "message": str(e),
         }
 
     # Save the model with the correct file name, delete temporary file
@@ -208,7 +209,7 @@ def load_model_gitlab(
         return {
             "project_id": project.id,
             "model_id": model.id,
-            "message": "Failed to load weights - required variables not defined.",
+            "message": "required variables not defined.",
         }
     os.environ["MLFLOW_TRACKING_URI"] = (
         f"{os.environ.get('MODELS_GITLAB_URL')}/api/v4/projects/{params.gitlab_project_id}/ml/mlflow"
@@ -241,27 +242,73 @@ def load_model_gitlab(
         return {
             "project_id": project.id,
             "model_id": model.id,
-            "message": "Failed to load weights - requested version of selected model could not be found!",
+            "message": "requested version of selected model could not be found!",
         }
 
     # Download artifacts
-    weights_path = client.download_artifacts(
-        run_id=mlflow_model.run_id, path=params.weights_path, dst_path=str(model_dir)
-    )
+    # Note that it seems like download_artifacts and list_artifacts methods are broken
+    # https://gitlab.com/gitlab-org/gitlab/-/work_items/591960
+    # Will perform a workaround by downloading directly from API
+    download_path = model_dir.joinpath(pathlib.Path(params.weights_path).name)
+    try:
+        with requests.get(
+            f"https://gitlab.com/api/v4/projects/{params.gitlab_project_id}/packages/ml_models/{mlflow_model.version}/files/{params.weights_path}",
+            headers={"Authorization": f"Bearer {os.environ['MLFLOW_TRACKING_TOKEN']}"},
+            stream=True,
+            timeout=600,
+        ) as response:
+            response.raise_for_status()
+            with download_path.open("wb") as file:
+                for chunk in response.iter_content(chunk_size=1024 * 1024):
+                    if chunk:
+                        file.write(chunk)
+
+    except requests.exceptions.HTTPError:
+        if response.status_code == 404:
+            err_msg = "could not find model weights at provided file location!"
+        elif response.status_code == 403:
+            err_msg = "gitlab token does not have the correct permissions to access this model!"
+        else:
+            err_msg = "server error from Gitlab!"
+
+        logger.error(f"Failed to load weights - {err_msg}")
+        send_model_updates(
+            project_id=project.id,
+            model_id=model.id,
+            updates=ModelUpdate(training_status="failed"),
+        )
+        return {
+            "project_id": project.id,
+            "model_id": model.id,
+            "message": err_msg,
+        }
+
+    except requests.exceptions.Timeout:
+        logger.error("Failed to load weights - download timed out!")
+        send_model_updates(
+            project_id=project.id,
+            model_id=model.id,
+            updates=ModelUpdate(training_status="failed"),
+        )
+        return {
+            "project_id": project.id,
+            "model_id": model.id,
+            "message": "download timed out!",
+        }
 
     # Check if this file is a safetensor, if required
-    unsafe = check_safetensor(weights_path, project.id, model.id)
+    unsafe = check_safetensor(download_path, project.id, model.id)
     if unsafe:
         # Delete downloaded file
-        pathlib.Path(weights_path).unlink()
+        pathlib.Path(download_path).unlink()
         return unsafe
 
     # Try loading actor with weights file, catch and reraise any errors
     try:
-        load_temp_weights_task = model_actor.wrapped_load.remote(str(weights_path))
+        load_temp_weights_task = model_actor.wrapped_load.remote(str(download_path))
         ray.get(load_temp_weights_task)
     except Exception as e:
-        pathlib.Path(weights_path).unlink()
+        pathlib.Path(download_path).unlink()
         logger.error(e)
         send_model_updates(
             project_id=project.id,
@@ -271,7 +318,7 @@ def load_model_gitlab(
         return {
             "project_id": project.id,
             "model_id": model.id,
-            "message": f"Failed to load weights - {str(e)}",
+            "message": str(e),
         }
 
     # Save the model with the correct file name, delete temporary file
@@ -280,7 +327,7 @@ def load_model_gitlab(
     )
     ray.get(save_weights_task)
 
-    pathlib.Path(weights_path).unlink()
+    pathlib.Path(download_path).unlink()
 
     return {"project_id": project.id, "model_id": model.id, "message": None}
 
@@ -321,7 +368,7 @@ def load_model_huggingface(
         return {
             "project_id": project.id,
             "model_id": model.id,
-            "message": "Failed to load weights - requested model could not be found!",
+            "message": "requested model could not be found!",
         }
 
     # Check if this file is a safetensor, if required
@@ -346,7 +393,7 @@ def load_model_huggingface(
         return {
             "project_id": project.id,
             "model_id": model.id,
-            "message": f"Failed to load weights - {str(e)}",
+            "message": str(e),
         }
 
     # Save the model with the correct file name, delete temporary file

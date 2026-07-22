@@ -19,7 +19,11 @@ import {
 import type { Annotation } from "@/types";
 import { useSample } from "@/app/contexts/SampleContext";
 import { useVideoUiState } from "@/app/video/components/video-context";
-import { VideoBoundingBoxSchema, VideoPolygonSchema } from "@/types";
+import {
+  VideoBoundingBoxSchema,
+  VideoPointSchema,
+  VideoPolygonSchema,
+} from "@/types";
 import type {
   ByFrameMap,
   DrawingTool,
@@ -27,6 +31,7 @@ import type {
   InstanceProfile,
   Selection,
   VideoBoundingBox,
+  VideoPoint,
   VideoPolygon,
 } from "./types";
 import { buildSourceKey } from "./types";
@@ -47,9 +52,12 @@ import {
   annoToVideoAnnotation,
   getLabelTrack,
   videoBBoxToAnno,
+  videoPointToAnno,
   videoPolygonToAnno,
+  stampPoint,
   stampLabelAndTrack,
   normalizeOverlayForSession,
+  toAnnotoriousDrawingTool,
 } from "./anno-utils";
 import { clampOverlayToNaturalImage, sameOverlay } from "./overlay-sync-utils";
 
@@ -97,6 +105,7 @@ type VideoSessionCtx = {
   setImageNatural: (n: { w: number; h: number } | null) => void;
 
   /** Popup helpers so view components don't need direct access to the Annotorious API. */
+  createPointAnnotation: (point: { x: number; y: number }) => void;
   deleteAnnotation: (id: string) => void;
   closePopup: () => void;
   requestFocusInstance: (
@@ -149,6 +158,10 @@ function parseVideoAnnotation(annotation: Annotation) {
 
   if (annotation.type === "video_polygon") {
     return VideoPolygonSchema.safeParse(annotation);
+  }
+
+  if (annotation.type === "video_point") {
+    return VideoPointSchema.safeParse(annotation);
   }
 
   return null;
@@ -246,6 +259,22 @@ function videoAnnotationSignature(annotations: Annotation[]): string {
           timestamp: item.timestamp,
         }),
       );
+      continue;
+    }
+
+    if (item.type === "video_point") {
+      entries.push(
+        JSON.stringify({
+          type: item.type,
+          frame: item.frame,
+          track_id: item.track_id,
+          label: item.label,
+          x: item.x,
+          y: item.y,
+          created_by: item.created_by,
+          timestamp: item.timestamp,
+        }),
+      );
     }
   }
 
@@ -278,6 +307,8 @@ function videoAnnotationsToByFrame(args: {
       anno = videoBBoxToAnno(dbAnno as VideoBoundingBox, key);
     } else if (dbAnno.type === "video_polygon") {
       anno = videoPolygonToAnno(dbAnno as VideoPolygon, key);
+    } else if (dbAnno.type === "video_point") {
+      anno = videoPointToAnno(dbAnno as VideoPoint, key);
     }
     if (!anno) continue;
 
@@ -292,7 +323,8 @@ function videoAnnotationsToByFrame(args: {
 function isVideoAnnotationType(annotation: Annotation): boolean {
   return (
     annotation.type === "video_bounding_box" ||
-    annotation.type === "video_polygon"
+    annotation.type === "video_polygon" ||
+    annotation.type === "video_point"
   );
 }
 
@@ -306,12 +338,15 @@ function videoAnnotationsFromByFrame(byFrame: ByFrameMap): Annotation[] {
 
       let parsed:
         | ReturnType<typeof VideoBoundingBoxSchema.safeParse>
+        | ReturnType<typeof VideoPointSchema.safeParse>
         | ReturnType<typeof VideoPolygonSchema.safeParse>
         | null = null;
       if (shape.type === "video_bounding_box") {
         parsed = VideoBoundingBoxSchema.safeParse(shape);
       } else if (shape.type === "video_polygon") {
         parsed = VideoPolygonSchema.safeParse(shape);
+      } else if (shape.type === "video_point") {
+        parsed = VideoPointSchema.safeParse(shape);
       }
 
       if (parsed?.success) out.push(parsed.data);
@@ -628,8 +663,9 @@ export function VideoSessionProvider(props: {
       !panMode &&
       !hideAnnotations &&
       Boolean(selection.className) &&
-      !hasSelected;
-    api.setDrawingTool(drawingTool);
+      !hasSelected &&
+      drawingTool !== "point";
+    api.setDrawingTool(toAnnotoriousDrawingTool(drawingTool));
     api.setDrawingEnabled(canDraw);
 
     if (!canDraw) {
@@ -703,6 +739,93 @@ export function VideoSessionProvider(props: {
       );
     },
     [frame, projectId, sampleId, updateByFrame],
+  );
+
+  const createPointAnnotation = useCallback(
+    (point: { x: number; y: number }) => {
+      if (!api?.getAnnotations) return;
+
+      const cls = (selection.className ?? "").trim();
+      if (!cls) return;
+
+      const rawX = Number(point.x);
+      const rawY = Number(point.y);
+      if (!Number.isFinite(rawX) || !Number.isFinite(rawY)) return;
+
+      const viewerNatural = (() => {
+        const item = api.viewer?.world?.getItemAt?.(0);
+        if (!item) return null;
+        const size = item.getContentSize?.();
+        const w = Math.round(Number(size?.x ?? 0));
+        const h = Math.round(Number(size?.y ?? 0));
+        if (!(w > 0 && h > 0)) return null;
+        return { w, h };
+      })();
+      const natural = imageNatural ?? viewerNatural;
+      const x = natural ? Math.max(0, Math.min(natural.w, rawX)) : rawX;
+      const y = natural ? Math.max(0, Math.min(natural.h, rawY)) : rawY;
+
+      const raw = api.getAnnotations();
+      const used = new Set<string>();
+
+      for (const tid of existingTrackIdsForClass(byFrameRef.current, cls)) {
+        const c = canonicalizeTrackId(tid);
+        if (c) used.add(c);
+      }
+
+      for (const annotation of raw) {
+        const got = getLabelTrack(annotation);
+        if ((got.className ?? "").trim() !== cls) continue;
+
+        const tid = canonicalizeTrackId(got.trackId ?? "");
+        if (tid) used.add(tid);
+      }
+
+      const trackId = selection.trackId ?? uniqueReadableTrackId(used);
+      const dbPoint: VideoPoint = {
+        type: "video_point",
+        frame,
+        track_id: String(trackId),
+        label: cls,
+        x: Math.round(x),
+        y: Math.round(y),
+        created_by: "manual",
+      };
+      const pointAnnotation = videoPointToAnno(dbPoint, frameKey);
+      const normalized = normalizeOverlayForSession({
+        raw: [...raw, pointAnnotation],
+        frameKey,
+        fallback: { className: cls, trackId: String(trackId) },
+        enforceBothBodies: true,
+        dedupeByInstance: true,
+      });
+
+      updateByFrame(
+        (prevByFrame) => mapSetFrame(prevByFrame, frame, normalized),
+        { markDirty: true },
+      );
+
+      isProgrammaticAnnoSyncRef.current = true;
+      try {
+        api.cancelDrawing?.();
+        api.setSelected?.();
+        api.setAnnotations?.(normalized, true);
+        applyAnnotatorInteractionMode();
+      } finally {
+        finishProgrammaticAnnotationSync();
+      }
+    },
+    [
+      api,
+      applyAnnotatorInteractionMode,
+      finishProgrammaticAnnotationSync,
+      frame,
+      frameKey,
+      imageNatural,
+      selection.className,
+      selection.trackId,
+      updateByFrame,
+    ],
   );
 
   /**
@@ -785,8 +908,29 @@ export function VideoSessionProvider(props: {
       if (!sameOverlay(raw, normalized)) {
         isProgrammaticAnnoSyncRef.current = true;
         try {
-          api.setSelected?.();
-          api.setAnnotations?.(normalized, true);
+          const rawById = new Map(
+            raw
+              .filter((annotation) => annotation.id)
+              .map((annotation) => [String(annotation.id), annotation]),
+          );
+          const canPatchInPlace =
+            Boolean(api.updateAnnotation) &&
+            raw.length === normalized.length &&
+            normalized.every((annotation) =>
+              annotation.id ? rawById.has(String(annotation.id)) : false,
+            );
+
+          if (canPatchInPlace) {
+            for (const annotation of normalized) {
+              const prev = rawById.get(String(annotation.id));
+              if (!prev || sameOverlay([prev], [annotation])) continue;
+              api.updateAnnotation?.(annotation);
+            }
+          } else {
+            api.setSelected?.();
+            api.setAnnotations?.(normalized, true);
+          }
+
           applyAnnotatorInteractionMode();
         } finally {
           finishProgrammaticAnnotationSync();
@@ -1093,8 +1237,10 @@ export function VideoSessionProvider(props: {
 
       // Important: patch only the newly created annotation via updateAnnotation.
       // Avoid full clear/set rewrite during create, which can break OSD draw state.
+      const createdForTool =
+        drawingTool === "point" ? stampPoint(created) : created;
       const patched = normalizeOverlayForSession({
-        raw: [stampLabelAndTrack(created, cls, String(trackId))],
+        raw: [stampLabelAndTrack(createdForTool, cls, String(trackId))],
         frameKey,
         fallback: { className: cls, trackId: String(trackId) },
         enforceBothBodies: true,
@@ -1143,6 +1289,7 @@ export function VideoSessionProvider(props: {
     api,
     applyAnnotatorInteractionMode,
     commitFromAnnotorious,
+    drawingTool,
     frameKey,
     hideAnnotations,
     panMode,
@@ -1204,6 +1351,7 @@ export function VideoSessionProvider(props: {
       setHideAnnotations,
       imageNatural,
       setImageNatural,
+      createPointAnnotation,
       deleteAnnotation,
       closePopup,
       requestFocusInstance,
@@ -1238,6 +1386,7 @@ export function VideoSessionProvider(props: {
       setHideAnnotations,
       imageNatural,
       setImageNatural,
+      createPointAnnotation,
       deleteAnnotation,
       closePopup,
       requestFocusInstance,

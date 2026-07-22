@@ -163,12 +163,21 @@ async def start_model_training(
     request: Request,
     project_id: str,
     model_type: str,
+    use_gpu: bool = Query(False, description="Whether to use GPU to train the model"),
     params: dict = Body(
         {}, description="Optional parameters for training the model", embed=True
     ),
 ):
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
+
+    # If GPU requested but not available, return error
+    if use_gpu and not task_registry.gpu_enabled:
+        raise HTTPException(
+            status_code=409,
+            detail="GPU was requested but GPU support not enabled on server!",
+        )
+
     project = await utils.get_project(db_client, project_id)
     # Check that this model type is valid for this project
     if model_type not in project.model_types:
@@ -179,6 +188,24 @@ async def start_model_training(
 
     # Get model params model from registry and validate
     params_validated = validate_model_params(model_type, "training", params)
+
+    # Get annotations and samples
+    annotations = await utils.get_annotations(db_client, project.id, validated=True)
+    samples = await utils.get_samples(db_client, project.id, validated=True)
+
+    # Get all validated samples and annotations for this project
+    logger.info(f"Collected {len(annotations)} annotations.")
+    logger.info(f"Collected {len(samples)} samples.")
+
+    if len(samples) == 0:
+        raise HTTPException(
+            status_code=404, detail="No validated samples found to train a model on!"
+        )
+    if len(annotations) == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="No validated annotations found to train a model on!",
+        )
 
     # Create model
     # Try to get model for this project from database if it exists
@@ -205,24 +232,6 @@ async def start_model_training(
     else:
         version = db_models[0].version + 1
 
-    # Get annotations and samples before creating the model record so that
-    # a missing-data 404 never leaves an orphaned "queued" model in the DB.
-    annotations = await utils.get_annotations(db_client, project.id, validated=True)
-    samples = await utils.get_samples(db_client, project.id, validated=True)
-
-    logger.info(f"Collected {len(annotations)} annotations.")
-    logger.info(f"Collected {len(samples)} samples.")
-
-    if len(samples) == 0:
-        raise HTTPException(
-            status_code=404, detail="No validated samples found to train a model on!"
-        )
-    if len(annotations) == 0:
-        raise HTTPException(
-            status_code=404,
-            detail="No validated annotations found to train a model on!",
-        )
-
     model_in = ModelIn(
         type=model_type,
         version=version,
@@ -243,16 +252,18 @@ async def start_model_training(
 
     model = Model(**model_in.model_dump(), id=model_id, project_id=project.id)
 
+    task_registry.update_actors(model.id, use_gpu)
+
     train_task = train_model.remote(
         model=model,
         project=project,
         samples=samples,
         annotations=annotations_2d,
         params=params_validated,
+        use_gpu=use_gpu,
     )
 
     task_id = task_registry.register(train_task)
-    task_registry.update_actors(model.id)
 
     # Associate the task ID with the model in the database
     await utils.update_model(
@@ -396,11 +407,14 @@ async def load_model_weights(
             db_client, project.id, model_type=model_type, model_id=model_id
         )
 
+        task_registry.update_actors(model.id, False)
+
         task = load_model.remote(
-            project=project, model=model, weights_path=weights_path
+            project=project,
+            model=model,
+            weights_path=weights_path,
         )
         task_id = task_registry.register(task)
-        task_registry.update_actors(model.id)
 
         # Associate the task ID with the model in the database
         await utils.update_model(
@@ -420,7 +434,7 @@ async def get_load_model_status(
     project_id: str = Path(description="The ID of the project to load a model for."),
     model_type: str = Path(description="The type of model to load."),
     task_id: str = Path(description="The load task to get results from."),
-) -> bool:
+) -> bool | str:
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
@@ -507,12 +521,22 @@ async def predict(
         None,
         description="A list of specific sample IDs to make predictions for, leave blank for random selection.",
     ),
+    use_gpu: bool = Query(
+        False, description="Whether to use GPU to create these predictions"
+    ),
     params: dict = Body(
         {}, description="Optional parameters for training the model", embed=True
     ),
 ):
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
+
+    # If GPU requested but not available, return error
+    if use_gpu and not task_registry.gpu_enabled:
+        raise HTTPException(
+            status_code=409,
+            detail="GPU was requested but GPU support not enabled on server!",
+        )
 
     project = await utils.get_project(db_client, project_id)
 
@@ -565,11 +589,16 @@ async def predict(
     else:
         samples = random.sample(selected_samples, num_predictions)
 
+    task_registry.update_actors(model.id, use_gpu)
+
     predict_task = get_predictions.remote(
-        project=project, model=model, samples=samples, params=params_validated
+        project=project,
+        model=model,
+        samples=samples,
+        params=params_validated,
+        use_gpu=use_gpu,
     )
     task_id = task_registry.register(predict_task)
-    task_registry.update_actors(model.id)
 
     return {"task_id": task_id}
 
@@ -613,6 +642,9 @@ async def create_sample_predictions(
         description="The ID of the sample to make model predictions for."
     ),
     model_type: str = Path(description="The type of model to make predictions from."),
+    use_gpu: bool = Query(
+        False, description="Whether to use GPU to create these predictions"
+    ),
     params: dict = Body(
         {}, description="Optional parameters for training the model", embed=True
     ),
@@ -622,6 +654,13 @@ async def create_sample_predictions(
 ) -> dict[str, str]:
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
+
+    # If GPU requested but not available, return error
+    if use_gpu and not task_registry.gpu_enabled:
+        raise HTTPException(
+            status_code=409,
+            detail="GPU was requested but GPU support not enabled on server!",
+        )
 
     project = await utils.get_project(db_client, project_id)
 
@@ -657,9 +696,9 @@ async def create_sample_predictions(
         samples=[sample],
         params=params_validated,
         data_params=data_params,
+        use_gpu=use_gpu,
     )
     task_id = task_registry.register(task)
-    task_registry.update_actors(model.id)
 
     return {"task_id": task_id}
 

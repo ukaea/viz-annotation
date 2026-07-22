@@ -38,8 +38,8 @@ These settings should be defined under the `[uda]` heading in the TOML file:
 | Setting            | Environment Variable    | Type         | Default                                 | Description                                                              |
 |--------------------|-------------------------|--------------|-----------------------------------------|--------------------------------------------------------------------------|
 | host               | UDA_HOST                | str          | uda2.mast.l                             | Host name for the UDA server to connect to for MAST data loaders.        |
-| meta_pluginname    | UDA_META_PLUGINNAME     | str          | MASTU_DB                                | ???                                                                      |
-| metanew_pluginname | UDA_METANEW_PLUGINNAME  | str        | MAST_DB                                   | ???                                                                      |
+| meta_pluginname    | UDA_META_PLUGINNAME     | str          | MASTU_DB                                | Database location for MAST-U data                                                                      |
+| metanew_pluginname | UDA_METANEW_PLUGINNAME  | str        | MAST_DB                                   | Database location for MAST data                                                                      |
 
 ## SAL Connection Settings
 These settings should be defined under the `[sal]` heading in the TOML file:

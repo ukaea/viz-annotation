@@ -11,9 +11,12 @@ import {
   type ImageAnnotationTarget,
   type Shape,
 } from "@annotorious/react";
+import type { Ellipse, EllipseGeometry } from "@annotorious/annotorious";
 import type {
+  AnnotoriousDrawingTool,
   VideoAnnotationShape,
   VideoBoundingBox,
+  VideoPoint,
   VideoPolygon,
 } from "./types";
 import { classIdForName } from "./types";
@@ -30,7 +33,18 @@ import { classIdForName } from "./types";
  */
 
 type UnknownRecord = Record<string, unknown>;
+const POINT_BODY_PURPOSE = "shape";
+const POINT_BODY_VALUE = "point";
+export const POINT_MARKER_SIZE = 4;
 const CREATOR_PURPOSE = "creator";
+
+export type PointGeometry = { x: number; y: number };
+
+export function toAnnotoriousDrawingTool(
+  tool: "rectangle" | "polygon" | "point",
+): AnnotoriousDrawingTool {
+  return tool === "point" ? "rectangle" : tool;
+}
 
 // Our app stores a frame key on target.source (not present in upstream Annotorious types).
 export type VideoImageAnnotation = ImageAnnotation & {
@@ -50,6 +64,8 @@ export type ImageAnnotationWithSelector<TSelector extends Shape> = Omit<
 
 export type RectangleAnnotation = ImageAnnotationWithSelector<Rectangle>;
 export type PolygonAnnotation = ImageAnnotationWithSelector<Polygon>;
+export type EllipseAnnotation = ImageAnnotationWithSelector<Ellipse>;
+export type PointAnnotation = EllipseAnnotation;
 
 function withTargetSource(
   a: ImageAnnotation,
@@ -154,6 +170,12 @@ export function stampCreator(
   return { ...a, bodies };
 }
 
+/** Mark a selector as the UI representation of a point. */
+export function stampPoint(a: ImageAnnotation): ImageAnnotation {
+  const bodies = upsertBody(a.bodies, POINT_BODY_PURPOSE, POINT_BODY_VALUE);
+  return { ...a, bodies };
+}
+
 /** Read the class label + track id bodies. */
 export function getLabelTrack(a: ImageAnnotation): {
   className: string | null;
@@ -187,6 +209,18 @@ export function isRectangleAnno(a: ImageAnnotation): a is RectangleAnnotation {
 /** True if the annotation target is a polygon selector. */
 export function isPolygonAnno(a: ImageAnnotation): a is PolygonAnnotation {
   return a.target.selector.type === ShapeType.POLYGON;
+}
+
+/** True if the annotation target is an ellipse selector. */
+export function isEllipseAnno(a: ImageAnnotation): a is EllipseAnnotation {
+  return a.target.selector.type === ShapeType.ELLIPSE;
+}
+
+/** True when a selector is being used as a point marker. */
+export function isPointAnno(a: ImageAnnotation): a is PointAnnotation {
+  return (
+    isEllipseAnno(a) && getBodyValue(a, POINT_BODY_PURPOSE) === POINT_BODY_VALUE
+  );
 }
 
 function isFiniteNumber(v: unknown): v is number {
@@ -232,6 +266,39 @@ export function readPolygonGeometry(
   return g;
 }
 
+/** Read ellipse geometry (returns null if missing/invalid). */
+export function readEllipseGeometry(
+  a: EllipseAnnotation,
+): EllipseGeometry | null {
+  const g = a.target.selector.geometry;
+  const { cx, cy, rx, ry } = g;
+
+  if (
+    !isFiniteNumber(cx) ||
+    !isFiniteNumber(cy) ||
+    !isFiniteNumber(rx) ||
+    !isFiniteNumber(ry)
+  )
+    return null;
+
+  if (rx <= 0 || ry <= 0) return null;
+
+  return g;
+}
+
+/** Read point geometry from the tagged marker shape. */
+export function readPointGeometry(a: ImageAnnotation): PointGeometry | null {
+  if (!isPointAnno(a)) return null;
+
+  const g = readEllipseGeometry(a);
+  if (!g) return null;
+
+  return {
+    x: g.cx,
+    y: g.cy,
+  };
+}
+
 /**
  * Normalize an overlay list into a backend-safe shape:
  * - keep supported video shapes only
@@ -257,7 +324,7 @@ export function normalizeOverlay(
   const out: ImageAnnotation[] = [];
 
   for (const a of src) {
-    if (!isRectangleAnno(a) && !isPolygonAnno(a)) continue;
+    if (!isRectangleAnno(a) && !isPolygonAnno(a) && !isPointAnno(a)) continue;
 
     const withSource = withTargetSource(a, frameKey);
 
@@ -349,11 +416,35 @@ export function annoToVideoPolygon(
   };
 }
 
+/** Convert a normalized point annotation -> backend VideoPoint. */
+export function annoToVideoPoint(
+  a: ImageAnnotation,
+  frame: number,
+): VideoPoint | null {
+  const g = readPointGeometry(a);
+  if (!g) return null;
+
+  const { className, trackId } = getLabelTrack(a);
+  if (!className || !trackId) return null;
+
+  return {
+    type: "video_point",
+    frame,
+    track_id: String(trackId),
+    label: String(className),
+    class_id: classIdForName(className),
+    x: Math.round(g.x),
+    y: Math.round(g.y),
+    created_by: getAnnotationCreator(a),
+  };
+}
+
 /** Convert a normalized ImageAnnotation -> backend video annotation shape. */
 export function annoToVideoAnnotation(
   a: ImageAnnotation,
   frame: number,
 ): VideoAnnotationShape | null {
+  if (isPointAnno(a)) return annoToVideoPoint(a, frame);
   if (isRectangleAnno(a)) return annoToVideoBBox(a, frame);
   if (isPolygonAnno(a)) return annoToVideoPolygon(a, frame);
   return null;
@@ -455,6 +546,51 @@ export function videoPolygonToAnno(
 
   const labelled = stampLabelAndTrack(anno, p.label, String(p.track_id));
   return stampCreator(labelled, p.created_by);
+}
+
+/** Convert backend VideoPoint -> tagged Annotorious circle marker. */
+export function videoPointToAnno(
+  p: VideoPoint,
+  frameKey: string,
+): ImageAnnotation {
+  const x = Number(p.x);
+  const y = Number(p.y);
+  const half = POINT_MARKER_SIZE / 2;
+
+  const id =
+    globalThis.crypto?.randomUUID?.() ??
+    `anno-${Math.random().toString(36).slice(2)}`;
+
+  const geometry: EllipseGeometry = {
+    cx: x,
+    cy: y,
+    rx: half,
+    ry: half,
+    bounds: {
+      minX: x - half,
+      minY: y - half,
+      maxX: x + half,
+      maxY: y + half,
+    },
+  };
+
+  const selector: Ellipse = {
+    type: ShapeType.ELLIPSE,
+    geometry,
+  };
+
+  const anno: VideoImageAnnotation = {
+    id,
+    bodies: [],
+    target: {
+      annotation: id,
+      source: frameKey,
+      selector,
+    },
+  };
+
+  const labelled = stampLabelAndTrack(anno, p.label, String(p.track_id));
+  return stampPoint(stampCreator(labelled, p.created_by));
 }
 
 /**

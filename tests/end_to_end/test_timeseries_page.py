@@ -575,6 +575,7 @@ def test_timeseries_model_predict(
     expect(page.get_by_role("combobox", name="Select Model Type")).to_be_visible()
     expect(page.get_by_role("button", name="Close")).to_be_visible()
     expect(page.get_by_role("button", name="Train", exact=True)).to_be_visible()
+    expect(page.get_by_role("switch", name="Allocate GPU")).to_be_visible()
 
     # Click on dropdown box, check 'disruption_cnn' is shown
     page.get_by_role("button", name="Select Model Type").click()
@@ -644,6 +645,7 @@ def test_timeseries_model_predict(
     model_predict = page.get_by_role("group", name="Model Prediction")
     expect(model_predict).to_be_visible()
     model_predict.get_by_role("switch", name="Enable Tool").click()
+    expect(page.get_by_role("switch", name="Allocate GPU")).to_be_visible()
 
     # Choose model type
     model_predict.get_by_role(

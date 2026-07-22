@@ -267,7 +267,7 @@ def load_model_gitlab(
         if response.status_code == 404:
             err_msg = "could not find model weights at provided file location!"
         elif response.status_code == 403:
-            err_msg = "gitlab token does not have the correct permissions to access this model!"
+            err_msg = "Gitlab token does not have the correct permissions to access this model!"
         else:
             err_msg = "server error from Gitlab!"
 

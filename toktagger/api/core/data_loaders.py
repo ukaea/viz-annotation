@@ -294,12 +294,11 @@ class TabularDataLoader(DataLoader):
                     f"(cwd: {pathlib.Path().cwd()})"
                 )
         else:
-            file_path = pathlib.Path(file_name).resolve()
-            if not file_path.exists():
+            if not pathlib.Path(file_name).exists():
                 raise FileNotFoundError(
                     f"Could not find file at '{file_name}', relative to {pathlib.Path().cwd()}"
                 )
-            matched = [file_path]
+            matched = [file_name]
 
         def _read_file(path: str) -> pd.DataFrame:
             if path.endswith(".csv"):

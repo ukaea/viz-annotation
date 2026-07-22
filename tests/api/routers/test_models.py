@@ -738,11 +738,13 @@ async def test_model_load_local_failed(models_api_client, db_client, setup_model
 
 @pytest.mark.asyncio
 @pytest.mark.models_enabled
-async def test_train_no_samples_no_zombie_model(api_client, db_client, ray_session):
+async def test_train_no_samples_no_zombie_model(
+    models_api_client, db_client, ray_session
+):
     """Training with no validated samples must return 404 without leaving a queued model."""
     project_id = await db_client.insert("projects", db_definitions.PROJECT_2)
 
-    response = await api_client.put(
+    response = await models_api_client.put(
         f"/projects/{project_id}/models/mock_disruption_cnn/train",
         json={"params": {}},
     )

@@ -411,6 +411,7 @@ const SpectrumArrayFieldTemplate = ({
       )}
       {canAdd && (
         <ActionButton
+          height="size-300"
           marginTop="size-100"
           isDisabled={disabled || readonly}
           onPress={() => onAddClick()}
@@ -432,6 +433,8 @@ const SpectrumArrayFieldItemTemplate = ({
       <View flexGrow={1}>{children}</View>
       {buttonsProps.hasRemove && (
         <ActionButton
+          width="size-300"
+          height="size-300"
           aria-label={`Remove item ${buttonsProps.index + 1}`}
           isDisabled={buttonsProps.disabled || buttonsProps.readonly}
           onPress={() => buttonsProps.onRemoveItem()}

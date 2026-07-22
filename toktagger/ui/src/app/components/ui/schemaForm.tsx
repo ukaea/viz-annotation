@@ -429,7 +429,7 @@ const SpectrumArrayFieldItemTemplate = ({
 }: ArrayFieldItemTemplateProps) => {
   return (
     <Flex marginX="size-400" gap="size-100" alignItems="end">
-      <View UNSAFE_style={{ flex: 1 }}>{children}</View>
+      <View flexGrow={1}>{children}</View>
       {buttonsProps.hasRemove && (
         <ActionButton
           aria-label={`Remove item ${buttonsProps.index + 1}`}

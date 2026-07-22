@@ -66,13 +66,25 @@ class Models(pydantic.BaseModel):
         validate_default=True,
     )
     max_actors: typing.Annotated[
-        int,
+        int | None,
         pydantic.Field(
             default=5,
-            description="The maximum number of ML models which can be loaded concurrently.",
+            description="The maximum number of ML models which can be loaded concurrently, set to None to detect automatically and use all available cores.",
             gt=0,
         ),
     ]
+    max_gpu_actors: typing.Annotated[
+        int | None,
+        pydantic.Field(
+            default=None,
+            description="The maximum number of GPUs to use for ML model tasks, leave blank to detect automatically and use all available cores.",
+            gt=0,
+        ),
+    ]
+    force_num_gpus: bool = pydantic.Field(
+        False,
+        description="Force the set number of GPU actors available, even if insufficient available GPU cores detected on hardware.",
+    )
     local_load_enabled: bool = pydantic.Field(
         True,
         description="Whether to enable the loading of model weights files from local disk. Should be disabled for production servers.",

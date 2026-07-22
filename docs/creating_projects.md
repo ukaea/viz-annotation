@@ -18,15 +18,15 @@ A project defines the annotation task, data source, and labeling configuration f
     - **Name**: A descriptive name for your project (e.g., "Disruption Detection")
     - **Task**: The type of annotation task:
         - `time-series` - Label multi-variate time series signals at specific time points or over time intervals
-        - `spectrogram` - Label spectrogram images with bounding boxes and polygons
         - `video` - Frame-by-frame bounding box annotation of video data
-    - **Data Loader**: Where your data comes from:
+    - **Data Loader**: [Where your data comes from:](./data_loaders.md)
         - `uda` - Load signals using UDA (for MAST/MAST-U data)
         - `uda_camera` - Load camera images from UDA (for MAST/MAST-U data)
         - `sal` - Load signals using SAL (for JET data)
         - `fair_mast` - Load signals from the [FAIR-MAST](https://mastapp.site/) data repository
         - `tabular` - Load CSV/TSV/Parquet files from local disk
-        - `image` - Load images from local disk
+        - `image` - Load images from local PNG / JPEG files
+        - `image-array` - Load Numpy arrays as images from local `.npy` or `.npz` files
     - **Query Strategy**: Navigation strategy to select the next sample to annotate:
         - `sequential` - In order sequentially by shot ID
         - `random` - Random selection
@@ -69,19 +69,19 @@ A sample represents a single unit of data to be labeled—typically a tokamak sh
     - **Numerical Range**: Specify a start and end shot ID
     - **Text File**: Upload a `.txt` or `.csv` file with one shot ID per line as the first column (additional columns are ignored)
 
-**For File-Based Data (CSV, Parquet, Images)**
+**For File-Based Data (CSV, Parquet, Image Arrays)**
 
 - **File Type**: Select the file format (`csv`, `parquet`, `json`, etc.)
 - **Directory Path**: Path to the directory containing files 
     - Files should be named `{shot_id}.{extension}` (e.g., `100.parquet`)
-- **Signal Names** (for time-series): Comma-separated column names to load. If not specified, loads all columns present in the file
+- **Signal Name(s)**: Comma-separated column names to load. If not specified, loads all columns present in the file. For image arrays loaded from `.npz` files, only one signal name is accepted.
 
-**For Image Data**
+**For Image Data (PNG, JPEG)**
 
 - **Directory Path**: Path containing image subdirectories
     - Images should be organized as `{shot_id}/{image_files}`
     - Image names should be `{frame_id}.{extension}` (e.g., `30421/1.png`)
-- **Image Type**: Select the file format (`png` or `jpg`)
+- **Image Type**: Select the file format (`png` or `jpeg`)
 
 
 

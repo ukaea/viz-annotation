@@ -72,6 +72,7 @@ export function ModelTrainModal({
   const [selectedModelName, setSelectedModelName] = useState<string | null>(
     null,
   );
+  const [useGPU, setUseGPU] = useState<boolean>(false);
   const [schema, setSchema] = useState<RJSFSchema | null>(null);
   const [unvalidatedFormData, setUnvalidatedFormData] = useState<
     Record<string, unknown>
@@ -127,7 +128,7 @@ export function ModelTrainModal({
     setSchema(null);
     if (!selectedModelName) return;
     (async () => {
-      const newSchema: RJSFSchema =
+      const newSchema: RJSFSchema | null =
         await getModelTrainSchema(selectedModelName);
       setSchema(newSchema);
     })();
@@ -224,6 +225,7 @@ export function ModelTrainModal({
     const response = await startTraining(
       project._id,
       selectedModelName,
+      useGPU,
       params,
     );
 
@@ -312,6 +314,8 @@ export function ModelTrainModal({
                         onSubmit={submitTrainJob}
                         formData={unvalidatedFormData}
                         setFormData={setUnvalidatedFormData}
+                        useGPU={useGPU}
+                        setUseGPU={setUseGPU}
                       />
                     )}
                   </Flex>

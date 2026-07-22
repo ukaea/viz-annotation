@@ -12,6 +12,7 @@ import pandas as pd
 import pydantic
 import xarray as xr
 from PIL import Image
+import glob as _glob
 
 from toktagger.api.schemas.data import (
     Data,
@@ -133,7 +134,7 @@ class ImageDataLoader(DataLoader):
         sample_data: ImageFileData = sample.data
 
         # Find directory of images
-        dir_path = pathlib.Path(sample_data.file_name)
+        dir_path = pathlib.Path(sample_data.file_name).resolve()
         if not dir_path.exists() or not dir_path.is_dir():
             raise FileNotFoundError(
                 f"Could not find directory at '{dir_path}', relative to {pathlib.Path().cwd()} - {list(pathlib.Path().cwd().iterdir())}"
@@ -152,7 +153,15 @@ class ImageDataLoader(DataLoader):
             raise FileNotFoundError(
                 f"Could not find image file at '{file_path}', relative to {pathlib.Path().cwd()}"
             )
+        # return raw encoded file bytes if return_raw is True
+        if params.return_raw:
+            return ImageData(
+                frame=file_path.name.split(".")[0],
+                values=list(file_path.read_bytes()),
+            )
+
         im = Image.open(file_path)
+
         buffer = io.BytesIO()
         im.save(buffer, format="PNG")
         buffer.seek(0)
@@ -181,7 +190,7 @@ class ArrayDataLoader(DataLoader):
         sample_data: ImageArrayFileData = sample.data
 
         # Find file
-        file_path = pathlib.Path(sample_data.file_name)
+        file_path = pathlib.Path(sample_data.file_name).resolve()
         if not file_path.exists():
             raise FileNotFoundError(
                 f"Could not find directory at '{file_path}', relative to {pathlib.Path().cwd()} - {list(pathlib.Path().cwd().iterdir())}"
@@ -222,7 +231,8 @@ class ArrayDataLoader(DataLoader):
             # Avoid divide by zero in case where image is uniform
             if val_range:
                 arr = arr / val_range
-            arr = (arr * 255).astype(np.uint8)
+            arr *= 255
+        arr = arr.astype(np.uint8)
 
         if params.name != "image":
             raise DataLoaderError("Must provide image data parameters!")
@@ -273,8 +283,6 @@ class TabularDataLoader(DataLoader):
         item: TimeSeriesFileData = sample.data
 
         # Resolve file_name: either a literal path or a glob pattern.
-        import glob as _glob
-
         file_name = item.file_name
         is_glob = any(c in file_name for c in ("*", "?", "["))
 
@@ -286,11 +294,12 @@ class TabularDataLoader(DataLoader):
                     f"(cwd: {pathlib.Path().cwd()})"
                 )
         else:
-            if not pathlib.Path(file_name).exists():
+            file_path = pathlib.Path(file_name).resolve()
+            if not file_path.exists():
                 raise FileNotFoundError(
                     f"Could not find file at '{file_name}', relative to {pathlib.Path().cwd()}"
                 )
-            matched = [file_name]
+            matched = [file_path]
 
         def _read_file(path: str) -> pd.DataFrame:
             if path.endswith(".csv"):
@@ -440,6 +449,28 @@ class UDACameraDataLoader(DataLoader):
 
             image_array = signal["data"].values
             image_array = np.squeeze(image_array)
+
+            # Ensure at least 2D for Pillow (squeeze can reduce to 0D or 1D for tiny images)
+            if image_array.ndim == 0:
+                image_array = image_array.reshape(1, 1)
+            elif image_array.ndim == 1:
+                if image_array.shape[0] in (3, 4):
+                    image_array = image_array.reshape(1, 1, -1)  # single pixel RGB/RGBA
+                else:
+                    image_array = image_array.reshape(-1, 1)  # 1D grayscale strip
+
+            # Convert uint16 to uint8 for Pillow compatibility (Pillow doesn't support u2).
+            # Scale using the camera's declared bit depth (not the per-frame min/max) so
+            # brightness stays consistent across frames, e.g. RCO reports depth=8 even
+            # though UDA returns a uint16 array for shot 54339.
+            if image_array.dtype == np.uint16:
+                bit_depth = signal["data"].attrs.get("depth")
+                if bit_depth:
+                    max_value = 2**bit_depth - 1
+                    scaled = image_array.astype(np.float64) * (255 / max_value)
+                    image_array = np.clip(scaled, 0, 255).astype(np.uint8)
+                else:
+                    image_array = np.clip(image_array, 0, 255).astype(np.uint8)
 
             im = Image.fromarray(image_array)
             buffer = io.BytesIO()

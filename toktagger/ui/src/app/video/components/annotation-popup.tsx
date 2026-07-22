@@ -61,9 +61,9 @@ export function AnnotationPopup(props: {
           <button
             onClick={props.onDeleteBox}
             className="rounded-md bg-red-500/20 hover:bg-red-500/30 text-red-200 px-2.5 py-1.5 text-xs"
-            title="Delete this box"
+            title="Delete this annotation"
           >
-            Delete box
+            Delete
           </button>
         </div>
       </div>

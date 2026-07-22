@@ -19,6 +19,7 @@ import Draw from "@spectrum-icons/workflow/Draw";
 import ImageMapPolygon from "@spectrum-icons/workflow/ImageMapPolygon";
 import ImageMapRectangle from "@spectrum-icons/workflow/ImageMapRectangle";
 import FullScreenExit from "@spectrum-icons/workflow/FullScreenExit";
+import Target from "@spectrum-icons/workflow/Target";
 
 /**
  * Minimal class category shape consumed by the class picker.
@@ -203,6 +204,10 @@ function PolygonIcon() {
   return <ImageMapPolygon aria-hidden="true" size="M" />;
 }
 
+function PointIcon() {
+  return <Target aria-hidden="true" size="M" />;
+}
+
 function CanvasModeToggle(props: {
   label: string;
   isSelected: boolean;
@@ -255,11 +260,12 @@ function CanvasActionButton(props: {
 
 export function CanvasModeToolbar(props: {
   panMode: boolean;
-  drawingTool: "rectangle" | "polygon";
+  drawingTool: "rectangle" | "polygon" | "point";
   hideAnnotations: boolean;
   onTogglePanMode: () => void;
   onSelectRectangle: () => void;
   onSelectPolygon: () => void;
+  onSelectPoint: () => void;
   onResetView: () => void;
 }) {
   const { colorScheme } = useProvider();
@@ -316,6 +322,13 @@ export function CanvasModeToolbar(props: {
             onPress={props.onSelectPolygon}
           >
             <PolygonIcon />
+          </CanvasModeToggle>
+          <CanvasModeToggle
+            label="Point"
+            isSelected={props.drawingTool === "point"}
+            onPress={props.onSelectPoint}
+          >
+            <PointIcon />
           </CanvasModeToggle>
         </Flex>
       </View>

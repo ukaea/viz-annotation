@@ -1,6 +1,6 @@
 from typing import Literal, Optional, Union
 
-from pydantic import Field, TypeAdapter, create_model, model_validator
+from pydantic import Field, TypeAdapter, create_model, field_validator, model_validator
 
 from toktagger.api.schemas import ConfiguredModel
 
@@ -44,16 +44,36 @@ class TimeRegion(AnnotationBase):
 
 class BoundingBox(AnnotationBase):
     type: Literal["bounding_box"] = "bounding_box"
+    height: float
+    width: float
+    x_min: float
+    y_min: float
+
+
+class VideoBoundingBox(AnnotationBase):
+    type: Literal["video_bounding_box"] = "video_bounding_box"
+    frame: int
+    track_id: str
     height: int
     width: int
     x_min: int
     y_min: int
 
 
-class VideoBoundingBox(BoundingBox):
-    type: Literal["video_bounding_box"] = "video_bounding_box"
-    frame: int
-    track_id: str
+class Polygon(AnnotationBase):
+    type: Literal["polygon"] = "polygon"
+    segmentation: list[float] = Field(
+        ...,
+        min_length=6,
+        description="COCO polygon segmentation as a flat list: [x1, y1, x2, y2, ...].",
+    )
+
+    @field_validator("segmentation")
+    @classmethod
+    def validate_segmentation(cls, v: list[int]) -> list[int]:
+        if len(v) % 2 != 0:
+            raise ValueError("Segmentation must contain an even number of coordinates.")
+        return v
 
 
 class VideoPolygon(AnnotationBase):
@@ -65,6 +85,21 @@ class VideoPolygon(AnnotationBase):
         min_length=6,
         description="COCO polygon segmentation as a flat list: [x1, y1, x2, y2, ...].",
     )
+
+    @field_validator("segmentation")
+    @classmethod
+    def validate_segmentation(cls, v: list[int]) -> list[int]:
+        if len(v) % 2 != 0:
+            raise ValueError("Segmentation must contain an even number of coordinates.")
+        return v
+
+
+class VideoPoint(AnnotationBase):
+    type: Literal["video_point"] = "video_point"
+    frame: int
+    track_id: str
+    x: int
+    y: int
 
 
 class SpectrogramMask(AnnotationBase):
@@ -112,8 +147,10 @@ def create_batch_model(base_class, name_suffix="Batch"):
 TimePointOut = create_out_model(TimePoint)
 TimeRegionOut = create_out_model(TimeRegion)
 BoundingBoxOut = create_out_model(BoundingBox)
+PolygonOut = create_out_model(Polygon)
 VideoBoundingBoxOut = create_out_model(VideoBoundingBox)
 VideoPolygonOut = create_out_model(VideoPolygon)
+VideoPointOut = create_out_model(VideoPoint)
 SpectrogramMaskOut = create_out_model(SpectrogramMask)
 ClassLabelOut = create_out_model(ClassLabel)
 
@@ -121,8 +158,10 @@ ClassLabelOut = create_out_model(ClassLabel)
 TimePointBatch = create_batch_model(TimePoint)
 TimeRegionBatch = create_batch_model(TimeRegion)
 BoundingBoxBatch = create_batch_model(BoundingBox)
+PolygonBatch = create_batch_model(Polygon)
 VideoBoundingBoxBatch = create_batch_model(VideoBoundingBox)
 VideoPolygonBatch = create_batch_model(VideoPolygon)
+VideoPointBatch = create_batch_model(VideoPoint)
 SpectrogramMaskBatch = create_batch_model(SpectrogramMask)
 ClassLabelBatch = create_batch_model(ClassLabel)
 
@@ -132,8 +171,10 @@ AnnotationTypes = Union[
     TimePoint,
     TimeRegion,
     BoundingBox,
+    Polygon,
     VideoBoundingBox,
     VideoPolygon,
+    VideoPoint,
     SpectrogramMask,
     ClassLabel,
 ]
@@ -142,8 +183,10 @@ AnnotationOutTypes = Union[
     TimePointOut,
     TimeRegionOut,
     BoundingBoxOut,
+    PolygonOut,
     VideoBoundingBoxOut,
     VideoPolygonOut,
+    VideoPointOut,
     SpectrogramMaskOut,
     ClassLabelOut,
 ]
@@ -152,8 +195,10 @@ AnnotationBatchTypes = Union[
     TimePointBatch,
     TimeRegionBatch,
     BoundingBoxBatch,
+    PolygonBatch,
     VideoBoundingBoxBatch,
     VideoPolygonBatch,
+    VideoPointBatch,
     SpectrogramMaskBatch,
     ClassLabelBatch,
 ]

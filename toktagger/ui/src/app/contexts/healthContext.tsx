@@ -14,6 +14,7 @@ interface ServerHealthContextType {
   dbConnected: boolean;
   modelsEnabled: boolean;
   isLoading: boolean;
+  gpuAvailable: boolean;
   error: string | null;
 }
 
@@ -61,6 +62,7 @@ export function ServerHealthProvider({ children }: { children: ReactNode }) {
     version: healthInfo?.name ?? "",
     dbConnected: healthInfo?.db_connected ?? false,
     modelsEnabled: healthInfo?.models_enabled ?? false,
+    gpuAvailable: healthInfo?.gpu_available ?? false,
     isLoading: isLoading,
     error: error,
   };

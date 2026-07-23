@@ -41,7 +41,7 @@ interface SampleContextType {
   setAnnotations: (
     updater: (annotations: Annotation[]) => Annotation[] | Annotation[],
   ) => void;
-  setDataParams: (params: DataParams) => void;
+  setDataParams: React.Dispatch<React.SetStateAction<DataParams>>;
   setViewParams: (params: ViewParams) => void;
   setPlotProps: (props: PlotProps) => void;
   setIsValidated: (validated: boolean) => void;
@@ -55,28 +55,41 @@ interface SampleProviderProps {
   children: ReactNode;
 }
 
-async function getData<T>(url: string): Promise<T> {
-  const response = await fetch(url);
+async function getData<T>(url: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(url, { signal });
   const payload = await response.json();
   return payload as T;
 }
 
-async function getSample(projectId: string, sampleId: string): Promise<Sample> {
+async function getSample(
+  projectId: string,
+  sampleId: string,
+  signal?: AbortSignal,
+): Promise<Sample> {
   return await getData<Sample>(
     `${BACKEND_API_URL}/projects/${projectId}/samples/${sampleId}`,
+    signal,
   );
 }
 
-async function getProject(projectId: string): Promise<Project> {
-  return await getData<Project>(`${BACKEND_API_URL}/projects/${projectId}`);
+async function getProject(
+  projectId: string,
+  signal?: AbortSignal,
+): Promise<Project> {
+  return await getData<Project>(
+    `${BACKEND_API_URL}/projects/${projectId}`,
+    signal,
+  );
 }
 
 async function getAnnotations(
   projectId: string,
   sampleId: string,
+  signal?: AbortSignal,
 ): Promise<Annotation[]> {
   return await getData<Annotation[]>(
     `${BACKEND_API_URL}/projects/${projectId}/samples/${sampleId}/annotations`,
+    signal,
   );
 }
 
@@ -156,6 +169,8 @@ export function SampleProvider({
   const bootstrappedVideoSampleIdRef = useRef<string | null>(null);
   // Annotations are sample-level working state. Do not reload them on every video frame fetch.
   const loadedAnnotationsSampleKeyRef = useRef<string | null>(null);
+  // Only the latest data request may update SampleContext state.
+  const dataRequestIdRef = useRef(0);
 
   if (prevSampleId !== sampleId) {
     setPrevSampleId(sampleId);
@@ -199,6 +214,11 @@ export function SampleProvider({
 
   // Consolidated data fetching - fetch everything together
   useEffect(() => {
+    const requestId = ++dataRequestIdRef.current;
+    const controller = new AbortController();
+    const isCurrentRequest = () =>
+      dataRequestIdRef.current === requestId && !controller.signal.aborted;
+
     const refreshData = async () => {
       setIsLoading(true);
       setError(null);
@@ -206,10 +226,12 @@ export function SampleProvider({
       try {
         // Fetch project, sample, and annotations in parallel
         const [projectData, sampleData, dbAnnotations] = await Promise.all([
-          getProject(projectId),
-          getSample(projectId, sampleId),
-          getAnnotations(projectId, sampleId),
+          getProject(projectId, controller.signal),
+          getSample(projectId, sampleId, controller.signal),
+          getAnnotations(projectId, sampleId, controller.signal),
         ]);
+
+        if (!isCurrentRequest()) return;
 
         setProject(projectData);
         setSample(sampleData);
@@ -254,8 +276,11 @@ export function SampleProvider({
               "Content-Type": "application/json",
             },
             body: JSON.stringify({ params: effectiveDataParams, view: params }),
+            signal: controller.signal,
           },
         );
+
+        if (!isCurrentRequest()) return;
 
         if (!response.ok) {
           let payload: unknown = null;
@@ -264,6 +289,8 @@ export function SampleProvider({
           } catch {
             // ignore; payload stays null
           }
+
+          if (!isCurrentRequest()) return;
 
           const detail = extractDetail(payload);
 
@@ -303,56 +330,87 @@ export function SampleProvider({
                 frame: lastGood,
               }));
 
-              setIsLoading(false);
               return;
             }
           }
 
           setError(detail);
           setData(null);
-          setIsLoading(false);
           return;
         }
 
         const fetchedData: Data = await response.json();
 
+        if (!isCurrentRequest()) return;
+
         const viewData = await parseData(fetchedData, projectData.task);
+        if (!isCurrentRequest()) return;
         if (!viewData) {
           setError("Data could not read the data for the selected view");
           return;
         }
 
-        setData(viewData);
-
         // Video: remember last good frame so we can roll back on missing-frame errors.
         if (projectData.task === TaskType.Video) {
           const frame = (viewData as { frame?: unknown }).frame;
           if (typeof frame === "number" && Number.isFinite(frame)) {
+            const requestedFrame = effectiveDataParams.frame;
+
+            // Never display a response for a different explicitly requested frame.
+            if (
+              typeof requestedFrame === "number" &&
+              frame !== requestedFrame
+            ) {
+              return;
+            }
+
+            setData(viewData);
             bootstrappedVideoSampleIdRef.current = sampleId;
             lastGoodVideoFrameRef.current = frame;
-            setDataParams((prev) => {
-              if (prev.name === "image" && prev.frame === frame) {
-                return prev;
-              }
-              return {
-                name: "image",
-                frame,
-              };
-            });
+
+            // Only the initial frame:null request needs the backend response to
+            // establish the requested frame. Explicit requests already carry it.
+            if (requestedFrame === null || requestedFrame === undefined) {
+              setDataParams((prev) => {
+                if (prev.name === "image" && prev.frame === frame) {
+                  return prev;
+                }
+                return {
+                  name: "image",
+                  frame,
+                };
+              });
+            }
+
             setVideoFrameBounds((prev) => ({
               ...prev,
               min: prev.min === null ? frame : Math.min(prev.min, frame),
             }));
           }
+        } else {
+          setData(viewData);
         }
       } catch (err) {
+        if (
+          controller.signal.aborted ||
+          (err instanceof Error && err.name === "AbortError") ||
+          !isCurrentRequest()
+        ) {
+          return;
+        }
         setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
-        setIsLoading(false);
+        if (isCurrentRequest()) {
+          setIsLoading(false);
+        }
       }
     };
 
     refreshData();
+
+    return () => {
+      controller.abort();
+    };
   }, [projectId, sampleId, dataParams, viewParams, plotProps]);
 
   const annotationLabels =

@@ -2,24 +2,14 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActionButton,
   Button,
   ComboBox,
-  Divider,
   Flex,
   Item,
-  Tooltip,
-  TooltipTrigger,
-  ToggleButton,
   useProvider,
   View,
 } from "@adobe/react-spectrum";
 import StepBackward from "@spectrum-icons/workflow/StepBackward";
-import Draw from "@spectrum-icons/workflow/Draw";
-import ImageMapPolygon from "@spectrum-icons/workflow/ImageMapPolygon";
-import ImageMapRectangle from "@spectrum-icons/workflow/ImageMapRectangle";
-import FullScreenExit from "@spectrum-icons/workflow/FullScreenExit";
-import Target from "@spectrum-icons/workflow/Target";
 
 /**
  * Minimal class category shape consumed by the class picker.
@@ -192,146 +182,6 @@ export function FrameJumpField(props: {
           }}
         />
       </Flex>
-    </View>
-  );
-}
-
-function RectangleIcon() {
-  return <ImageMapRectangle aria-hidden="true" size="M" />;
-}
-
-function PolygonIcon() {
-  return <ImageMapPolygon aria-hidden="true" size="M" />;
-}
-
-function PointIcon() {
-  return <Target aria-hidden="true" size="M" />;
-}
-
-function CanvasModeToggle(props: {
-  label: string;
-  isSelected: boolean;
-  isDisabled?: boolean;
-  onPress: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <TooltipTrigger delay={350} placement="left">
-      <ToggleButton
-        isSelected={props.isSelected}
-        isDisabled={props.isDisabled}
-        onPress={props.onPress}
-        aria-label={props.label}
-        width={40}
-        minWidth={40}
-        height={40}
-        UNSAFE_style={{ padding: 0 }}
-      >
-        {props.children}
-      </ToggleButton>
-      <Tooltip>{props.label}</Tooltip>
-    </TooltipTrigger>
-  );
-}
-
-function CanvasActionButton(props: {
-  label: string;
-  isDisabled?: boolean;
-  onPress: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <TooltipTrigger delay={350} placement="left">
-      <ActionButton
-        onPress={props.onPress}
-        aria-label={props.label}
-        isDisabled={props.isDisabled}
-        width={40}
-        minWidth={40}
-        height={40}
-        UNSAFE_style={{ padding: 0 }}
-      >
-        {props.children}
-      </ActionButton>
-      <Tooltip>{props.label}</Tooltip>
-    </TooltipTrigger>
-  );
-}
-
-export function CanvasModeToolbar(props: {
-  panMode: boolean;
-  drawingTool: "rectangle" | "polygon" | "point";
-  hideAnnotations: boolean;
-  onTogglePanMode: () => void;
-  onSelectRectangle: () => void;
-  onSelectPolygon: () => void;
-  onSelectPoint: () => void;
-  onResetView: () => void;
-}) {
-  const { colorScheme } = useProvider();
-  const isDark = colorScheme === "dark";
-  const isEditMode = !props.panMode;
-  const modeLabel = isEditMode
-    ? "Edit mode. Click to return to view mode."
-    : "View mode. Click to enter edit mode, or hold Shift to edit temporarily.";
-
-  return (
-    <View
-      position="absolute"
-      top="size-100"
-      left="calc(100% + 12px)"
-      zIndex={20}
-    >
-      <View
-        borderWidth="thin"
-        borderColor={isDark ? "gray-700" : "gray-400"}
-        borderRadius="large"
-        backgroundColor={isDark ? "gray-900" : "gray-100"}
-        padding="size-100"
-        UNSAFE_style={{
-          backgroundImage: isDark
-            ? "linear-gradient(180deg, rgba(39, 39, 42, 0.85) 0%, rgba(9, 9, 11, 0.9) 100%)"
-            : undefined,
-          backdropFilter: "blur(6px)",
-          boxShadow: "0 1px 2px rgba(0, 0, 0, 0.08)",
-        }}
-      >
-        <Flex direction="column" alignItems="center" gap="size-100">
-          <CanvasModeToggle
-            label={modeLabel}
-            isSelected={isEditMode}
-            isDisabled={props.hideAnnotations}
-            onPress={props.onTogglePanMode}
-          >
-            <Draw aria-hidden="true" size="S" />
-          </CanvasModeToggle>
-          <CanvasActionButton label="Reset view" onPress={props.onResetView}>
-            <FullScreenExit aria-hidden="true" size="S" />
-          </CanvasActionButton>
-          <Divider size="S" width="100%" />
-          <CanvasModeToggle
-            label="Rectangle"
-            isSelected={props.drawingTool === "rectangle"}
-            onPress={props.onSelectRectangle}
-          >
-            <RectangleIcon />
-          </CanvasModeToggle>
-          <CanvasModeToggle
-            label="Polygon"
-            isSelected={props.drawingTool === "polygon"}
-            onPress={props.onSelectPolygon}
-          >
-            <PolygonIcon />
-          </CanvasModeToggle>
-          <CanvasModeToggle
-            label="Point"
-            isSelected={props.drawingTool === "point"}
-            onPress={props.onSelectPoint}
-          >
-            <PointIcon />
-          </CanvasModeToggle>
-        </Flex>
-      </View>
     </View>
   );
 }

@@ -9,6 +9,7 @@ import {
   useVideoSession,
 } from "@/app/video/components/video-session";
 import { FrameAnnotatorHost } from "@/app/video/components/frame-annotator-host";
+import { VideoAnnotationToolbar } from "@/app/video/components/video-annotation-toolbar";
 import { FrameJumpField } from "@/app/video/components/ui_elements";
 import { useSample } from "@/app/contexts/SampleContext";
 import { VideoNavAdapterBridge } from "@/app/video/components/video-nav-adapter";
@@ -163,9 +164,15 @@ export function VideoView() {
   };
 
   return (
-    <div className="w-full flex justify-center">
-      <div className="w-full max-w-5xl mx-auto px-4 py-3">
-        <VideoFrameAnnotator imageBase64={imageBase64} goToFrame={goToFrame} />
+    <div className="min-w-0 flex-1">
+      <div className="flex w-full justify-between">
+        <div className="min-w-0 flex-1 px-4 py-3">
+          <VideoFrameAnnotator
+            imageBase64={imageBase64}
+            goToFrame={goToFrame}
+          />
+        </div>
+        <VideoAnnotationToolbar />
       </div>
     </div>
   );

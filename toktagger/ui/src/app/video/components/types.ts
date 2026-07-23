@@ -6,6 +6,7 @@ import type { ImageAnnotation } from "@annotorious/react";
 export type FrameIndex = number;
 
 export type DrawingTool = "rectangle" | "polygon" | "point";
+export type ActiveDrawingTool = DrawingTool | null;
 export type AnnotoriousDrawingTool = Exclude<DrawingTool, "point">;
 
 /**

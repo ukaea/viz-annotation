@@ -27,7 +27,7 @@ class MultiProfile2DData(Data):
 
 class ImageData(Data):
     frame: int
-    values: str  # Base64 encoded string
+    values: str | list[int]  # Base64-encoded string or raw encoded file bytes
 
 
 class DataParams(BaseModel):
@@ -37,6 +37,8 @@ class DataParams(BaseModel):
 class ImageParams(DataParams):
     name: Literal["image"] = "image"
     frame: int | None
+    # Optional: Return raw encoded image bytes instead of base64.
+    return_raw: bool = False
 
 
 DataResponseType = Union[

@@ -517,6 +517,10 @@ def test_create_samples_shot_data_file(server_setup, page: Page):
             file_chooser = fc_info.value
             file_chooser.set_files(file.name)
 
+        # Wait for the CSV to be parsed client-side before continuing, otherwise
+        # the shot IDs may not be ready yet when "Add Samples" is clicked
+        expect(page.get_by_text("Loaded 6 shot IDs from CSV")).to_be_visible()
+
     # Add signal names
     modal.get_by_role("textbox", name="Signal Names").fill("ip, dalpha")
 

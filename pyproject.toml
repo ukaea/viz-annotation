@@ -41,6 +41,7 @@ dependencies = [
   "bump-my-version>=1.2.7",
   "platformdirs>=4.4.0",
   "pydantic-settings>=2.11.0",
+  "uda-mast>=1.4.1",
 ]
 [project.optional-dependencies]
 models = [

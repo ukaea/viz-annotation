@@ -85,6 +85,48 @@ export const useTimeSeriesState = () => {
 
 export const TIME_SERIES_ANNOTATION_MENU = "time-series-annotation-menu";
 
+function isEditableEventTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  if (target instanceof HTMLTextAreaElement) return true;
+  if (target instanceof HTMLSelectElement) return true;
+  if (target instanceof HTMLInputElement) {
+    return target.type !== "checkbox" && target.type !== "radio";
+  }
+  return false;
+}
+
+const activeToolKey = (projectId: string) => `ts-active-tool-${projectId}`;
+
+// Reads a persisted tool, discarding anything that isn't a well-formed
+// TimeSeriesToolDefinition so that corrupt storage cannot throw during render.
+// The label is not checked here - that needs the project's categories, which
+// are not loaded yet at this point.
+function readSavedTool(projectId: string): TimeSeriesToolDefinition | null {
+  if (!projectId) return null;
+  const saved = sessionStorage.getItem(activeToolKey(projectId));
+  if (!saved) return null;
+
+  try {
+    const parsed: unknown = JSON.parse(saved);
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      typeof (parsed as TimeSeriesToolDefinition).label === "string" &&
+      Object.values(TimeSeriesAnnotationType).includes(
+        (parsed as TimeSeriesToolDefinition).type,
+      )
+    ) {
+      return parsed as TimeSeriesToolDefinition;
+    }
+  } catch {
+    // Malformed JSON - fall through and discard.
+  }
+
+  sessionStorage.removeItem(activeToolKey(projectId));
+  return null;
+}
+
 export const TimeSeriesProvider = ({
   signalName = null,
   children,
@@ -100,6 +142,10 @@ export const TimeSeriesProvider = ({
     project,
   } = useSample();
 
+  // project is guaranteed non-null here: TimeSeriesProvider is only rendered
+  // after SampleView confirms project is loaded.
+  const projectId = project?._id ?? "";
+
   const [annotations, setAnnotations] = useState<TimeSeriesAnnotation[]>([]);
   const [toolingCallbacks, setToolingCallbacks] = useState<
     Map<TimeSeriesAnnotationType, ToolingCallbacks>
@@ -107,14 +153,41 @@ export const TimeSeriesProvider = ({
   const [activeTool, setActiveTool] = useState<TimeSeriesToolDefinition | null>(
     null,
   );
+  // A restored tool cannot be applied on mount: tooling callbacks register from
+  // child components and categories come from the project, so neither is
+  // available yet. Hold it here until both are, then validate and apply.
+  const [pendingTool, setPendingTool] =
+    useState<TimeSeriesToolDefinition | null>(() => readSavedTool(projectId));
   const [updateCounter, setUpdateCounter] = useState(0);
   const [syncCounter, setSyncCounter] = useState(0);
   const [isDrawing, setIsDrawing] = useState(false);
   const [categories, setCategories] = useState<Map<string, TimeSeriesCategory>>(
     new Map(),
   );
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState<boolean>(
+    () => sessionStorage.getItem(`ts-edit-mode-${projectId}`) === "true",
+  );
   const [ongoingAction, setOngoingAction] = useState(false);
+
+  // Persist editMode to sessionStorage on every change
+  useEffect(() => {
+    if (!projectId) return;
+    sessionStorage.setItem(`ts-edit-mode-${projectId}`, String(editMode));
+  }, [editMode, projectId]);
+
+  // Persist activeTool to sessionStorage on every change. Skipped while a
+  // restore is pending, so the initial null does not wipe the saved tool.
+  useEffect(() => {
+    if (!projectId || pendingTool) return;
+    if (activeTool) {
+      sessionStorage.setItem(
+        activeToolKey(projectId),
+        JSON.stringify(activeTool),
+      );
+    } else {
+      sessionStorage.removeItem(activeToolKey(projectId));
+    }
+  }, [activeTool, projectId, pendingTool]);
 
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSyncCount = useRef<number>(0);
@@ -349,6 +422,27 @@ export const TimeSeriesProvider = ({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [cancelOngoingAction]);
 
+  // Apply a restored tool once tooling and categories have registered. The
+  // label is checked against the project's current categories, since it may
+  // have been removed since the tool was saved; setAnnotationTool applies the
+  // remaining guard that a callback exists for the type.
+  useEffect(() => {
+    if (!pendingTool) return;
+    if (toolingCallbacks.size === 0 || categories.size === 0) return;
+
+    const labelExists = Array.from(categories.values()).some(
+      (category) =>
+        category.type === pendingTool.type &&
+        category.label === pendingTool.label,
+    );
+    if (labelExists) {
+      setAnnotationTool(pendingTool);
+    } else {
+      sessionStorage.removeItem(activeToolKey(projectId));
+    }
+    setPendingTool(null);
+  }, [pendingTool, toolingCallbacks, categories, projectId, setAnnotationTool]);
+
   const updateAnnotation = useCallback(
     (annotation: TimeSeriesAnnotation) => {
       if (syncTimeoutRef.current !== null) {
@@ -558,11 +652,14 @@ export const TimeSeriesProvider = ({
 
   useEffect(() => {
     const keyDownHandler = (event: KeyboardEvent) => {
+      if (isEditableEventTarget(event.target)) return;
+
       if (event.key === "Control") {
         setIsDrawing(true);
       }
 
       if (event.key === "e") {
+        setAnnotationTool(null);
         setEditMode((prev) => !prev);
       }
     };
@@ -580,7 +677,7 @@ export const TimeSeriesProvider = ({
       document.removeEventListener("keydown", keyDownHandler);
       document.removeEventListener("keyup", keyUpHandler);
     };
-  }, [editMode]);
+  }, [setAnnotationTool]);
 
   const annotationLabels = Array.from(categories.values()).map(
     (category, index) => {

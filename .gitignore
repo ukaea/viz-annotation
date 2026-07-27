@@ -177,6 +177,8 @@ node_modules
 /package-lock.json
 /package.json
 .DS_Store
+toktagger/ui/.vite/
+toktagger/ui/*.tsbuildinfo
 
 # Ignore config file
 toktagger.toml

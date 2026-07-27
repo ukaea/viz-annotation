@@ -1,299 +1,434 @@
+"""Ultralytics video bounding-box detection models."""
+
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator
+from typing import Literal
 
+import cv2
+import numpy as np
 import pydantic
+from ultralytics import YOLO
 
-from toktagger.api.models.base import Model, ModelRegistry
-from toktagger.api.schemas.annotations import Annotation
-# from toktagger.api.schemas.data import DataParams # not useful for video data
-from toktagger.api.schemas.data import ImageParams
+from toktagger.api.core.data_loaders import (
+    DataLoader as TokTaggerDataLoader,
+)
+from toktagger.api.models.base import ModelRegistry
+from toktagger.api.schemas.annotations import (
+    Annotation,
+    AnnotationBase,
+    VideoBoundingBox,
+)
+from toktagger.api.schemas.data import ImageData, ImageParams
 from toktagger.api.schemas.samples import Sample
 
-from ultralytics import YOLO
-# convert the images from base64 to ultralytics usable format
-import base64
-from io import BytesIO
-from PIL import Image
-
-
+from .base import BaseUltralyticsDetection, DetectionRecord
 
 logger = logging.getLogger(__name__)
 
-class DebugVideoTrainParams(pydantic.BaseModel):
-    max_samples: int = 1
+YoloModelName = Literal[
+    "yolov8n.pt",
+    "yolo11n.pt",
+    "yolo26n.pt",
+    "yolo26x.pt",
+]
 
 
-class DebugVideoPredictParams(pydantic.BaseModel):
-    max_samples: int = 1
+class YoloTrainParams(pydantic.BaseModel):
+    """Parameters exposed by the model-training form."""
 
-def yolo_forward_pass(image_string):
+    learning_rate: float = pydantic.Field(
+        default=1e-3,
+        gt=0,
+        description="Initial learning rate.",
+    )
+    epochs: int = pydantic.Field(
+        default=2,
+        gt=0,
+        description="Number of training epochs.",
+    )
+    yolo_size: YoloModelName = pydantic.Field(
+        default="yolo26n.pt",
+        description="Pretrained YOLO checkpoint to fine-tune.",
+    )
+
+
+class YoloPredictParams(pydantic.BaseModel):
+    """Parameters exposed by the prediction form."""
+
+    confidence_threshold: float = pydantic.Field(
+        default=0.2,
+        ge=0,
+        le=1,
+        description="Minimum confidence required for a detection.",
+    )
+    iou_threshold: float = pydantic.Field(
+        default=0.2,
+        ge=0,
+        le=1,
+        description="Intersection-over-union threshold.",
+    )
+    max_det: int = pydantic.Field(
+        default=5,
+        ge=1,
+        le=100,
+        description="Maximum number of detections per frame.",
+    )
+
+
+def iter_sample_frames(
+    data_loader: TokTaggerDataLoader,
+    sample: Sample,
+) -> Iterator[ImageData]:
+    """Yield every contiguous frame in a TokTagger video sample.
+
+    TokTagger's image loader returns the first available frame when ``frame`` is
+    ``None``. Version one then requests successive frame numbers until the
+    loader reports that the next frame does not exist.
     """
-    Yolo naive inference on a image from toktagger.
-    The pipeline is base64 string → bytes → PIL image → YOLO
+    try:
+        frame_image = data_loader.get_sample(
+            sample,
+            ImageParams(
+                name="image",
+                frame=None,
+                return_raw=True,
+            ),
+        )
+    except FileNotFoundError:
+        logger.warning(
+            "No frames found for shot %s.",
+            sample.shot_id,
+        )
+        return
+
+    while True:
+        yield frame_image
+
+        try:
+            frame_image = data_loader.get_sample(
+                sample,
+                ImageParams(
+                    name="image",
+                    frame=frame_image.frame + 1,
+                    return_raw=True,
+                ),
+            )
+        except FileNotFoundError:
+            break
+
+
+def build_video_frame_manifest(
+    samples: list[Sample],
+    annotations: list[list[Annotation]],
+    class_map: dict[str, int],
+    data_loader: TokTaggerDataLoader,
+) -> list[DetectionRecord]:
     """
-    model = YOLO("yolo26n.pt")
-    b64_string = image_string
-    img_bytes = base64.b64decode(b64_string)
-    img = Image.open(BytesIO(img_bytes)).convert("RGB")
+    Convert validated video samples into frame-level training records.
+    Hash table has been used to speed up things.
+    """
+    if len(samples) != len(annotations):
+        raise ValueError(
+            "Samples and annotations must have the same length."
+        )
 
-    results = model(img)
-    print(results)
+    frame_manifest: list[DetectionRecord] = []
+
+    for sample, sample_annotations in zip(
+        samples,
+        annotations,
+        strict=True,
+    ):
+        # A frame can contain several objects. Grouping annotations once gives
+        # constant-time lookup while every video frame is loaded.
+        annotations_by_frame: dict[int, list[Annotation]] = {}
+
+        for annotation in sample_annotations:
+            if (
+                getattr(annotation, "type", None)
+                != "video_bounding_box"
+            ):
+                continue
+
+            frame = int(annotation.frame)
+            annotations_by_frame.setdefault(
+                frame,
+                [],
+            ).append(annotation)
+
+        sample_record_count = 0
+
+        for frame_image in iter_sample_frames(
+            data_loader,
+            sample,
+        ):
+            if isinstance(frame_image.values, str):
+                raise TypeError(
+                    "Expected raw image bytes but received a base64 string."
+                )
+
+            frame = int(frame_image.frame)
+            frame_annotations = annotations_by_frame.get(
+                frame,
+                [],
+            )
+
+            boxes: list[list[float]] = []
+            classes: list[int] = []
+            labels: list[str] = []
+            track_ids: list[str | None] = []
+
+            for annotation in frame_annotations:
+                if annotation.label not in class_map:
+                    logger.warning(
+                        "Skipping unknown label %s in shot %s frame %s.",
+                        annotation.label,
+                        sample.shot_id,
+                        frame,
+                    )
+                    continue
+
+                x1 = float(annotation.x_min)
+                y1 = float(annotation.y_min)
+                x2 = x1 + float(annotation.width)
+                y2 = y1 + float(annotation.height)
+
+                boxes.append([x1, y1, x2, y2])
+                classes.append(class_map[annotation.label])
+                labels.append(annotation.label)
+                track_ids.append(
+                    getattr(annotation, "track_id", None)
+                )
+
+            frame_manifest.append(
+                {
+                    "shot_id": int(sample.shot_id),
+                    "frame": frame,
+                    # ImageData stores raw encoded bytes as a JSON-compatible
+                    # list of integers. Convert it back into bytes here.
+                    "image": bytes(frame_image.values),
+                    "boxes": boxes,
+                    "classes": classes,
+                    "labels": labels,
+                    "track_ids": track_ids,
+                }
+            )
+            sample_record_count += 1
+
+        logger.info(
+            "Added %s frames from shot %s to the manifest.",
+            sample_record_count,
+            sample.shot_id,
+        )
+
+    logger.info(
+        "Created a video manifest containing %s frames.",
+        len(frame_manifest),
+    )
+
+    return frame_manifest
 
 
-# def build_video_frame_manifest(
-#     samples: list[Sample],
-#     annotations: list[list[Annotation]],
-#     class_map: dict[str, int],
-# ) -> list[dict]:
-#     """
-#     Convert TokTagger video samples into image-level detection records.
-#     One TokTagger sample = one shot directory.
-#     One record = one frame image.
-#     One frame can contain multiple bounding boxes.
-#     Inputs:
-#     * list of Samples this the entire shot with multiple frams in each sample.
-#     *list of (list of annotations) can be accessed using annotations[shot_id][frame_num].
-#     """
-#     if len(samples) != len(annotations):
-#         raise ValueError("Samples and annotations must have the same length")
+def decode_frame_image(frame_image: ImageData) -> np.ndarray:
+    """Decode raw TokTagger image bytes for Ultralytics prediction."""
+    if isinstance(frame_image.values, str):
+        raise TypeError(
+            "Expected raw image bytes but received a base64 string."
+        )
 
-#     frame_manifest = []
+    encoded_image = np.frombuffer(
+        bytes(frame_image.values),
+        dtype=np.uint8,
+    )
+    image = cv2.imdecode(
+        encoded_image,
+        cv2.IMREAD_COLOR,
+    )
 
-#     for sample, ann_list in zip(samples, annotations):
-#         shot_id = int(sample.shot_id)
-#         shot_dir = Path(sample.data.file_name)
+    if image is None:
+        raise ValueError(
+            f"Could not decode frame {frame_image.frame}."
+        )
 
-#         if not shot_dir.exists():
-#             logger.warning("Shot directory does not exist: %s", shot_dir)
-#             continue
-
-#         grouped = {}
-
-#         for ann in ann_list:
-#             if getattr(ann, "type", None) != "video_bounding_box":
-#                 continue
-#             if not getattr(ann, "validated", False):
-#                 continue
-
-#             frame = int(ann.frame)
-#             grouped.setdefault(frame, []).append(ann)
-
-#         for image_path in sorted(shot_dir.glob("*.png")):
-#             try:
-#                 frame = int(image_path.stem)
-#             except ValueError:
-#                 continue
-
-#             frame_annotations = grouped.get(frame, [])
-
-#             boxes = []
-#             classes = []
-#             labels = []
-#             track_ids = []
-
-#             for ann in frame_annotations:
-#                 if ann.label not in class_map:
-#                     logger.warning("Unknown label skipped: %s", ann.label)
-#                     continue
-
-#                 x1 = float(ann.x_min)
-#                 y1 = float(ann.y_min)
-#                 x2 = x1 + float(ann.width)
-#                 y2 = y1 + float(ann.height)
-
-#                 boxes.append([x1, y1, x2, y2])
-#                 classes.append(class_map[ann.label])
-#                 labels.append(ann.label)
-#                 track_ids.append(getattr(ann, "track_id", None))
-
-#             frame_manifest.append(
-#                 {
-#                     "shot_id": shot_id,
-#                     "frame": frame,
-#                     "image_path": str(image_path),
-#                     "boxes": boxes,
-#                     "classes": classes,
-#                     "labels": labels,
-#                     "track_ids": track_ids,
-#                 }
-#             )
-
-#     return frame_manifest
+    return image
 
 
 @ModelRegistry.register(
-    "debug_video_get_sample_no_training",
+    "yolo_ufo",
     ["video"],
-    DebugVideoTrainParams,
-    DebugVideoPredictParams,
+    YoloTrainParams,
+    YoloPredictParams,
 )
-class DebugVideoGetSampleModel(Model):
-    def __init__(self, model_id: str, project) -> None:
-        super().__init__(model_id=model_id, project=project)
+class YoloVideoDetectionModel(BaseUltralyticsDetection):
+    """YOLO video bounding-box detector for TokTagger."""
 
-        self.model_id = model_id
-        self.project = project
-        self.type = "debug_video_get_sample"
-        self._trained = True
+    model_name = "yolo26n.pt"
+    class_map = {"UFO": 0}
 
-    def define_model(self):
-        return "debug_video_get_sample_placeholder"
-    def get_sample_image(self, sample):
-        """
-        Get a base64 image from toktagger for a single frame.
-        Do the same for the entire sample and return the manifest file.
-        This will then be used by the manifest list[dict].
-        The main for-loop to loop over the samples will run in the manifest builder functions, not here.
-        The manifest should use the self.data_loader and then we use it to get the samples as  self.data_loader.get_sample()
-        """
-
-        sample_manifest = [] # a list[dict] type object
-        # Get first frame
-        frame_image = self.data_loader.get_sample(
-            sample, ImageParams(name="image", frame=None)
-        )
-        # add the first frame to the sample_manifest
-        sample_manifest.append({
-                "shot_id": sample.shot_id,
-                "frame": frame_image.frame, # frame number
-                "image": frame_image.values # base64 encode image
-        })
-
-        while True:
-            try:
-                frame_image = self.data_loader.get_sample(
-                    sample,
-                    ImageParams(name="image", frame = frame_image.frame + 1 )
-                )
-                # print("Frame number: ",frame_image.frame)
-                sample_manifest.append({
-                    "shot_id": sample.shot_id,
-                    "frame": frame_image.frame,
-                    "image": frame_image.values
-                })
-
-            except FileNotFoundError:
-                # print("Can't access the sample. Check with toktagger devs. Read the following error.")
-                print("----------------------")
-                print("End of frames I guess")
-                print("last frame was: ", frame_image.frame)
-                print("----------------------")
-                break #once
-        return sample_manifest
-
-
-
-    def naive_manifest(
-            self,
-            samples: list[Sample]) -> list[dict]:
-        from time import perf_counter # calcualete elapsed time
-        full_manifest = [] # list where we store all the frame wise dicts that we will eventually return.
-        for sample in samples:
-            """
-            A single sample will return a datetime instance
-            timestamp=datetime.datetime(
-            2026, 7, 7, 10, 43, 51, 957000) 
-            shot_id=104521 
-            data=ImageFileData(file_name='/Users/zw5893/Desktop/repos/toktagger_dev/data/JET_UFO/images/104521', 
-            protocol='file', type='png') 
-            validated_annotations=True 
-            id='6a4cca57e323ae28f34b129a' 
-            project_id='6a4cca57e323ae28f34b1297'
-            We really care about shot_id, frame_num and the sample_frame_images
-            """
-    
-            print("sample: ",sample)
-            start = perf_counter() # start timer
-            sample_manifest = self.get_sample_image(sample) # base64 encoded image
-            elapsed = perf_counter() - start
-            print("Sample manifest shape: ", len(sample_manifest))
-            # timer related metrics
-            print(f"Frames: {len(sample_manifest)}")
-            print(f"Time: {elapsed:.3f} s")
-            print(f"Average: {elapsed / len(sample_manifest):.4f} s/frame")
-            print("-" * 50)
-            full_manifest.append({
-                ############## checkpoint
-                sample.shot_id: sample_manifest # each sample in the fill manifest will be keyed with its shot_id
-                }) # so full_manifest[sample_number][frame_wise_manifest]
-        print("Full manifest shape (same as number of samples)): ", len(full_manifest))
-        print("######################################")
-
-        # print(full_manifest[0]) # don't print very logn output
-
-
-    def train(
+    def build_manifest(
         self,
         samples: list[Sample],
         annotations: list[list[Annotation]],
-        params: DebugVideoTrainParams | None = None,
-    ) -> float:
-        self.log_progress(training_status="started")
+    ) -> list[DetectionRecord]:
+        """Build the in-memory video training manifest."""
+        return build_video_frame_manifest(
+            samples=samples,
+            annotations=annotations,
+            class_map=self.class_map,
+            data_loader=self.data_loader,
+        )
+
+    def predict(
+        self,
+        samples: list[Sample],
+        params: YoloPredictParams | None = None,
+        data_params=None,
+    ) -> list[list[AnnotationBase]]:
+        """Predict bounding boxes for every frame in each sample."""
+        del data_params
+
         if params is None:
-            params = DebugVideoTrainParams()
+            params = YoloPredictParams()
 
-        print("################ DEBUG VIDEO GET_SAMPLE TRAIN ################")
-        print("num samples:", len(samples))
-        print("Num annotations: ", len(annotations))
-        print("data_loader:", type(self.data_loader), self.data_loader)
-        print("print params: ", params)
-        self.naive_manifest(samples, )
-        for i, sample in enumerate(samples):
-            print("--------------- SAMPLE", i, "---------------")
+        weights_path = self.get_prediction_weights_path()
+        model = YOLO(weights_path)
 
-            frame = None
-            if annotations and annotations[i]:
-                frame = annotations[i][0].frame
-                # print("################ \n bbox: \n ################ \n", type(annotations[i][0]))
-                print("Annotation sample length (number of frames): ", len(annotations[i]))
-                # annotation number 20 of each shot
-                print("Annotation frame number: ", annotations[i][20].frame)
+        all_predictions: list[list[AnnotationBase]] = []
 
-                """
-                The challenge is. annotations and sample are separate. We have to create the yolo manifest
-                by somehow working together with the image and data.
-                so images can be access as data.values in base64 format
-                and annotations can be accessed as annotations[shot_id][frame_num]
-                not all frame_nume will have an annotations.
-                This needs a function to do a mapping of image and its annotations
-                then put them into manifest dictionary.
+        for sample in samples:
+            sample_predictions: list[AnnotationBase] = []
 
-                The manifest could look like this:
-                {'shot_id': 104520, 'frame': 300, 'image_path': 'images/104520/300.png', 'boxes': [], 'classes': [], 'labels': [], 'track_ids': []}
-                {'shot_id': 104520, 'frame': 301, 'image_path': 'images/104520/301.png', 'boxes': [], 'classes': [], 'labels': [], 'track_ids': []}
-                """
+            for frame_image in iter_sample_frames(
+                self.data_loader,
+                sample,
+            ):
+                image = decode_frame_image(frame_image)
 
-
-
-
-            try:
-                # give individual frames
-                # unless we put it in a while True loop we get the first frame of the shot
-                data = self.data_loader.get_sample(
-                    sample,
-                    ImageParams(name="image", frame=frame),
+                results = model.predict(
+                    source=image,
+                    conf=params.confidence_threshold,
+                    iou=params.iou_threshold,
+                    max_det=params.max_det,
+                    device=self.get_device().type,
+                    verbose=False,
                 )
 
-                # print("get_sample returned:", type(data))
-                # print("sample_debug type:", type(data.values))
-                print("Number of frames:", data.frame)
-                # yolo_forward_pass(data.values) # yolo forward pass workign so comment it for now.
+                if not results:
+                    continue
+
+                result = results[0]
+
+                if result.boxes is None or len(result.boxes) == 0:
+                    continue
+
+                coordinates = result.boxes.xyxy.cpu().numpy()
+                confidences = result.boxes.conf.cpu().numpy()
+                class_ids = result.boxes.cls.cpu().numpy()
+
+                for detection_index, (
+                    box,
+                    confidence,
+                    class_id,
+                ) in enumerate(
+                    zip(
+                        coordinates,
+                        confidences,
+                        class_ids,
+                        strict=True,
+                    )
+                ):
+                    x1, y1, x2, y2 = box
+
+                    width = max(
+                        0,
+                        int(round(x2 - x1)),
+                    )
+                    height = max(
+                        0,
+                        int(round(y2 - y1)),
+                    )
+
+                    if width == 0 or height == 0:
+                        continue
+
+                    label = self.class_names.get(
+                        int(class_id),
+                        "UFO",
+                    )
+
+                    sample_predictions.append(
+                        VideoBoundingBox(
+                            label=label,
+                            created_by=self.type or "yolo_ufo",
+                            validated=False,
+                            uncertainty=max(
+                                0,
+                                min(
+                                    1,
+                                    1 - float(confidence),
+                                ),
+                            ),
+                            frame=int(frame_image.frame),
+                            track_id=(
+                                f"pred-{sample.shot_id}-"
+                                f"{frame_image.frame}-"
+                                f"{detection_index}"
+                            ),
+                            x_min=int(round(x1)),
+                            y_min=int(round(y1)),
+                            width=width,
+                            height=height,
+                        )
+                    )
+
+            all_predictions.append(sample_predictions)
+
+        return all_predictions
 
 
-            except Exception as exc:
-                print("get_sample FAILED:", repr(exc))
+@ModelRegistry.register(
+    "yolo_ufo_p2",
+    ["video"],
+    YoloTrainParams,
+    YoloPredictParams,
+)
+class YoloVideoDetectionP2Model(YoloVideoDetectionModel):
+    """YOLO26 P2 detector for smaller objects."""
 
-        self.log_progress(training_status="completed")
-        return 0.0
+    model_name = "yolo26-p2.yaml"
+    imgsz = 1024
+    batch = 2
 
-    def predict(self, samples, params=None, data_params=None):
-        if params.current_frame:
-            logger.info("Predict called for one frame")
-        return [[] for _ in samples]
+    def define_model(self) -> str:
+        """Use the P2 architecture distributed with Ultralytics."""
+        return self.model_name
 
-    def save(self, file_stem: str):
-        pass
+    def get_training_model(
+        self,
+        params: pydantic.BaseModel | None,
+    ) -> str:
+        """Always train the P2 architecture instead of a pretrained variant."""
+        del params
+        return self.model_name
 
-    def load(self, file_path: str):
-        pass
+
+# The top-level model package currently imports this historical name. Keeping
+# the alias allows both YOLO registrations above to run without modifying files
+# outside ultralytics_detection during this first integration pass.
+# this is important else the project will throw errors saying model DebugVideoGetSampleModel not found
+# we will delete the project in a future implementation.
+DebugVideoGetSampleModel = YoloVideoDetectionModel
+
+"""
+This version:
+* Includes every frame from each validated sample.
+* Uses a frame-number dictionary for annotation lookup.
+* Stores encoded image bytes in memory.
+* Uses the TokTagger data loader for training and prediction.
+* Supports negative frames with empty bounding-box lists.
+* Removes all print() statements.
+* Keeps both ordinary YOLO and P2 registrations.
+* Preserves the existing top-level import through the compatibility alias.
+"""

@@ -26,14 +26,10 @@ export default function NumberStepper({
   }, [value, onChange]);
 
   return (
-    <Flex
-      direction="column"
-      gap="size-100"
-      margin={"size-200"}
-      alignItems={"center"}
-    >
+    <Flex direction="column" gap="size-100" alignItems="start" width="100%">
       <NumberField
         label={label}
+        width="100%"
         value={value}
         onChange={setValue}
         minValue={0}

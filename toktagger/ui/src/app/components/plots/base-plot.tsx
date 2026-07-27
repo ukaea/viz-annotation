@@ -48,15 +48,16 @@ type TimeSeriesPlotProps = {
   plotId?: string;
   plotConfig: PlotConfiguration;
   rescaleOnZoom?: boolean;
+  ariaLabel?: string;
   children:
-    | React.ReactElement<InjectedProps>
-    | React.ReactElement<InjectedProps>[];
+    React.ReactElement<InjectedProps> | React.ReactElement<InjectedProps>[];
 };
 
 export const BaseTimeSeriesPlot = ({
   plotId: externalId,
   plotConfig: { data, layout, config = DEFAULT_PLOTLY_CONFIG },
   rescaleOnZoom = true,
+  ariaLabel = "time-series",
   children,
 }: TimeSeriesPlotProps) => {
   const [plotReady, setPlotReady] = useState(false);
@@ -285,7 +286,7 @@ export const BaseTimeSeriesPlot = ({
   return (
     <div className="w-full px-6 py-3 space-y-3 flex-col">
       {/* Div where plot is inserted */}
-      <div id={plotId} className="" aria-label="time-series">
+      <div id={plotId} className="" aria-label={ariaLabel}>
         <>
           {React.Children.map(children, (child) => {
             return React.isValidElement(child)

@@ -88,24 +88,21 @@ export default function Profile2DThresholdTool({
 
   useEffect(() => {
     if (!isEnabled) {
+      // Thresholding was turned off - drop any annotations this annotator
+      // produced that have not been saved (validated) to the database. Without
+      // this the generated polygons linger on the plot after toggling off.
+      setAnnotations((previousAnnotations: Annotation[]) =>
+        previousAnnotations.filter(
+          (annotation: Annotation) =>
+            annotation.created_by !== AnnotatorTypes.PROFILE2D_THRESHOLD ||
+            annotation.validated,
+        ),
+      );
       return;
     }
 
     const fetchData = async () => {
       if (!signalName) return;
-
-      if (!isEnabled) {
-        // Remove previous annotations from this annotator
-        setAnnotations((previousAnnotations: Annotation[]) => {
-          const otherAnnotations = previousAnnotations.filter(
-            (annotation: Annotation) =>
-              annotation.created_by !== AnnotatorTypes.PROFILE2D_THRESHOLD ||
-              annotation.validated,
-          );
-          return otherAnnotations;
-        });
-        return;
-      }
 
       const response = await fetch(
         `${BACKEND_API_URL}/projects/${project_id}/samples/${sample_id}/annotator/profile_2d_threshold`,
@@ -131,11 +128,16 @@ export default function Profile2DThresholdTool({
 
       const payload: Annotation[] = await response.json();
       setAnnotations((previousAnnotations: Annotation[]) => {
+        // Replace only this annotator's previous, unsaved output for the current
+        // signal. Everything else - manually drawn annotations, validated results,
+        // and annotations for other signals - must be preserved.
         const otherAnnotations = previousAnnotations.filter(
           (annotation: Annotation) =>
-            annotation.signal_name !== signalName &&
-            (annotation.created_by !== AnnotatorTypes.PROFILE2D_THRESHOLD ||
-              annotation.validated),
+            !(
+              annotation.created_by === AnnotatorTypes.PROFILE2D_THRESHOLD &&
+              !annotation.validated &&
+              annotation.signal_name === signalName
+            ),
         );
         return otherAnnotations.concat(payload);
       });
@@ -176,7 +178,12 @@ export default function Profile2DThresholdTool({
   }, [data, isEnabled]);
 
   return (
-    <Flex direction="column" gap="size-200" justifyContent="start">
+    <Flex
+      direction="column"
+      gap="size-200"
+      alignItems="start"
+      justifyContent="start"
+    >
       <Switch isSelected={isEnabled} onChange={onThresholdChange}>
         Thresholding
       </Switch>
@@ -191,6 +198,7 @@ export default function Profile2DThresholdTool({
           />
           <RangeSlider
             label="Range of Interest"
+            width="100%"
             value={range}
             minValue={defaultRange.start}
             maxValue={defaultRange.end}
@@ -199,6 +207,7 @@ export default function Profile2DThresholdTool({
           />
           <NumberField
             label="Sigma"
+            width="100%"
             value={sigma}
             minValue={0}
             onChange={setSigma}
@@ -206,6 +215,7 @@ export default function Profile2DThresholdTool({
           />
           <NumberField
             label="Min Size"
+            width="100%"
             value={minSize}
             minValue={0}
             onChange={setMinSize}
@@ -213,6 +223,7 @@ export default function Profile2DThresholdTool({
           />
           <NumberField
             label="Vertical Line Filter Width"
+            width="100%"
             value={lineFilterWidth}
             minValue={0}
             onChange={setLineFilterWidth}

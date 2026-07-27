@@ -189,10 +189,12 @@ export async function saveSampleAnnotations(
   if (!saveOnNavigate) {
     return;
   }
-  // Saving validates annotations without changing their creator metadata.
+  // Saving validates annotations and attributes them to the user, so annotator
+  // generated annotations become user-created once accepted.
   const updatedAnnotations = annotations.map((annotation: Annotation) => ({
     ...annotation,
     validated: true,
+    created_by: "manual",
   }));
 
   const ANNOTATIONS_URL = `${BACKEND_API_URL}/projects/${project_id}/samples/${sample_id}/annotations?validated=True`;

@@ -42,9 +42,17 @@ export const useAnnotationTooling = ({
   const lastHoverTime = useRef(0);
   const lockedSubplotElementRef = useRef<HTMLElement | null>(null); // used to track which subplot an annotation was started on
 
+  // Kept in sync each render so the capture-phase guard below reads the live value
+  const isDrawingRef = useRef(isDrawing);
+  isDrawingRef.current = isDrawing;
+
   if (!isDrawing) isDraggingRef.current = false;
 
-  // Plotly's own drag interactions must be suspended while a tool is drawing
+  // Keep the plot in its idle drag mode. While a tool is drawing we deliberately do
+  // NOT touch dragmode - the capture-phase guard below suppresses Plotly's native
+  // drag instead. Toggling dragmode here (as we used to, setting it to false while
+  // drawing) flipped the modebar's active button off and back on each time Ctrl was
+  // pressed, so we leave it alone and only restore the idle mode when not drawing.
   useEffect(() => {
     if (!plotReady) {
       // Plot may not have loaded yet - this will rerun after loading
@@ -58,13 +66,38 @@ export const useAnnotationTooling = ({
       return;
     }
 
-    if (isDrawing) {
-      relayout(plot, { dragmode: false });
-      return;
-    }
+    if (isDrawing) return;
 
     relayout(plot, { dragmode: idleDragMode });
   }, [isDrawing, plotId, plotReady, idleDragMode]);
+
+  // Suppress Plotly's own pan/zoom drag while a tool is drawing. Plotly starts a drag
+  // on `mousedown`; swallowing that event in the capture phase (before it reaches
+  // Plotly's handlers on the drag layers) stops the native interaction without
+  // mutating dragmode, so the modebar state is undisturbed. The annotation tools
+  // listen on `pointerdown` - a separate event stream - so drawing is unaffected.
+  useEffect(() => {
+    if (!plotReady) {
+      return;
+    }
+
+    const plot = document.getElementById(plotId);
+    if (!plot) {
+      console.error("Could not locate plot to suspend drag interactions");
+      return;
+    }
+
+    const suppressPlotlyDrag = (event: MouseEvent) => {
+      if (isDrawingRef.current) {
+        event.stopPropagation();
+      }
+    };
+
+    plot.addEventListener("mousedown", suppressPlotlyDrag, true);
+    return () => {
+      plot.removeEventListener("mousedown", suppressPlotlyDrag, true);
+    };
+  }, [plotId, plotReady]);
 
   // The subplot lock whilst drawing is cleared once an action is no longer ongoing
   useEffect(() => {

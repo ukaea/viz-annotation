@@ -124,6 +124,35 @@ export const Polygon = ({ plotId, plotReady, subplot }: ToolingProps) => {
     updateAnnotation,
   ]);
 
+  // Releasing Ctrl ends the "drawing" state, which should finish an in-progress
+  // polygon rather than leaving its final vertex tracking the cursor.
+  const wasDrawing = useRef(isDrawing);
+  useEffect(() => {
+    const drawingJustEnded = wasDrawing.current && !isDrawing;
+    wasDrawing.current = isDrawing;
+
+    if (!drawingJustEnded) return;
+    if (!isUpdatingPolygon.current || !currentAnnotation.current) return;
+
+    const annotation = currentAnnotation.current;
+    isUpdatingPolygon.current = false;
+    currentAnnotation.current = null;
+    setOngoingAction(false);
+
+    if (annotation.type !== TimeSeriesAnnotationType.POLYGON) return;
+
+    // An in-progress polygon carries two trailing helper points - the vertex that
+    // follows the cursor and a temporary closing vertex. Drop them to commit the
+    // vertices the user actually placed; if too few remain for a valid polygon
+    // (fewer than three real vertices), discard the shape.
+    if (annotation.points.length > 4) {
+      annotation.points.splice(annotation.points.length - 2, 2);
+      updateAnnotation(annotation);
+    } else {
+      removeAnnotation(annotation.id);
+    }
+  }, [isDrawing, setOngoingAction, updateAnnotation, removeAnnotation]);
+
   // Main rendering effect
   useEffect(() => {
     // This shall not run until the target plot is initialised

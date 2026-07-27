@@ -272,7 +272,14 @@ export const Profile2dView = () => {
     // @ts-expect-error Plotly.React types do not define shared color axis, but Plotly supports it.
     coloraxis: colorAxis,
     showlegend: true,
-    dragmode: "zoom",
+    // Left-drag pans and the mouse wheel zooms, matching the time series view. The
+    // heatmap's yaxis2 is fixedrange, so the wheel zooms the (time) x-axis only.
+    dragmode: "pan",
+    // Preserve the user's zoom/pan across re-renders. Creating an annotation writes
+    // back to the sample state, which re-runs Plotly.react with fresh data/layout
+    // objects; without uirevision Plotly would fall back to autorange and reset the
+    // viewport every time an annotation is drawn.
+    uirevision: "true",
   };
 
   const plotConfig: Partial<Plotly.Config> = {
@@ -284,7 +291,7 @@ export const Profile2dView = () => {
     dragmode: false,
     displaylogo: false,
     displayModeBar: true,
-    scrollZoom: false,
+    scrollZoom: true,
     responsive: true,
   };
 
@@ -302,6 +309,7 @@ export const Profile2dView = () => {
             <Flex direction="column" flex gap="size-200">
               <BaseTimeSeriesPlot
                 plotId="Profile2DView"
+                ariaLabel="profile-2d"
                 plotConfig={{
                   data: plotData,
                   config: plotConfig,

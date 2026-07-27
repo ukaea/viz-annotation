@@ -50,7 +50,8 @@ type TimeSeriesPlotProps = {
   rescaleOnZoom?: boolean;
   ariaLabel?: string;
   children:
-    React.ReactElement<InjectedProps> | React.ReactElement<InjectedProps>[];
+    | React.ReactElement<InjectedProps>
+    | React.ReactElement<InjectedProps>[];
 };
 
 export const BaseTimeSeriesPlot = ({

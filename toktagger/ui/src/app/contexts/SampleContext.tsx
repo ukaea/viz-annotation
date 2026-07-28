@@ -38,9 +38,7 @@ interface SampleContextType {
   isLoading: boolean;
   isValidated: boolean | null;
   error: string | null;
-  setAnnotations: (
-    updater: (annotations: Annotation[]) => Annotation[] | Annotation[],
-  ) => void;
+  setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>;
   setDataParams: React.Dispatch<React.SetStateAction<DataParams>>;
   setViewParams: (params: ViewParams) => void;
   setPlotProps: (props: PlotProps) => void;

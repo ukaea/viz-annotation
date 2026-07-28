@@ -1,7 +1,6 @@
 from __future__ import annotations  # store type hints as strings
 
 import logging
-import shutil
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +11,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from ultralytics.data.augment import LetterBox
 from ultralytics.models.yolo.detect import DetectionTrainer
+from toktagger.api.schemas.projects import Project
 
 # Callable to pass functions in another function
 from collections.abc import Callable
@@ -191,7 +191,7 @@ class ToktaggerDetectionTrainer(DetectionTrainer):
         # the overridden get_dataset() method.
         self._tok_train_dataset = train_dataset
         self._tok_val_dataset = val_dataset
-        self._tok_class_names = class_names or {0: "object"}
+        self._tok_class_names = class_names
         self._tok_progress_callback = progress_callback
 
         super().__init__(*args, **kwargs)
@@ -247,7 +247,11 @@ class ToktaggerDetectionTrainer(DetectionTrainer):
         rank: int = 0,
         mode: str = "train",
     ) -> DataLoader:
-        """Return a data loader for the injected TokTagger dataset."""
+        """Return a data loader for the injected TokTagger dataset.
+        ``dataset_path`` and ``rank`` are required by the Ultralytics trainer
+        interface. This implementation uses an injected in-memory dataset and
+        currently supports only single-process training.
+        """
         del dataset_path, rank
 
         if mode == "train":
@@ -255,7 +259,7 @@ class ToktaggerDetectionTrainer(DetectionTrainer):
         else:
             dataset = self._tok_val_dataset
 
-        # Version one does not create a validation dataset.
+        # This version does not create a validation dataset.
         # Ultralytics simply doesn't need it for training.
         # if we want to avail things like patience and validation loss
         # we might consider splitting the validated dataset into training and val.
@@ -280,11 +284,56 @@ class BaseUltralyticsDetection(Model):
     """Base class for TokTagger models backed by Ultralytics detection."""
 
     model_name: str = "yolo26n.pt"
+    model_family: str
     class_map: dict[str, int] = {"object": 0}
 
     imgsz: int = 640
     batch: int = 5
     workers: int = 0
+
+    def __init__(self, model_id: str, project: Project) -> None:
+        super().__init__(model_id=model_id, project=project)
+
+        trained_weights = self.find_trained_weights()
+
+        # IMPORTANT:
+        # TokTagger's generic worker restores models by searching for a flat
+        # <model_id> file in MODEL_STORAGE. Ultralytics already stores its trained
+        # checkpoint in the project directory, so we deliberately do
+        # not create that duplicate flat file.
+        #
+        # When Ray recreates this actor, the generic worker will not call
+        # wrapped_load() because it cannot discover the nested checkpoint.
+        # Therefore this Ultralytics-specific actor discovers and loads its own
+        # checkpoint here. Model.wrapped_predict() refuses prediction unless
+        # _trained is True, so it must be restored after a valid checkpoint has
+        # been loaded successfully.
+        if trained_weights is not None:
+            self.load(str(trained_weights))
+            self._trained = True
+
+    def get_weights_directory(self) -> Path:
+        """Return this model's project-scoped Ultralytics weights directory."""
+        return (
+            get_toktagger_cache_dir()
+            / str(self.project.id)
+            / "ultralytics"
+            / self.model_family
+            / self.id
+            / "weights"
+        )
+
+    def find_trained_weights(self) -> Path | None:
+        """Find the preferred checkpoint produced by Ultralytics."""
+        weights_directory = self.get_weights_directory()
+
+        for file_name in ("best.pt", "last.pt"):
+            # generally we just need the best.pt
+            weights_path = weights_directory / file_name
+            if weights_path.is_file():
+                return weights_path
+
+        return None
 
     @property
     def class_names(self) -> dict[int, str]:
@@ -316,12 +365,7 @@ class BaseUltralyticsDetection(Model):
         params: pydantic.BaseModel | None,
     ) -> str:
         """Resolve the model selected through the training form."""
-        selected_model = getattr(
-            params,
-            "yolo_size",
-            self.model_name,
-        )
-        return str(check_pretrained_model_availability(selected_model))
+        return str(check_pretrained_model_availability(params.yolo_size))
 
     def make_train_dataset(
         self,
@@ -341,15 +385,18 @@ class BaseUltralyticsDetection(Model):
         has_validation_data: bool,
     ) -> dict[str, Any]:
         """Build the configuration passed to Ultralytics."""
+        # Save directory
         training_output_root = (
-            get_toktagger_cache_dir() / "yolo_model" / "training_outputs"
+            get_toktagger_cache_dir()
+            / str(self.project.id)
+            / "ultralytics"
+            / self.model_family
         )
         training_output_root.mkdir(parents=True, exist_ok=True)
 
-        return {
+        overrides = {
             "model": model_path,
             "epochs": epochs,
-            "lr0": learning_rate,
             "batch": self.batch,
             "imgsz": self.imgsz,
             "workers": self.workers,
@@ -362,12 +409,15 @@ class BaseUltralyticsDetection(Model):
             "val": has_validation_data,
             "close_mosaic": 0,
         }
+        if learning_rate > 0:
+            overrides["lr0"] = learning_rate
+        return overrides
 
     def train(
         self,
         samples: list[Sample],
         annotations: list[list[Annotation]],
-        params: pydantic.BaseModel | None = None,
+        params: pydantic.BaseModel,
     ) -> float:
         """Train an Ultralytics detector using TokTagger data."""
         self.log_progress(
@@ -375,8 +425,8 @@ class BaseUltralyticsDetection(Model):
             progress=0,
         )
 
-        epochs = int(getattr(params, "epochs", 50))
-        learning_rate = float(getattr(params, "learning_rate", 1e-3))
+        epochs = params.epochs
+        learning_rate = params.learning_rate
         model_path = self.get_training_model(params)
 
         train_records = self.build_manifest(
@@ -420,6 +470,7 @@ class BaseUltralyticsDetection(Model):
         best_weights = Path(trainer.best)
         last_weights = Path(trainer.last)
 
+        # prioritise best.pt
         if best_weights.is_file():
             self._trained_weights_path = best_weights
         elif last_weights.is_file():
@@ -438,46 +489,11 @@ class BaseUltralyticsDetection(Model):
         # available yet.
         return 0.0
 
-    def get_prediction_weights_path(self) -> str:
-        """Return trained weights when available."""
-        trained_weights = getattr(
-            self,
-            "_trained_weights_path",
-            None,
-        )
-
-        if trained_weights is not None:
-            trained_weights = Path(trained_weights)
-            if trained_weights.is_file():
-                return str(trained_weights)
-
-        return str(self.model)
-
     def save(self, file_stem: str) -> None:
-        """Copy trained weights into TokTagger's model storage."""
-        source = Path(self.get_prediction_weights_path())
-
-        if not source.is_file():
-            raise FileNotFoundError(f"Could not find trained weights at {source}")
-
-        destination = Path(file_stem).with_suffix(".pt")
-        destination.parent.mkdir(parents=True, exist_ok=True)
-
-        if source.resolve() != destination.resolve():
-            shutil.copy2(source, destination)
-
-        self.model = str(destination)
-        self._trained_weights_path = destination
-
-    def load(self, file_path: str) -> None:
-        """Load a previously saved Ultralytics checkpoint."""
-        weights_path = Path(file_path)
-
-        if not weights_path.is_file():
-            raise FileNotFoundError(f"Could not find model weights at {weights_path}")
-
-        self.model = str(weights_path)
-        self._trained_weights_path = weights_path
+        """Verify that Ultralytics persisted this model's weights.
+        Ultralytics trainer handles the saving.
+        """
+        return None
 
     def predict(
         self,
@@ -485,5 +501,7 @@ class BaseUltralyticsDetection(Model):
         params: pydantic.BaseModel | None = None,
         data_params=None,
     ) -> list[list[AnnotationBase]]:
-        """Require concrete models to convert detections into annotations."""
+        """Prediction doesn't need the manifest and custom dataloader.
+        All the custom overrides are in this file.
+        """
         raise NotImplementedError

@@ -1,7 +1,8 @@
-from __future__ import annotations # store type hints as strings
+from __future__ import annotations  # store type hints as strings
 
 import logging
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Literal
 
 import cv2
@@ -37,9 +38,9 @@ class YoloTrainParams(pydantic.BaseModel):
     """Parameters exposed by the model-training form."""
 
     learning_rate: float = pydantic.Field(
-        default=0.003,
-        gt=0,
-        description="Initial learning rate.",
+        default=0,
+        ge=0,
+        description="Initial learning rate. Use 0 for the Ultralytics default.",
     )
     epochs: int = pydantic.Field(
         default=2,
@@ -128,9 +129,7 @@ def build_video_frame_manifest(
     Hash table has been used to speed up things.
     """
     if len(samples) != len(annotations):
-        raise ValueError(
-            "Samples and annotations must have the same length."
-        )
+        raise ValueError("Samples and annotations must have the same length.")
 
     frame_manifest: list[DetectionRecord] = []
 
@@ -144,10 +143,7 @@ def build_video_frame_manifest(
         annotations_by_frame: dict[int, list[Annotation]] = {}
 
         for annotation in sample_annotations:
-            if (
-                getattr(annotation, "type", None)
-                != "video_bounding_box"
-            ):
+            if getattr(annotation, "type", None) != "video_bounding_box":
                 continue
 
             frame = int(annotation.frame)
@@ -196,9 +192,7 @@ def build_video_frame_manifest(
                 boxes.append([x1, y1, x2, y2])
                 classes.append(class_map[annotation.label])
                 labels.append(annotation.label)
-                track_ids.append(
-                    getattr(annotation, "track_id", None)
-                )
+                track_ids.append(getattr(annotation, "track_id", None))
 
             frame_manifest.append(
                 {
@@ -232,9 +226,7 @@ def build_video_frame_manifest(
 def decode_frame_image(frame_image: ImageData) -> np.ndarray:
     """Decode raw TokTagger image bytes for Ultralytics prediction."""
     if isinstance(frame_image.values, str):
-        raise TypeError(
-            "Expected raw image bytes but received a base64 string."
-        )
+        raise TypeError("Expected raw image bytes but received a base64 string.")
 
     encoded_image = np.frombuffer(
         bytes(frame_image.values),
@@ -246,9 +238,7 @@ def decode_frame_image(frame_image: ImageData) -> np.ndarray:
     )
 
     if image is None:
-        raise ValueError(
-            f"Could not decode frame {frame_image.frame}."
-        )
+        raise ValueError(f"Could not decode frame {frame_image.frame}.")
 
     return image
 
@@ -263,7 +253,11 @@ class YoloVideoDetectionModel(BaseUltralyticsDetection):
     """YOLO video bounding-box detector for TokTagger."""
 
     model_name = "yolo26n.pt"
+    model_family = "yolo"
     class_map = {"UFO": 0}
+
+    imgsz = 640
+    batch = 5
 
     def build_manifest(
         self,
@@ -278,20 +272,37 @@ class YoloVideoDetectionModel(BaseUltralyticsDetection):
             data_loader=self.data_loader,
         )
 
+    def load(self, file_path: str | Path) -> None:
+        """Load YOLO weights into this Ray actor."""
+        weights_path = Path(file_path)
+
+        if not weights_path.is_file():
+            raise FileNotFoundError(f"Could not find model weights at {weights_path}")
+
+        self._prediction_model = YOLO(str(weights_path))
+        self._trained_weights_path = weights_path
+
     def predict(
         self,
         samples: list[Sample],
-        params: YoloPredictParams | None = None,
+        params: YoloPredictParams,
         data_params=None,
     ) -> list[list[AnnotationBase]]:
         """Predict bounding boxes for every frame in each sample."""
-        del data_params
 
-        if params is None:
-            params = YoloPredictParams()
+        # After training, TokTagger reuses the existing Ray actor, so load() is not
+        # called. In that case, train() provides _trained_weights_path and the model
+        # is loaded lazily on the first prediction.
+        #
+        # When TokTagger creates a fresh actor for prediction, load() provides both
+        # _trained_weights_path and _prediction_model, so this block is skipped.
+        # Keeping _prediction_model on the actor avoids reloading the weights on
+        # every prediction request i.e. when Predict button is pressed.
+        if not hasattr(self, "_prediction_model"):
+            self._prediction_model = YOLO(str(self._trained_weights_path))
 
-        weights_path = self.get_prediction_weights_path()
-        model = YOLO(weights_path)
+        # in either case, model is not reloaded for every single prediction request
+        model = self._prediction_model
 
         all_predictions: list[list[AnnotationBase]] = []
 
@@ -351,15 +362,12 @@ class YoloVideoDetectionModel(BaseUltralyticsDetection):
                     if width == 0 or height == 0:
                         continue
 
-                    label = self.class_names.get(
-                        int(class_id),
-                        "UFO",
-                    )
+                    label = self.class_names[int(class_id)]
 
                     sample_predictions.append(
                         VideoBoundingBox(
                             label=label,
-                            created_by=self.type or "yolo_ufo",
+                            created_by=self.type,
                             validated=False,
                             uncertainty=max(
                                 0,
@@ -396,6 +404,8 @@ class YoloVideoDetectionP2Model(YoloVideoDetectionModel):
     """YOLO26 P2 detector for smaller objects."""
 
     model_name = "yolo26-p2.yaml"
+
+    # Higher resolution preserves small objects but requires a smaller batch.
     imgsz = 1024
     batch = 2
 
@@ -405,28 +415,7 @@ class YoloVideoDetectionP2Model(YoloVideoDetectionModel):
 
     def get_training_model(
         self,
-        params: pydantic.BaseModel | None,
+        params: pydantic.BaseModel,
     ) -> str:
         """Always train the P2 architecture instead of a pretrained variant."""
-        del params
         return self.model_name
-
-
-# The top-level model package currently imports this historical name. Keeping
-# the alias allows both YOLO registrations above to run without modifying files
-# outside ultralytics_detection during this first integration pass.
-# this is important else the project will throw errors saying model DebugVideoGetSampleModel not found
-# we will delete the project in a future implementation.
-DebugVideoGetSampleModel = YoloVideoDetectionModel
-
-"""
-This version:
-* Includes every frame from each validated sample.
-* Uses a frame-number dictionary for annotation lookup.
-* Stores encoded image bytes in memory.
-* Uses the TokTagger data loader for training and prediction.
-* Supports negative frames with empty bounding-box lists.
-* Removes all print() statements.
-* Keeps both ordinary YOLO and P2 registrations.
-* Preserves the existing top-level import through the compatibility alias.
-"""

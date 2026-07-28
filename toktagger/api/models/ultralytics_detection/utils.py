@@ -3,8 +3,8 @@ from pathlib import Path
 from urllib.request import urlretrieve
 
 import torch
-from platformdirs import user_cache_dir
-import toktagger.api.config as config
+
+# import toktagger.api.config as config
 import os
 
 logger = logging.getLogger(__name__)
@@ -19,8 +19,17 @@ MODEL_URLS = {
     "yolo11n.pt": f"{_ULTRALYTICS_ASSET_BASE_URL}/yolo11n.pt",
     "yolo26n.pt": f"{_ULTRALYTICS_ASSET_BASE_URL}/yolo26n.pt",
     "yolo26x.pt": f"{_ULTRALYTICS_ASSET_BASE_URL}/yolo26x.pt",
-    "rtdetr-x": f"{_ULTRALYTICS_ASSET_BASE_URL}/rtdetr-x.pt",
-    "rtdetr-l": f"{_ULTRALYTICS_ASSET_BASE_URL}/rtdetr-l.pt",
+    "rtdetr-x.pt": f"{_ULTRALYTICS_ASSET_BASE_URL}/rtdetr-x.pt",
+    "rtdetr-l.pt": f"{_ULTRALYTICS_ASSET_BASE_URL}/rtdetr-l.pt",
+}
+
+MODEL_FAMILIES = {
+    "yolov8n.pt": "yolo",
+    "yolo11n.pt": "yolo",
+    "yolo26n.pt": "yolo",
+    "yolo26x.pt": "yolo",
+    "rtdetr-x.pt": "rtdetr",
+    "rtdetr-l.pt": "rtdetr",
 }
 
 
@@ -36,11 +45,11 @@ def check_pretrained_model_availability(
     if model_name not in MODEL_URLS:
         available_models = ", ".join(MODEL_URLS)
         raise ValueError(
-            f"Unknown model '{model_name}'. "
-            f"Available models: {available_models}"
+            f"Unknown model '{model_name}'. Available models: {available_models}"
         )
 
-    model_dir = get_toktagger_cache_dir() / "yolo_model" / "model"
+    model_family = MODEL_FAMILIES[model_name]
+    model_dir = get_toktagger_cache_dir() / "pretrained" / "ultralytics" / model_family
     model_dir.mkdir(parents=True, exist_ok=True)
 
     model_path = model_dir / model_name
@@ -57,6 +66,8 @@ def check_pretrained_model_availability(
         model_name,
         model_path,
     )
+
+    # Download the model
     urlretrieve(MODEL_URLS[model_name], model_path)
 
     return model_path
@@ -76,17 +87,7 @@ def get_torch_device() -> torch.device:
 
 
 def get_toktagger_cache_dir() -> Path:
-    """Return TokTagger's configured model-storage directory.
-
-    Ray workers receive the model-storage path through ``MODEL_STORAGE``.
-    Outside a Ray worker, TokTagger's model-cache configuration is used.
-    """
-    configured_dir = os.environ.get("MODEL_STORAGE")
-    cache_dir = (
-        Path(configured_dir).expanduser()
-        if configured_dir
-        else config.settings.models.cache_dir
-    )
-
+    """Return the model-storage directory supplied to the Ray worker."""
+    cache_dir = Path(os.environ["MODEL_STORAGE"])
     cache_dir.mkdir(parents=True, exist_ok=True)
     return cache_dir

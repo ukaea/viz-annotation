@@ -21,7 +21,7 @@ import { useParams } from "react-router-dom";
 /**
  * Frame annotator UI wrapper:
  * - Renders the frame navigation (prev/next + jump)
- * - Shows the current frame index (from session state)
+ * - Shows the latest requested frame index
  * - Flushes the current frame overlay before frame changes
  *
  * Note: this component does not fetch frames. The parent drives frame changes by
@@ -80,7 +80,7 @@ function VideoFrameAnnotator(props: {
             >
               Prev
             </Button>
-            <FrameJumpField frame={session.frame} onJump={handleJump} />
+            <FrameJumpField frame={props.desiredFrame} onJump={handleJump} />
             <Button
               variant="primary"
               onPress={handleNext}

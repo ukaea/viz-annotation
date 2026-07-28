@@ -1,6 +1,4 @@
-"""Shared dataset and training for Ultralytics detection models."""
-
-from __future__ import annotations # store type hints as strings
+from __future__ import annotations  # store type hints as strings
 
 import logging
 import shutil
@@ -14,6 +12,10 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from ultralytics.data.augment import LetterBox
 from ultralytics.models.yolo.detect import DetectionTrainer
+
+# Callable to pass functions in another function
+from collections.abc import Callable
+from ultralytics.utils import RANK
 
 from toktagger.api.models.base import Model
 from toktagger.api.schemas.annotations import Annotation, AnnotationBase
@@ -63,8 +65,7 @@ class UltralyticsDetectionDataset(Dataset):
 
         if image is None:
             raise ValueError(
-                f"Could not decode shot {record['shot_id']} "
-                f"frame {record['frame']}"
+                f"Could not decode shot {record['shot_id']} frame {record['frame']}"
             )
 
         # Ultralytics trains its pretrained models using RGB channel ordering.
@@ -97,9 +98,7 @@ class UltralyticsDetectionDataset(Dataset):
             width = (x2 - x1) / self.imgsz
             height = (y2 - y1) / self.imgsz
 
-            normalized_boxes.append(
-                [center_x, center_y, width, height]
-            )
+            normalized_boxes.append([center_x, center_y, width, height])
 
         if normalized_boxes:
             bboxes = torch.tensor(
@@ -118,18 +117,14 @@ class UltralyticsDetectionDataset(Dataset):
             classes = torch.zeros((0, 1), dtype=torch.float32)
 
         image_tensor = torch.from_numpy(
-            np.ascontiguousarray(
-                letterboxed_image.transpose(2, 0, 1)
-            )
+            np.ascontiguousarray(letterboxed_image.transpose(2, 0, 1))
         )
 
         return {
             "img": image_tensor,
             "cls": classes,
             "bboxes": bboxes,
-            "im_file": (
-                f"shot-{record['shot_id']}/frame-{record['frame']}"
-            ),
+            "im_file": (f"shot-{record['shot_id']}/frame-{record['frame']}"),
             "ori_shape": (original_height, original_width),
             "resized_shape": (self.imgsz, self.imgsz),
             "ratio_pad": (
@@ -189,20 +184,53 @@ class ToktaggerDetectionTrainer(DetectionTrainer):
         train_dataset: UltralyticsDetectionDataset,
         val_dataset: UltralyticsDetectionDataset | None = None,
         class_names: dict[int, str] | None = None,
+        progress_callback: Callable[..., None] | None = None,
         **kwargs,
     ) -> None:
         # These must be assigned before DetectionTrainer.__init__ calls
-        # get_dataset().
+        # the overridden get_dataset() method.
         self._tok_train_dataset = train_dataset
         self._tok_val_dataset = val_dataset
         self._tok_class_names = class_names or {0: "object"}
+        self._tok_progress_callback = progress_callback
 
         super().__init__(*args, **kwargs)
+
+        # https://docs.ultralytics.com/usage/callbacks
+        # Executes after the end of the epoch.
+        self.add_callback(
+            "on_fit_epoch_end",
+            self._log_progress,
+        )
+
+    def _log_progress(self, trainer) -> None:
+        """
+        Send epoch-level training progress back to TokTagger.
+        For now it sends a basic progress log:
+        epoch 1/50  → 2%
+        epoch 2/50  → 4%
+        ...
+        epoch 50/50 → 100%
+        It is worth including the metrics in future.
+        """
+
+        # https://github.com/ultralytics/ultralytics/blob/c3576e753264563eddeb1a3df0ce9565c3eb6b4c/ultralytics/engine/trainer.py#L142
+        # RANK is the process rank used for PyTorch DistributedDataParallel (DDP)
+        # Run this block on single process mode RANK = -1
+        # or on main/leader DDP process RANK 0
+        # to avoid duplication of the print message.
+        if RANK not in {-1, 0} or self._tok_progress_callback is None:
+            return
+
+        self._tok_progress_callback(
+            progress=int((trainer.epoch + 1) / trainer.epochs * 100),
+            score=None,
+        )
 
     def get_dataset(self) -> dict[str, Any]:
         """
         Provide metadata without requiring an Ultralytics YAML file.
-        This avoids maintaining the dataset in a specific format which requires split beforehand and annotations stored in txt files.        
+        This avoids maintaining the dataset in a specific format which requires split and annotations stored in txt files.
         """
         return {
             "nc": len(self._tok_class_names),
@@ -227,11 +255,11 @@ class ToktaggerDetectionTrainer(DetectionTrainer):
         else:
             dataset = self._tok_val_dataset
 
-        # Version one does not create a validation dataset. Ultralytics may
-        # still request one while setting up the trainer, so use the training
-        # dataset as a harmless fallback.
+        # Version one does not create a validation dataset.
+        # Ultralytics simply doesn't need it for training.
         # if we want to avail things like patience and validation loss
-        # we might connsider splitting the validated dataset into training and val.
+        # we might consider splitting the validated dataset into training and val.
+
         if dataset is None:
             dataset = self._tok_train_dataset
 
@@ -261,10 +289,7 @@ class BaseUltralyticsDetection(Model):
     @property
     def class_names(self) -> dict[int, str]:
         """Return the class-ID-to-label mapping expected by Ultralytics."""
-        return {
-            class_id: label
-            for label, class_id in self.class_map.items()
-        }
+        return {class_id: label for label, class_id in self.class_map.items()}
 
     def get_device(self) -> torch.device:
         """Return the device assigned to this model actor."""
@@ -275,9 +300,7 @@ class BaseUltralyticsDetection(Model):
 
     def define_model(self) -> str:
         """Resolve the default pretrained checkpoint."""
-        model_path = check_pretrained_model_availability(
-            self.model_name
-        )
+        model_path = check_pretrained_model_availability(self.model_name)
         return str(model_path)
 
     def build_manifest(
@@ -298,9 +321,7 @@ class BaseUltralyticsDetection(Model):
             "yolo_size",
             self.model_name,
         )
-        return str(
-            check_pretrained_model_availability(selected_model)
-        )
+        return str(check_pretrained_model_availability(selected_model))
 
     def make_train_dataset(
         self,
@@ -321,9 +342,7 @@ class BaseUltralyticsDetection(Model):
     ) -> dict[str, Any]:
         """Build the configuration passed to Ultralytics."""
         training_output_root = (
-            get_toktagger_cache_dir()
-            / "yolo_model"
-            / "training_outputs"
+            get_toktagger_cache_dir() / "yolo_model" / "training_outputs"
         )
         training_output_root.mkdir(parents=True, exist_ok=True)
 
@@ -357,9 +376,7 @@ class BaseUltralyticsDetection(Model):
         )
 
         epochs = int(getattr(params, "epochs", 50))
-        learning_rate = float(
-            getattr(params, "learning_rate", 1e-3)
-        )
+        learning_rate = float(getattr(params, "learning_rate", 1e-3))
         model_path = self.get_training_model(params)
 
         train_records = self.build_manifest(
@@ -396,6 +413,7 @@ class BaseUltralyticsDetection(Model):
             train_dataset=train_dataset,
             val_dataset=validation_dataset,
             class_names=self.class_names,
+            progress_callback=self.log_progress,
         )
         trainer.train()
 
@@ -440,9 +458,7 @@ class BaseUltralyticsDetection(Model):
         source = Path(self.get_prediction_weights_path())
 
         if not source.is_file():
-            raise FileNotFoundError(
-                f"Could not find trained weights at {source}"
-            )
+            raise FileNotFoundError(f"Could not find trained weights at {source}")
 
         destination = Path(file_stem).with_suffix(".pt")
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -458,9 +474,7 @@ class BaseUltralyticsDetection(Model):
         weights_path = Path(file_path)
 
         if not weights_path.is_file():
-            raise FileNotFoundError(
-                f"Could not find model weights at {weights_path}"
-            )
+            raise FileNotFoundError(f"Could not find model weights at {weights_path}")
 
         self.model = str(weights_path)
         self._trained_weights_path = weights_path

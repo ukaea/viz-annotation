@@ -1,6 +1,4 @@
-"""Ultralytics video bounding-box detection models."""
-
-from __future__ import annotations
+from __future__ import annotations # store type hints as strings
 
 import logging
 from collections.abc import Iterator
@@ -39,7 +37,7 @@ class YoloTrainParams(pydantic.BaseModel):
     """Parameters exposed by the model-training form."""
 
     learning_rate: float = pydantic.Field(
-        default=1e-3,
+        default=0.003,
         gt=0,
         description="Initial learning rate.",
     )

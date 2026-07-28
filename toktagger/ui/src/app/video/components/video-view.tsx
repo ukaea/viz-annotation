@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Annotorious } from "@annotorious/react";
 import { ImageDataSchema } from "@/types";
 import { Button } from "@adobe/react-spectrum";
@@ -140,7 +140,7 @@ export function VideoView() {
   const { data, dataParams, setDataParams } = useSample();
   const desiredFrameRef = React.useRef<number | null>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (
       dataParams.name === "image" &&
       typeof dataParams.frame === "number" &&

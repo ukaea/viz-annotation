@@ -67,8 +67,17 @@ def check_pretrained_model_availability(
         model_path,
     )
 
-    # Download the model
-    urlretrieve(MODEL_URLS[model_name], model_path)
+    # Download to a temporary file so an interrupted transfer cannot leave a
+    # partial checkpoint at the final cache path.
+    temporary_path = model_path.with_name(f"{model_path.name}.tmp")
+    temporary_path.unlink(missing_ok=True)
+
+    try:
+        urlretrieve(MODEL_URLS[model_name], temporary_path)
+        temporary_path.replace(model_path)
+    except Exception:
+        temporary_path.unlink(missing_ok=True)
+        raise
 
     return model_path
 

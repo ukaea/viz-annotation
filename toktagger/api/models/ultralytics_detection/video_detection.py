@@ -254,7 +254,6 @@ class YoloVideoDetectionModel(BaseUltralyticsDetection):
 
     model_name = "yolo26n.pt"
     model_family = "yolo"
-    class_map = {"UFO": 0}
 
     imgsz = 640
     batch = 5
@@ -265,6 +264,24 @@ class YoloVideoDetectionModel(BaseUltralyticsDetection):
         annotations: list[list[Annotation]],
     ) -> list[DetectionRecord]:
         """Build the in-memory video training manifest."""
+        labels = sorted(
+            {
+                annotation.label
+                for sample_annotations in annotations
+                for annotation in sample_annotations
+                if getattr(annotation, "type", None) == "video_bounding_box"
+            }
+        )
+
+        if not labels:
+            raise ValueError(
+                "No video bounding-box labels were found in the training annotations."
+            )
+
+        # Use a stable ordering so every annotation label maps to the same class ID
+        # throughout manifest construction and checkpoint creation.
+        self.class_map = {label: class_id for class_id, label in enumerate(labels)}
+
         return build_video_frame_manifest(
             samples=samples,
             annotations=annotations,
@@ -306,6 +323,9 @@ class YoloVideoDetectionModel(BaseUltralyticsDetection):
 
         all_predictions: list[list[AnnotationBase]] = []
 
+        # Keep the OpenCV-decoded image in BGR order. Ultralytics expects NumPy
+        # prediction sources in BGR and converts them to RGB internally.
+        # https://github.com/ultralytics/ultralytics/blob/9ea768a302d8865b1a16c9ef81a441d0e1714ad1/ultralytics/engine/predictor.py#L173
         for sample in samples:
             sample_predictions: list[AnnotationBase] = []
 
@@ -362,7 +382,14 @@ class YoloVideoDetectionModel(BaseUltralyticsDetection):
                     if width == 0 or height == 0:
                         continue
 
-                    label = self.class_names[int(class_id)]
+                    # Class names are stored in the Ultralytics checkpoint and
+                    # can be restored when the trained model is loaded.
+                    # >>> model = YOLO("path/to/best.pt")
+                    # >>> model.names
+                    # {0: 'UFO'}
+                    # this gets transferred to results = model.predict()
+                    # when doing prediction
+                    label = result.names[int(class_id)]
 
                     sample_predictions.append(
                         VideoBoundingBox(

@@ -34,7 +34,8 @@ function VideoFrameAnnotator(props: {
   goToRelativeFrame: (delta: number, fallbackFrame: number) => number | null;
 }) {
   const session = useVideoSession();
-  const { videoFrameBounds } = useSample();
+  const { videoFrameBounds, isLoading } = useSample();
+  const isFramePending = isLoading && props.desiredFrame !== session.frame;
 
   const prevDisabled =
     props.desiredFrame <= 0 ||
@@ -80,7 +81,19 @@ function VideoFrameAnnotator(props: {
             >
               Prev
             </Button>
-            <FrameJumpField frame={props.desiredFrame} onJump={handleJump} />
+            <div className="relative">
+              <FrameJumpField frame={props.desiredFrame} onJump={handleJump} />
+              {isFramePending && (
+                <span
+                  className="absolute -top-3 left-1/2 h-3 w-3 -translate-x-1/2 animate-spin rounded-full border-2 border-blue-400 border-t-transparent"
+                  role="status"
+                >
+                  <span className="sr-only">
+                    Loading frame {props.desiredFrame}
+                  </span>
+                </span>
+              )}
+            </div>
             <Button
               variant="primary"
               onPress={handleNext}

@@ -573,7 +573,7 @@ async def get_load_model_status(
                 updates=ModelUpdate(training_status="failed", progress=0),
             )
             raise HTTPException(
-                detail=f"Load task failed unexpectedly - {e}.",
+                detail=f"Load task failed unexpectedly - {str(e).strip().splitlines()[-1]}.",
                 status_code=500,
             )
 

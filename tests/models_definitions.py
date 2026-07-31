@@ -8,12 +8,10 @@ from toktagger.api.schemas.models import ModelIn
 import pathlib
 import typing
 import random
-import ray
 import pydantic
 
 
 # Create a mock model for use in our model definitions
-@ray.remote
 @ModelRegistry.register("mock_disruption_cnn", ["time-series"])
 class MockDisruptionCNN(Model):
     def define_model(self):
@@ -103,7 +101,6 @@ class TimeSeriesCNN(Model):
         self.model = pathlib.Path(file_path).read_text()
 
 
-@ray.remote
 @ModelRegistry.register("mock_timeseries_cnn", ["time-series"])
 class MockTimeSeriesCNN(TimeSeriesCNN):
     pass
@@ -116,7 +113,6 @@ class TimeSeriesCNNParams(pydantic.BaseModel):
     test_selection: typing.Literal["selection_1", "selection_2"]
 
 
-@ray.remote
 @ModelRegistry.register(
     "mock_params_timeseries_cnn",
     ["time-series"],

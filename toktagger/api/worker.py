@@ -169,6 +169,12 @@ def load_model_local(
     )
     ray.get(save_weights_task)
 
+    send_model_updates(
+        project_id=project.id,
+        model_id=model.id,
+        updates=ModelUpdate(training_status="completed", progress=100),
+    )
+
     return {"project_id": project.id, "model_id": model.id, "message": None}
 
 
@@ -327,6 +333,12 @@ def load_model_gitlab(
 
     pathlib.Path(download_path).unlink()
 
+    send_model_updates(
+        project_id=project.id,
+        model_id=model.id,
+        updates=ModelUpdate(training_status="completed", progress=100),
+    )
+
     return {"project_id": project.id, "model_id": model.id, "message": None}
 
 
@@ -400,6 +412,12 @@ def load_model_huggingface(
     ray.get(save_weights_task)
 
     pathlib.Path(weights_path).unlink()
+
+    send_model_updates(
+        project_id=project.id,
+        model_id=model.id,
+        updates=ModelUpdate(training_status="completed", progress=100),
+    )
 
     return {"project_id": project.id, "model_id": model.id, "message": None}
 

@@ -641,14 +641,6 @@ async def test_model_load_local(models_api_client, db_client, setup_model_db):
 
         assert response.status_code == 200
 
-        model = await db_client.get_document_by_id(
-            collection="models", object_id=ObjectId(model_id)
-        )
-
-        # Check model has been set to completed, with 100% completion
-        assert model["training_status"] == "completed"
-        assert model["progress"] == 100
-
         # Check model has been saved after completion
         model_path = pathlib.Path(config.settings.models.cache_dir).joinpath(
             f"{model_id}.model"

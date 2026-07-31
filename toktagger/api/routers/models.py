@@ -592,13 +592,6 @@ async def get_load_model_status(
                 status_code=500,
             )
 
-        # Update model to be completed and ready for predictions
-        await utils.update_model(
-            db_client=db_client,
-            model_id=result["model_id"],
-            updates=ModelUpdate(training_status="completed", progress=100),
-        )
-
         return True
 
     else:

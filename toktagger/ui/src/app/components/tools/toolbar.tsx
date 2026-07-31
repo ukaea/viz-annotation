@@ -14,6 +14,7 @@ import {
   Key,
   Heading,
   InlineAlert,
+  ToastContainer,
 } from "@adobe/react-spectrum";
 import {
   MultiVariateTimeSeriesDataSchema,
@@ -309,6 +310,7 @@ export default function ToolBar() {
 
   return (
     <Provider theme={defaultTheme} height="100vh">
+      <ToastContainer placement="top" />
       <View overflow="auto" height="100vh" width="18vw">
         <Flex
           direction="column"

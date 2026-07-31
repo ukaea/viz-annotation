@@ -226,3 +226,70 @@ async def test_member_can_see_project_in_list(project_setup):
     assert resp.status_code == 200
     project_ids = [p["_id"] for p in resp.json()]
     assert project_id in project_ids
+
+
+@pytest.mark.asyncio
+async def test_save_preserves_model_created_by(project_setup):
+    """A freshly-predicted annotation's synthetic created_by survives a save."""
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
+    sample_id = project_setup["sample_id"]
+
+    await add_member(client, admin_token, project_id, "alice", "annotator")
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
+
+    prediction = [
+        {
+            "label": "predicted",
+            "time_min": 0.2,
+            "time_max": 0.6,
+            "type": "time_region",
+            "validated": False,
+            "created_by": "model::changepoint_detection",
+        }
+    ]
+    resp = await client.put(
+        f"/projects/{project_id}/samples/{sample_id}/annotations",
+        json=prediction,
+        headers={"Authorization": f"Bearer {alice_token}"},
+    )
+    assert resp.status_code == 200
+
+    annotations = await get_annotations(client, project_id, sample_id, admin_token)
+    assert len(annotations) == 1
+    assert annotations[0]["created_by"] == "model::changepoint_detection"
+
+
+@pytest.mark.asyncio
+async def test_save_does_not_duplicate_or_reattribute_others_annotation(project_setup):
+    """Resending an already-saved annotation owned by someone else (as loaded via
+    GET) must not duplicate it or reassign it to the saving user."""
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
+    sample_id = project_setup["sample_id"]
+
+    for username in ("alice", "bob"):
+        await add_member(client, admin_token, project_id, username, "annotator")
+
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
+    bob_token = await get_auth_token(client, "bob", "bob_pass")
+
+    await put_annotations(client, project_id, sample_id, bob_token, "bob_ann")
+
+    # Alice loads the sample's annotations (visible since show_others_annotations
+    # defaults to True) and resends the full set she has loaded, as the frontend
+    # does on every Save.
+    loaded = await get_annotations(client, project_id, sample_id, alice_token)
+    assert len(loaded) == 1
+    resp = await client.put(
+        f"/projects/{project_id}/samples/{sample_id}/annotations",
+        json=loaded,
+        headers={"Authorization": f"Bearer {alice_token}"},
+    )
+    assert resp.status_code == 200
+
+    annotations = await get_annotations(client, project_id, sample_id, admin_token)
+    assert len(annotations) == 1
+    assert annotations[0]["created_by"] == "bob"

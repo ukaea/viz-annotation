@@ -20,6 +20,10 @@ router = APIRouter(
     dependencies=[Depends(get_current_user)],
 )
 
+# Mirrors the reserved-username prefixes enforced in routers/users.py, so a
+# model prediction's or annotator suggestion's created_by survives a save.
+RESERVED_CREATED_BY_PREFIXES = ("model::", "annotators::")
+
 
 @router.get(
     "/annotations",
@@ -221,17 +225,32 @@ async def update_annotations(
         db_client=db_client, project_id=project_id, sample_id=sample_id
     )
 
-    # Server is authoritative for identity
+    is_internal = current_user.username == "__internal__"
+    owned_annotations = []
     for annotation in annotations:
-        if current_user.username != "__internal__":
-            annotation.created_by = current_user.username
+        if annotation.id is not None:
+            # Pre-existing annotation (fetched via GET, e.g. someone else's or
+            # a model's). Only re-save it if it's this user's own — anything
+            # else is already correct in the DB, so skip it to avoid
+            # duplicating it under the saving user's identity.
+            if not is_internal and annotation.created_by != current_user.username:
+                continue
+        else:
+            # Brand-new annotation. Preserve synthetic authorship (a just-run
+            # model prediction or annotator suggestion); otherwise the server
+            # is authoritative for identity.
+            if not is_internal and not annotation.created_by.startswith(
+                RESERVED_CREATED_BY_PREFIXES
+            ):
+                annotation.created_by = current_user.username
         annotation.shot_id = sample.shot_id
+        owned_annotations.append(annotation)
 
     result = await utils.update_annotations(
         db_client,
         project_id,
         sample_id,
-        annotations,
+        owned_annotations,
         created_by=current_user.username,
     )
 

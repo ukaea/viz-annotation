@@ -49,21 +49,39 @@ export default function AdminUsersPage() {
   }, [refresh]);
 
   const deactivate = async (userId: string, isActive: boolean) => {
-    await apiFetch(`${BACKEND_API_URL}/users/${userId}`, {
-      method: "PUT",
-      body: JSON.stringify({ is_active: !isActive }),
-    });
-    await refresh();
-    ToastQueue.positive(isActive ? "User deactivated" : "User activated", {
-      timeout: 2000,
-    });
+    try {
+      const res = await apiFetch(`${BACKEND_API_URL}/users/${userId}`, {
+        method: "PUT",
+        body: JSON.stringify({ is_active: !isActive }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.detail ?? "Failed to update user");
+      }
+      await refresh();
+      ToastQueue.positive(isActive ? "User deactivated" : "User activated", {
+        timeout: 2000,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    }
   };
 
   const deleteUser = async (userId: string, close: () => void) => {
-    await apiFetch(`${BACKEND_API_URL}/users/${userId}`, { method: "DELETE" });
-    close();
-    await refresh();
-    ToastQueue.positive("User deleted", { timeout: 2000 });
+    try {
+      const res = await apiFetch(`${BACKEND_API_URL}/users/${userId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.detail ?? "Failed to delete user");
+      }
+      close();
+      await refresh();
+      ToastQueue.positive("User deleted", { timeout: 2000 });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    }
   };
 
   return (
@@ -258,15 +276,25 @@ function ChangeRoleDialog({
   onChanged: () => void;
 }) {
   const [role, setRole] = useState<"admin" | "user">(user.global_role);
+  const [error, setError] = useState<string | null>(null);
 
   const save = async (close: () => void) => {
-    await apiFetch(`${BACKEND_API_URL}/users/${user.id}`, {
-      method: "PUT",
-      body: JSON.stringify({ global_role: role }),
-    });
-    close();
-    onChanged();
-    ToastQueue.positive("Role updated", { timeout: 2000 });
+    setError(null);
+    try {
+      const res = await apiFetch(`${BACKEND_API_URL}/users/${user.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ global_role: role }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.detail ?? "Failed to update role");
+      }
+      close();
+      onChanged();
+      ToastQueue.positive("Role updated", { timeout: 2000 });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    }
   };
 
   return (
@@ -277,6 +305,11 @@ function ChangeRoleDialog({
           <Heading>Edit {user.username}</Heading>
           <Divider />
           <Content>
+            {error && (
+              <InlineAlert variant="negative" marginBottom="size-100">
+                {error}
+              </InlineAlert>
+            )}
             <Picker
               label="Global Role"
               selectedKey={role}

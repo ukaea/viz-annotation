@@ -2,11 +2,10 @@ import webbrowser
 import argparse
 from toktagger.api.main import Server, run_with_gunicorn
 from toktagger.api.models import models_dependencies_installed
-from toktagger.api.config import config
+from toktagger.api.config import settings
 import uvicorn
 import time
 import threading
-import os
 
 
 # Need to point to app as a module level string if we want reload option
@@ -59,29 +58,29 @@ def main():
         threading.Thread(target=do_open_browser, args=(args.host, args.port)).start()
 
     if args.host:
-        config.settings.server.host = args.host
+        settings.server.host = args.host
     if args.port:
-        config.settings.server.port = args.port
+        settings.server.port = args.port
     if args.reload:
-        config.settings.server.reload = args.reload
+        settings.server.reload = args.reload
     if args.workers:
-        config.settings.server.workers = args.workers
+        settings.server.workers = args.workers
 
-    if config.settings.server.workers > 1:
-        if config.settings.server.reload:
+    if settings.server.workers > 1:
+        if settings.server.reload:
             print("Warning: --reload is ignored when --workers > 1 (gunicorn mode)")
         run_with_gunicorn(
-            config.settings.server.host,
-            config.settings.server.port,
-            config.settings.server.workers,
+            settings.server.host,
+            settings.server.port,
+            settings.server.workers,
         )
     else:
         uvicorn.run(
             "toktagger.api.cli:create_app",
             factory=True,
-            host=config.settings.server.host,
-            port=config.settings.server.port,
-            reload=config.settings.server.reload,
+            host=settings.server.host,
+            port=settings.server.port,
+            reload=settings.server.reload,
         )
 
 

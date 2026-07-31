@@ -1,5 +1,4 @@
 import uvicorn
-import os
 
 from toktagger.api.config import settings
 from toktagger.api.main import run_with_gunicorn

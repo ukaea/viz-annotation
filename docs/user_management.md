@@ -29,14 +29,15 @@ A global `admin` automatically has unrestricted access to all projects regardles
 
 ## First-Run Setup
 
-On first launch TokTagger automatically creates an `admin` account with a random password and prints the credentials to the terminal:
+On first launch TokTagger automatically creates an `admin` account with a fixed default password and prints the credentials to the terminal:
 
 ```
-Admin user created — username: admin  password: <generated>
+Username : admin
+Password : admin
 ```
 
 !!! warning
-    Save this password immediately. You can change it afterwards from the **Profile** page, but it is only printed once.
+    This is an insecure default password. Change it immediately after first login from the **Profile** page.
 
 ---
 

@@ -57,10 +57,10 @@ To start a local single-user instance:
 toktagger
 ```
 
-This starts the application at `http://localhost:8002`. On first launch an `admin` account is created automatically and the credentials are printed to the terminal.
+This starts the application at `http://localhost:8002`. On first launch an `admin` account is created automatically with username `admin` and password `admin`, and the credentials are printed to the terminal.
 
 !!! warning
-    **Save the generated password immediately** — it is only printed once and cannot be recovered.
+    **This is an insecure default password.** Change it immediately after first login from the **Profile** page.
 
 ### Multi-User / Team Deployment
 

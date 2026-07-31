@@ -20,13 +20,12 @@ import { useSample } from "@/app/contexts/SampleContext";
 import ModelForm from "@/app/components/ui/schemaForm";
 import { RJSFSchema } from "@rjsf/utils";
 import Form from "@rjsf/core";
+import { modelCreatedBy } from "@/app/components/annotators/types";
 
 type ModelPredictInfo = {
   project_id: string;
   sample_id: string;
 };
-
-const modelCreatedBy = (modelType: string) => `model::${modelType}`;
 
 export function ModelPredictTool({ project_id, sample_id }: ModelPredictInfo) {
   const { annotations, project, dataParams, setAnnotations } = useSample();

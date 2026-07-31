@@ -11,3 +11,8 @@ export enum AnnotatorTypes {
 // collide with it (see the reserved-prefix check in the users router).
 export const annotatorCreatedBy = (type: AnnotatorTypes) =>
   `annotators::${type}`;
+
+// Mirrors the "model::<type>" prefix the backend stamps on ML-model
+// predictions (toktagger/api/worker.py), so a real user can never collide
+// with it (see the reserved-prefix check in the users router).
+export const modelCreatedBy = (modelType: string) => `model::${modelType}`;

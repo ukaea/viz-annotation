@@ -58,20 +58,20 @@ uv tool install --python 3.12.6 toktagger[models]
 
 ## Quick Start
 
-To start the application:
+To start a local single-user instance:
 
 ```sh
 toktagger
 ```
 
-This launches 4 Gunicorn workers and opens the UI at `http://localhost:8002`. On first launch an `admin` account is created automatically and the credentials are printed to the terminal.
+This starts a single-process instance at `http://localhost:8002`. On first launch an `admin` account is created automatically and the credentials are printed to the terminal.
 
 ### Options
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--workers N` | `4` | Number of Gunicorn worker processes |
-| `--host HOST` | `0.0.0.0` | Host to bind to |
+| `--workers N` | `1` | Number of Gunicorn worker processes. If set to 1, runs a single-process uvicorn server instead |
+| `--host HOST` | `localhost` | Host to bind to |
 | `--port PORT` | `8002` | Port to listen on |
 | `--no-browser` | off | Suppress automatic browser launch |
 | `--reload` | off | Auto-reload on code changes (single-worker dev mode only) |

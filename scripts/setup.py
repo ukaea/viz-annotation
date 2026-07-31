@@ -1,3 +1,4 @@
+import getpass
 import os
 from argparse import ArgumentParser
 from pathlib import Path
@@ -230,14 +231,13 @@ def main():
         default=os.environ.get("TOKTAGGER_USERNAME", "admin"),
         help="Username for authentication",
     )
-    parser.add_argument(
-        "--password",
-        default=os.environ.get("TOKTAGGER_PASSWORD", "admin"),
-        help="Password for authentication (or set TOKTAGGER_PASSWORD env var)",
-    )
     args = parser.parse_args()
 
-    token = get_token(args.url, args.username, args.password)
+    password = os.environ.get("TOKTAGGER_PASSWORD") or getpass.getpass(
+        "Password: "
+    )
+
+    token = get_token(args.url, args.username, password)
 
     base_path = Path(args.base_path)
 

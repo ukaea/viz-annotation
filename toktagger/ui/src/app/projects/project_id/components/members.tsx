@@ -32,6 +32,7 @@ interface Props {
 export function ProjectMembersDialog({ projectId, isProjectAdmin }: Props) {
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const res = await apiFetch(
@@ -47,24 +48,42 @@ export function ProjectMembersDialog({ projectId, isProjectAdmin }: Props) {
   }, [open, refresh]);
 
   const removeMember = async (userId: string) => {
-    await apiFetch(
-      `${BACKEND_API_URL}/projects/${projectId}/members/${userId}`,
-      { method: "DELETE" },
-    );
-    await refresh();
-    ToastQueue.positive("Member removed", { timeout: 2000 });
+    setError(null);
+    try {
+      const res = await apiFetch(
+        `${BACKEND_API_URL}/projects/${projectId}/members/${userId}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.detail ?? "Failed to remove member");
+      }
+      await refresh();
+      ToastQueue.positive("Member removed", { timeout: 2000 });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    }
   };
 
   const updateRole = async (userId: string, role: string) => {
-    await apiFetch(
-      `${BACKEND_API_URL}/projects/${projectId}/members/${userId}`,
-      {
-        method: "PUT",
-        body: JSON.stringify({ role }),
-      },
-    );
-    await refresh();
-    ToastQueue.positive("Role updated", { timeout: 2000 });
+    setError(null);
+    try {
+      const res = await apiFetch(
+        `${BACKEND_API_URL}/projects/${projectId}/members/${userId}`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ role }),
+        },
+      );
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.detail ?? "Failed to update role");
+      }
+      await refresh();
+      ToastQueue.positive("Role updated", { timeout: 2000 });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    }
   };
 
   return (
@@ -74,6 +93,11 @@ export function ProjectMembersDialog({ projectId, isProjectAdmin }: Props) {
         <Heading>Project Members</Heading>
         <Divider />
         <Content>
+          {error && (
+            <InlineAlert variant="negative" marginBottom="size-100">
+              {error}
+            </InlineAlert>
+          )}
           {isProjectAdmin && (
             <AddMemberForm projectId={projectId} onAdded={refresh} />
           )}

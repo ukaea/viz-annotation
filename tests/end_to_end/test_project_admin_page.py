@@ -3,7 +3,12 @@ import pytest
 pytest.importorskip("playwright")
 from playwright.sync_api import expect
 
-from tests.endpoints import add_project_member, create_project, create_user
+from tests.endpoints import (
+    add_project_member,
+    create_project,
+    create_user,
+    get_project_members,
+)
 from tests.end_to_end.conftest import login_as
 
 
@@ -59,6 +64,10 @@ def test_admin_can_change_member_role(server_setup, admin_token, page):
     page.get_by_role("option", name="Viewer").click()
 
     expect(row.get_by_role("button", name="Viewer Role")).to_be_visible()
+
+    members = get_project_members(project_id)
+    bob_member = next(m for m in members if m["username"] == "member_bob")
+    assert bob_member["role"] == "viewer"
 
 
 def test_admin_can_remove_member(server_setup, admin_token, page):

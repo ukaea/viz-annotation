@@ -27,12 +27,24 @@ def create_user(username: str, password: str, role: str = "user") -> str:
     return response.json()["_id"]
 
 
+def get_user(user_id: str) -> dict:
+    response = session.get(f"http://localhost:8002/users/{user_id}")
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
 def add_project_member(project_id: str, username: str, role: str = "annotator"):
     response = session.post(
         f"http://localhost:8002/projects/{project_id}/members",
         json={"username": username, "role": role},
     )
     assert response.status_code == 200, response.text
+
+
+def get_project_members(project_id: str) -> list[dict]:
+    response = session.get(f"http://localhost:8002/projects/{project_id}/members")
+    assert response.status_code == 200, response.text
+    return response.json()
 
 
 def create_project(

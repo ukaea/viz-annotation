@@ -1,6 +1,7 @@
 """Unit tests for toktagger.api.auth.core — no DB or network needed."""
 
 import pytest
+from itsdangerous import SignatureExpired
 
 from toktagger.api.auth.core import (
     hash_password,
@@ -76,7 +77,6 @@ def test_decode_token_expired(monkeypatch):
     """Simulate an expired token by monkeypatching the serializer's loads to behave
     as if max_age has elapsed.  We achieve this by creating a token, then advancing
     the timestamp embedded in the signature past the expiry window."""
-    from itsdangerous import SignatureExpired
 
     token = create_access_token({"sub": "expired_user"})
 

@@ -16,17 +16,7 @@ import typing
 
 import pytest
 
-from tests.api.auth.conftest import get_auth_token
-
-
-async def add_member(client, token, project_id, username, role):
-    resp = await client.post(
-        f"/projects/{project_id}/members",
-        json={"username": username, "role": role},
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert resp.status_code == 200, resp.text
-
+from tests.api.auth.conftest import add_member, get_auth_token
 
 ROLES = [
     "unauthenticated",

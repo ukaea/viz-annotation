@@ -11,7 +11,7 @@ Key invariants under test:
 
 import pytest
 
-from tests.api.auth.conftest import get_auth_token
+from tests.api.auth.conftest import add_member, get_auth_token
 
 
 def annotation_payload(label: str):
@@ -53,11 +53,7 @@ async def test_user_save_does_not_overwrite_other_users_annotations(project_setu
     sample_id = project_setup["sample_id"]
 
     for username in ("alice", "bob"):
-        await client.post(
-            f"/projects/{project_id}/members",
-            json={"username": username, "role": "annotator"},
-            headers={"Authorization": f"Bearer {admin_token}"},
-        )
+        await add_member(client, admin_token, project_id, username, "annotator")
 
     alice_token = await get_auth_token(client, "alice", "alice_pass")
     bob_token = await get_auth_token(client, "bob", "bob_pass")
@@ -87,11 +83,7 @@ async def test_user_save_replaces_only_own_previous_annotations(project_setup):
     sample_id = project_setup["sample_id"]
 
     for username in ("alice", "bob"):
-        await client.post(
-            f"/projects/{project_id}/members",
-            json={"username": username, "role": "annotator"},
-            headers={"Authorization": f"Bearer {admin_token}"},
-        )
+        await add_member(client, admin_token, project_id, username, "annotator")
 
     alice_token = await get_auth_token(client, "alice", "alice_pass")
     bob_token = await get_auth_token(client, "bob", "bob_pass")
@@ -115,11 +107,7 @@ async def test_server_overwrites_created_by_from_jwt(project_setup):
     project_id = project_setup["project_id"]
     sample_id = project_setup["sample_id"]
 
-    await client.post(
-        f"/projects/{project_id}/members",
-        json={"username": "alice", "role": "annotator"},
-        headers={"Authorization": f"Bearer {admin_token}"},
-    )
+    await add_member(client, admin_token, project_id, "alice", "annotator")
 
     alice_token = await get_auth_token(client, "alice", "alice_pass")
 
@@ -159,11 +147,7 @@ async def test_show_others_annotations_filter(
     sample_id = project_setup["sample_id"]
 
     for username in ("alice", "bob"):
-        await client.post(
-            f"/projects/{project_id}/members",
-            json={"username": username, "role": "annotator"},
-            headers={"Authorization": f"Bearer {admin_token}"},
-        )
+        await add_member(client, admin_token, project_id, username, "annotator")
 
     alice_token = await get_auth_token(client, "alice", "alice_pass")
     bob_token = await get_auth_token(client, "bob", "bob_pass")
@@ -190,11 +174,7 @@ async def test_viewer_cannot_put_annotations(project_setup):
     project_id = project_setup["project_id"]
     sample_id = project_setup["sample_id"]
 
-    await client.post(
-        f"/projects/{project_id}/members",
-        json={"username": "alice", "role": "viewer"},
-        headers={"Authorization": f"Bearer {admin_token}"},
-    )
+    await add_member(client, admin_token, project_id, "alice", "viewer")
 
     alice_token = await get_auth_token(client, "alice", "alice_pass")
     resp = await put_annotations(
@@ -236,11 +216,7 @@ async def test_member_can_see_project_in_list(project_setup):
     admin_token = project_setup["admin_token"]
     project_id = project_setup["project_id"]
 
-    await client.post(
-        f"/projects/{project_id}/members",
-        json={"username": "alice", "role": "annotator"},
-        headers={"Authorization": f"Bearer {admin_token}"},
-    )
+    await add_member(client, admin_token, project_id, "alice", "annotator")
 
     alice_token = await get_auth_token(client, "alice", "alice_pass")
     resp = await client.get(

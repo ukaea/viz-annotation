@@ -119,6 +119,18 @@ async def create_project(
     return resp.json()["_id"]
 
 
+async def add_member(
+    client: AsyncClient, token: str, project_id: str, username: str, role: str
+) -> None:
+    """Add `username` to `project_id` with `role`, authenticated as `token`."""
+    resp = await client.post(
+        f"/projects/{project_id}/members",
+        json={"username": username, "role": role},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200, resp.text
+
+
 async def create_project_and_sample(
     client: AsyncClient, token: str, name: str = "test_project"
 ) -> tuple[str, str]:

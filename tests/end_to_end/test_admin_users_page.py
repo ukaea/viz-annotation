@@ -3,7 +3,7 @@ import pytest
 pytest.importorskip("playwright")
 from playwright.sync_api import expect
 
-from tests.endpoints import create_user
+from tests.endpoints import create_user, get_user
 from tests.end_to_end.conftest import login_as
 
 
@@ -45,15 +45,17 @@ def test_admin_can_change_user_role(server_setup, admin_token, page):
 
 
 def test_admin_can_deactivate_and_reactivate_user(server_setup, admin_token, page):
-    create_user("flipflop", "pass123")
+    user_id = create_user("flipflop", "pass123")
     page.goto("http://localhost:8002/ui/admin/users")
 
     row = _user_row(page, "flipflop")
     row.get_by_role("button", name="Deactivate").click()
     expect(row.get_by_role("button", name="Activate")).to_be_visible()
+    assert get_user(user_id)["is_active"] is False
 
     row.get_by_role("button", name="Activate").click()
     expect(row.get_by_role("button", name="Deactivate")).to_be_visible()
+    assert get_user(user_id)["is_active"] is True
 
 
 def test_admin_can_delete_user(server_setup, admin_token, page):

@@ -6,6 +6,7 @@ from toktagger.api.auth.core import get_internal_token, create_access_token
 from httpx import AsyncClient, ASGITransport
 from bson.objectid import ObjectId
 import ray
+import time
 import random
 import pytest
 import pytest_asyncio
@@ -14,8 +15,6 @@ import toktagger.api.config as config
 
 @ray.remote(num_cpus=0.1)
 def _pending_task():
-    import time
-
     time.sleep(3600)
 
 

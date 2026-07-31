@@ -11,19 +11,14 @@ async def test_ensure_admin_user_creates_admin_on_empty_db(auth_db_client):
     users_before = await auth_db_client.get_all_documents("users")
     assert len(users_before) == 0
 
-    await ensure_admin_user(auth_db_client)
+    result = await ensure_admin_user(auth_db_client)
+    assert result is True
 
     users_after = await auth_db_client.get_all_documents("users")
     assert len(users_after) == 1
     assert users_after[0]["username"] == "admin"
     assert users_after[0]["global_role"] == "admin"
     assert users_after[0]["is_active"] is True
-
-
-@pytest.mark.asyncio
-async def test_ensure_admin_user_returns_true(auth_db_client):
-    result = await ensure_admin_user(auth_db_client)
-    assert result is True
 
 
 @pytest.mark.asyncio

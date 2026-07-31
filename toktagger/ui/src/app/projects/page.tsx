@@ -33,6 +33,7 @@ type ProjectsTableProps = {
   sortDescriptor: SortDescriptor;
   onSortChange: (sort: SortDescriptor) => void;
   onModify?: () => void;
+  isAdmin: boolean;
 };
 
 const ProjectsTable = ({
@@ -40,6 +41,7 @@ const ProjectsTable = ({
   sortDescriptor,
   onSortChange,
   onModify,
+  isAdmin,
 }: ProjectsTableProps) => {
   const rows = projects.map(({ _id, ...rest }) => ({ ...rest, id: _id, _id }));
 
@@ -76,41 +78,43 @@ const ProjectsTable = ({
               <Cell>{item["timestamp"]}</Cell>
               <Cell>{item["data_loader"]}</Cell>
               <Cell>
-                <Flex direction="row" gap="size-100">
-                  <ProjectConfigEditor project={item} onModify={onModify} />
-                  <DialogTrigger>
-                    <Button aria-label="Delete" variant="negative">
-                      <Delete />
-                    </Button>
-                    {(close) => (
-                      <Dialog>
-                        <Heading>Confirm Deletion</Heading>
-                        <Divider />
-                        <Content>
-                          Are you sure you want to delete project{" "}
-                          <strong>{item["name"]}</strong>? You will also lose{" "}
-                          <strong>all annotations</strong> associated with this
-                          project. This action cannot be undone.
-                        </Content>
-                        <ButtonGroup>
-                          <Button variant="secondary" onPress={close}>
-                            Cancel
-                          </Button>
-                          <Button
-                            variant="negative"
-                            onPress={async () => {
-                              await deleteProject(item._id);
-                              onModify?.();
-                              close();
-                            }}
-                          >
-                            Delete
-                          </Button>
-                        </ButtonGroup>
-                      </Dialog>
-                    )}
-                  </DialogTrigger>
-                </Flex>
+                {isAdmin && (
+                  <Flex direction="row" gap="size-100">
+                    <ProjectConfigEditor project={item} onModify={onModify} />
+                    <DialogTrigger>
+                      <Button aria-label="Delete" variant="negative">
+                        <Delete />
+                      </Button>
+                      {(close) => (
+                        <Dialog>
+                          <Heading>Confirm Deletion</Heading>
+                          <Divider />
+                          <Content>
+                            Are you sure you want to delete project{" "}
+                            <strong>{item["name"]}</strong>? You will also lose{" "}
+                            <strong>all annotations</strong> associated with
+                            this project. This action cannot be undone.
+                          </Content>
+                          <ButtonGroup>
+                            <Button variant="secondary" onPress={close}>
+                              Cancel
+                            </Button>
+                            <Button
+                              variant="negative"
+                              onPress={async () => {
+                                await deleteProject(item._id);
+                                onModify?.();
+                                close();
+                              }}
+                            >
+                              Delete
+                            </Button>
+                          </ButtonGroup>
+                        </Dialog>
+                      )}
+                    </DialogTrigger>
+                  </Flex>
+                )}
               </Cell>
             </Row>
           )}
@@ -122,6 +126,7 @@ const ProjectsTable = ({
 
 export default function Projects() {
   const { user, logout } = useAuth();
+  const isAdmin = user?.global_role === "admin";
   const navigate = useNavigate();
   const [projectsPerPage, setProjectsPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -170,7 +175,7 @@ export default function Projects() {
               >
                 Profile
               </Button>
-              {user?.global_role === "admin" && (
+              {isAdmin && (
                 <Button
                   variant="secondary"
                   onPress={() => navigate("/ui/admin/users")}
@@ -190,7 +195,7 @@ export default function Projects() {
             alignItems="center"
             justifyContent="space-between"
           >
-            <ProjectConfigEditor onModify={refreshProjects} />
+            {isAdmin && <ProjectConfigEditor onModify={refreshProjects} />}
             <SearchField
               label="Search By Name"
               onSubmit={(name) => {
@@ -206,6 +211,7 @@ export default function Projects() {
             sortDescriptor={sortDescriptor}
             onSortChange={(d) => setSortDescriptor(d)}
             onModify={refreshProjects}
+            isAdmin={isAdmin}
           />
           <div className="flex items-center justify-between pl-4 pr-4">
             <Button

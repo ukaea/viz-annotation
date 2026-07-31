@@ -2,7 +2,7 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 
 from toktagger.api.auth.core import decode_token, get_internal_token
-from toktagger.api.schemas.users import UserOut
+from toktagger.api.schemas.users import ProjectMember, UserOut
 from toktagger.api.crud import utils
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
@@ -55,7 +55,7 @@ async def get_project_membership(
     project_id: str,
     request: Request,
     current_user: UserOut = Depends(get_current_user),
-) -> dict | None:
+) -> ProjectMember | None:
     """Return the membership record, or None for global admins (unrestricted)."""
     if current_user.global_role == "admin":
         return None
@@ -72,7 +72,7 @@ async def get_project_membership(
 
 
 async def require_project_viewer(
-    membership: dict | None = Depends(get_project_membership),
+    membership: ProjectMember | None = Depends(get_project_membership),
     current_user: UserOut = Depends(get_current_user),
 ) -> UserOut:
     """Any project member (viewer, annotator, admin) may access read-only resources."""
@@ -80,13 +80,13 @@ async def require_project_viewer(
 
 
 async def require_project_annotator(
-    membership: dict | None = Depends(get_project_membership),
+    membership: ProjectMember | None = Depends(get_project_membership),
     current_user: UserOut = Depends(get_current_user),
 ) -> UserOut:
     if current_user.global_role == "admin":
         return current_user
     # Reject any role that is not explicitly allowed to write (viewer or unknown future roles)
-    if membership and membership.get("role") not in ("admin", "annotator"):
+    if membership and membership.role not in ("admin", "annotator"):
         raise HTTPException(
             status_code=403, detail="Viewers cannot create or modify annotations"
         )
@@ -105,7 +105,7 @@ async def require_project_admin_role(
     membership = await utils.get_project_membership(
         db_client, project_id, current_user.id
     )
-    if not membership or membership.get("role") != "admin":
+    if not membership or membership.role != "admin":
         raise HTTPException(
             status_code=403,
             detail="Project admin access required",

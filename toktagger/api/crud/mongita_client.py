@@ -1,6 +1,6 @@
 import asyncio
-import os
 import re
+from pathlib import Path
 from typing import Any, AsyncIterator, Callable, Dict, Iterable, List, Optional, Tuple
 from filelock import FileLock
 from mongita import MongitaClientDisk
@@ -11,11 +11,12 @@ class AsyncMongitaClient:
         self,
         db_path: str,
     ) -> None:
-        os.makedirs(db_path, exist_ok=True)
-        self._client = MongitaClientDisk(db_path)
+        path = Path(db_path)
+        path.mkdir(parents=True, exist_ok=True)
+        self._client = MongitaClientDisk(str(path))
         self._closed = False
         self._mutex = asyncio.Lock()
-        self._file_lock = FileLock(db_path + ".lock")
+        self._file_lock = FileLock(str(path) + ".lock")
 
     def __getitem__(self, name: str) -> "AsyncDatabase":
         return AsyncDatabase(self, name)

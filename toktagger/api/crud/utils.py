@@ -1,6 +1,7 @@
 from pathlib import Path
 from collections import defaultdict
 from typing import Optional, Literal
+from bson import ObjectId
 from fastapi import HTTPException
 from pydantic import TypeAdapter
 from toktagger.api.crud.db import MongoDBClient
@@ -382,6 +383,7 @@ async def delete_annotations(
     project_id: str,
     sample_id: Optional[str] = None,
     annotation_id: Optional[str] = None,
+    created_by: Optional[str] = None,
 ) -> None:
     project_obj_id = convert_to_objectid(project_id, "projects")
     filters = {"project_id": project_obj_id}
@@ -393,6 +395,10 @@ async def delete_annotations(
     if annotation_id:
         annotation_obj_id = convert_to_objectid(annotation_id, "annotations")
         filters["_id"] = annotation_obj_id
+
+    if created_by is not None:
+        # Scope the delete to only this user's annotations (concurrent-safe)
+        filters["created_by"] = created_by
 
     result = await db_client.delete_filtered_documents(
         collection="annotations", filters=filters
@@ -408,16 +414,12 @@ async def update_annotations(
     annotations: list[AnnotationBatchTypes],
     created_by: Optional[str] = None,
 ) -> list[str]:
-    project_obj_id = convert_to_objectid(project_id, "projects")
-    sample_obj_id = convert_to_objectid(sample_id, "samples")
-    filters: dict = {"project_id": project_obj_id, "sample_id": sample_obj_id}
-    if created_by is not None:
-        # Scope the delete to only this user's annotations (concurrent-safe)
-        filters["created_by"] = created_by
-    try:
-        await db_client.delete_filtered_documents("annotations", filters)
-    except HTTPException:
-        pass
+    await delete_annotations(
+        db_client=db_client,
+        project_id=project_id,
+        sample_id=sample_id,
+        created_by=created_by,
+    )
 
     if len(annotations) == 0:
         return []
@@ -624,16 +626,26 @@ async def get_project_members(
     return result
 
 
-async def get_project_membership(
-    db_client: MongoDBClient, project_id: str, user_id: str
+async def _get_project_membership_doc(
+    db_client: MongoDBClient, project_oid: ObjectId, user_oid: ObjectId
 ) -> dict | None:
-    project_oid = convert_to_objectid(project_id, "projects")
-    user_oid = convert_to_objectid(user_id, "users")
     docs = await db_client.get_filtered_documents(
         "project_members",
         filters={"project_id": project_oid, "user_id": user_oid},
     )
     return docs[0] if docs else None
+
+
+async def get_project_membership(
+    db_client: MongoDBClient, project_id: str, user_id: str
+) -> ProjectMember | None:
+    project_oid = convert_to_objectid(project_id, "projects")
+    user_oid = convert_to_objectid(user_id, "users")
+    doc = await _get_project_membership_doc(db_client, project_oid, user_oid)
+    if doc is None:
+        return None
+    doc["user_id"] = str(doc["user_id"])
+    return ProjectMember.model_validate(doc)
 
 
 async def add_project_member(
@@ -672,14 +684,11 @@ async def update_project_member(
     project_oid = convert_to_objectid(project_id, "projects")
     user_oid = convert_to_objectid(user_id, "users")
 
-    docs = await db_client.get_filtered_documents(
-        "project_members",
-        filters={"project_id": project_oid, "user_id": user_oid},
-    )
-    if not docs:
+    doc = await _get_project_membership_doc(db_client, project_oid, user_oid)
+    if doc is None:
         raise HTTPException(status_code=404, detail="Membership not found")
 
-    member_oid = convert_to_objectid(str(docs[0]["_id"]), "project_members")
+    member_oid = convert_to_objectid(str(doc["_id"]), "project_members")
     await db_client.update("project_members", updates, member_oid)
 
 

@@ -173,7 +173,7 @@ async def get_annotations(
 
     # Apply per-user annotation visibility filter
     effective_created_by = created_by
-    if membership and not membership.get("show_others_annotations", True):
+    if membership and not membership.show_others_annotations:
         # Only show the current user's own annotations
         effective_created_by = current_user.username
 

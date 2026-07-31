@@ -195,7 +195,7 @@ async def update_project_member(
         membership = await utils.get_project_membership(
             db_client, project_id, current_user.id
         )
-        if not membership or membership.get("role") != "admin":
+        if not membership or membership.role != "admin":
             raise HTTPException(status_code=403, detail="Project admin access required")
 
     await utils.update_project_member(db_client, project_id, user_id, body)

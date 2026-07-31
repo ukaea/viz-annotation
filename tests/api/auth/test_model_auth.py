@@ -152,7 +152,6 @@ async def test_username_with_model_prefix_rejected(auth_setup):
         json={
             "username": "model::disruption_cnn",
             "password": "pass123",
-            "email": "",
             "global_role": "user",
         },
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -169,7 +168,6 @@ async def test_username_with_annotators_prefix_rejected(auth_setup):
         json={
             "username": "annotators::peak_detection",
             "password": "pass123",
-            "email": "",
             "global_role": "user",
         },
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -186,7 +184,6 @@ async def test_username_with_dunder_prefix_rejected(auth_setup):
         json={
             "username": "__internal__",
             "password": "pass123",
-            "email": "",
             "global_role": "user",
         },
         headers={"Authorization": f"Bearer {admin_token}"},

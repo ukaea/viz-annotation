@@ -22,7 +22,6 @@ async def ensure_admin_user(db_client) -> bool:
         admin = UserIn(
             username="admin",
             hashed_password=hash_password(password),
-            email="",
             global_role="admin",
             is_active=True,
         )

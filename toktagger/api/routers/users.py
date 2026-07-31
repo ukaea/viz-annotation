@@ -51,7 +51,6 @@ async def create_user(
     user = UserIn(
         username=body.username,
         hashed_password=hash_password(body.password),
-        email=body.email,
         global_role=body.global_role,
     )
     user_id = await utils.create_user(request.app.state.db_client, user)
@@ -82,7 +81,7 @@ async def update_user(
     if current_user.global_role != "admin" and current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Self-edit is allowed for email/password (profile page), but a non-admin
+    # Self-edit is allowed for password (profile page), but a non-admin
     # must not be able to change global_role or is_active — even on their own
     # account. Without this, self != other-user check above lets any user
     # PUT their own record with global_role="admin" and self-promote.

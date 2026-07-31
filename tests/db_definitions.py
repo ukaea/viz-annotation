@@ -126,21 +126,18 @@ ANNOTATION_5 = TimePointBatch(
 USER_ADMIN = UserIn(
     username="admin",
     hashed_password=hash_password("admin_pass"),
-    email="admin@test.com",
     global_role="admin",
     is_active=True,
 )
 USER_ALICE = UserIn(
     username="alice",
     hashed_password=hash_password("alice_pass"),
-    email="alice@test.com",
     global_role="user",
     is_active=True,
 )
 USER_BOB = UserIn(
     username="bob",
     hashed_password=hash_password("bob_pass"),
-    email="bob@test.com",
     global_role="user",
     is_active=True,
 )

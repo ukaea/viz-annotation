@@ -21,25 +21,9 @@ def test_profile_shows_own_username_and_role_read_only(
     expect(summary).to_contain_text("profuser1")
     expect(summary).to_contain_text("Role:")
     expect(summary).to_contain_text("user")
-    # No form control for username/role — only Email and password fields exist.
+    # No form control for username/role — only password fields exist.
     expect(user_page.get_by_role("textbox", name="Username")).to_be_hidden()
 
-    user_page.context.close()
-
-
-def test_user_can_update_own_email(server_setup, admin_token, browser):
-    create_user("profuser2", "profuser2_pass")
-    user_page = login_as(browser, "profuser2", "profuser2_pass")
-    user_page.goto("http://localhost:8002/ui/profile")
-
-    user_page.get_by_role("textbox", name="Email").fill("profuser2@example.com")
-    user_page.get_by_role("button", name="Save Email").click()
-    expect(user_page.get_by_text("Email updated")).to_be_visible()
-
-    user_page.reload()
-    expect(user_page.get_by_role("textbox", name="Email")).to_have_value(
-        "profuser2@example.com"
-    )
     user_page.context.close()
 
 

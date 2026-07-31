@@ -10,7 +10,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 _INTERNAL_USER = UserOut(
     id="000000000000000000000001",
     username="__internal__",
-    email="",
     global_role="admin",
     is_active=True,
 )

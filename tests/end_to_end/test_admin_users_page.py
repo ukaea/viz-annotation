@@ -23,12 +23,10 @@ def test_admin_can_create_user(server_setup, page):
     page.get_by_role("button", name="Add User").click()
     page.get_by_role("textbox", name="Username").fill("newuser")
     page.get_by_role("textbox", name="Password").fill("newpass123")
-    page.get_by_role("textbox", name="Email").fill("newuser@test.com")
     page.get_by_role("button", name="Create").click()
 
     row = _user_row(page, "newuser")
     expect(row).to_be_visible()
-    expect(row.get_by_text("newuser@test.com")).to_be_visible()
 
 
 def test_admin_can_change_user_role(server_setup, admin_token, page):

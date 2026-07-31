@@ -35,7 +35,6 @@ async def test_create_user_as_admin(auth_setup):
         json={
             "username": "newuser",
             "password": "newpass123",
-            "email": "new@test.com",
             "global_role": "user",
         },
         headers={"Authorization": f"Bearer {token}"},
@@ -56,7 +55,6 @@ async def test_create_user_non_admin_forbidden(auth_setup):
         json={
             "username": "sneaky",
             "password": "pass",
-            "email": "",
             "global_role": "admin",
         },
         headers={"Authorization": f"Bearer {token}"},
@@ -96,17 +94,18 @@ async def test_update_own_user(auth_setup):
     alice_id = auth_setup["alice_id"]
     response = await client.put(
         f"/users/{alice_id}",
-        json={"email": "alice_new@test.com"},
+        json={"password": "alice_new_pass123"},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
 
-    # Verify the update via GET /users/{alice_id}
-    get_resp = await client.get(
-        f"/users/{alice_id}", headers={"Authorization": f"Bearer {token}"}
+    # Verify the new password works for login
+    login_resp = await client.post(
+        "/auth/token",
+        data={"username": "alice", "password": "alice_new_pass123"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
-    assert get_resp.status_code == 200
-    assert get_resp.json()["email"] == "alice_new@test.com"
+    assert login_resp.status_code == 200
 
 
 @pytest.mark.asyncio
@@ -152,7 +151,7 @@ async def test_update_other_user_as_non_admin_forbidden(auth_setup):
     bob_id = auth_setup["bob_id"]
     response = await client.put(
         f"/users/{bob_id}",
-        json={"email": "hacked@evil.com"},
+        json={"global_role": "admin"},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 403
@@ -165,7 +164,7 @@ async def test_update_other_user_as_admin(auth_setup):
     bob_id = auth_setup["bob_id"]
     response = await client.put(
         f"/users/{bob_id}",
-        json={"email": "bob_new@test.com"},
+        json={"global_role": "admin"},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert response.status_code == 200
@@ -175,7 +174,7 @@ async def test_update_other_user_as_admin(auth_setup):
         f"/users/{bob_id}", headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert get_resp.status_code == 200
-    assert get_resp.json()["email"] == "bob_new@test.com"
+    assert get_resp.json()["global_role"] == "admin"
 
 
 @pytest.mark.asyncio

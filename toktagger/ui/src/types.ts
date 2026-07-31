@@ -356,7 +356,6 @@ export type TimeSeriesAnnotation = {
 export const CurrentUserSchema = z.object({
   _id: z.string(),
   username: z.string(),
-  email: z.string().default(""),
   global_role: z.enum(["admin", "user"]),
   is_active: z.boolean(),
 });

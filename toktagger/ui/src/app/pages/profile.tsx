@@ -3,7 +3,6 @@ import { useState } from "react";
 import {
   Breadcrumbs,
   Item,
-  Divider,
   TextField,
   Button,
   Flex,
@@ -15,34 +14,9 @@ import { useAuth } from "@/app/contexts/AuthContext";
 export default function ProfilePage() {
   const { user } = useAuth();
 
-  const [email, setEmail] = useState(user?.email ?? "");
-  const [emailSaving, setEmailSaving] = useState(false);
-
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordSaving, setPasswordSaving] = useState(false);
-
-  const saveEmail = async () => {
-    if (!user) return;
-    setEmailSaving(true);
-    try {
-      const res = await apiFetch(`${BACKEND_API_URL}/users/${user._id}`, {
-        method: "PUT",
-        body: JSON.stringify({ email }),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error(d?.detail ?? "Failed to save email");
-      }
-      ToastQueue.positive("Email updated", { timeout: 2000 });
-    } catch (e) {
-      ToastQueue.negative(e instanceof Error ? e.message : "Error", {
-        timeout: 3000,
-      });
-    } finally {
-      setEmailSaving(false);
-    }
-  };
 
   const savePassword = async () => {
     if (!user) return;
@@ -101,25 +75,6 @@ export default function ProfilePage() {
                 &nbsp;&nbsp;|&nbsp;&nbsp;
                 <strong>Role:</strong> {user?.global_role}
               </p>
-
-              <TextField
-                label="Email"
-                value={email}
-                onChange={setEmail}
-                type="email"
-                width="100%"
-              />
-              <Button
-                variant="primary"
-                onPress={saveEmail}
-                isPending={emailSaving}
-                isDisabled={emailSaving}
-                width="100%"
-              >
-                Save Email
-              </Button>
-
-              <Divider size="S" />
 
               <h2 className="text-lg font-semibold">Change Password</h2>
               <TextField

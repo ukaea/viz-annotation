@@ -106,7 +106,6 @@ export default function AdminUsersPage() {
           <TableView aria-label="Users" selectionMode="none">
             <TableHeader>
               <Column key="username">Username</Column>
-              <Column key="email">Email</Column>
               <Column key="global_role">Role</Column>
               <Column key="is_active">Active</Column>
               <Column key="actions">Actions</Column>
@@ -115,7 +114,6 @@ export default function AdminUsersPage() {
               {(item) => (
                 <Row key={item.id}>
                   <Cell>{item.username}</Cell>
-                  <Cell>{item.email || "—"}</Cell>
                   <Cell>{item.global_role}</Cell>
                   <Cell>{item.is_active ? "Yes" : "No"}</Cell>
                   <Cell>
@@ -172,7 +170,6 @@ export default function AdminUsersPage() {
 function CreateUserDialog({ onCreated }: { onCreated: () => void }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [email, setEmail] = useState("");
   const [role, setRole] = useState<"admin" | "user">("user");
   const [error, setError] = useState<string | null>(null);
 
@@ -181,7 +178,7 @@ function CreateUserDialog({ onCreated }: { onCreated: () => void }) {
     try {
       const res = await apiFetch(`${BACKEND_API_URL}/users`, {
         method: "POST",
-        body: JSON.stringify({ username, password, email, global_role: role }),
+        body: JSON.stringify({ username, password, global_role: role }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
@@ -189,7 +186,6 @@ function CreateUserDialog({ onCreated }: { onCreated: () => void }) {
       }
       setUsername("");
       setPassword("");
-      setEmail("");
       setRole("user");
       close();
       onCreated();
@@ -226,7 +222,6 @@ function CreateUserDialog({ onCreated }: { onCreated: () => void }) {
                 onChange={setPassword}
                 isRequired
               />
-              <TextField label="Email" value={email} onChange={setEmail} />
               <Picker
                 label="Role"
                 selectedKey={role}

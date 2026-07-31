@@ -52,12 +52,12 @@ The admin panel is accessible from the **Admin Panel** button on the Projects pa
 
 ### Viewing Users
 
-The panel lists all registered accounts with their username, email, role, and active status.
+The panel lists all registered accounts with their username, role, and active status.
 
 ### Creating a User
 
 1. Click **Add User**.
-2. Fill in **Username**, **Password**, and optionally **Email**.
+2. Fill in **Username** and **Password**.
 3. Select a **Role** (`user` or `admin`).
 4. Click **Create**.
 
@@ -83,10 +83,6 @@ Click **Delete** next to the user and confirm. This is permanent. You cannot del
 ## Profile Page
 
 Any signed-in user can update their own profile. Click **Profile** from the Projects page.
-
-### Updating Email
-
-Enter a new address in the **Email** field and click **Save Email**.
 
 ### Changing Password
 

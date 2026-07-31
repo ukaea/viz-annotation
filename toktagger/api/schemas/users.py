@@ -6,7 +6,6 @@ from toktagger.api.schemas import ConfiguredModel
 class UserBase(ConfiguredModel):
     """Shared fields for user models."""
 
-    email: str = ""
     global_role: Literal["admin", "user"] = "user"
     is_active: bool = True
 
@@ -24,12 +23,10 @@ class UserOut(UserBase):
 class UserCreate(BaseModel):
     username: str
     password: str
-    email: str = ""
     global_role: Literal["admin", "user"] = "user"
 
 
 class UserUpdate(BaseModel):
-    email: Optional[str] = None
     global_role: Optional[Literal["admin", "user"]] = None
     is_active: Optional[bool] = None
     password: Optional[str] = None

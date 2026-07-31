@@ -20,7 +20,6 @@ def create_user(username: str, password: str, role: str = "user") -> str:
         json={
             "username": username,
             "password": password,
-            "email": "",
             "global_role": role,
         },
     )

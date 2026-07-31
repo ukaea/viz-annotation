@@ -81,19 +81,7 @@ function VideoFrameAnnotator(props: {
             >
               Prev
             </Button>
-            <div className="relative">
-              <FrameJumpField frame={props.desiredFrame} onJump={handleJump} />
-              {isFramePending && (
-                <span
-                  className="absolute -top-3 left-1/2 h-3 w-3 -translate-x-1/2 animate-spin rounded-full border-2 border-blue-400 border-t-transparent"
-                  role="status"
-                >
-                  <span className="sr-only">
-                    Loading frame {props.desiredFrame}
-                  </span>
-                </span>
-              )}
-            </div>
+            <FrameJumpField frame={props.desiredFrame} onJump={handleJump} />
             <Button
               variant="primary"
               onPress={handleNext}
@@ -106,8 +94,20 @@ function VideoFrameAnnotator(props: {
       </div>
 
       {/* Frame annotator canvas (image + Annotorious overlay). */}
-      <div className="w-full flex flex-col items-center gap-3">
+      <div className="relative w-full flex flex-col items-center gap-3">
         <FrameAnnotatorHost imageBase64={props.imageBase64} />
+        {isFramePending && (
+          <div
+            className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/30"
+            role="status"
+          >
+            <span
+              className="h-16 w-16 animate-spin rounded-full border-4 border-white/40 border-t-blue-400"
+              aria-hidden="true"
+            />
+            <span className="sr-only">Loading frame {props.desiredFrame}</span>
+          </div>
+        )}
       </div>
     </div>
   );

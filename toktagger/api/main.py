@@ -128,22 +128,35 @@ def run_with_gunicorn(host: str, port: int, workers: int) -> None:
         start_ray_head()
         os.environ["RAY_ADDRESS"] = "auto"
 
+    args = [
+        sys.executable,
+        "-m",
+        "gunicorn",
+        "toktagger.api.asgi:app",
+        "--worker-class",
+        "uvicorn.workers.UvicornWorker",
+        "--workers",
+        str(workers),
+        "--bind",
+        f"{host}:{port}",
+    ]
+    process = subprocess.Popen(args)
     try:
-        subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "gunicorn",
-                "toktagger.api.asgi:app",
-                "--worker-class",
-                "uvicorn.workers.UvicornWorker",
-                "--workers",
-                str(workers),
-                "--bind",
-                f"{host}:{port}",
-            ],
-            check=True,
-        )
+        try:
+            returncode = process.wait()
+        except KeyboardInterrupt:
+            # Ctrl-C delivers SIGINT to the whole foreground process group,
+            # including gunicorn - whose arbiter treats SIGINT as a "quick
+            # shutdown" and already kills its own worker processes (each an
+            # independent Ray driver connected to the shared GCS). Wait for
+            # that to finish rather than SIGKILLing just the arbiter (as
+            # subprocess.run(check=True) would), which would orphan the
+            # workers - left unable to reach GCS once we shut down the Ray
+            # head below, they only notice and self-terminate ~60s later.
+            returncode = process.wait()
+        else:
+            if returncode:
+                raise subprocess.CalledProcessError(returncode, args)
     finally:
         if models_dependencies_installed() and ray.is_initialized():
             ray.shutdown()

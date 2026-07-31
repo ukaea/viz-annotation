@@ -2,6 +2,7 @@ import webbrowser
 import argparse
 from toktagger.api.main import Server, run_with_gunicorn
 from toktagger.api.models import models_dependencies_installed
+from toktagger.api.config import config
 import uvicorn
 import time
 import threading
@@ -34,7 +35,7 @@ def main():
 
     """)
     argparser = argparse.ArgumentParser(description="Run the FastAPI application")
-    argparser.add_argument("--host", default="0.0.0.0", help="Host to run the app on")
+    argparser.add_argument("--host", default="localhost", help="Host to run the app on")
     argparser.add_argument(
         "--port", default=8002, type=int, help="Port to run the app on"
     )
@@ -48,7 +49,7 @@ def main():
     )
     argparser.add_argument(
         "--workers",
-        default=4,
+        default=1,
         type=int,
         help="Number of Gunicorn worker processes (use 1 for single-worker uvicorn dev mode)",
     )
@@ -59,17 +60,30 @@ def main():
 
     os.environ["API_URL"] = f"http://{args.host}:{args.port}"
 
-    if args.workers > 1:
-        if args.reload:
+    if args.host:
+        config.settings.server.host = args.host
+    if args.port:
+        config.settings.server.port = args.port
+    if args.reload:
+        config.settings.server.reload = args.reload
+    if args.workers:
+        config.settings.server.workers = args.workers
+
+    if config.settings.server.workers > 1:
+        if config.settings.server.reload:
             print("Warning: --reload is ignored when --workers > 1 (gunicorn mode)")
-        run_with_gunicorn(args.host, args.port, args.workers)
+        run_with_gunicorn(
+            config.settings.server.host,
+            config.settings.server.port,
+            config.settings.server.workers,
+        )
     else:
         uvicorn.run(
             "toktagger.api.cli:create_app",
             factory=True,
-            host=args.host,
-            port=args.port,
-            reload=args.reload,
+            host=config.settings.server.host,
+            port=config.settings.server.port,
+            reload=config.settings.server.reload,
         )
 
 

@@ -187,31 +187,6 @@ export default function ProjectView() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const { modelsEnabled } = useServerHealth();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!hasId) {
-        return;
-      }
-      try {
-        const samples = await getSamples(
-          sortDescriptor,
-          project_id,
-          currentPage,
-          samplesPerPage,
-          shotId,
-        );
-        setSamples(samples);
-        const project = await getProject(project_id);
-        setProject(project);
-      } catch (err) {
-        setLoadError(
-          err instanceof ApiError ? err.message : "Failed to load project.",
-        );
-      }
-    };
-    fetchData();
-  }, [project_id, shotId, currentPage, samplesPerPage, sortDescriptor, hasId]);
-
   const refreshSamples = useCallback(async () => {
     if (!hasId) {
       return;

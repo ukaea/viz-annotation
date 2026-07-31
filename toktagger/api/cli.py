@@ -58,8 +58,6 @@ def main():
     if open_browser:
         threading.Thread(target=do_open_browser, args=(args.host, args.port)).start()
 
-    os.environ["API_URL"] = f"http://{args.host}:{args.port}"
-
     if args.host:
         config.settings.server.host = args.host
     if args.port:

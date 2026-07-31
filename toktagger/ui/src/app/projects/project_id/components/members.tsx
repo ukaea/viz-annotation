@@ -104,16 +104,12 @@ export function ProjectMembersDialog({ projectId, isProjectAdmin }: Props) {
           <TableView
             aria-label="Members"
             selectionMode="none"
-            UNSAFE_style={{ marginTop: 16 }}
+            marginTop="size-200"
           >
             <TableHeader>
               <Column key="username">Username</Column>
               <Column key="role">Role</Column>
-              {isProjectAdmin ? (
-                <Column key="actions">Actions</Column>
-              ) : (
-                <Column key="placeholder"> </Column>
-              )}
+              <Column key="actions">{isProjectAdmin ? "Actions" : ""}</Column>
             </TableHeader>
             <TableBody items={members}>
               {(item) => (
@@ -138,15 +134,13 @@ export function ProjectMembersDialog({ projectId, isProjectAdmin }: Props) {
                     )}
                   </Cell>
                   <Cell>
-                    {isProjectAdmin ? (
+                    {isProjectAdmin && (
                       <Button
                         variant="negative"
                         onPress={() => removeMember(item.user_id)}
                       >
                         Remove
                       </Button>
-                    ) : (
-                      ""
                     )}
                   </Cell>
                 </Row>
@@ -172,7 +166,9 @@ function AddMemberForm({
   onAdded: () => void;
 }) {
   const [username, setUsername] = useState("");
-  const [role, setRole] = useState("annotator");
+  const [role, setRole] = useState<"admin" | "annotator" | "viewer">(
+    "annotator",
+  );
   const [error, setError] = useState<string | null>(null);
 
   const add = async () => {
@@ -214,7 +210,9 @@ function AddMemberForm({
       <Picker
         label="Role"
         selectedKey={role}
-        onSelectionChange={(k) => setRole(k as string)}
+        onSelectionChange={(k) =>
+          setRole(k as "admin" | "annotator" | "viewer")
+        }
         width="size-1600"
       >
         <Item key="admin">Admin</Item>

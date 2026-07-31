@@ -22,7 +22,7 @@ import pathlib
 
 # Only import large packages if models dependencies installed
 if models_dependencies_installed():
-    from toktagger.api.worker import (
+    from toktagger.api.core.worker import (
         load_model_local,
         load_model_gitlab,
         load_model_huggingface,

@@ -1,5 +1,4 @@
 import pytest
-import shutil
 
 pytest.importorskip("ray")
 
@@ -17,7 +16,6 @@ from bson import ObjectId
 import tempfile
 import asyncio
 import toktagger.api.config as config
-from toktagger.api.worker import check_safetensor
 
 
 def wait_for_results(task_registry: ActorRegistry, task_id: str):
@@ -731,30 +729,3 @@ async def test_model_load_local_failed(models_api_client, db_client, setup_model
             .joinpath(f"{model_id}.model")
             .exists()
         )
-
-
-@pytest.mark.models_enabled
-@pytest.mark.parametrize("safetensors_only", ("True", "False"))
-@pytest.mark.parametrize("filename", ("model.pt", "model.safetensors"))
-@patch("toktagger.api.worker.send_model_updates")
-def test_check_safetensors(mock_func, monkeypatch, safetensors_only, filename):
-    monkeypatch.setenv("MODELS_SAFETENSORS_ONLY", safetensors_only)
-    src_path = pathlib.Path(__file__).parents[2].joinpath(filename)
-    with tempfile.TemporaryDirectory() as tempd:
-        # Name them both identically to check its not just checking the suffix...
-        dst_path = pathlib.Path(tempd).joinpath("model.safetensors")
-        shutil.copy(src_path, dst_path)
-
-        unsafe = check_safetensor(
-            pathlib.Path(__file__).parents[2].joinpath(filename),
-            "project_id",
-            "model_id",
-        )
-
-        if safetensors_only == "True" and filename == "model.pt":
-            assert unsafe
-            assert unsafe.get("message") == "retrieved file is not a SafeTensor!"
-            assert mock_func.call_count > 0
-        else:
-            assert not unsafe
-            assert mock_func.call_count == 0

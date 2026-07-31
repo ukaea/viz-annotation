@@ -159,9 +159,29 @@ export function ModelPredictTool({ project_id, sample_id }: ModelPredictInfo) {
         }
       } else if (response.ok) {
         setAnnotations((previousAnnotations: Annotations) => {
+          const predictedFrames = new Set(
+            (payload as Annotation[]).flatMap((a) =>
+              "frame" in a && typeof a.frame === "number" ? [a.frame] : [],
+            ),
+          );
           const otherAnnotations = previousAnnotations.filter(
-            (annotation: Annotation) =>
-              annotation.created_by !== modelCreatedBy(selectedModelName!),
+            (annotation: Annotation) => {
+              if (
+                annotation.created_by !== modelCreatedBy(selectedModelName!)
+              ) {
+                return true;
+              }
+              // Video annotations are frame-scoped: only replace this
+              // model's prediction for the frame(s) we just predicted, so
+              // predictions for other frames of the same sample survive.
+              if (
+                "frame" in annotation &&
+                typeof annotation.frame === "number"
+              ) {
+                return !predictedFrames.has(annotation.frame);
+              }
+              return false;
+            },
           );
           return otherAnnotations.concat(payload);
         });

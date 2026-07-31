@@ -223,7 +223,8 @@ async def update_annotations(
 
     # Server is authoritative for identity
     for annotation in annotations:
-        annotation.created_by = current_user.username
+        if current_user.username != "__internal__":
+            annotation.created_by = current_user.username
         annotation.shot_id = sample.shot_id
 
     result = await utils.update_annotations(

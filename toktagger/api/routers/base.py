@@ -41,7 +41,9 @@ async def health_check(request: Request) -> dict:
 
     # If available, check whether GPUs enabled for model tasks
     model_gpu_available = False
-    if hasattr(request.app.state, "task_registry"):
+    if models_dependencies_installed() and hasattr(
+        request.app.state, "task_registry"
+    ):
         model_gpu_available = ray.get(
             request.app.state.task_registry.gpu_enabled.remote()
         )

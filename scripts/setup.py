@@ -4,9 +4,10 @@ from argparse import ArgumentParser
 from pathlib import Path
 from typing import Optional
 import requests
+from toktagger.api.config import settings
 
 
-BASE_URL = "http://localhost:8002"
+BASE_URL = f"http://{settings.server.host}:{settings.server.port}"
 
 
 def get_token(base_url: str, username: str, password: str) -> str:
@@ -223,7 +224,7 @@ def main():
     )
     parser.add_argument(
         "--url",
-        default=os.environ.get("TOKTAGGER_URL", "http://localhost:8002"),
+        default=BASE_URL,
         help="Base URL of the TokTagger API",
     )
     parser.add_argument(
@@ -233,9 +234,7 @@ def main():
     )
     args = parser.parse_args()
 
-    password = os.environ.get("TOKTAGGER_PASSWORD") or getpass.getpass(
-        "Password: "
-    )
+    password = os.environ.get("TOKTAGGER_PASSWORD") or getpass.getpass("Password: ")
 
     token = get_token(args.url, args.username, password)
 

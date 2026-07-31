@@ -4,7 +4,7 @@ from pathlib import Path
 from argparse import ArgumentParser
 import numpy
 import random
-from setup import create_project, create_local_samples, get_token
+from setup import BASE_URL, create_project, create_local_samples, get_token
 import pandas as pd
 
 
@@ -63,7 +63,7 @@ def main():
     parser = ArgumentParser()
     parser.add_argument(
         "--url",
-        default=os.environ.get("TOKTAGGER_URL", "http://localhost:8002"),
+        default=BASE_URL,
         help="Base URL of the TokTagger API",
     )
     parser.add_argument(

@@ -198,20 +198,29 @@ class Server:
                 "More model actors requested than the detected hardware supports!"
             )
 
-        # Create a ray actor for use as a model registry
+        # Create a ray actor for use as a model registry. Multiple Gunicorn
+        # workers call _setup_ray() concurrently on startup, so the
+        # get_actor/create pair below is not atomic - guard the create
+        # against losing that race.
         try:
             ray.get_actor("WorkerModelRegistry")
         except ValueError:
-            WorkerRegistry.options(
-                name="WorkerModelRegistry", lifetime="detached"
-            ).remote(ModelRegistry._registry)
+            try:
+                WorkerRegistry.options(
+                    name="WorkerModelRegistry", lifetime="detached"
+                ).remote(ModelRegistry._registry)
+            except ray.exceptions.ActorAlreadyExistsError:
+                pass
         # And one for use as a dataloader registry
         try:
             ray.get_actor("WorkerLoaderRegistry")
         except ValueError:
-            WorkerRegistry.options(
-                name="WorkerLoaderRegistry", lifetime="detached"
-            ).remote(LoaderRegistry._registry)
+            try:
+                WorkerRegistry.options(
+                    name="WorkerLoaderRegistry", lifetime="detached"
+                ).remote(LoaderRegistry._registry)
+            except ray.exceptions.ActorAlreadyExistsError:
+                pass
 
         # Create a ray actor for use as the shared task/actor registry, so
         # max_actors/max_gpu_actors limits and in-flight task IDs are tracked
@@ -219,10 +228,13 @@ class Server:
         try:
             ray.get_actor("TaskRegistry")
         except ValueError:
-            ActorRegistry.options(name="TaskRegistry", lifetime="detached").remote(
-                max_actors=max_actors,
-                max_gpu_actors=max_gpu_actors,
-            )
+            try:
+                ActorRegistry.options(name="TaskRegistry", lifetime="detached").remote(
+                    max_actors=max_actors,
+                    max_gpu_actors=max_gpu_actors,
+                )
+            except ray.exceptions.ActorAlreadyExistsError:
+                pass
         self.app.state.task_registry = ray.get_actor("TaskRegistry")
 
     def _setup_app(self):

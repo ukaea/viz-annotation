@@ -67,8 +67,9 @@ async def lifespan(app: FastAPI):
     # Tear down the Ray cluster we started so its raylet/worker processes don't
     # outlive the server on a graceful shutdown (Ctrl-C / SIGTERM). Guarded so
     # the `ray` global is only touched when models deps are installed.
-    if models_dependencies_installed() and ray.is_initialized():
-        ray.shutdown()
+    if models_dependencies_installed():
+        if ray.is_initialized():
+            ray.shutdown()
 
 
 # Ray places detached actors in an anonymous, per-driver namespace unless one

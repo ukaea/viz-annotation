@@ -114,7 +114,6 @@ def check_safetensor(
         return None
 
 
-@ray.remote(num_cpus=0.1)
 def load_model_local(
     model: Model, project: Project, weights_path: pathlib.Path
 ) -> dict[str : str | None]:
@@ -173,7 +172,6 @@ def load_model_local(
     return {"project_id": project.id, "model_id": model.id, "message": None}
 
 
-@ray.remote(num_cpus=0.1)
 def load_model_gitlab(
     model: Model, project: Project, params: GitlabLoadParams
 ) -> tuple[str, str | None]:
@@ -332,7 +330,6 @@ def load_model_gitlab(
     return {"project_id": project.id, "model_id": model.id, "message": None}
 
 
-@ray.remote(num_cpus=0.1)
 def load_model_huggingface(
     model: Model, project: Project, params: HuggingfaceLoadParams
 ) -> tuple[str, str | None]:
@@ -407,7 +404,6 @@ def load_model_huggingface(
     return {"project_id": project.id, "model_id": model.id, "message": None}
 
 
-@ray.remote
 def train_model(
     model: Model,
     project: Project,
@@ -452,7 +448,6 @@ def train_model(
         raise e
 
 
-@ray.remote(num_cpus=0.1)
 def get_predictions(
     project: Project,
     model: Model,

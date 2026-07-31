@@ -320,7 +320,7 @@ async def start_model_training(
 
     task_registry.update_actors(model.id, use_gpu)
 
-    train_task = train_model.remote(
+    train_task = ray.remote(num_cpus=0.1)(train_model).remote(
         model=model,
         project=project,
         samples=samples,
@@ -421,7 +421,7 @@ async def load_model_weights_local(
     project = await utils.get_project(db_client, project_id)
     model = await create_model(db_client, project, model_type)
 
-    task = load_model_local.remote(
+    task = ray.remote(num_cpus=0.1)(load_model_local).remote(
         project=project, model=model, weights_path=weights_path
     )
     task_id = task_registry.register(task)
@@ -470,7 +470,9 @@ async def load_model_weights_gitlab(
     project = await utils.get_project(db_client, project_id)
     model = await create_model(db_client, project, model_type)
 
-    task = load_model_gitlab.remote(project=project, model=model, params=params)
+    task = ray.remote(num_cpus=0.1)(load_model_gitlab).remote(
+        project=project, model=model, params=params
+    )
 
     task_id = task_registry.register(task)
     task_registry.update_actors(model.id, use_gpu=False)
@@ -511,7 +513,9 @@ async def load_model_weights_hugging_face(
     project = await utils.get_project(db_client, project_id)
     model = await create_model(db_client, project, model_type)
 
-    task = load_model_huggingface.remote(project=project, model=model, params=params)
+    task = ray.remote(num_cpus=0.1)(load_model_huggingface).remote(
+        project=project, model=model, params=params
+    )
 
     task_id = task_registry.register(task)
     task_registry.update_actors(model.id, use_gpu=False)
@@ -687,7 +691,7 @@ async def predict(
 
     task_registry.update_actors(model.id, use_gpu)
 
-    predict_task = get_predictions.remote(
+    predict_task = ray.remote(num_cpus=0.1)(get_predictions).remote(
         project=project,
         model=model,
         samples=samples,
@@ -778,7 +782,7 @@ async def create_sample_predictions(
 
     task_registry.update_actors(model.id, use_gpu)
 
-    task = get_predictions.remote(
+    task = ray.remote(num_cpus=0.1)(get_predictions).remote(
         project=project,
         model=model,
         samples=[sample],

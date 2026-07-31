@@ -446,9 +446,11 @@ export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
       .then((r) => r.json())
       .then((members: Array<{ user_id: string; role: string }>) => {
         const membership = members.find((m) => m.user_id === user._id);
-        setCanAnnotate(membership ? membership.role !== "viewer" : false);
+        setCanAnnotate(
+          membership ? ["admin", "annotator"].includes(membership.role) : false,
+        );
       })
-      .catch(() => setCanAnnotate(true)); // fail open
+      .catch(() => setCanAnnotate(false)); // fail closed
   }, [project_id, user]);
 
   const {

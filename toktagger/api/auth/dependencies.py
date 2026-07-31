@@ -19,12 +19,12 @@ async def get_current_user(
     request: Request,
     token: str | None = Depends(oauth2_scheme),
 ) -> UserOut:
-    # Internal server-to-server token used by Ray-worker callbacks (sender.py).
-    if token is not None and token == get_internal_token():
-        return _INTERNAL_USER
-
     if token is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # Internal server-to-server token used by Ray-worker callbacks (sender.py).
+    if token == get_internal_token():
+        return _INTERNAL_USER
 
     try:
         payload = decode_token(token)

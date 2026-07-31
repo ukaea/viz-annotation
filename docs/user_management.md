@@ -145,10 +145,10 @@ gunicorn toktagger.api.asgi:app \
     --bind 0.0.0.0:8002
 ```
 
-With Docker Compose the `WORKERS` variable controls the worker count (default 4 in production, 1 in dev):
+With Docker Compose the `SERVER_WORKERS` variable controls the worker count (default 4 in production, 1 in dev):
 
 ```sh
-WORKERS=8 docker compose up
+SERVER_WORKERS=8 docker compose up
 ```
 
 A single Uvicorn worker (the default for `toktagger` without `--workers`) is sufficient for personal/local use but will serialise all requests, so concurrent annotators will experience latency under load.

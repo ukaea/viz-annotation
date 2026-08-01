@@ -133,7 +133,7 @@ class ImageDataLoader(DataLoader):
         sample_data: ImageFileData = sample.data
 
         # Find directory of images
-        dir_path = pathlib.Path(sample_data.file_name)
+        dir_path = pathlib.Path(sample_data.file_name).resolve()
         if not dir_path.exists() or not dir_path.is_dir():
             raise FileNotFoundError(
                 f"Could not find directory at '{dir_path}', relative to {pathlib.Path().cwd()} - {list(pathlib.Path().cwd().iterdir())}"
@@ -152,7 +152,15 @@ class ImageDataLoader(DataLoader):
             raise FileNotFoundError(
                 f"Could not find image file at '{file_path}', relative to {pathlib.Path().cwd()}"
             )
+        # return raw encoded file bytes if return_raw is True
+        if params.return_raw:
+            return ImageData(
+                frame=file_path.name.split(".")[0],
+                values=list(file_path.read_bytes()),
+            )
+
         im = Image.open(file_path)
+
         buffer = io.BytesIO()
         im.save(buffer, format="PNG")
         buffer.seek(0)
@@ -181,7 +189,7 @@ class ArrayDataLoader(DataLoader):
         sample_data: ImageArrayFileData = sample.data
 
         # Find file
-        file_path = pathlib.Path(sample_data.file_name)
+        file_path = pathlib.Path(sample_data.file_name).resolve()
         if not file_path.exists():
             raise FileNotFoundError(
                 f"Could not find directory at '{file_path}', relative to {pathlib.Path().cwd()} - {list(pathlib.Path().cwd().iterdir())}"
@@ -271,30 +279,27 @@ class TabularDataLoader(DataLoader):
                 f"Expected sample data of type 'TimeSeriesFileData' but got '{type(sample.data)}'"
             )
 
-        if not pathlib.Path(sample.data.file_name).exists():
-            raise FileNotFoundError(
-                f"Could not find file at '{sample.data.file_name}', relative to {pathlib.Path().cwd()}"
-            )
-
         item: TimeSeriesFileData = sample.data
+        file_path = pathlib.Path(item.file_name).resolve()
 
-        if item.file_name.endswith(".csv"):
-            df = pd.read_csv(item.file_name, usecols=item.signal_names)
-        elif item.file_name.endswith(".tsv"):
-            df = pd.read_csv(item.file_name, sep="\t", usecols=item.signal_names)
-        elif item.file_name.endswith(".parquet"):
-            df = pd.read_parquet(item.file_name, columns=item.signal_names)
-        elif item.file_name.endswith(".json"):
-            df = pd.read_json(item.file_name)
+        if not file_path.exists():
+            raise FileNotFoundError(f"Could not find file at '{file_path}'")
+
+        if file_path.suffix == ".csv":
+            df = pd.read_csv(file_path, usecols=item.signal_names)
+        elif file_path.suffix == ".tsv":
+            df = pd.read_csv(file_path, sep="\t", usecols=item.signal_names)
+        elif file_path.suffix == ".parquet":
+            df = pd.read_parquet(file_path, columns=item.signal_names)
+        elif file_path.suffix == ".json":
+            df = pd.read_json(file_path)
             df = df[item.signal_names]
-        elif item.file_name.endswith(".xlsx"):
-            df = pd.read_excel(item.file_name, usecols=item.signal_names)
-        elif item.file_name.endswith(".feather"):
-            df = pd.read_feather(item.file_name, columns=item.signal_names)
+        elif file_path.suffix == ".xlsx":
+            df = pd.read_excel(file_path, usecols=item.signal_names)
+        elif file_path.suffix == ".feather":
+            df = pd.read_feather(file_path, columns=item.signal_names)
         else:
-            raise ValueError(
-                "Unsupported file format {}".format(Path(item.file_name).suffix)
-            )
+            raise ValueError("Unsupported file format {}".format(file_path.suffix))
 
         df = df.fillna(0)
 
@@ -422,6 +427,28 @@ class UDACameraDataLoader(DataLoader):
 
             image_array = signal["data"].values
             image_array = np.squeeze(image_array)
+
+            # Ensure at least 2D for Pillow (squeeze can reduce to 0D or 1D for tiny images)
+            if image_array.ndim == 0:
+                image_array = image_array.reshape(1, 1)
+            elif image_array.ndim == 1:
+                if image_array.shape[0] in (3, 4):
+                    image_array = image_array.reshape(1, 1, -1)  # single pixel RGB/RGBA
+                else:
+                    image_array = image_array.reshape(-1, 1)  # 1D grayscale strip
+
+            # Convert uint16 to uint8 for Pillow compatibility (Pillow doesn't support u2).
+            # Scale using the camera's declared bit depth (not the per-frame min/max) so
+            # brightness stays consistent across frames, e.g. RCO reports depth=8 even
+            # though UDA returns a uint16 array for shot 54339.
+            if image_array.dtype == np.uint16:
+                bit_depth = signal["data"].attrs.get("depth")
+                if bit_depth:
+                    max_value = 2**bit_depth - 1
+                    scaled = image_array.astype(np.float64) * (255 / max_value)
+                    image_array = np.clip(scaled, 0, 255).astype(np.uint8)
+                else:
+                    image_array = np.clip(image_array, 0, 255).astype(np.uint8)
 
             im = Image.fromarray(image_array)
             buffer = io.BytesIO()

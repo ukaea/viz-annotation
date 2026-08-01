@@ -42,6 +42,7 @@ dependencies = [
   "pydantic-settings>=2.11.0",
   "itsdangerous>=2.0.0",
   "python-multipart>=0.0.7",
+  "uda-mast>=1.4.1",
 ]
 [project.optional-dependencies]
 models = [

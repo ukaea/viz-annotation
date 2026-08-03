@@ -3123,7 +3123,7 @@ dev = [
     { name = "pytest", specifier = ">=8.4.1" },
     { name = "pytest-asyncio", specifier = ">=1.1.0" },
     { name = "pytest-playwright", specifier = ">=0.7.1" },
-    { name = "ruff", specifier = ">=0.12.9" },
+    { name = "ruff", specifier = ">=0.12.9,<0.16" },
     { name = "zensical" },
 ]
 

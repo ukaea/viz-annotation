@@ -775,6 +775,11 @@ def test_samples_page_import_annotations(sample_id: bool, server_setup, page: Pa
             file_chooser = fc_info.value
             file_chooser.set_files(file.name)
 
+        # Wait for import successful message
+        alert = page.get_by_role("alert")
+        expect(alert).to_be_visible()
+        expect(alert).to_contain_text("Annotations imported successfully")
+
         # Navigate to first sample, check annotations visible
         page.goto(
             f"http://localhost:8002/ui/projects/{project_id}/samples/{sample_ids[0]}"

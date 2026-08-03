@@ -4,7 +4,7 @@ pytest.importorskip("ray")
 
 from unittest.mock import patch
 from unittest.mock import Mock
-from toktagger.api.schemas.models import Model, GitlabLoadParams
+from toktagger.api.schemas.models import Model, GitlabLoadParams, HuggingfaceLoadParams
 from toktagger.api.schemas.projects import Project
 from tests.models_definitions import TimeSeriesCNN
 import tempfile
@@ -13,10 +13,11 @@ import pathlib
 import shutil
 from mlflow.entities.model_registry.model_version import ModelVersion
 from mlflow.exceptions import MlflowException
-
+from huggingface_hub.errors import RepositoryNotFoundError
 from toktagger.api.core.worker import (
     load_model_local,
     load_model_gitlab,
+    load_model_huggingface,
     check_safetensor,
 )
 
@@ -111,6 +112,19 @@ def mock_requests_get_invalid_file(url, *args, **kwargs):
     context_manager.__exit__ = Mock(return_value=None)
 
     return context_manager
+
+
+def mock_hf_hub_download(repo_id, filename, revision, local_dir, *args, **kwargs):
+    out_file = pathlib.Path(local_dir).joinpath("downloaded.model")
+
+    if repo_id.split("/")[-1] == "invalid":
+        out_file.write_bytes(b"\xff")
+    elif repo_id.split("/")[-1] == "missing":
+        raise RepositoryNotFoundError("Repo not found!")
+    else:
+        out_file.write_text(f"{repo_id},{filename},{revision}")
+
+    return str(out_file)
 
 
 @pytest.fixture
@@ -459,3 +473,126 @@ def test_gitlab_load_invalid_file(temp_models_cache, setup_model, monkeypatch):
     assert not temp_models_cache.joinpath(
         pathlib.Path(params.weights_path).name
     ).exists()
+
+
+@pytest.mark.models_enabled
+def test_gitlab_load_missing_env_vars(temp_models_cache, setup_model, monkeypatch):
+    monkeypatch.delenv("MODELS_GITLAB_URL")
+    monkeypatch.setenv("MODELS_GITLAB_TOKEN")
+
+    params = GitlabLoadParams(
+        weights_path="test_load.model",
+        model_name="disruption_cnn",
+        model_version="v5.0.0",
+        gitlab_project_id=123,
+    )
+    result = load_model_gitlab(setup_model, PROJECT, params)
+
+    assert result["project_id"] == "test_project_id"
+    assert result["model_id"] == setup_model.id
+    assert "required variables not defined." in result["message"]
+
+
+@patch("toktagger.api.core.worker.get_actor", mock_get_actor)
+@patch("ray.get", lambda val: val)
+@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch(
+    "toktagger.api.core.worker.hf_hub_download",
+    mock_hf_hub_download,
+)
+@pytest.mark.models_enabled
+def test_huggingface_load(temp_models_cache, setup_model, monkeypatch):
+    params = HuggingfaceLoadParams(
+        weights_path="weights.model",
+        model_name="test_model",
+        model_version="v1.0.0",
+        huggingface_userspace="my_user",
+    )
+    result = load_model_huggingface(setup_model, PROJECT, params)
+
+    assert result["project_id"] == "test_project_id"
+    assert result["model_id"] == setup_model.id
+    assert result["message"] is None
+
+    # Check model updated to completed, with 100% completion
+    assert UPDATES[-1]["model_id"] == setup_model.id
+    assert UPDATES[-1]["updates"].training_status == "completed"
+    assert UPDATES[-1]["updates"].progress == 100
+
+    # Check model has been saved after completion
+    model_path = temp_models_cache.joinpath(f"{setup_model.id}.model")
+    assert model_path.exists()
+
+    # Open the file, check contents are the correct params
+    url = model_path.read_text()
+    components = url.split(",")
+
+    assert components[0] == f"{params.huggingface_userspace}/{params.model_name}"
+    assert components[1] == params.weights_path
+    assert components[2] == params.model_version  # Major version
+
+    # Check temp downloaded file deleted
+    assert not temp_models_cache.joinpath("downloaded.model").exists()
+
+
+@patch("toktagger.api.core.worker.get_actor", mock_get_actor)
+@patch("ray.get", lambda val: val)
+@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch(
+    "toktagger.api.core.worker.hf_hub_download",
+    mock_hf_hub_download,
+)
+@pytest.mark.models_enabled
+def test_huggingface_load_missing(temp_models_cache, setup_model, monkeypatch):
+    params = HuggingfaceLoadParams(
+        weights_path="weights.model",
+        model_name="missing",  # Mock func raises exception
+        model_version="v1.0.0",
+        huggingface_userspace="my_user",
+    )
+    result = load_model_huggingface(setup_model, PROJECT, params)
+
+    assert result["project_id"] == "test_project_id"
+    assert result["model_id"] == setup_model.id
+    assert result["message"] == "requested model could not be found!"
+
+    # Check model updated to completed, with 100% completion
+    assert UPDATES[-1]["model_id"] == setup_model.id
+    assert UPDATES[-1]["updates"].training_status == "failed"
+
+    # Check model has not been saved
+    model_path = temp_models_cache.joinpath(f"{setup_model.id}.model")
+    assert not model_path.exists()
+
+
+@patch("toktagger.api.core.worker.get_actor", mock_get_actor)
+@patch("ray.get", lambda val: val)
+@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch(
+    "toktagger.api.core.worker.hf_hub_download",
+    mock_hf_hub_download,
+)
+@pytest.mark.models_enabled
+def test_huggingface_load_invalid(temp_models_cache, setup_model, monkeypatch):
+    params = HuggingfaceLoadParams(
+        weights_path="weights.model",
+        model_name="invalid",  # Mock func writes unreadable bytes
+        model_version="v1.0.0",
+        huggingface_userspace="my_user",
+    )
+    result = load_model_huggingface(setup_model, PROJECT, params)
+
+    assert result["project_id"] == "test_project_id"
+    assert result["model_id"] == setup_model.id
+    assert "'utf-8' codec can't decode byte" in result["message"]
+
+    # Check model updated to completed, with 100% completion
+    assert UPDATES[-1]["model_id"] == setup_model.id
+    assert UPDATES[-1]["updates"].training_status == "failed"
+
+    # Check model has not been saved
+    model_path = temp_models_cache.joinpath(f"{setup_model.id}.model")
+    assert not model_path.exists()
+
+    # Check temp downloaded file deleted
+    assert not temp_models_cache.joinpath("downloaded.model").exists()

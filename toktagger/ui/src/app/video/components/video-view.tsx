@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Annotorious } from "@annotorious/react";
 import { ImageDataSchema } from "@/types";
-import { Button } from "@adobe/react-spectrum";
+import { Button, ProgressCircle } from "@adobe/react-spectrum";
 import {
   VideoSessionProvider,
   useVideoSession,
@@ -21,7 +21,7 @@ import { useParams } from "react-router-dom";
 /**
  * Frame annotator UI wrapper:
  * - Renders the frame navigation (prev/next + jump)
- * - Shows the current frame index (from session state)
+ * - Shows the latest requested frame index
  * - Flushes the current frame overlay before frame changes
  *
  * Note: this component does not fetch frames. The parent drives frame changes by
@@ -29,41 +29,44 @@ import { useParams } from "react-router-dom";
  */
 function VideoFrameAnnotator(props: {
   imageBase64: string;
-  goToFrame: (n: number) => void;
+  desiredFrame: number;
+  goToFrame: (n: number) => boolean;
+  goToRelativeFrame: (delta: number, fallbackFrame: number) => number | null;
 }) {
   const session = useVideoSession();
-  const { videoFrameBounds } = useSample();
+  const { videoFrameBounds, isLoading } = useSample();
+  const isFramePending = isLoading && props.desiredFrame !== session.frame;
 
   const prevDisabled =
-    session.frame <= 0 ||
-    (videoFrameBounds.min !== null && session.frame <= videoFrameBounds.min);
+    props.desiredFrame <= 0 ||
+    (videoFrameBounds.min !== null &&
+      props.desiredFrame <= videoFrameBounds.min);
   const nextDisabled =
-    videoFrameBounds.max !== null && session.frame >= videoFrameBounds.max;
+    videoFrameBounds.max !== null && props.desiredFrame >= videoFrameBounds.max;
 
   const handlePrev = () => {
     if (prevDisabled) return;
-    const prev = Math.max(0, session.frame - 1);
+    const prev = props.goToRelativeFrame(-1, session.frame);
+    if (prev === null) return;
     session.flushCurrentFrameOverlay();
-    props.goToFrame(prev);
   };
 
   const handleNext = () => {
     if (nextDisabled) return;
-    const next = session.frame + 1;
+    const next = props.goToRelativeFrame(1, session.frame);
+    if (next === null) return;
 
     session.flushCurrentFrameOverlay();
 
     // Forward-propagate current annotations into the next frame if that frame is empty.
     // This updates SampleContext working annotations; image loading is driven by goToFrame().
     if (session.propagate) session.forwardPropToNextIfEmpty(next);
-
-    props.goToFrame(next);
   };
 
   const handleJump = (n: number) => {
     const target = Math.max(0, Math.trunc(n));
+    if (!props.goToFrame(target)) return;
     session.flushCurrentFrameOverlay();
-    props.goToFrame(target);
   };
 
   return (
@@ -78,7 +81,7 @@ function VideoFrameAnnotator(props: {
             >
               Prev
             </Button>
-            <FrameJumpField frame={session.frame} onJump={handleJump} />
+            <FrameJumpField frame={props.desiredFrame} onJump={handleJump} />
             <Button
               variant="primary"
               onPress={handleNext}
@@ -91,8 +94,17 @@ function VideoFrameAnnotator(props: {
       </div>
 
       {/* Frame annotator canvas (image + Annotorious overlay). */}
-      <div className="w-full flex flex-col items-center gap-3">
+      <div className="relative w-full flex flex-col items-center gap-3">
         <FrameAnnotatorHost imageBase64={props.imageBase64} />
+        {isFramePending && (
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/30">
+            <ProgressCircle
+              aria-label={`Loading frame ${props.desiredFrame}`}
+              size="L"
+              isIndeterminate
+            />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -136,6 +148,23 @@ function VideoProvidersInner({ children }: { children: React.ReactNode }) {
  */
 export function VideoView() {
   const { data, dataParams, setDataParams } = useSample();
+  const desiredFrameRef = React.useRef<number | null>(null);
+
+  useEffect(() => {
+    if (
+      dataParams.name === "image" &&
+      typeof dataParams.frame === "number" &&
+      Number.isFinite(dataParams.frame)
+    ) {
+      desiredFrameRef.current = dataParams.frame;
+      return;
+    }
+
+    const currentData = ImageDataSchema.safeParse(data);
+    if (currentData.success) {
+      desiredFrameRef.current = currentData.data.frame;
+    }
+  }, [data, dataParams]);
 
   if (!data) return null;
 
@@ -145,27 +174,88 @@ export function VideoView() {
   }
 
   const imageBase64 = parsed.data.values;
+  const desiredFrame =
+    dataParams.name === "image" &&
+    typeof dataParams.frame === "number" &&
+    Number.isFinite(dataParams.frame)
+      ? dataParams.frame
+      : parsed.data.frame;
 
   /**
    * Request a specific frame from the backend by updating dataParams.
    * The host page owns the fetch and is responsible for updating the session frame
    * once the backend response arrives.
    */
-  const goToFrame = (n: number) => {
-    if (!Number.isFinite(n)) return;
+  const goToFrame = (n: number): boolean => {
+    if (!Number.isFinite(n)) return false;
     const target = Math.max(0, Math.trunc(n));
+    const currentDesiredFrame = desiredFrameRef.current ?? desiredFrame;
+    if (target === currentDesiredFrame) return false;
 
-    setDataParams({
-      ...dataParams,
-      name: "image",
-      frame: target,
+    desiredFrameRef.current = target;
+
+    setDataParams((prev) => {
+      if (prev.name === "image" && prev.frame === target) return prev;
+
+      return {
+        ...prev,
+        name: "image",
+        frame: target,
+      };
     });
+
+    return true;
+  };
+
+  const goToRelativeFrame = (
+    delta: number,
+    fallbackFrame: number,
+  ): number | null => {
+    if (!Number.isFinite(delta)) return null;
+
+    const currentDesiredFrame =
+      desiredFrameRef.current ?? Math.max(0, Math.trunc(fallbackFrame));
+    const target = Math.max(
+      0,
+      Math.trunc(currentDesiredFrame + Math.trunc(delta)),
+    );
+    if (target === currentDesiredFrame) return null;
+
+    desiredFrameRef.current = target;
+
+    setDataParams((prev) => {
+      const previousDesiredFrame =
+        prev.name === "image" &&
+        typeof prev.frame === "number" &&
+        Number.isFinite(prev.frame)
+          ? prev.frame
+          : Math.max(0, Math.trunc(fallbackFrame));
+      const nextFrame = Math.max(
+        0,
+        Math.trunc(previousDesiredFrame + Math.trunc(delta)),
+      );
+
+      if (nextFrame === previousDesiredFrame) return prev;
+
+      return {
+        ...prev,
+        name: "image",
+        frame: nextFrame,
+      };
+    });
+
+    return target;
   };
 
   return (
     <div className="w-full flex justify-center">
       <div className="w-full max-w-5xl mx-auto px-4 py-3">
-        <VideoFrameAnnotator imageBase64={imageBase64} goToFrame={goToFrame} />
+        <VideoFrameAnnotator
+          imageBase64={imageBase64}
+          desiredFrame={desiredFrame}
+          goToFrame={goToFrame}
+          goToRelativeFrame={goToRelativeFrame}
+        />
       </div>
     </div>
   );

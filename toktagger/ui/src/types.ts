@@ -55,9 +55,23 @@ export const VideoBoundingBoxSchema = BaseAnnotationSchema.extend({
 
 export type VideoBoundingBox = z.infer<typeof VideoBoundingBoxSchema>;
 
+const PolygonCoordinatesSchema = z
+  .array(z.number())
+  .min(6)
+  .refine((coordinates) => coordinates.length % 2 === 0, {
+    message: "A polygon must contain an even number of coordinates",
+  });
+
+const VideoPolygonCoordinatesSchema = z
+  .array(z.number().int())
+  .min(6)
+  .refine((coordinates) => coordinates.length % 2 === 0, {
+    message: "A polygon must contain an even number of coordinates",
+  });
+
 export const PolygonSchema = BaseAnnotationSchema.extend({
   type: z.literal("polygon"),
-  segmentation: z.array(z.number()).min(6),
+  segmentation: z.array(PolygonCoordinatesSchema).length(1),
 });
 
 export type Polygon = z.infer<typeof PolygonSchema>;
@@ -66,7 +80,7 @@ export const VideoPolygonSchema = BaseAnnotationSchema.extend({
   type: z.literal("video_polygon"),
   frame: z.number().int(),
   track_id: z.string(),
-  segmentation: z.array(z.number().int()).min(6),
+  segmentation: z.array(VideoPolygonCoordinatesSchema).length(1),
 });
 
 export type VideoPolygon = z.infer<typeof VideoPolygonSchema>;

@@ -1021,7 +1021,7 @@ def test_model_load_predict(server_setup, setup_model_samples, page: Page):
         # Check basic structure of page is correct
         check_base_page(page)
 
-        # Click on model train modal
+        # Click on model lload modal
         page.get_by_role("button", name="Load ML Model").click()
 
         # Check modal has opened
@@ -1035,6 +1035,28 @@ def test_model_load_predict(server_setup, setup_model_samples, page: Page):
         # Check it has opened in local file mode
         expect(page.get_by_role("tab", name="Use Local File")).to_be_visible()
         expect(page.get_by_role("textbox", name="Model Weights Path")).to_be_visible()
+
+        # Check other modes listed
+        expect(page.get_by_role("tab", name="From Gitlab")).to_be_visible()
+        expect(page.get_by_role("tab", name="From HuggingFace")).to_be_visible()
+
+        # Navigate to other modes, check form appears
+        page.get_by_role("tab", name="From Gitlab").click()
+        expect(page.get_by_role("textbox", name="Project ID")).to_be_visible()
+        expect(page.get_by_role("textbox", name="Model Name")).to_be_visible()
+        expect(page.get_by_role("textbox", name="Model Version")).to_be_visible()
+        expect(page.get_by_role("textbox", name="Weights Path")).to_be_visible()
+
+        page.get_by_role("tab", name="From HuggingFace").click()
+        expect(
+            page.get_by_role("textbox", name="Userspace or Organisation")
+        ).to_be_visible()
+        expect(page.get_by_role("textbox", name="Model Name")).to_be_visible()
+        expect(page.get_by_role("textbox", name="Model Version")).to_be_visible()
+        expect(page.get_by_role("textbox", name="Weights Path")).to_be_visible()
+
+        # Go back to local load
+        page.get_by_role("tab", name="Use Local File").click()
 
         # Click on dropdown box, check models are shown
         page.get_by_role("button", name="Select Model Type").click()

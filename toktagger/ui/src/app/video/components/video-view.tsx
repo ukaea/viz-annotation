@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import { Annotorious } from "@annotorious/react";
 import { ImageDataSchema } from "@/types";
-import { Button } from "@adobe/react-spectrum";
+import { Button, ProgressCircle } from "@adobe/react-spectrum";
 import {
   VideoSessionProvider,
   useVideoSession,
@@ -97,15 +97,12 @@ function VideoFrameAnnotator(props: {
       <div className="relative w-full flex flex-col items-center gap-3">
         <FrameAnnotatorHost imageBase64={props.imageBase64} />
         {isFramePending && (
-          <div
-            className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/30"
-            role="status"
-          >
-            <span
-              className="h-16 w-16 animate-spin rounded-full border-4 border-white/40 border-t-blue-400"
-              aria-hidden="true"
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/30">
+            <ProgressCircle
+              aria-label={`Loading frame ${props.desiredFrame}`}
+              size="L"
+              isIndeterminate
             />
-            <span className="sr-only">Loading frame {props.desiredFrame}</span>
           </div>
         )}
       </div>

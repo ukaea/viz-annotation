@@ -12,6 +12,7 @@ import uuid
 import pathlib
 import shutil
 from mlflow.entities.model_registry.model_version import ModelVersion
+from mlflow.exceptions import MlflowException
 
 from toktagger.api.core.worker import (
     load_model_local,
@@ -66,14 +67,44 @@ def mock_send_model_updates(project_id, model_id, updates):
 def mock_mlflow_get_model_version(self, name: str, version: str):
     # Real function converts semantic version to gitlab registry ID
     # We will just return the major version as an int
+    v = int(version[1])
 
-    return ModelVersion(name=name, version=int(version[1]), creation_timestamp=123)
+    # Say if major version higher than 5, return exception as that version doesn't exist
+    if v > 5:
+        raise MlflowException("Model version not found")
+
+    return ModelVersion(name=name, version=v, creation_timestamp=123)
+
+
+def mock_mlflow_search_version(self, filter_string: str):
+    # Take model name from filter_string
+    name = filter_string.split("name=")[1].replace("'", "")
+    if name == "invalid":
+        return []
+
+    return [
+        ModelVersion(name=name, version=2, creation_timestamp=123),
+        ModelVersion(name=name, version=3, creation_timestamp=123),
+        ModelVersion(name=name, version=1, creation_timestamp=123),
+    ]
 
 
 def mock_requests_get(url, *args, **kwargs):
     response = Mock()
     response.raise_for_status.return_value = None
     response.iter_content.return_value = [str(url).encode()]
+
+    context_manager = Mock()
+    context_manager.__enter__ = Mock(return_value=response)
+    context_manager.__exit__ = Mock(return_value=None)
+
+    return context_manager
+
+
+def mock_requests_get_invalid_file(url, *args, **kwargs):
+    response = Mock()
+    response.raise_for_status.return_value = None
+    response.iter_content.return_value = [b"\xff"]
 
     context_manager = Mock()
     context_manager.__enter__ = Mock(return_value=response)
@@ -264,3 +295,167 @@ def test_gitlab_load_version(temp_models_cache, setup_model, monkeypatch):
     assert components[6] == str(params.gitlab_project_id)
     assert components[9] == params.model_version[1]  # Major version
     assert components[11] == params.weights_path
+
+    # Check temp downloaded file deleted
+    assert not temp_models_cache.joinpath(
+        pathlib.Path(params.weights_path).name
+    ).exists()
+
+
+@patch("toktagger.api.core.worker.get_actor", mock_get_actor)
+@patch("ray.get", lambda val: val)
+@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch(
+    "toktagger.api.core.worker.MlflowClient.search_model_versions",
+    mock_mlflow_search_version,
+)
+@patch("toktagger.api.core.worker.requests.get", mock_requests_get)
+@pytest.mark.models_enabled
+def test_gitlab_load_no_version(temp_models_cache, setup_model, monkeypatch):
+    monkeypatch.setenv("MODELS_GITLAB_URL", "http://test_gitlab_url")
+    monkeypatch.setenv("MODELS_GITLAB_TOKEN", "abc123")
+
+    params = GitlabLoadParams(
+        weights_path="test_load.model",
+        model_name="disruption_cnn",
+        gitlab_project_id=123,
+    )
+    result = load_model_gitlab(setup_model, PROJECT, params)
+
+    assert result["project_id"] == "test_project_id"
+    assert result["model_id"] == setup_model.id
+    assert result["message"] is None
+
+    # Check model updated to completed, with 100% completion
+    assert UPDATES[-1]["model_id"] == setup_model.id
+    assert UPDATES[-1]["updates"].training_status == "completed"
+    assert UPDATES[-1]["updates"].progress == 100
+
+    # Check model has been saved after completion
+    model_path = temp_models_cache.joinpath(f"{setup_model.id}.model")
+    assert model_path.exists()
+
+    # Open the file, check contents are the correct URL
+    # {url}/api/v4/projects/{params.gitlab_project_id}/packages/ml_models/{mlflow_model.version}/files/{params.weights_path}
+    url = model_path.read_text()
+    components = url.split("/")
+
+    assert components[2] == "test_gitlab_url"  # From env var
+    assert components[6] == str(params.gitlab_project_id)
+    assert components[9] == str(3)  # Highest version
+    assert components[11] == params.weights_path
+
+    # Check temp downloaded file deleted
+    assert not temp_models_cache.joinpath(
+        pathlib.Path(params.weights_path).name
+    ).exists()
+
+
+@patch("toktagger.api.core.worker.get_actor", mock_get_actor)
+@patch("ray.get", lambda val: val)
+@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch(
+    "toktagger.api.core.worker.MlflowClient.get_model_version",
+    mock_mlflow_get_model_version,
+)
+@patch("toktagger.api.core.worker.requests.get", mock_requests_get)
+@pytest.mark.models_enabled
+def test_gitlab_load_invalid_version(temp_models_cache, setup_model, monkeypatch):
+    monkeypatch.setenv("MODELS_GITLAB_URL", "http://test_gitlab_url")
+    monkeypatch.setenv("MODELS_GITLAB_TOKEN", "abc123")
+
+    params = GitlabLoadParams(
+        weights_path="test_load.model",
+        model_name="disruption_cnn",
+        model_version="v8.0.0",  # Higher than 5, so mock will throw 'not found' exception
+        gitlab_project_id=123,
+    )
+    result = load_model_gitlab(setup_model, PROJECT, params)
+
+    assert result["project_id"] == "test_project_id"
+    assert result["model_id"] == setup_model.id
+    assert (
+        result["message"] == "requested version of selected model could not be found!"
+    )
+
+    # Check model updated to failed, with 100% completion
+    assert UPDATES[-1]["model_id"] == setup_model.id
+    assert UPDATES[-1]["updates"].training_status == "failed"
+
+    # Check model has not been saved
+    model_path = temp_models_cache.joinpath(f"{setup_model.id}.model")
+    assert not model_path.exists()
+
+
+@patch("toktagger.api.core.worker.get_actor", mock_get_actor)
+@patch("ray.get", lambda val: val)
+@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch(
+    "toktagger.api.core.worker.MlflowClient.search_model_versions",
+    mock_mlflow_search_version,
+)
+@patch("toktagger.api.core.worker.requests.get", mock_requests_get)
+@pytest.mark.models_enabled
+def test_gitlab_load_no_versions_found(temp_models_cache, setup_model, monkeypatch):
+    monkeypatch.setenv("MODELS_GITLAB_URL", "http://test_gitlab_url")
+    monkeypatch.setenv("MODELS_GITLAB_TOKEN", "abc123")
+
+    params = GitlabLoadParams(
+        weights_path="test_load.model",
+        model_name="invalid",  # Mock will return empty list when searched for
+        gitlab_project_id=123,
+    )
+    result = load_model_gitlab(setup_model, PROJECT, params)
+
+    assert result["project_id"] == "test_project_id"
+    assert result["model_id"] == setup_model.id
+    assert (
+        result["message"] == "requested version of selected model could not be found!"
+    )
+
+    # Check model updated to failed, with 100% completion
+    assert UPDATES[-1]["model_id"] == setup_model.id
+    assert UPDATES[-1]["updates"].training_status == "failed"
+
+    # Check model has not been saved
+    model_path = temp_models_cache.joinpath(f"{setup_model.id}.model")
+    assert not model_path.exists()
+
+
+@patch("toktagger.api.core.worker.get_actor", mock_get_actor)
+@patch("ray.get", lambda val: val)
+@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch(
+    "toktagger.api.core.worker.MlflowClient.get_model_version",
+    mock_mlflow_get_model_version,
+)
+@patch("toktagger.api.core.worker.requests.get", mock_requests_get_invalid_file)
+@pytest.mark.models_enabled
+def test_gitlab_load_invalid_file(temp_models_cache, setup_model, monkeypatch):
+    monkeypatch.setenv("MODELS_GITLAB_URL", "http://test_gitlab_url")
+    monkeypatch.setenv("MODELS_GITLAB_TOKEN", "abc123")
+
+    params = GitlabLoadParams(
+        weights_path="test_load.model",
+        model_name="disruption_cnn",
+        model_version="v5.0.0",
+        gitlab_project_id=123,
+    )
+    result = load_model_gitlab(setup_model, PROJECT, params)
+
+    assert result["project_id"] == "test_project_id"
+    assert result["model_id"] == setup_model.id
+    assert "'utf-8' codec can't decode byte" in result["message"]
+
+    # Check model updated to failed,
+    assert UPDATES[-1]["model_id"] == setup_model.id
+    assert UPDATES[-1]["updates"].training_status == "failed"
+
+    # Check model has not been saved after completion
+    model_path = temp_models_cache.joinpath(f"{setup_model.id}.model")
+    assert not model_path.exists()
+
+    # Check temp downloaded file deleted
+    assert not temp_models_cache.joinpath(
+        pathlib.Path(params.weights_path).name
+    ).exists()

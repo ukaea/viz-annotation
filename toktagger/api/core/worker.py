@@ -256,7 +256,7 @@ def load_model_gitlab(
     download_path = model_dir.joinpath(pathlib.Path(params.weights_path).name)
     try:
         with requests.get(
-            f"https://gitlab.com/api/v4/projects/{params.gitlab_project_id}/packages/ml_models/{mlflow_model.version}/files/{params.weights_path}",
+            f"{os.environ.get('MODELS_GITLAB_URL')}/api/v4/projects/{params.gitlab_project_id}/packages/ml_models/{mlflow_model.version}/files/{params.weights_path}",
             headers={"Authorization": f"Bearer {os.environ['MLFLOW_TRACKING_TOKEN']}"},
             stream=True,
             timeout=600,

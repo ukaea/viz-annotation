@@ -41,11 +41,15 @@ class MockDisruptionCNN(Model):
             for i in range(len(samples))
         ]
 
-    def save(self, file_stem: str):
-        pathlib.Path(file_stem).with_suffix(".model").write_text(self.model)
+    def save(self, results_dir: pathlib.Path):
+        results_dir.joinpath("weights.model").write_text(self.model)
 
-    def load(self, file_path):
-        self.model = pathlib.Path(file_path).read_text()
+    def load(self, results_dir: pathlib.Path, weights_filename: str | None = None):
+        if weights_filename:
+            results_file = results_dir.joinpath(weights_filename)
+        else:
+            results_file = results_dir.joinpath("weights.model")
+        self.model = results_file.read_text()
 
 
 class TimeSeriesCNN(Model):
@@ -96,11 +100,15 @@ class TimeSeriesCNN(Model):
             )
         return anns
 
-    def save(self, file_stem: str):
-        pathlib.Path(file_stem).with_suffix(".model").write_text(self.model)
+    def save(self, results_dir: pathlib.Path):
+        results_dir.joinpath("weights.model").write_text(self.model)
 
-    def load(self, file_path):
-        self.model = pathlib.Path(file_path).read_text()
+    def load(self, results_dir: pathlib.Path, weights_filename: str | None = None):
+        if weights_filename:
+            results_file = results_dir.joinpath(weights_filename)
+        else:
+            results_file = results_dir.joinpath("weights.model")
+        self.model = results_file.read_text()
 
 
 @ray.remote

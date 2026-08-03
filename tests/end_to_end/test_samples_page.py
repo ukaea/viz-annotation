@@ -1083,8 +1083,9 @@ def test_model_load_predict(server_setup, setup_model_samples, page: Page):
         model_id = response.json()["_id"]
         # Check file exists and has correct contents
         new_weights_path = config.settings.models.cache_dir.joinpath(
-            f"{model_id}.model"
-        )
+            f"{model_id}"
+        ).joinpath("weights.model")
+
         assert new_weights_path.exists()
         assert new_weights_path.read_text() == "Loaded Model Weights"
 

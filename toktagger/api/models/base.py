@@ -14,6 +14,7 @@ import pydantic
 import uuid
 from collections import OrderedDict
 import logging
+import pathlib
 
 logger = logging.getLogger("ray")
 
@@ -102,14 +103,16 @@ class Model(ABC):
         return self.predict(samples=samples, params=params, data_params=data_params)
 
     @typing.final
-    def wrapped_save(self, file_stem: str) -> None:
+    def wrapped_save(self, results_dir: pathlib.Path) -> None:
         if not self._trained:
             raise RuntimeError("Cannot save a model before it has been trained!")
-        self.save(file_stem=file_stem)
+        self.save(results_dir=results_dir)
 
     @typing.final
-    def wrapped_load(self, file_path: str) -> None:
-        self.load(file_path=file_path)
+    def wrapped_load(
+        self, results_dir: pathlib.Path, weights_filename: str | None = None
+    ) -> None:
+        self.load(results_dir=results_dir, weights_filename=weights_filename)
         self._trained = True
 
     @typing.final
@@ -126,6 +129,17 @@ class Model(ABC):
         progress: float | None = None,
         score: float | None = None,
     ) -> None:
+        """Send progress updates during model training to the TokTagger server.
+
+        Parameters
+        ----------
+        training_status : typing.Literal[ "queued", "started", "failed", "completed", "aborted" ] | None, optional
+            The current stage of model training, by default None
+        progress : float | None, optional
+            How far through training the model currently is (percentage, 0-100), by default None
+        score : float | None, optional
+            A metric of how well the model is performing (such as accuracy or loss), by default None
+        """
         model_update = ModelUpdate(
             training_status=training_status, progress=progress, score=score
         )
@@ -137,6 +151,27 @@ class Model(ABC):
         annotations: list[list[Annotation]],
         train_val_test_split: typing.Tuple[float, float, float],
     ) -> None:
+        """Split annotations into training, validation and testing sets.
+
+        Parameters
+        ----------
+        samples : list[Sample]
+            The samples which this model is training on
+        annotations : list[list[Annotation]]
+            The annotations to split into groups
+        train_val_test_split : typing.Tuple[float, float, float]
+            The fraction of the total annotations to put in each of the training, validation and test sets respectively.
+            These should each be fractions which sum to 1.
+
+        Raises
+        ------
+        ValueError
+            Raised if annotations are missing for some samples provided
+        ValueError
+            Raised if the splits do not sum to 1
+        ValueError
+            Raised if the requested splits would leave no samples in the training set
+        """
         if len(samples) != len(annotations):
             raise ValueError("Annotations missing for some samples!")
         if not math.isclose(sum(train_val_test_split), 1):
@@ -195,6 +230,7 @@ class Model(ABC):
 
     @abstractmethod
     def define_model(self) -> None:
+        """Define and return your model architecture here."""
         pass
 
     @abstractmethod
@@ -204,8 +240,22 @@ class Model(ABC):
         annotations: list[list[Annotation]],
         params: pydantic.BaseModel | None = None,
     ) -> float:
-        # pass in list of samples and list of annotations
-        # return some measure of accuracy
+        """Train your model here.
+
+        Parameters
+        ----------
+        samples : list[Sample]
+            A list of samples to use when training the model.
+        annotations : list[list[Annotation]]
+            A list of lists of annotations, one list of annotations per sample.
+        params : pydantic.BaseModel | None, optional
+            User specified parameters to be used when training the model, by default None
+
+        Returns
+        -------
+        float
+            The score of the trained model, such as accuracy or loss.
+        """
         pass
 
     @abstractmethod
@@ -215,16 +265,49 @@ class Model(ABC):
         params: pydantic.BaseModel | None = None,
         data_params: DataParamTypes | None = None,
     ) -> list[list[AnnotationBase]]:
-        # pass in list of samples and params required
-        # returns list / array / tensor of predictions and uncertainties
+        """Predict over unseen samples with your model here.
+
+        Parameters
+        ----------
+        samples : list[Sample]
+            A list of samples to make predictions over
+        params : pydantic.BaseModel | None, optional
+            User specified parameters to be used when making predictions, by default None
+        data_params : DataParamTypes | None, optional
+            Data parameters to use when loading samples for the model to predict over, by default None
+
+        Returns
+        -------
+        list[list[AnnotationBase]]
+            A list of predicted annotations for each sample
+        """
         pass
 
     @abstractmethod
-    def save(self, file_stem: str) -> None:
+    def save(self, results_dir: pathlib.Path) -> None:
+        """Save the model
+
+        Parameters
+        ----------
+        results_dir : pathlib.Path
+            The path to a directory in the model cache where your model weights and accompanying information should be saved.
+        """
         pass
 
     @abstractmethod
-    def load(self, file_path: str) -> None:
+    def load(
+        self, results_dir: pathlib.Path, weights_filename: str | None = None
+    ) -> None:
+        """Load a pretrained model.
+
+        Parameters
+        ----------
+        results_dir : pathlib.Path
+            The path to a directory in the model cache where model weights should be loaded from.
+        weights_filename : str | None, optional
+            The name of the weights file within the above directory to load, by default None
+            Note that this is optional, but should take precedence if provided.
+        """
         pass
 
 

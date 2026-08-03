@@ -475,11 +475,16 @@ def test_gitlab_load_invalid_file(temp_models_cache, setup_model, monkeypatch):
     ).exists()
 
 
+@patch("toktagger.api.core.worker.get_actor", mock_get_actor)
+@patch("ray.get", lambda val: val)
+@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch(
+    "toktagger.api.core.worker.MlflowClient.get_model_version",
+    mock_mlflow_get_model_version,
+)
+@patch("toktagger.api.core.worker.requests.get", mock_requests_get_invalid_file)
 @pytest.mark.models_enabled
 def test_gitlab_load_missing_env_vars(temp_models_cache, setup_model, monkeypatch):
-    monkeypatch.delenv("MODELS_GITLAB_URL")
-    monkeypatch.setenv("MODELS_GITLAB_TOKEN")
-
     params = GitlabLoadParams(
         weights_path="test_load.model",
         model_name="disruption_cnn",

@@ -62,17 +62,23 @@ class VideoBoundingBox(AnnotationBase):
 
 class Polygon(AnnotationBase):
     type: Literal["polygon"] = "polygon"
-    segmentation: list[float] = Field(
+    segmentation: list[list[float]] = Field(
         ...,
-        min_length=6,
-        description="COCO polygon segmentation as a flat list: [x1, y1, x2, y2, ...].",
+        min_length=1,
+        max_length=1,
+        description="COCO polygon segmentation as a list containing one polygon: [[x1, y1, x2, y2, ...]].",
     )
 
     @field_validator("segmentation")
     @classmethod
-    def validate_segmentation(cls, v: list[int]) -> list[int]:
-        if len(v) % 2 != 0:
-            raise ValueError("Segmentation must contain an even number of coordinates.")
+    def validate_segmentation(cls, v: list[list[float]]) -> list[list[float]]:
+        for polygon in v:
+            if len(polygon) < 6:
+                raise ValueError("Each polygon must contain at least three points.")
+            if len(polygon) % 2 != 0:
+                raise ValueError(
+                    "Each polygon must contain an even number of coordinates."
+                )
         return v
 
 
@@ -80,17 +86,23 @@ class VideoPolygon(AnnotationBase):
     type: Literal["video_polygon"] = "video_polygon"
     frame: int
     track_id: str
-    segmentation: list[int] = Field(
+    segmentation: list[list[int]] = Field(
         ...,
-        min_length=6,
-        description="COCO polygon segmentation as a flat list: [x1, y1, x2, y2, ...].",
+        min_length=1,
+        max_length=1,
+        description="COCO polygon segmentation as a list containing one polygon: [[x1, y1, x2, y2, ...]].",
     )
 
     @field_validator("segmentation")
     @classmethod
-    def validate_segmentation(cls, v: list[int]) -> list[int]:
-        if len(v) % 2 != 0:
-            raise ValueError("Segmentation must contain an even number of coordinates.")
+    def validate_segmentation(cls, v: list[list[int]]) -> list[list[int]]:
+        for polygon in v:
+            if len(polygon) < 6:
+                raise ValueError("Each polygon must contain at least three points.")
+            if len(polygon) % 2 != 0:
+                raise ValueError(
+                    "Each polygon must contain an even number of coordinates."
+                )
         return v
 
 

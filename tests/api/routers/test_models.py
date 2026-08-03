@@ -6,6 +6,7 @@ import pathlib
 from toktagger.api.schemas.models import (
     ModelUpdate,
     GitlabLoadParams,
+    HuggingfaceLoadParams,
 )
 from toktagger.api.models.base import ActorRegistry
 from toktagger.api.core.sender import (
@@ -856,3 +857,81 @@ async def test_model_load_gitlab_disabled(models_api_client, db_client, setup_mo
 
     assert response.status_code == 403
     assert response.json()["detail"] == "Loading model weights from Gitlab is disabled."
+
+
+@pytest.mark.asyncio
+@pytest.mark.models_enabled
+@patch("toktagger.api.routers.models.ray.remote", mock_ray_remote)
+async def test_model_load_huggingface(models_api_client, db_client, setup_model_db):
+    params = HuggingfaceLoadParams(
+        weights_path="weights.model",
+        model_name="test_model",
+        model_version="v1.0.0",
+        huggingface_userspace="my_user",
+    )
+
+    response = await models_api_client.post(
+        f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load/hugging_face",
+        json=params.model_dump(),
+    )
+
+    assert response.status_code == 200
+    model_id = response.json()["model_id"]
+
+    # Just check that this has correctly made an entry in the db
+    # Get model from the database
+    model = await db_client.get_document_by_id(
+        collection="models", object_id=ObjectId(model_id)
+    )
+    assert model["version"] == 3  # Since v1 and v2 are already defined in db
+    assert model["training_status"] == "queued"
+
+
+@pytest.mark.asyncio
+async def test_model_load_huggingface_no_userspace(
+    models_api_client, db_client, setup_model_db
+):
+    params = HuggingfaceLoadParams(
+        weights_path="weights.model",
+        model_name="test_model",
+        model_version="v1.0.0",
+        # No userspace defined here or via config...
+    )
+
+    response = await models_api_client.post(
+        f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load/hugging_face",
+        json=params.model_dump(),
+    )
+
+    assert response.status_code == 422
+    assert (
+        response.json()["detail"]
+        == "Must set a Hugging Face userspace / organisation to load from, either via UI or config setting."
+    )
+
+
+@pytest.mark.asyncio
+async def test_model_load_huggingface_disabled(
+    models_api_client, db_client, setup_model_db
+):
+    # Try loading  file with local load disabled
+    config.settings.models.huggingface_load_enabled = False
+
+    params = HuggingfaceLoadParams(
+        weights_path="weights.model",
+        model_name="test_model",
+        model_version="v1.0.0",
+        huggingface_userspace="my_user",
+    )
+
+    response = await models_api_client.post(
+        f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load/hugging_face",
+        json=params.model_dump(),
+    )
+    config.settings.models.huggingface_load_enabled = True
+
+    assert response.status_code == 403
+    assert (
+        response.json()["detail"]
+        == "Loading model weights from Hugging Face is disabled."
+    )

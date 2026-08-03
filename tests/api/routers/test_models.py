@@ -3,7 +3,10 @@ import pytest
 pytest.importorskip("ray")
 
 import pathlib
-from toktagger.api.schemas.models import ModelUpdate
+from toktagger.api.schemas.models import (
+    ModelUpdate,
+    GitlabLoadParams,
+)
 from toktagger.api.models.base import ActorRegistry
 from toktagger.api.core.sender import (
     send_batch_samples,
@@ -729,3 +732,127 @@ async def test_model_load_local_failed(models_api_client, db_client, setup_model
             .joinpath(f"{model_id}.model")
             .exists()
         )
+
+
+def mock_ray_remote(*args, **kwargs):
+    def decorator(func):
+        class Dummy:
+            def remote(self, *args, **kwargs):
+                return "test_task_id"
+
+        return Dummy()
+
+    return decorator
+
+
+@pytest.mark.asyncio
+@pytest.mark.models_enabled
+@patch("toktagger.api.routers.models.ray.remote", mock_ray_remote)
+async def test_model_load_gitlab(models_api_client, db_client, setup_model_db):
+    config.settings.models.gitlab_url = "http://test_gitlab_url"
+    config.settings.models.gitlab_token = "abc123"
+
+    params = GitlabLoadParams(
+        weights_path="test_load.model",
+        model_name="disruption_cnn",
+        model_version="v5.0.0",
+        gitlab_project_id=123,
+    )
+
+    response = await models_api_client.post(
+        f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load/gitlab",
+        json=params.model_dump(),
+    )
+
+    config.settings.models.gitlab_url = None
+    config.settings.models.gitlab_token = None
+
+    assert response.status_code == 200
+    model_id = response.json()["model_id"]
+
+    # Just check that this has correctly made an entry in the db
+    # Get model from the database
+    model = await db_client.get_document_by_id(
+        collection="models", object_id=ObjectId(model_id)
+    )
+    assert model["version"] == 3  # Since v1 and v2 are already defined in db
+    assert model["training_status"] == "queued"
+
+
+@pytest.mark.asyncio
+@pytest.mark.models_enabled
+@patch("toktagger.api.routers.models.ray.remote", mock_ray_remote)
+async def test_model_load_gitlab_missing_vars(
+    models_api_client, db_client, setup_model_db
+):
+    config.settings.models.gitlab_url = None
+    config.settings.models.gitlab_token = None
+
+    params = GitlabLoadParams(
+        weights_path="test_load.model",
+        model_name="disruption_cnn",
+        model_version="v5.0.0",
+        gitlab_project_id=123,
+    )
+
+    response = await models_api_client.post(
+        f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load/gitlab",
+        json=params.model_dump(),
+    )
+
+    assert response.status_code == 409
+    assert (
+        response.json()["detail"]
+        == "Gitlab URL and Token env vars must be set for ML Model loading from Gitlab."
+    )
+
+
+@pytest.mark.asyncio
+async def test_model_load_gitlab_no_project_id(
+    models_api_client, db_client, setup_model_db
+):
+    config.settings.models.gitlab_url = "http://test_gitlab_url"
+    config.settings.models.gitlab_token = "abc123"
+
+    params = GitlabLoadParams(
+        weights_path="test_load.model",
+        model_name="disruption_cnn",
+        model_version="v5.0.0",
+        # No project ID specified here or via config...
+    )
+
+    response = await models_api_client.post(
+        f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load/gitlab",
+        json=params.model_dump(),
+    )
+
+    config.settings.models.gitlab_url = None
+    config.settings.models.gitlab_token = None
+
+    assert response.status_code == 422
+    assert (
+        response.json()["detail"]
+        == "Must set a Gitlab Project ID either via UI or config setting."
+    )
+
+
+@pytest.mark.asyncio
+async def test_model_load_gitlab_disabled(models_api_client, db_client, setup_model_db):
+    # Try loading  file with local load disabled
+    config.settings.models.gitlab_load_enabled = False
+
+    params = GitlabLoadParams(
+        weights_path="test_load.model",
+        model_name="disruption_cnn",
+        model_version="v5.0.0",
+        gitlab_project_id=123,
+    )
+
+    response = await models_api_client.post(
+        f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load/gitlab",
+        json=params.model_dump(),
+    )
+    config.settings.models.gitlab_load_enabled = True
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Loading model weights from Gitlab is disabled."

@@ -179,6 +179,12 @@ export default function ToolBar() {
   } else if (project.task == TaskType.Profile2D) {
     // Not gated on data: the signal picker below is how the user recovers when the
     // currently selected signal fails to load.
+    const labels = project.shot_labels || ["Valid Shot", "Invalid Shot"];
+    tools.push({
+      name: "Shot Labels",
+      component: <ShotLabels labels={labels}></ShotLabels>,
+    });
+
     tools.push({
       name: "View Parameters",
       component: <Profile2DViewParamsWidget />,

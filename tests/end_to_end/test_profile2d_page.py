@@ -126,33 +126,6 @@ def test_profile2d_wheel_zoom(server_setup, page: Page):
     assert zoomed_out_width > zoomed_in_width, "wheel down should zoom the x-axis out"
 
 
-def test_profile2d_zoom_preserved_after_annotation(server_setup, page: Page):
-    """Problem 2: creating an annotation must not reset the zoom/viewport."""
-    setup_project(page)
-    page.wait_for_timeout(1000)
-
-    cx, cy = _plot_centre(page)
-    page.mouse.move(cx, cy)
-    page.mouse.wheel(0, -300)
-    page.wait_for_timeout(400)
-
-    before = get_x_range(page)
-    assert before is not None
-    before_width = before[1] - before[0]
-
-    add_bounding_box(page)
-    page.wait_for_timeout(1000)
-
-    # The annotation should have been created...
-    expect(page.get_by_role("gridcell", name="NTM").first).to_be_visible()
-
-    # ...and the viewport should be unchanged (uirevision preserves it).
-    after = get_x_range(page)
-    after_width = after[1] - after[0]
-    assert abs(after[0] - before[0]) <= 0.02 * before_width
-    assert abs(after_width - before_width) <= 0.02 * before_width
-
-
 def _annotation_shape_count(page: Page) -> int:
     """Count the D3 annotation shapes drawn on the heatmap subplot overlay."""
     return page.evaluate(

@@ -11,8 +11,12 @@ import {
   Polygon,
   PolygonSchema,
   TimeSeriesAnnotationPoint,
+  Sample,
+  TimeSeriesFileDataSchema,
+  ShotDataSchema,
 } from "@/types";
 import { v4 as uuidv4 } from "uuid";
+import z from "zod/v4";
 
 const colorPalette = [
   "#FF5733",
@@ -49,20 +53,24 @@ export const linspace = (start: number, end: number, num: number) => {
 
 // Utility function to find the maximum value in an array
 // Handles very large arrays efficiently
-export function arrayMax(arr: number[]): number {
+// Nulls are skipped: the API serialises NaN samples in a profile as null.
+export function arrayMax(arr: (number | null)[]): number {
   let traceMax = -Infinity;
   for (let i = 0; i < arr.length; i++) {
-    if (arr[i] > traceMax) traceMax = arr[i];
+    const value = arr[i];
+    if (value !== null && value > traceMax) traceMax = value;
   }
   return traceMax;
 }
 
 // Utility function to find the minimum value in an array
 // Handles very large arrays efficiently
-export function arrayMin(arr: number[]): number {
+// Nulls are skipped: the API serialises NaN samples in a profile as null.
+export function arrayMin(arr: (number | null)[]): number {
   let traceMin = Infinity;
   for (let i = 0; i < arr.length; i++) {
-    if (arr[i] < traceMin) traceMin = arr[i];
+    const value = arr[i];
+    if (value !== null && value < traceMin) traceMin = value;
   }
   return traceMin;
 }
@@ -76,6 +84,7 @@ export function convertRawAnnotationsToTimeSeries(
       id: uuidv4(),
       created_by: timeRegion.created_by,
       label: timeRegion.label,
+      signal_name: timeRegion.signal_name,
       type: TimeSeriesAnnotationType.TIME_REGION,
       points: [
         { x: timeRegion.time_min, y: 0 },
@@ -91,6 +100,7 @@ export function convertRawAnnotationsToTimeSeries(
       id: uuidv4(),
       created_by: timePoint.created_by,
       label: timePoint.label,
+      signal_name: timePoint.signal_name,
       type: TimeSeriesAnnotationType.TIME_POINT,
       points: [{ x: timePoint.time, y: 0 }],
       selected: false,
@@ -103,6 +113,7 @@ export function convertRawAnnotationsToTimeSeries(
       id: uuidv4(),
       created_by: boundingBox.created_by,
       label: boundingBox.label,
+      signal_name: boundingBox.signal_name,
       type: TimeSeriesAnnotationType.BOUNDING_BOX,
       points: [
         { x: boundingBox.x_min, y: boundingBox.y_min + boundingBox.height },
@@ -121,6 +132,7 @@ export function convertRawAnnotationsToTimeSeries(
       id: uuidv4(),
       created_by: polygon.created_by,
       label: polygon.label,
+      signal_name: polygon.signal_name,
       type: TimeSeriesAnnotationType.POLYGON,
       points: polygon.segmentation[0].reduce<TimeSeriesAnnotationPoint[]>(
         (accumulator, _, i, arr) => {
@@ -154,6 +166,7 @@ export function convertTimeSeriesToRawAnnotations(
       validated: false,
       uncertainty: 1,
       created_by: annotation.created_by,
+      signal_name: annotation.signal_name ?? null,
       type: "time_point",
       time: annotation.points[0].x,
       label: annotation.label,
@@ -168,6 +181,7 @@ export function convertTimeSeriesToRawAnnotations(
       validated: false,
       uncertainty: 1,
       created_by: annotation.created_by,
+      signal_name: annotation.signal_name ?? null,
       type: "time_region",
       time_min: annotation.points[0].x,
       time_max: annotation.points[1].x,
@@ -183,6 +197,7 @@ export function convertTimeSeriesToRawAnnotations(
       validated: false,
       uncertainty: 1,
       created_by: annotation.created_by,
+      signal_name: annotation.signal_name ?? null,
       type: "bounding_box",
       x_min: Math.min(annotation.points[0].x, annotation.points[1].x),
       y_min: Math.min(annotation.points[0].y, annotation.points[1].y),
@@ -200,6 +215,7 @@ export function convertTimeSeriesToRawAnnotations(
       validated: false,
       uncertainty: 1,
       created_by: annotation.created_by,
+      signal_name: annotation.signal_name ?? null,
       type: "polygon",
       segmentation: [
         annotation.points.flatMap(({ x, y }) => {
@@ -215,4 +231,86 @@ export function convertTimeSeriesToRawAnnotations(
     `The following annotation could not be parsed into a raw annotation:\n ${annotation}`,
   );
   return null;
+}
+
+// Collapse a 2D profile down its first axis, giving one value per column.
+// Nulls are skipped: the API serialises NaN samples in a profile as null.
+export function sumOverFirstAxis(arr: (number | null)[][]): number[] {
+  if (arr.length === 0) return [];
+
+  const numCols = arr[0].length;
+  const sums = new Array(numCols).fill(0);
+
+  for (const row of arr) {
+    for (let j = 0; j < numCols; j++) {
+      const value = row[j];
+      if (value !== null) {
+        sums[j] += value;
+      }
+    }
+  }
+
+  return sums;
+}
+
+// Plotly supports layout.coloraxis, but @types/plotly.js does not declare it.
+type LayoutWithColorAxis = Partial<Plotly.Layout> & {
+  coloraxis?: { colorbar?: Partial<Plotly.ColorBar> };
+};
+
+// Apply the shared dark mode styling to a Plotly layout.
+export const applyGlobalStyle = (layout: Partial<Plotly.Layout>) => {
+  const isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  if (!isDarkMode) return layout;
+
+  const foreground = "rgb(255, 255, 255)";
+  for (const axis of [layout.xaxis, layout.yaxis, layout.yaxis2]) {
+    if (!axis) continue;
+    if (axis.title) axis.title.font = { color: foreground };
+    axis.linecolor = foreground;
+    axis.zerolinecolor = foreground;
+    axis.tickcolor = foreground;
+    axis.tickfont = { color: foreground };
+  }
+
+  const colorbar = (layout as LayoutWithColorAxis).coloraxis?.colorbar;
+  if (colorbar) {
+    colorbar.tickcolor = foreground;
+    colorbar.tickfont = { color: foreground };
+    colorbar.outlinecolor = foreground;
+  }
+
+  // Let the surrounding page background show through the plot.
+  layout.paper_bgcolor = "rgba(0, 0, 0, 0)";
+  layout.plot_bgcolor = "rgba(0, 0, 0, 0)";
+
+  return layout;
+};
+
+export function getSignalNames(sample: Sample | null): string[] {
+  const sampleDataType = z.union([TimeSeriesFileDataSchema, ShotDataSchema]);
+
+  if (!sample || !sampleDataType.safeParse(sample.data).success) {
+    return [];
+  }
+
+  return sampleDataType.parse(sample.data).signal_names;
+}
+
+export function shallowEqual(
+  a: Record<string, unknown>,
+  b: Record<string, unknown>,
+) {
+  if (a === b) return true;
+
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+
+  if (keysA.length !== keysB.length) return false;
+
+  for (const key of keysA) {
+    if (a[key] !== b[key]) return false;
+  }
+
+  return true;
 }

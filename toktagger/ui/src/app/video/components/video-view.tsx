@@ -98,7 +98,7 @@ function VideoFrameAnnotator(props: {
       <div className="relative w-full flex flex-col items-center gap-3">
         <FrameAnnotatorHost imageBase64={props.imageBase64} />
         {isFramePending && (
-          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/30">
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
             <ProgressCircle
               aria-label={`Loading frame ${props.desiredFrame}`}
               size="L"

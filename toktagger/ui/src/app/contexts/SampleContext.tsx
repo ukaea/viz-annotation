@@ -15,15 +15,18 @@ import {
   Annotation,
   ViewParams,
   PlotProps,
+  Profile2DViewParams,
   MultiVariateTimeSeriesData,
-  SpectrogramData,
+  Profile2DData,
   MultiVariateTimeSeriesDataSchema,
+  Profile2DDataSchema,
   ImageData,
   ImageDataSchema,
   TaskType,
   DataParams,
 } from "@/types";
 import { BACKEND_API_URL } from "@/app/core";
+import { getSignalNames } from "@/app/utils";
 
 interface SampleContextType {
   project: Project | null;
@@ -31,7 +34,7 @@ interface SampleContextType {
   data: Data | null;
   annotations: Annotation[];
   dataParams: DataParams;
-  viewParams: ViewParams;
+  viewParams: ViewParams | Profile2DViewParams;
   plotProps: PlotProps;
   annotationLabels: { id: number; name: string }[];
   videoFrameBounds: { min: number | null; max: number | null };
@@ -40,7 +43,9 @@ interface SampleContextType {
   error: string | null;
   setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>;
   setDataParams: React.Dispatch<React.SetStateAction<DataParams>>;
-  setViewParams: (params: ViewParams) => void;
+  setViewParams: React.Dispatch<
+    React.SetStateAction<ViewParams | Profile2DViewParams>
+  >;
   setPlotProps: (props: PlotProps) => void;
   setIsValidated: (validated: boolean) => void;
 }
@@ -94,29 +99,21 @@ async function getAnnotations(
 async function parseData(
   data: Data,
   task: TaskType,
-): Promise<
-  MultiVariateTimeSeriesData | SpectrogramData | ImageData | undefined
-> {
+): Promise<MultiVariateTimeSeriesData | Profile2DData | ImageData | undefined> {
   if (task == TaskType.TimeSeries) {
     const result = MultiVariateTimeSeriesDataSchema.safeParse(data);
     if (!result.success) {
       throw new Error("Invalid data for time series view");
     }
     return result.data;
-    // } else if (task == TaskType.Spectrogram) {
-    //   const result = CompositeDataSchema.safeParse(data);
-    //   if (!result.success) {
-    //     throw new Error("Invalid data for spectrogram view");
-    //   }
-
-    //   const mhdData = SpectrogramDataSchema.safeParse(
-    //     result.data.values["mirnov"],
-    //   );
-    //   if (!mhdData.success) {
-    //     throw new Error("Invalid data for spectrogram view");
-    //   }
-
-    //   return mhdData.data;
+  } else if (task == TaskType.Profile2D) {
+    // The profile 2D view selects the signal server side, so the response is a
+    // single profile rather than a mapping of signal name to profile.
+    const result = Profile2DDataSchema.safeParse(data);
+    if (!result.success) {
+      throw new Error("Invalid data for profile 2D view");
+    }
+    return result.data;
   } else if (task == TaskType.Video) {
     const result = ImageDataSchema.safeParse(data);
     if (!result.success) {
@@ -138,7 +135,9 @@ export function SampleProvider({
   const [data, setData] = useState<Data | null>(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
 
-  const [viewParams, setViewParams] = useState<ViewParams>({
+  const [viewParams, setViewParams] = useState<
+    ViewParams | Profile2DViewParams
+  >({
     name: "identity",
   });
 
@@ -241,13 +240,17 @@ export function SampleProvider({
         setIsValidated(sampleData.validated_annotations);
 
         let params = viewParams;
-        // if (projectData.task === TaskType.Spectrogram) {
-        //   params = {
-        //     ...params,
-        //     name: "spectrogram",
-        //     nperseg: 256,
-        //   } as SpectrogramViewParams;
-        // }
+        // The profile 2D view needs a signal to project onto, so fall back to the
+        // sample's first signal until the view params widget selects one.
+        if (
+          projectData.task === TaskType.Profile2D &&
+          params.name !== "profile_2d"
+        ) {
+          params = {
+            name: "profile_2d",
+            signal_name: getSignalNames(sampleData)[0],
+          } as Profile2DViewParams;
+        }
 
         // ------------------------------------------------------------
         // video projects must request image data parameters.

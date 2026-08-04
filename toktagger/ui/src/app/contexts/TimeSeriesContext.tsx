@@ -128,8 +128,12 @@ function readSavedTool(projectId: string): TimeSeriesToolDefinition | null {
 }
 
 export const TimeSeriesProvider = ({
+  signalName = null,
   children,
 }: {
+  // Binds annotations created here to a signal. Views that annotate a single
+  // implicit signal leave this null; profile 2D passes its selected signal.
+  signalName?: string | null;
   children: React.ReactNode;
 }) => {
   const {
@@ -315,12 +319,13 @@ export const TimeSeriesProvider = ({
         id,
         created_by: "manual",
         label,
+        signal_name: signalName,
         type,
         points: [],
         selected: false,
       };
     },
-    [],
+    [signalName],
   );
 
   const addAnnotation = useCallback(

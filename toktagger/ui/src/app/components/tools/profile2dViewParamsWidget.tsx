@@ -21,12 +21,13 @@ export function Profile2DViewParamsWidget() {
   useEffect(() => {
     if (!selectedSignal) return;
 
-    setViewParams((prevParams: Profile2DViewParams) => {
-      const nextParams = {
-        ...prevParams,
+    setViewParams((prevParams) => {
+      const nextParams: Profile2DViewParams = {
+        ...(prevParams as Profile2DViewParams),
+        name: "profile_2d",
         signal_name: selectedSignal,
         log_scale: logScale,
-      } as Profile2DViewParams;
+      };
 
       // Only update if the params actually changed - each update triggers a full
       // data refresh, which is expensive.

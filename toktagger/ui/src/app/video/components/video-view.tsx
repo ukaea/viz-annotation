@@ -249,14 +249,17 @@ export function VideoView() {
   };
 
   return (
-    <div className="w-full flex justify-center">
-      <div className="w-full max-w-5xl mx-auto px-4 py-3">
-        <VideoFrameAnnotator
-          imageBase64={imageBase64}
-          desiredFrame={desiredFrame}
-          goToFrame={goToFrame}
-          goToRelativeFrame={goToRelativeFrame}
-        />
+    <div className="min-w-0 flex-1">
+      <div className="flex w-full justify-between">
+        <div className="min-w-0 flex-1 px-4 py-3">
+          <VideoFrameAnnotator
+            imageBase64={imageBase64}
+            desiredFrame={desiredFrame}
+            goToFrame={goToFrame}
+            goToRelativeFrame={goToRelativeFrame}
+          />
+        </div>
+        <VideoAnnotationToolbar />
       </div>
     </div>
   );

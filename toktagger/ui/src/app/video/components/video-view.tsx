@@ -259,7 +259,7 @@ export function VideoView() {
             goToRelativeFrame={goToRelativeFrame}
           />
         </div>
-        <VideoAnnotationToolbar />
+        <VideoAnnotationToolbar desiredFrame={desiredFrame} />
       </div>
     </div>
   );

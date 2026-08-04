@@ -25,16 +25,20 @@ import {
 } from "@annotorious/react";
 
 import { useVideoSession } from "./video-session";
+import { useSample } from "@/app/contexts/SampleContext";
 import type { DrawingTool } from "./types";
 
-export function VideoAnnotationToolbar() {
+export function VideoAnnotationToolbar(props: { desiredFrame: number }) {
   const {
+    frame,
     drawingTool,
     setDrawingTool,
     editMode,
     setEditMode,
     hideAnnotations,
   } = useVideoSession();
+  const { isLoading } = useSample();
+  const isFramePending = isLoading && props.desiredFrame !== frame;
   const api = useAnnotator<AnnotoriousOpenSeadragonAnnotator>();
   const [hasEnteredEditMode, setHasEnteredEditMode] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -56,7 +60,7 @@ export function VideoAnnotationToolbar() {
     viewport.applyConstraints();
   };
 
-  const toolsDisabled = !editMode || hideAnnotations;
+  const toolsDisabled = !editMode || hideAnnotations || isFramePending;
   const modeVariant: "accent" | "primary" = editMode ? "accent" : "primary";
 
   return (

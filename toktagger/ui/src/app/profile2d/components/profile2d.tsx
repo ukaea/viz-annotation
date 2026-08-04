@@ -16,6 +16,7 @@ import { Polygon } from "@/app/components/tools/polygon";
 import { AnnotationToolbar } from "@/app/components/tools/annotationToolbar";
 import { AnnotationsTable } from "@/app/components/ui/annotationsTable";
 import { useSample } from "@/app/contexts/SampleContext";
+import { useMemo } from "react";
 import { Flex, View } from "@adobe/react-spectrum";
 import * as d3 from "d3";
 
@@ -151,47 +152,38 @@ const createLogScalePlot = (
   };
 };
 
-export const Profile2dView = () => {
-  const { data, plotProps, viewParams } = useSample();
-
-  const viewData = data as Profile2DData | null;
-  const profileViewParams = viewParams as Profile2DViewParams | null;
-
-  if (!viewData || !plotProps || !profileViewParams) {
-    return null;
-  }
-
-  const interpFunc =
-    colorMapInterpolators[plotProps.colorMap ?? ""] ?? d3.interpolateCividis;
-
-  const createPlotFunc = profileViewParams.log_scale
-    ? createLogScalePlot
-    : createLinearScalePlot;
-  const { values, colorAxis } = createPlotFunc(viewData, plotProps, interpFunc);
-
-  const heatmapData: Partial<Plotly.PlotData> = {
+const buildPlotData = (
+  data: Profile2DData,
+  values: ProfileValues,
+  thresholdActive?: boolean,
+): Partial<Plotly.PlotData>[] => {
+  const heatmap = {
     type: "heatmap",
-    x: viewData.time,
-    y: viewData.dim_1,
+    x: data.time,
+    y: data.dim_1,
     z: values,
     // Hover reports the underlying value, which differs from z on a log scale.
-    customdata: viewData.values,
+    customdata: data.values,
     hovertemplate:
       "time: %{x:.4g}<br>dim 1: %{y:.4g}<br>value: %{customdata:.4e}<extra></extra>",
     coloraxis: "coloraxis",
     // Fade the heatmap while thresholding so the generated polygons stand out.
-    opacity: plotProps.thresholdActive ? 0.4 : 1,
+    opacity: thresholdActive ? 0.4 : 1,
     yaxis: "y2",
   } as Partial<Plotly.PlotData>;
 
-  const integratedPlot: Partial<Plotly.PlotData> = {
+  const integrated: Partial<Plotly.PlotData> = {
     name: "Integrated values",
     mode: "lines",
-    x: viewData.time,
+    x: data.time,
     y: sumOverFirstAxis(values),
   };
 
-  const plotLayout: Partial<Plotly.Layout> = applyGlobalStyle({
+  return [integrated, heatmap];
+};
+
+const buildPlotLayout = (colorAxis: ColorAxis): Partial<Plotly.Layout> =>
+  applyGlobalStyle({
     autosize: true,
     height: window.innerHeight * 0.9,
     xaxis: {
@@ -224,24 +216,58 @@ export const Profile2dView = () => {
     // Left drag pans and the wheel zooms, matching the time series view. yaxis2 is
     // fixedrange, so the wheel zooms time only.
     dragmode: "pan",
-    // Preserve zoom/pan across re-renders. Creating an annotation writes back to the
-    // sample state, which re-runs Plotly.react with fresh data and layout objects;
-    // without uirevision Plotly would autorange and reset the viewport each time.
+    // Preserve zoom/pan across re-renders.
     uirevision: "true",
     ...{ coloraxis: colorAxis },
   } as Partial<Plotly.Layout>);
 
-  const plotConfig: Partial<Plotly.Config> = {
-    // Bounding boxes and polygons are drawn by the D3 annotation tools rather than
-    // Plotly's built in shape editing, so the draw/erase shape buttons are omitted.
-    modeBarButtons: [
-      ["zoom2d", "select2d", "pan2d", "autoScale2d", "resetScale2d", "toImage"],
-    ],
-    displaylogo: false,
-    displayModeBar: true,
-    scrollZoom: true,
-    responsive: true,
-  };
+// Bounding boxes and polygons are drawn by the D3 annotation tools rather than
+// Plotly's built in shape editing, so the draw/erase shape buttons are omitted.
+const PLOT_CONFIG: Partial<Plotly.Config> = {
+  modeBarButtons: [
+    ["zoom2d", "select2d", "pan2d", "autoScale2d", "resetScale2d", "toImage"],
+  ],
+  displaylogo: false,
+  displayModeBar: true,
+  scrollZoom: true,
+  responsive: true,
+};
+
+export const Profile2dView = () => {
+  const { data, plotProps, viewParams } = useSample();
+
+  const viewData = data as Profile2DData | null;
+  const profileViewParams = viewParams as Profile2DViewParams | null;
+  const logScale = profileViewParams?.log_scale ?? false;
+
+  // BaseTimeSeriesPlot re-initialises Plotly whenever the data or layout it is given
+  // change identity, which also rebuilds the D3 overlay the annotation tools draw on.
+  // Drawing an annotation updates the sample state and re-renders this component, so
+  // without memoising these the plot would be torn down mid-drag and the annotation
+  // lost. The time series view memoises for the same reason.
+  const plot = useMemo(() => {
+    if (!viewData || !plotProps) return null;
+    const interpFunc =
+      colorMapInterpolators[plotProps.colorMap ?? ""] ?? d3.interpolateCividis;
+    const createPlotFunc = logScale
+      ? createLogScalePlot
+      : createLinearScalePlot;
+    return createPlotFunc(viewData, plotProps, interpFunc);
+  }, [viewData, plotProps, logScale]);
+
+  const plotData = useMemo<Partial<Plotly.PlotData>[]>(() => {
+    if (!viewData || !plot) return [];
+    return buildPlotData(viewData, plot.values, plotProps?.thresholdActive);
+  }, [viewData, plot, plotProps?.thresholdActive]);
+
+  const plotLayout = useMemo(
+    () => (plot ? buildPlotLayout(plot.colorAxis) : {}),
+    [plot],
+  );
+
+  if (!viewData || !profileViewParams || !plot) {
+    return null;
+  }
 
   return (
     <View width="100%">
@@ -253,8 +279,8 @@ export const Profile2dView = () => {
                 plotId="Profile2DView"
                 ariaLabel="profile-2d"
                 plotConfig={{
-                  data: [integratedPlot, heatmapData],
-                  config: plotConfig,
+                  data: plotData,
+                  config: PLOT_CONFIG,
                   layout: plotLayout,
                 }}
                 rescaleOnZoom={false}

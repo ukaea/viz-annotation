@@ -29,6 +29,7 @@ async def get_data(
     sample = await utils.get_sample(db_client, project_id, sample_id)
 
     data_loader = LoaderRegistry.get(project.data_loader)()
+
     try:
         data = data_loader.get_sample(
             sample,
@@ -42,7 +43,10 @@ async def get_data(
     except DataLoaderError as e:
         raise HTTPException(404, str(e)) from e
 
-    data_view = DATA_VIEWS[view.name](view)
-    data = data_view(data)
+    try:
+        data_view = DATA_VIEWS[view.name](view)
+        data = data_view(data)
+    except Exception as e:
+        raise HTTPException(400, str(e)) from e
 
     return data

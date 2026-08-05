@@ -52,6 +52,9 @@ type TimeSeriesPlotProps = {
   plotConfig: PlotConfiguration;
   rescaleOnZoom?: boolean;
   ariaLabel?: string;
+  // Hides the hover tooltip while a shape is being drawn (Ctrl held), so it does not
+  // obscure the annotation. Off by default so existing callers are unaffected.
+  muteHoverWhileDrawing?: boolean;
   children:
     | React.ReactElement<InjectedProps>
     | React.ReactElement<InjectedProps>[];
@@ -62,6 +65,7 @@ export const BaseTimeSeriesPlot = ({
   plotConfig: { data, layout, config = DEFAULT_PLOTLY_CONFIG },
   rescaleOnZoom = true,
   ariaLabel = "time-series",
+  muteHoverWhileDrawing = false,
   children,
 }: TimeSeriesPlotProps) => {
   const [plotReady, setPlotReady] = useState(false);
@@ -323,12 +327,22 @@ export const BaseTimeSeriesPlot = ({
     }
 
     if (isDrawing) {
-      relayout(plot, { dragmode: false });
+      relayout(
+        plot,
+        muteHoverWhileDrawing
+          ? { dragmode: false, hovermode: false }
+          : { dragmode: false },
+      );
       return;
     }
 
-    relayout(plot, { dragmode: "pan" });
-  }, [isDrawing, plotId, plotReady]);
+    relayout(
+      plot,
+      muteHoverWhileDrawing
+        ? { dragmode: "pan", hovermode: "closest" }
+        : { dragmode: "pan" },
+    );
+  }, [isDrawing, muteHoverWhileDrawing, plotId, plotReady]);
 
   useEffect(() => {
     if (!plotReady) {

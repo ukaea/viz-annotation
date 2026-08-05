@@ -284,6 +284,7 @@ export const Profile2dView = () => {
                   layout: plotLayout,
                 }}
                 rescaleOnZoom={false}
+                muteHoverWhileDrawing
               >
                 <TimeRegion />
                 <TimePoint />

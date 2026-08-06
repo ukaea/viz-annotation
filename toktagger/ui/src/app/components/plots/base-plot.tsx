@@ -279,9 +279,9 @@ export const BaseTimeSeriesPlot = ({
         // Plotly's own typing declares only x/y, so widen via unknown.
         const range = eventData.range as unknown as Record<string, number[]>;
         const xRange =
-          range[Object.keys(range).find((k) => k[0] === "x") ?? ""];
+          range[Object.keys(range).find((k) => k.startsWith("x")) ?? ""];
         const yRange =
-          range[Object.keys(range).find((k) => k[0] === "y") ?? ""];
+          range[Object.keys(range).find((k) => k.startsWith("y")) ?? ""];
 
         if (xRange && yRange) {
           const selection: SelectionRange = {

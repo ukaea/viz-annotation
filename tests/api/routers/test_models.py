@@ -471,6 +471,11 @@ async def test_model_start_training_params(
         .joinpath("weights.model")
         .exists()
     )
+    assert (
+        config.settings.models.cache_dir.joinpath(f"{model_id}")
+        .joinpath("config.json")
+        .exists()
+    )
 
 
 # Test delete model

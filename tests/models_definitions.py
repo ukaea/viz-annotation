@@ -176,6 +176,10 @@ class MockParamsTimeSeriesCNN(TimeSeriesCNN):
             )
         return anns
 
+    def save(self, results_dir: pathlib.Path):
+        results_dir.joinpath("weights.model").write_text(self.model)
+        results_dir.joinpath("config.json").touch()
+
 
 MODEL_1 = ModelIn(
     type="mock_disruption_cnn",

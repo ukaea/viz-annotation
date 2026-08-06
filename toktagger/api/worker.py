@@ -124,7 +124,6 @@ def load_model(
 
     # Save the model with the correct dir path
     results_dir = pathlib.Path(os.environ["MODEL_STORAGE"]).joinpath(str(model.id))
-    results_dir.mkdir(parents=True)
 
     save_weights_task = model_actor.wrapped_save.remote(results_dir)
     ray.get(save_weights_task)

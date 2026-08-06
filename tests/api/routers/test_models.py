@@ -738,8 +738,9 @@ async def test_model_load_local_failed(models_api_client, db_client, setup_model
         assert model["training_status"] == "failed"
 
         # Check model has not been saved after completion
-        assert (
-            not pathlib.Path(config.settings.models.cache_dir)
-            .joinpath(f"{model_id}.model")
-            .exists()
+        model_path = (
+            pathlib.Path(config.settings.models.cache_dir)
+            .joinpath(f"{model_id}")
+            .joinpath("weights.model")
         )
+        assert not model_path.exists()

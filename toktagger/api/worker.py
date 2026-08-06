@@ -17,6 +17,7 @@ from toktagger.api.core.sender import (
     send_model_updates,
 )
 import logging
+import shutil
 from platformdirs import user_cache_dir
 import pydantic
 
@@ -141,6 +142,7 @@ def train_model(
     use_gpu: bool = False,
 ):  # TODO: do we want to support retraining where we only get annotations not previously put into model?
     model_actor = get_actor(project=project, model=model, use_gpu=use_gpu)
+    results_dir = pathlib.Path(os.environ["MODEL_STORAGE"]).joinpath(str(model.id))
     try:
         logger.info(f"Running model training for project {project.id}")
         model_actor.log_progress.remote(training_status="started", progress=0)
@@ -151,9 +153,9 @@ def train_model(
         # Wait for train task to complete
         score = ray.get(train_task)
 
-        results_dir = pathlib.Path(os.environ["MODEL_STORAGE"]).joinpath(str(model.id))
         results_dir.mkdir(parents=True)
-        model_actor.wrapped_save.remote(results_dir)
+        save_task = model_actor.wrapped_save.remote(results_dir)
+        ray.get(save_task)  # Block until save is done
 
         send_model_updates(
             project_id=project.id,
@@ -173,6 +175,11 @@ def train_model(
             model_id=model.id,
             updates=ModelUpdate(training_status="failed"),
         )
+
+        # Also delete directory of results, if it has already been created
+        if results_dir.exists():
+            shutil.rmtree(results_dir)
+
         raise e
 
 

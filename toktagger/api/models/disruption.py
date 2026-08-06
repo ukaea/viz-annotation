@@ -368,7 +368,9 @@ class DisruptionCNN(Model):
     def save(self, results_dir: pathlib.Path) -> None:
         torch.save(self.model.state_dict(), results_dir.joinpath("weights.model"))
 
-    def load(self, results_dir: pathlib.Path, weights_filename: str | None = None):
+    def load(
+        self, results_dir: pathlib.Path, weights_filename: str | None = None
+    ) -> None:
         if weights_filename:
             results_path = results_dir.joinpath(weights_filename)
         else:

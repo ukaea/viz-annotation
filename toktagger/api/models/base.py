@@ -232,7 +232,7 @@ class Model(ABC):
             )
 
     @abstractmethod
-    def define_model(self) -> None:
+    def define_model(self) -> typing.Any:
         """Define and return your model architecture here."""
         pass
 

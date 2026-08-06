@@ -700,8 +700,8 @@ class Profile2DThresholdAnnotator:
                 ]
                 contour_coords = [(time[x], dim_1[y]) for x, y in contour_coords]
                 poly = Polygon(contour_coords)
-                # if poly.is_valid and poly.area > 0:
-                polygons.append(poly)
+                if poly.is_valid and poly.area > 0:
+                    polygons.append(poly)
 
         annotations = [
             PolygonAnnotation(

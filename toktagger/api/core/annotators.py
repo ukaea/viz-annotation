@@ -190,7 +190,18 @@ def compute_stft(
     time = np.array(data.time)
     values = np.array(data.values)
 
-    sample_rate = 1 / np.abs(np.median(np.diff(time)))
+    if len(time) < 2:
+        raise ValueError(
+            "At least two time samples are required to compute a sample rate."
+        )
+
+    time_step = np.abs(np.median(np.diff(time)))
+    if time_step == 0:
+        raise ValueError(
+            "Cannot compute a sample rate: the median time step between samples is zero."
+        )
+
+    sample_rate = 1 / time_step
 
     freq, ts, Zxx = stft(
         values,

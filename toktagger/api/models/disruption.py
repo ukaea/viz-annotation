@@ -370,7 +370,7 @@ class DisruptionCNN(Model):
 
     def load(self, results_dir: pathlib.Path, weights_filename: str | None = None):
         if weights_filename:
-            results_path = results_dir.joinpath("weights_filename")
+            results_path = results_dir.joinpath(weights_filename)
         else:
             results_path = results_dir.joinpath("weights.model")
 

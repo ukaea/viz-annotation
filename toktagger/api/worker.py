@@ -106,7 +106,7 @@ def load_model(
     # Try loading actor with weights file, catch and reraise any errors
     try:
         load_temp_weights_task = model_actor.wrapped_load.remote(
-            weights_path.parent, weights_path.name
+            results_dir=weights_path.parent, weights_filename=weights_path.name
         )
         ray.get(load_temp_weights_task)
     except Exception as e:

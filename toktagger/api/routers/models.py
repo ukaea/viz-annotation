@@ -138,7 +138,7 @@ async def delete_models(
         )
 
         # And delete file from storage (if it exists - may not if the job failed)
-        model_dir = config.settings.models.cache_dir.joinpath(f"{model.id}")
+        model_dir = config.settings.models.cache_dir.joinpath(model.id)
         if model_dir.exists():
             shutil.rmtree(model_dir)
 

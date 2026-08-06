@@ -153,7 +153,6 @@ def train_model(
         # Wait for train task to complete
         score = ray.get(train_task)
 
-        results_dir.mkdir(parents=True)
         save_task = model_actor.wrapped_save.remote(results_dir)
         ray.get(save_task)  # Block until save is done
 

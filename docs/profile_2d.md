@@ -41,7 +41,7 @@ The heatmap uses a continuous color scale to represent data values. The colorbar
 
 ### View Parameters
 
-Access view parameters from the toolbar on the right:
+Access view parameters from the toolbar on the left:
 
 - **Signal Selection**: Choose which diagnostic signal to display when multiple signals are available
 - **Log Scale Toggle**: Switch between linear and logarithmic color scaling for better visualization of different dynamic ranges
@@ -182,7 +182,7 @@ regions whose values exceed a chosen percentile.
 
 **To generate them:**
 
-1. Open the "Threshold" panel in the right toolbar
+1. Open the "Threshold" panel in the left toolbar
 2. Enable the tool with the **Thresholding** switch
 3. Adjust the parameters (see
    [Automated Annotation Tools](#automated-annotation-tools) below)
@@ -226,14 +226,7 @@ To change the category of an existing annotation:
 
 ### Deleting Annotations
 
-**For Zones and VSpans:**
-
-1. Right-click on the annotation
-2. Select "Delete" from the context menu
-
-**For Polygons and Bounding Boxes:**
-
-1. Right-click on the shape to open the context menu
+1. Right-click on the annotation to open the context menu
 2. Select "Delete"
 
 Alternatively, select any annotation and click the Delete button in the navigation controls.

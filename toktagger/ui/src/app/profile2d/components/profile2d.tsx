@@ -16,7 +16,7 @@ import { Polygon } from "@/app/components/tools/polygon";
 import { AnnotationToolbar } from "@/app/components/tools/annotationToolbar";
 import { AnnotationsTable } from "@/app/components/ui/annotationsTable";
 import { useSample } from "@/app/contexts/SampleContext";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Flex, View } from "@adobe/react-spectrum";
 import * as d3 from "d3";
 
@@ -182,44 +182,50 @@ const buildPlotData = (
   return [integrated, heatmap];
 };
 
-const buildPlotLayout = (colorAxis: ColorAxis): Partial<Plotly.Layout> =>
-  applyGlobalStyle({
-    autosize: true,
-    height: window.innerHeight * 0.9,
-    xaxis: {
-      title: { text: "" },
-      domain: [0, 1],
-      linewidth: 1,
-      zerolinewidth: 1,
-      showgrid: false,
-    },
-    // The heatmap occupies the upper 80% of the plot...
-    yaxis2: {
-      title: { text: "" },
-      domain: [0.2, 1],
-      linewidth: 1,
-      zerolinewidth: 1,
-      showgrid: false,
-      fixedrange: true,
-      anchor: "x",
-    },
-    // ...with the integrated trace sharing its time axis below.
-    yaxis: {
-      title: { text: "Integrated<br>Values" },
-      domain: [0, 0.2],
-      linewidth: 1,
-      zerolinewidth: 1,
-      showgrid: false,
-      anchor: "x",
-    },
-    showlegend: false,
-    // Left drag pans and the wheel zooms, matching the time series view. yaxis2 is
-    // fixedrange, so the wheel zooms time only.
-    dragmode: "pan",
-    // Preserve zoom/pan across re-renders.
-    uirevision: "true",
-    ...{ coloraxis: colorAxis },
-  } as Partial<Plotly.Layout>);
+const buildPlotLayout = (
+  colorAxis: ColorAxis,
+  isDarkMode: boolean,
+): Partial<Plotly.Layout> =>
+  applyGlobalStyle(
+    {
+      autosize: true,
+      height: window.innerHeight * 0.9,
+      xaxis: {
+        title: { text: "" },
+        domain: [0, 1],
+        linewidth: 1,
+        zerolinewidth: 1,
+        showgrid: false,
+      },
+      // The heatmap occupies the upper 80% of the plot...
+      yaxis2: {
+        title: { text: "" },
+        domain: [0.2, 1],
+        linewidth: 1,
+        zerolinewidth: 1,
+        showgrid: false,
+        fixedrange: true,
+        anchor: "x",
+      },
+      // ...with the integrated trace sharing its time axis below.
+      yaxis: {
+        title: { text: "Integrated<br>Values" },
+        domain: [0, 0.2],
+        linewidth: 1,
+        zerolinewidth: 1,
+        showgrid: false,
+        anchor: "x",
+      },
+      showlegend: false,
+      // Left drag pans and the wheel zooms, matching the time series view. yaxis2 is
+      // fixedrange, so the wheel zooms time only.
+      dragmode: "pan",
+      // Preserve zoom/pan across re-renders.
+      uirevision: "true",
+      ...{ coloraxis: colorAxis },
+    } as Partial<Plotly.Layout>,
+    isDarkMode,
+  );
 
 // Bounding boxes and polygons are drawn by the D3 annotation tools rather than
 // Plotly's built in shape editing, so the draw/erase shape buttons are omitted.
@@ -239,6 +245,21 @@ export const Profile2dView = () => {
   const viewData = data as Profile2DData | null;
   const profileViewParams = viewParams as Profile2DViewParams | null;
   const logScale = profileViewParams?.log_scale ?? false;
+
+  // applyGlobalStyle reads the OS/browser dark mode preference, but that read only
+  // happens when plotLayout is recomputed. Without tracking the preference as state,
+  // switching themes while the page is open would not restyle the plot until
+  // something else (e.g. a reload) forced plotLayout to rebuild.
+  const [isDarkMode, setIsDarkMode] = useState(
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (event: MediaQueryListEvent) =>
+      setIsDarkMode(event.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
 
   // BaseTimeSeriesPlot re-initialises Plotly whenever the data or layout it is given
   // change identity, which also rebuilds the D3 overlay the annotation tools draw on.
@@ -261,8 +282,8 @@ export const Profile2dView = () => {
   }, [viewData, plot, plotProps?.thresholdActive]);
 
   const plotLayout = useMemo(
-    () => (plot ? buildPlotLayout(plot.colorAxis) : {}),
-    [plot],
+    () => (plot ? buildPlotLayout(plot.colorAxis, isDarkMode) : {}),
+    [plot, isDarkMode],
   );
 
   if (!viewData || !profileViewParams || !plot) {

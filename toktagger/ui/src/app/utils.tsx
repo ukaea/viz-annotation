@@ -258,9 +258,13 @@ type LayoutWithColorAxis = Partial<Plotly.Layout> & {
   coloraxis?: { colorbar?: Partial<Plotly.ColorBar> };
 };
 
-// Apply the shared dark mode styling to a Plotly layout.
-export const applyGlobalStyle = (layout: Partial<Plotly.Layout>) => {
-  const isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
+// Apply the shared dark mode styling to a Plotly layout. Takes the current
+// preference as a parameter rather than reading it itself, so callers can react
+// to the preference changing rather than it only being read once on mount.
+export const applyGlobalStyle = (
+  layout: Partial<Plotly.Layout>,
+  isDarkMode: boolean,
+) => {
   if (!isDarkMode) return layout;
 
   const foreground = "rgb(255, 255, 255)";

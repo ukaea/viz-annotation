@@ -28,7 +28,7 @@ import { ImportButton } from "./import";
 import { NavigationBar } from "./nav";
 import { useSample } from "@/app/contexts/SampleContext";
 import Profile2DThresholdTool from "../annotators/thresholding";
-import { Profile2DViewParamsWidget } from "./profile2dViewParamsWidget";
+import { Profile2DViewParamsWidget } from "@/app/profile2d/components/profile2dViewParamsWidget";
 import { VideoToolbox } from "@/app/video/components/video-toolbox";
 import { useServerHealth } from "@/app/contexts/healthContext";
 

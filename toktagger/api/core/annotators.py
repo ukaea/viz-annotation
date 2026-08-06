@@ -623,6 +623,11 @@ class Profile2DThresholdAnnotator:
     predict(data: MultiVariateTimeSeriesData) -> list[PolygonAnnotation]
         Computes the 2D profile mask based on the specified thresholding parameters.
 
+    Raises
+    ------
+    RuntimeError
+        If the data for the configured signal name is missing or not a supported type.
+
     Examples
     --------
     >>> annotator = Profile2DThresholdAnnotator(params)
@@ -643,6 +648,10 @@ class Profile2DThresholdAnnotator:
             dim_1 = np.array(signal.dim_1)
             time = np.array(signal.time)
             values = np.array(signal.values).T
+        else:
+            raise RuntimeError(
+                f"Profile data for {self.params.signal_name} does not exist."
+            )
 
         values = np.nan_to_num(values, nan=1e-6).clip(1e-6)
 

@@ -80,10 +80,12 @@ export default function Profile2DThresholdTool({
 
   // The range of interest defaults to the full extent of the loaded profile.
   useEffect(() => {
-    if (!isEnabled) return;
-    if (!data || !Profile2DDataSchema.safeParse(data).success) return;
+    if (!isEnabled || !data) return;
 
-    const profile = Profile2DDataSchema.parse(data);
+    const result = Profile2DDataSchema.safeParse(data);
+    if (!result.success) return;
+
+    const profile = result.data;
     const extent = {
       start: profile.dim_1[0],
       end: profile.dim_1[profile.dim_1.length - 1],

@@ -104,6 +104,9 @@ class Model(ABC):
 
     @typing.final
     def wrapped_save(self, results_dir: pathlib.Path) -> None:
+        # Make sure results_dir exists
+        results_dir.mkdir(parents=True, exist_ok=True)
+
         if not self._trained:
             raise RuntimeError("Cannot save a model before it has been trained!")
         self.save(results_dir=results_dir)

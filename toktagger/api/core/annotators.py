@@ -644,7 +644,7 @@ class Profile2DThresholdAnnotator:
             time = np.array(signal.time)
             values = np.array(signal.values).T
 
-        values = np.nan_to_num(values, 1e-6).clip(1e-6)
+        values = np.nan_to_num(values, nan=1e-6).clip(1e-6)
 
         if self.params.line_filter_width > 0:
             values = values - uniform_filter(

@@ -17,6 +17,13 @@ import * as d3 from "d3";
 import { useEffect, useRef } from "react";
 import { useContextMenu } from "react-contexify";
 
+// A polygon being drawn carries two helper vertices: one that tracks the cursor and a
+// temporary vertex that keeps the outline closed. Both are dropped once it is committed.
+const HELPER_VERTEX_COUNT = 2;
+
+// Fewer real vertices than this does not describe a shape, so it cannot be committed.
+const MIN_POLYGON_VERTICES = 3;
+
 export const Polygon = ({ plotId, plotReady, subplot }: ToolingProps) => {
   const {
     registerTooling,

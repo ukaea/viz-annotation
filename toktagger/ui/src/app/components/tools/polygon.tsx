@@ -124,6 +124,36 @@ export const Polygon = ({ plotId, plotReady, subplot }: ToolingProps) => {
     updateAnnotation,
   ]);
 
+  // Releasing the modifier key ends the drawing gesture. Every other tool has already
+  // committed its shape by that point, so an in-progress polygon is committed here too
+  // rather than being left with its open edge tracking the cursor. A shape that does
+  // not yet have enough real vertices cannot be committed, so it is discarded instead.
+  const wasDrawing = useRef(isDrawing);
+  useEffect(() => {
+    const drawingEnded = wasDrawing.current && !isDrawing;
+    wasDrawing.current = isDrawing;
+
+    if (!drawingEnded) return;
+
+    const annotation = currentAnnotation.current;
+    if (!isUpdatingPolygon.current || !annotation) return;
+
+    isUpdatingPolygon.current = false;
+    currentAnnotation.current = null;
+    setOngoingAction(false);
+
+    if (annotation.points.length - HELPER_VERTEX_COUNT < MIN_POLYGON_VERTICES) {
+      removeAnnotation(annotation.id);
+      return;
+    }
+
+    annotation.points.splice(
+      annotation.points.length - HELPER_VERTEX_COUNT,
+      HELPER_VERTEX_COUNT,
+    );
+    updateAnnotation(annotation);
+  }, [isDrawing, removeAnnotation, setOngoingAction, updateAnnotation]);
+
   // Main rendering effect
   useEffect(() => {
     // This shall not run until the target plot is initialised

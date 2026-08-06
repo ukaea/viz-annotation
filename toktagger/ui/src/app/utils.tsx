@@ -75,6 +75,27 @@ export function arrayMin(arr: (number | null)[]): number {
   return traceMin;
 }
 
+// The raw annotation types the time series view can draw. Must match the types handled
+// by convertRawAnnotationsToTimeSeries below: anything missing here would be treated as
+// belonging to another view and left untouched, and anything extra would be dropped.
+const TIME_SERIES_ANNOTATION_TYPES: ReadonlySet<string> = new Set([
+  "time_region",
+  "time_point",
+  "bounding_box",
+  "polygon",
+]);
+
+/**
+ * Whether an annotation is one the time series view owns and is able to represent.
+ *
+ * Annotations are shared with other tools - shot labels, for example, are stored
+ * alongside the drawn ones - so the view must know which are its own before replacing
+ * them.
+ */
+export function isTimeSeriesAnnotation(annotation: Annotation): boolean {
+  return TIME_SERIES_ANNOTATION_TYPES.has(annotation.type);
+}
+
 export function convertRawAnnotationsToTimeSeries(
   annotation: Annotation,
 ): TimeSeriesAnnotation | null {

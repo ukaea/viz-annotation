@@ -258,6 +258,11 @@ type LayoutWithColorAxis = Partial<Plotly.Layout> & {
   coloraxis?: { colorbar?: Partial<Plotly.ColorBar> };
 };
 
+// Matches every axis key Plotly supports on a layout: xaxis, xaxis2, ..., yaxis,
+// yaxis2, ... . Views with more than two axes (e.g. one y-axis per time series
+// signal) need every one of them styled, not just the first couple.
+const AXIS_KEY_PATTERN = /^[xy]axis\d*$/;
+
 // Apply the shared dark mode styling to a Plotly layout. Takes the current
 // preference as a parameter rather than reading it itself, so callers can react
 // to the preference changing rather than it only being read once on mount.
@@ -268,13 +273,28 @@ export const applyGlobalStyle = (
   if (!isDarkMode) return layout;
 
   const foreground = "rgb(255, 255, 255)";
-  for (const axis of [layout.xaxis, layout.yaxis, layout.yaxis2]) {
+  const axes = layout as unknown as Record<
+    string,
+    Partial<Plotly.LayoutAxis> | undefined
+  >;
+
+  for (const key of Object.keys(layout)) {
+    if (!AXIS_KEY_PATTERN.test(key)) continue;
+    const axis = axes[key];
     if (!axis) continue;
-    if (axis.title) axis.title.font = { color: foreground };
+
+    // Merge rather than replace, so an axis-specific font family/size survives.
+    if (axis.title) {
+      axis.title.font = { ...axis.title.font, color: foreground };
+    }
     axis.linecolor = foreground;
     axis.zerolinecolor = foreground;
     axis.tickcolor = foreground;
-    axis.tickfont = { color: foreground };
+    axis.tickfont = { ...axis.tickfont, color: foreground };
+    // Plotly's default gridcolor is a light grey meant to be subtle against a
+    // white background. Left alone it reads as a bold near-white line against
+    // the dark, transparent one set below.
+    axis.gridcolor = "rgba(255, 255, 255, 0.15)";
   }
 
   const colorbar = (layout as LayoutWithColorAxis).coloraxis?.colorbar;

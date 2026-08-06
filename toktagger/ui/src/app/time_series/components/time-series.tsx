@@ -5,7 +5,7 @@ import { TimeSeriesProvider } from "@/app/contexts/TimeSeriesContext";
 import { TimeRegion } from "@/app/components/tools/timeRegion";
 import "react-contexify/ReactContexify.css";
 
-import { arrayMax, arrayMin } from "@/app/utils";
+import { applyGlobalStyle, arrayMax, arrayMin } from "@/app/utils";
 import { useEffect, useMemo, useState } from "react";
 import { TimePoint } from "@/app/components/tools/timePoint";
 import { useSample } from "@/app/contexts/SampleContext";
@@ -21,6 +21,21 @@ export const TimeSeriesView = () => {
   const [plotData, setPlotData] = useState<Partial<Plotly.PlotData>[]>([]);
 
   const viewData = data as MultiVariateTimeSeriesData | null;
+
+  // applyGlobalStyle reads the OS/browser dark mode preference, but that read only
+  // happens when plotLayout is recomputed. Without tracking the preference as state,
+  // switching themes while the page is open would not restyle the plot until
+  // something else (e.g. a reload) forced plotLayout to rebuild.
+  const [isDarkMode, setIsDarkMode] = useState(
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (event: MediaQueryListEvent) =>
+      setIsDarkMode(event.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
 
   useEffect(() => {
     if (!viewData) return;
@@ -96,31 +111,34 @@ export const TimeSeriesView = () => {
       {} as Record<string, unknown>,
     );
 
-    return {
-      uirevision: "true",
-      //grid: { rows: 1, columns: 1, pattern: "independent" },
-      dragmode: "pan",
-      autosize: true,
-      height: window.innerHeight * 0.9,
-      xaxis: {
-        minallowed: minTime,
-        maxallowed: maxTime,
-        range: [minTime, maxTime],
-        fixedrange: false,
-        autorange: false,
-        rangeslider: { visible: true, thickness: 0.1 },
-        title: {
-          text: "Time [s]",
-          font: {
-            family: "Courier New, monospace",
-            size: 12,
-            color: "#7f7f7f",
+    return applyGlobalStyle(
+      {
+        uirevision: "true",
+        //grid: { rows: 1, columns: 1, pattern: "independent" },
+        dragmode: "pan",
+        autosize: true,
+        height: window.innerHeight * 0.9,
+        xaxis: {
+          minallowed: minTime,
+          maxallowed: maxTime,
+          range: [minTime, maxTime],
+          fixedrange: false,
+          autorange: false,
+          rangeslider: { visible: true, thickness: 0.1 },
+          title: {
+            text: "Time [s]",
+            font: {
+              family: "Courier New, monospace",
+              size: 12,
+              color: "#7f7f7f",
+            },
           },
         },
+        ...yAxesLayout,
       },
-      ...yAxesLayout,
-    };
-  }, [plotData]);
+      isDarkMode,
+    );
+  }, [plotData, isDarkMode]);
 
   if (!viewData) {
     return null;

@@ -8,14 +8,17 @@ import React, {
   useRef,
 } from "react";
 import { ToastQueue } from "@adobe/react-spectrum";
+import { z } from "zod/v4";
 import {
   Project,
   Sample,
   Data,
   Annotation,
   ViewParams,
+  ViewParamsSchema,
   PlotProps,
   Profile2DViewParams,
+  Profile2DViewParamsSchema,
   MultiVariateTimeSeriesData,
   Profile2DData,
   MultiVariateTimeSeriesDataSchema,
@@ -27,6 +30,40 @@ import {
 } from "@/types";
 import { BACKEND_API_URL } from "@/app/core";
 import { getSignalNames } from "@/app/utils";
+
+const viewParamsKey = (projectId: string) => `view-params-${projectId}`;
+const colorMapKey = (projectId: string) => `color-map-${projectId}`;
+
+// Reads persisted view params (selected signal, log scale, ...), discarding
+// anything that does not match the current schema so corrupt or stale storage
+// cannot throw during render.
+function readSavedViewParams(
+  projectId: string,
+): ViewParams | Profile2DViewParams {
+  const fallback: ViewParams = { name: "identity" };
+  if (!projectId) return fallback;
+
+  const saved = sessionStorage.getItem(viewParamsKey(projectId));
+  if (!saved) return fallback;
+
+  try {
+    const parsed: unknown = JSON.parse(saved);
+    const result = z
+      .union([ViewParamsSchema, Profile2DViewParamsSchema])
+      .safeParse(parsed);
+    if (result.success) return result.data;
+  } catch {
+    // Malformed JSON - fall through and discard.
+  }
+
+  sessionStorage.removeItem(viewParamsKey(projectId));
+  return fallback;
+}
+
+function readSavedColorMap(projectId: string): string | null {
+  if (!projectId) return null;
+  return sessionStorage.getItem(colorMapKey(projectId));
+}
 
 interface SampleContextType {
   project: Project | null;
@@ -137,18 +174,34 @@ export function SampleProvider({
 
   const [viewParams, setViewParams] = useState<
     ViewParams | Profile2DViewParams
-  >({
-    name: "identity",
-  });
+  >(() => readSavedViewParams(projectId));
 
   const [dataParams, setDataParams] = useState<DataParams>({
     name: "identity",
   });
   const [prevSampleId, setPrevSampleId] = useState(sampleId);
 
-  const [plotProps, setPlotProps] = useState<PlotProps>({
-    colorMap: "Cividis",
-  });
+  const [plotProps, setPlotProps] = useState<PlotProps>(() => ({
+    colorMap: readSavedColorMap(projectId) ?? "Cividis",
+  }));
+
+  // Persist view params (selected signal, log scale, ...) so they survive a
+  // refresh and carry over when navigating between samples in the same project.
+  useEffect(() => {
+    if (!projectId) return;
+    sessionStorage.setItem(
+      viewParamsKey(projectId),
+      JSON.stringify(viewParams),
+    );
+  }, [viewParams, projectId]);
+
+  // Persist the colour map only, not the rest of plotProps - thresholdActive
+  // already has its own source of truth (whether the sample has saved threshold
+  // annotations) and should not be restored from a previous session.
+  useEffect(() => {
+    if (!projectId || !plotProps.colorMap) return;
+    sessionStorage.setItem(colorMapKey(projectId), plotProps.colorMap);
+  }, [plotProps.colorMap, projectId]);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
 

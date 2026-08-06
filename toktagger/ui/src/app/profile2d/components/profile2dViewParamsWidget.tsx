@@ -6,9 +6,20 @@ import { ComboBox, Flex, Item, Switch } from "@adobe/react-spectrum";
 import { useEffect, useMemo, useState } from "react";
 
 export function Profile2DViewParamsWidget() {
-  const { sample, setViewParams } = useSample();
-  const [selectedSignal, setSelectedSignal] = useState<string | null>(null);
-  const [logScale, setLogScale] = useState<boolean>(false);
+  const { sample, viewParams, setViewParams } = useSample();
+  // Seed from context (which may already hold a restored value - see
+  // SampleContext's view params persistence) rather than always starting blank,
+  // otherwise the effect below would immediately overwrite it with the default.
+  const initialParams =
+    viewParams.name === "profile_2d"
+      ? (viewParams as Profile2DViewParams)
+      : null;
+  const [selectedSignal, setSelectedSignal] = useState<string | null>(
+    initialParams?.signal_name ?? null,
+  );
+  const [logScale, setLogScale] = useState<boolean>(
+    initialParams?.log_scale ?? false,
+  );
 
   const signalNames = useMemo(() => getSignalNames(sample), [sample]);
 

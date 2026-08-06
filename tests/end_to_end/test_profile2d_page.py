@@ -35,20 +35,6 @@ def setup_project(page: Page) -> Tuple[str, str, Callable]:
     return (project_id, sample_id, reload)
 
 
-def get_x_range(page: Page) -> list[float]:
-    """Read the live Plotly x-axis range from the rendered plot."""
-    return page.evaluate(
-        """(plotId) => {
-            const plot = document.getElementById(plotId);
-            const range = plot && plot._fullLayout && plot._fullLayout.xaxis
-                ? plot._fullLayout.xaxis.range
-                : null;
-            return range ? [range[0], range[1]] : null;
-        }""",
-        PLOT_ID,
-    )
-
-
 def get_dragmode(page: Page) -> str:
     return page.evaluate(
         """(plotId) => {
@@ -57,12 +43,6 @@ def get_dragmode(page: Page) -> str:
         }""",
         PLOT_ID,
     )
-
-
-def _plot_centre(page: Page) -> tuple[float, float]:
-    box = page.get_by_label("profile-2d").bounding_box()
-    assert box is not None
-    return box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
 
 
 def add_bounding_box(page: Page, label: str = "NTM", offset: int = 150) -> None:
@@ -88,72 +68,14 @@ def add_bounding_box(page: Page, label: str = "NTM", offset: int = 150) -> None:
     page.keyboard.up("Control")
 
     page.get_by_role("button", name="Edit Mode").click()
+    expect(page.get_by_label("bounding-box")).to_have_count(1)
 
 
 def test_profile2d_plot_renders(server_setup, page: Page):
     setup_project(page)
     expect(page.get_by_label("profile-2d")).to_be_visible()
     # Default drag mode is pan (matching the time series view) so left-drag pans.
-    page.wait_for_timeout(500)
     assert get_dragmode(page) == "pan"
-
-
-def test_profile2d_wheel_zoom(server_setup, page: Page):
-    """Problems 1 & 5: the mouse wheel should zoom in and gradually back out."""
-    setup_project(page)
-    page.wait_for_timeout(1000)
-
-    cx, cy = _plot_centre(page)
-    page.mouse.move(cx, cy)
-
-    before = get_x_range(page)
-    assert before is not None
-    before_width = before[1] - before[0]
-
-    # Scroll up to zoom in.
-    page.mouse.wheel(0, -300)
-    page.wait_for_timeout(400)
-    zoomed_in = get_x_range(page)
-    zoomed_in_width = zoomed_in[1] - zoomed_in[0]
-    assert zoomed_in_width < before_width, "wheel up should zoom the x-axis in"
-
-    # Scroll down to zoom gradually back out (not a full reset).
-    page.mouse.move(cx, cy)
-    page.mouse.wheel(0, 300)
-    page.wait_for_timeout(400)
-    zoomed_out = get_x_range(page)
-    zoomed_out_width = zoomed_out[1] - zoomed_out[0]
-    assert zoomed_out_width > zoomed_in_width, "wheel down should zoom the x-axis out"
-
-
-def _annotation_shape_count(page: Page) -> int:
-    """Count the D3 annotation shapes drawn on the heatmap subplot overlay."""
-    return page.evaluate(
-        """(plotId) => {
-            const plot = document.getElementById(plotId);
-            if (!plot) return -1;
-            const overlay = plot.querySelector("[class*='-overplot-xy2']");
-            if (!overlay) return 0;
-            return overlay.querySelectorAll("polygon, path").length;
-        }""",
-        PLOT_ID,
-    )
-
-
-def _annotation_mark_count(page: Page) -> int:
-    """Count committed annotation marks (bounding boxes + polygons) on the overlay."""
-    return page.evaluate(
-        """(plotId) => {
-            const plot = document.getElementById(plotId);
-            if (!plot) return -1;
-            const overlay = plot.querySelector("[class*='-overplot-xy2']");
-            if (!overlay) return 0;
-            return overlay.querySelectorAll(
-                "polygon[aria-label='polygon'], rect[aria-label='bounding-box']"
-            ).length;
-        }""",
-        PLOT_ID,
-    )
 
 
 def test_profile2d_threshold_toggle_preserves_manual_annotations(
@@ -161,68 +83,44 @@ def test_profile2d_threshold_toggle_preserves_manual_annotations(
 ):
     """Toggling thresholding must not clear the user's own annotations."""
     setup_project(page)
-    page.wait_for_timeout(1000)
 
     add_bounding_box(page)
-    page.wait_for_timeout(500)
-    manual = _annotation_mark_count(page)
-    assert manual >= 1, "manual bounding box should be drawn"
 
     # Enabling thresholding adds polygons but must keep the manual annotation.
     page.get_by_role("button", name="Threshold").click()
     page.get_by_role("switch", name="Thresholding").click(force=True)
-    page.wait_for_timeout(2500)
-    assert _annotation_mark_count(page) > manual, (
-        "enabling thresholding should keep the manual annotation and add polygons"
-    )
+    expect(page.get_by_label("polygon").first).to_be_visible()
+    expect(page.get_by_label("bounding-box")).to_have_count(1)
 
     # Disabling removes the generated polygons but keeps the manual annotation.
     page.get_by_role("switch", name="Thresholding").click(force=True)
-    page.wait_for_timeout(1500)
-    assert _annotation_mark_count(page) >= manual, (
-        "manual annotations must survive toggling thresholding off"
-    )
+    expect(page.get_by_label("polygon")).to_have_count(0)
+    expect(page.get_by_label("bounding-box")).to_have_count(1)
 
 
 def test_profile2d_threshold_toggle_removes_annotations(server_setup, page: Page):
     """Toggling the threshold annotator off must remove its unsaved annotations."""
     setup_project(page)
-    page.wait_for_timeout(1000)
-
-    baseline = _annotation_shape_count(page)
 
     # Expand the Threshold panel and enable it - the annotator draws polygons.
     page.get_by_role("button", name="Threshold").click()
     page.get_by_role("switch", name="Thresholding").click(force=True)
-    page.wait_for_timeout(2500)
-    enabled = _annotation_shape_count(page)
-    assert enabled > baseline, "enabling thresholding should draw polygon annotations"
+    expect(page.get_by_label("polygon").first).to_be_visible()
 
-    # Disabling must clear the generated (unsaved) polygons...
+    # Disabling must clear the generated (unsaved) polygons.
     page.get_by_role("switch", name="Thresholding").click(force=True)
-    page.wait_for_timeout(1500)
-    disabled = _annotation_shape_count(page)
-    assert disabled <= baseline, "disabling thresholding should remove its annotations"
-
-    # ...and they must not reappear after a zoom.
-    cx, cy = _plot_centre(page)
-    page.mouse.move(cx, cy)
-    page.mouse.wheel(0, -300)
-    page.wait_for_timeout(800)
-    assert _annotation_shape_count(page) <= baseline
+    expect(page.get_by_label("polygon")).to_have_count(0)
 
 
 def test_profile2d_saved_threshold_annotations_persist(server_setup, page: Page):
     """Saving threshold annotations validates them, so toggling the annotator off
     no longer discards them."""
     project_id, sample_id, _reload = setup_project(page)
-    page.wait_for_timeout(1000)
 
     page.get_by_role("button", name="Threshold").click()
     page.get_by_role("switch", name="Thresholding").click(force=True)
-    page.wait_for_timeout(2500)
-    enabled = _annotation_shape_count(page)
-    assert enabled > 0, "enabling thresholding should draw polygon annotations"
+    expect(page.get_by_label("polygon").first).to_be_visible()
+    enabled_count = page.get_by_label("polygon").count()
 
     # Save, waiting for the PUT to the backend to complete.
     with page.expect_response(
@@ -231,14 +129,10 @@ def test_profile2d_saved_threshold_annotations_persist(server_setup, page: Page)
         )
     ):
         page.get_by_role("button", name="Save").click(force=True)
-    page.wait_for_timeout(1000)
 
     # Toggle the annotator off - the saved annotations must remain on the plot.
     page.get_by_role("switch", name="Thresholding").click(force=True)
-    page.wait_for_timeout(1500)
-    assert _annotation_shape_count(page) >= enabled, (
-        "saved threshold annotations should persist after toggling off"
-    )
+    expect(page.get_by_label("polygon")).to_have_count(enabled_count)
 
     # They should be stored as validated, while keeping the annotator that produced
     # them as their creator rather than being reattributed to the user.

@@ -98,10 +98,12 @@ class VideoCNN(Model):
                 annotations.append(sample_anns)
         return annotations
 
-    def save(self, file_stem: str):
-        pathlib.Path(file_stem).with_suffix(".model").touch()
+    def save(self, results_dir: pathlib.Path) -> None:
+        results_dir.joinpath("weights.model").touch()
 
-    def load(self, file_path: str):
+    def load(
+        self, results_dir: pathlib.Path, weights_filename: str | None = None
+    ) -> None:
         self.model = None
 
 

@@ -167,8 +167,8 @@ async def test_model_predict_missing_weights(
 ):
     # Delete weights
     config.settings.models.cache_dir.joinpath(
-        f"{setup_model_db['model_id_1']}.model"
-    ).unlink()
+        f"{setup_model_db['model_id_1']}"
+    ).joinpath("weights.model").unlink()
     response = await models_api_client.post(
         f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/predict?num_predictions=5&version=1"
     )
@@ -380,7 +380,11 @@ async def test_model_start_training_no_params(
     assert model["score"] == 60  # value returned by train method
 
     # Check model has been saved after completion
-    assert config.settings.models.cache_dir.joinpath(f"{model_id}.model").exists()
+    assert (
+        config.settings.models.cache_dir.joinpath(f"{model_id}")
+        .joinpath("weights.model")
+        .exists()
+    )
 
 
 @pytest.mark.asyncio
@@ -466,7 +470,16 @@ async def test_model_start_training_params(
     assert model["score"] == 50  # value returned from params
 
     # Check model has been saved after completion
-    assert config.settings.models.cache_dir.joinpath(f"{model_id}.model").exists()
+    assert (
+        config.settings.models.cache_dir.joinpath(f"{model_id}")
+        .joinpath("weights.model")
+        .exists()
+    )
+    assert (
+        config.settings.models.cache_dir.joinpath(f"{model_id}")
+        .joinpath("config.json")
+        .exists()
+    )
 
 
 # Test delete model
@@ -487,17 +500,17 @@ async def test_model_delete_type(models_api_client, db_client, setup_model_db):
 
     # Check for models 1 and 2, their file no longer exists
     assert not config.settings.models.cache_dir.joinpath(
-        f"{setup_model_db['model_id_1']}.model"
+        f"{setup_model_db['model_id_1']}"
     ).exists()
     assert not config.settings.models.cache_dir.joinpath(
-        f"{setup_model_db['model_id_2']}.model"
+        f"{setup_model_db['model_id_2']}"
     ).exists()
     # And for model 3 it does still exist
     assert config.settings.models.cache_dir.joinpath(
-        f"{setup_model_db['model_id_3']}.model"
+        f"{setup_model_db['model_id_3']}"
     ).exists()
     assert config.settings.models.cache_dir.joinpath(
-        f"{setup_model_db['model_id_3']}.model"
+        f"{setup_model_db['model_id_4']}"
     ).exists()
 
 
@@ -522,13 +535,13 @@ async def test_model_delete_type_version(models_api_client, db_client, setup_mod
 
     # Check for model 2, their file no longer exists
     assert not config.settings.models.cache_dir.joinpath(
-        f"{setup_model_db['model_id_2']}.model"
+        f"{setup_model_db['model_id_2']}"
     ).exists()
     # And for models 1, 3 and 4 it does still exist
     assert all(
         (
             config.settings.models.cache_dir.joinpath(
-                f"{setup_model_db[model_id]}.model"
+                f"{setup_model_db[model_id]}"
             ).exists()
         )
         for model_id in ("model_id_1", "model_id_3", "model_id_4")
@@ -644,8 +657,10 @@ async def test_model_load_local(models_api_client, db_client, setup_model_db):
         assert response.status_code == 200
 
         # Check model has been saved after completion
-        model_path = pathlib.Path(config.settings.models.cache_dir).joinpath(
-            f"{model_id}.model"
+        model_path = (
+            pathlib.Path(config.settings.models.cache_dir)
+            .joinpath(f"{model_id}")
+            .joinpath("weights.model")
         )
         assert model_path.exists()
 
@@ -728,11 +743,12 @@ async def test_model_load_local_failed(models_api_client, db_client, setup_model
         assert model["training_status"] == "failed"
 
         # Check model has not been saved after completion
-        assert (
-            not pathlib.Path(config.settings.models.cache_dir)
-            .joinpath(f"{model_id}.model")
-            .exists()
+        model_path = (
+            pathlib.Path(config.settings.models.cache_dir)
+            .joinpath(f"{model_id}")
+            .joinpath("weights.model")
         )
+        assert not model_path.exists()
 
 
 def mock_ray_remote(*args, **kwargs):

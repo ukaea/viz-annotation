@@ -594,6 +594,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
                   trackId={trackId}
                   geometry={geometry}
                   details={details}
+                  deleteDisabled={!editMode}
                   onDeleteBox={() => {
                     const id = annotation?.id;
                     if (!id) return;

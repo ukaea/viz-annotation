@@ -13,6 +13,7 @@ export function AnnotationPopup(props: {
   trackId: string | null;
   geometry?: { x: number; y: number; w: number; h: number } | null;
   details?: string | null;
+  deleteDisabled?: boolean;
   onDeleteBox: () => void;
   onClose: () => void;
 }) {
@@ -60,7 +61,8 @@ export function AnnotationPopup(props: {
         <div className="mt-2 flex gap-2">
           <button
             onClick={props.onDeleteBox}
-            className="rounded-md bg-red-500/20 hover:bg-red-500/30 text-red-200 px-2.5 py-1.5 text-xs"
+            disabled={props.deleteDisabled}
+            className="rounded-md bg-red-500/20 enabled:hover:bg-red-500/30 text-red-200 px-2.5 py-1.5 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
             title="Delete this annotation"
           >
             Delete

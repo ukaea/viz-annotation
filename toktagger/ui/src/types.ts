@@ -326,9 +326,7 @@ export type ToolingProps = {
   forceUpdate?: number;
   onUpdate?: CallableFunction;
   selectedXRange?: [number, number];
-  // Restricts rendering to a single subplot (e.g. "xy2"). Tools whose annotations carry
-  // meaningful y values need this on plots where only one subplot shares their y axis.
-  // Defaults to rendering on every subplot.
+  // Restricts rendering to a single subplot (e.g. "xy2"); all subplots by default.
   subplot?: string;
 };
 
@@ -367,8 +365,7 @@ export type TimeSeriesAnnotation = {
   type: TimeSeriesAnnotationType;
   points: TimeSeriesAnnotationPoint[];
   selected: boolean;
-  // Binds the annotation to a specific signal. Null for views that annotate a single
-  // implicit signal; profile 2D sets this from the active view params.
+  // Binds the annotation to a specific signal; null for single-signal views.
   signal_name?: string | null;
 };
 

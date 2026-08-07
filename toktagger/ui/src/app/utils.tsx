@@ -254,8 +254,7 @@ export function convertTimeSeriesToRawAnnotations(
   return null;
 }
 
-// Collapse a 2D profile down its first axis, giving one value per column.
-// Nulls are skipped: the API serialises NaN samples in a profile as null.
+// Sums a 2D profile down its first axis, skipping nulls, into one value per column.
 export function sumOverFirstAxis(arr: (number | null)[][]): number[] {
   if (arr.length === 0) return [];
 
@@ -279,14 +278,10 @@ type LayoutWithColorAxis = Partial<Plotly.Layout> & {
   coloraxis?: { colorbar?: Partial<Plotly.ColorBar> };
 };
 
-// Matches every axis key Plotly supports on a layout: xaxis, xaxis2, ..., yaxis,
-// yaxis2, ... . Views with more than two axes (e.g. one y-axis per time series
-// signal) need every one of them styled, not just the first couple.
+// Matches every axis key Plotly supports, e.g. xaxis, yaxis, yaxis2.
 const AXIS_KEY_PATTERN = /^[xy]axis\d*$/;
 
-// Apply the shared dark mode styling to a Plotly layout. Takes the current
-// preference as a parameter rather than reading it itself, so callers can react
-// to the preference changing rather than it only being read once on mount.
+// Applies dark mode styling to a Plotly layout when isDarkMode is true.
 export const applyGlobalStyle = (
   layout: Partial<Plotly.Layout>,
   isDarkMode: boolean,
@@ -312,9 +307,7 @@ export const applyGlobalStyle = (
     axis.zerolinecolor = foreground;
     axis.tickcolor = foreground;
     axis.tickfont = { ...axis.tickfont, color: foreground };
-    // Plotly's default gridcolor is a light grey meant to be subtle against a
-    // white background. Left alone it reads as a bold near-white line against
-    // the dark, transparent one set below.
+    // Dim the gridlines so they stay subtle on a dark background.
     axis.gridcolor = "rgba(255, 255, 255, 0.15)";
   }
 

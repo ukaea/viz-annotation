@@ -35,9 +35,7 @@ export function useNavAdapter(): NavAdapter {
   return {
     getAnnotations: () => annotations,
     afterSave: () => {
-      // saveSampleAnnotations validates on the server, so mirror that locally.
-      // Annotator output is only kept when it is validated, so without this an
-      // annotator's annotations would vanish on toggling it off despite being saved.
+      // Mirrors the server-side validation so saved annotator output isn't discarded.
       setAnnotations((previousAnnotations: Annotation[]) =>
         previousAnnotations.map((annotation: Annotation) => ({
           ...annotation,

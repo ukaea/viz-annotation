@@ -6,10 +6,7 @@ from playwright.sync_api import Page, expect
 
 from tests.endpoints import create_local_samples, create_project
 
-# The Profile2D plot is rendered into a div with id "Profile2DView" (see
-# base-plot.tsx) and aria-label "profile-2d" (profile2d.tsx). A profile-2d project
-# backed by the `tabular` loader feeds the 1D signal through an STFT to produce the
-# 2D spectrogram, so the offline parquet fixture is enough to exercise the view.
+# The id of the div the Profile2D plot renders into (see base-plot.tsx).
 PLOT_ID = "Profile2DView"
 
 

@@ -20,8 +20,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Flex, View } from "@adobe/react-spectrum";
 import * as d3 from "d3";
 
-// The heatmap is drawn against yaxis2, so annotations carrying real y values belong to
-// this subplot only - the integrated values subplot below it has an unrelated y scale.
+// The subplot annotations with real y values should be restricted to.
 const HEATMAP_SUBPLOT = "xy2";
 
 // Plotly supports a shared color axis but @types/plotly.js does not declare it.
@@ -42,8 +41,7 @@ const colorMapInterpolators: Record<string, (value: number) => string> = {
   Cividis: d3.interpolateCividis,
 };
 
-// A colour scale that leaves the lowest values fully transparent, so the plot
-// background (and anything drawn beneath the heatmap) shows through.
+// Leaves the lowest values fully transparent so the background shows through.
 const buildColorScale = (
   interpFunc: (value: number) => string,
   smallPrecisionFactor: number,
@@ -217,8 +215,7 @@ const buildPlotLayout = (
         anchor: "x",
       },
       showlegend: false,
-      // Left drag pans and the wheel zooms, matching the time series view. yaxis2 is
-      // fixedrange, so the wheel zooms time only.
+      // Left drag pans, matching the time series view.
       dragmode: "pan",
       // Preserve zoom/pan across re-renders.
       uirevision: "true",
@@ -227,8 +224,7 @@ const buildPlotLayout = (
     isDarkMode,
   );
 
-// Bounding boxes and polygons are drawn by the D3 annotation tools rather than
-// Plotly's built in shape editing, so the draw/erase shape buttons are omitted.
+// Draw/erase shape buttons are omitted since the D3 tools handle drawing instead.
 const PLOT_CONFIG: Partial<Plotly.Config> = {
   modeBarButtons: [
     ["zoom2d", "select2d", "pan2d", "autoScale2d", "resetScale2d", "toImage"],
@@ -246,10 +242,7 @@ export const Profile2dView = () => {
   const profileViewParams = viewParams as Profile2DViewParams | null;
   const logScale = profileViewParams?.log_scale ?? false;
 
-  // applyGlobalStyle reads the OS/browser dark mode preference, but that read only
-  // happens when plotLayout is recomputed. Without tracking the preference as state,
-  // switching themes while the page is open would not restyle the plot until
-  // something else (e.g. a reload) forced plotLayout to rebuild.
+  // Tracked as state so the plot restyles live when the OS theme changes.
   const [isDarkMode, setIsDarkMode] = useState(
     () => window.matchMedia("(prefers-color-scheme: dark)").matches,
   );
@@ -261,11 +254,7 @@ export const Profile2dView = () => {
     return () => query.removeEventListener("change", onChange);
   }, []);
 
-  // BaseTimeSeriesPlot re-initialises Plotly whenever the data or layout it is given
-  // change identity, which also rebuilds the D3 overlay the annotation tools draw on.
-  // Drawing an annotation updates the sample state and re-renders this component, so
-  // without memoising these the plot would be torn down mid-drag and the annotation
-  // lost. The time series view memoises for the same reason.
+  // Memoised so an annotation drag doesn't tear down and rebuild the plot mid-draw.
   const plot = useMemo(() => {
     if (!viewData || !plotProps) return null;
     const interpFunc =

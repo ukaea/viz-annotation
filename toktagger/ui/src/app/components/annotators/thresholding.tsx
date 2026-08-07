@@ -96,9 +96,7 @@ export default function Profile2DThresholdTool({
 
   useEffect(() => {
     if (!isEnabled) {
-      // Thresholding was turned off - drop any annotations this annotator
-      // produced that have not been saved (validated) to the database. Without
-      // this the generated polygons linger on the plot after toggling off.
+      // Drop this annotator's unsaved output so it doesn't linger after toggling off.
       setAnnotations((previousAnnotations: Annotation[]) =>
         previousAnnotations.filter(
           (annotation: Annotation) =>
@@ -136,9 +134,7 @@ export default function Profile2DThresholdTool({
 
       const payload: Annotation[] = await response.json();
       setAnnotations((previousAnnotations: Annotation[]) => {
-        // Replace only this annotator's previous, unsaved output for the current
-        // signal. Everything else - manually drawn annotations, validated results,
-        // and annotations for other signals - must be preserved.
+        // Replace only this annotator's unsaved output for the current signal.
         const otherAnnotations = previousAnnotations.filter(
           (annotation: Annotation) =>
             !(

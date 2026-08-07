@@ -22,10 +22,7 @@ export const TimeSeriesView = () => {
 
   const viewData = data as MultiVariateTimeSeriesData | null;
 
-  // applyGlobalStyle reads the OS/browser dark mode preference, but that read only
-  // happens when plotLayout is recomputed. Without tracking the preference as state,
-  // switching themes while the page is open would not restyle the plot until
-  // something else (e.g. a reload) forced plotLayout to rebuild.
+  // Tracked as state so the plot restyles live when the OS theme changes.
   const [isDarkMode, setIsDarkMode] = useState(
     () => window.matchMedia("(prefers-color-scheme: dark)").matches,
   );

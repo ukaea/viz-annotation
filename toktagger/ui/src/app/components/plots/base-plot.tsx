@@ -52,8 +52,7 @@ type TimeSeriesPlotProps = {
   plotConfig: PlotConfiguration;
   rescaleOnZoom?: boolean;
   ariaLabel?: string;
-  // Hides the hover tooltip while a shape is being drawn (Ctrl held), so it does not
-  // obscure the annotation. Off by default so existing callers are unaffected.
+  // Hides the hover tooltip while drawing (Ctrl held) so it doesn't obscure the shape.
   muteHoverWhileDrawing?: boolean;
   children:
     | React.ReactElement<InjectedProps>
@@ -274,9 +273,7 @@ export const BaseTimeSeriesPlot = ({
             { timeout: 5000 },
           );
         }
-        // Plotly keys the range by axis id, so a selection on a subplot other than the
-        // first reports e.g. y2 rather than y. Resolve the keys rather than assuming x/y.
-        // Plotly's own typing declares only x/y, so widen via unknown.
+        // Range is keyed by axis id (e.g. y2 on a second subplot), not always x/y.
         const range = eventData.range as unknown as Record<string, number[]>;
         const xRange =
           range[Object.keys(range).find((k) => k.startsWith("x")) ?? ""];

@@ -7,9 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 
 export function Profile2DViewParamsWidget() {
   const { sample, viewParams, setViewParams } = useSample();
-  // Seed from context (which may already hold a restored value - see
-  // SampleContext's view params persistence) rather than always starting blank,
-  // otherwise the effect below would immediately overwrite it with the default.
+  // Seed from any already-restored value in context instead of starting blank.
   const initialParams =
     viewParams.name === "profile_2d"
       ? (viewParams as Profile2DViewParams)
@@ -40,8 +38,7 @@ export function Profile2DViewParamsWidget() {
         log_scale: logScale,
       };
 
-      // Only update if the params actually changed - each update triggers a full
-      // data refresh, which is expensive.
+      // Only update if the params actually changed 
       return shallowEqual(prevParams, nextParams) ? prevParams : nextParams;
     });
   }, [selectedSignal, logScale, setViewParams]);

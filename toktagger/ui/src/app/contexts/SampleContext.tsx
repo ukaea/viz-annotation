@@ -34,9 +34,7 @@ import { getSignalNames } from "@/app/utils";
 const viewParamsKey = (projectId: string) => `view-params-${projectId}`;
 const colorMapKey = (projectId: string) => `color-map-${projectId}`;
 
-// Reads persisted view params (selected signal, log scale, ...), discarding
-// anything that does not match the current schema so corrupt or stale storage
-// cannot throw during render.
+// Reads persisted view params, discarding anything that fails schema validation.
 function readSavedViewParams(
   projectId: string,
 ): ViewParams | Profile2DViewParams {
@@ -144,8 +142,7 @@ async function parseData(
     }
     return result.data;
   } else if (task == TaskType.Profile2D) {
-    // The profile 2D view selects the signal server side, so the response is a
-    // single profile rather than a mapping of signal name to profile.
+    // The server selects the signal, so the response is a single profile.
     const result = Profile2DDataSchema.safeParse(data);
     if (!result.success) {
       throw new Error("Invalid data for profile 2D view");
@@ -185,8 +182,7 @@ export function SampleProvider({
     colorMap: readSavedColorMap(projectId) ?? "Cividis",
   }));
 
-  // Persist view params (selected signal, log scale, ...) so they survive a
-  // refresh and carry over when navigating between samples in the same project.
+  // Persist view params so they survive a refresh or navigating between samples.
   useEffect(() => {
     if (!projectId) return;
     sessionStorage.setItem(
@@ -195,9 +191,7 @@ export function SampleProvider({
     );
   }, [viewParams, projectId]);
 
-  // Persist the colour map only, not the rest of plotProps - thresholdActive
-  // already has its own source of truth (whether the sample has saved threshold
-  // annotations) and should not be restored from a previous session.
+  // Persist only the colour map - thresholdActive has its own source of truth.
   useEffect(() => {
     if (!projectId || !plotProps.colorMap) return;
     sessionStorage.setItem(colorMapKey(projectId), plotProps.colorMap);
@@ -293,8 +287,7 @@ export function SampleProvider({
         setIsValidated(sampleData.validated_annotations);
 
         let params = viewParams;
-        // The profile 2D view needs a signal to project onto, so fall back to the
-        // sample's first signal until the view params widget selects one.
+        // Default to the sample's first signal until one is explicitly selected.
         if (
           projectData.task === TaskType.Profile2D &&
           params.name !== "profile_2d"

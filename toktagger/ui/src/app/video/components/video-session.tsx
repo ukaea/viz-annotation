@@ -398,6 +398,7 @@ export function VideoSessionProvider(props: {
     data,
     dataParams,
     annotations,
+    isLoading,
     setAnnotations: setSampleAnnotations,
   } = useSample();
   const {
@@ -479,9 +480,19 @@ export function VideoSessionProvider(props: {
   const [hideAnnotations, setHideAnnotationsState] = useState(false);
   const hideAnnotationsRef = useRef(false);
 
+  const isFramePending =
+    isLoading &&
+    dataParams.name === "image" &&
+    typeof dataParams.frame === "number" &&
+    Number.isFinite(dataParams.frame) &&
+    dataParams.frame !== frame;
+
   const drawIntent = editMode && ctrlHeld && !hideAnnotations;
   const canCreate =
-    drawIntent && drawingTool !== null && Boolean(selection.className);
+    drawIntent &&
+    drawingTool !== null &&
+    Boolean(selection.className) &&
+    !isFramePending;
   const canDrawShape = canCreate && drawingTool !== "point";
   const canDrawPoint = canCreate && drawingTool === "point";
   const drawIntentRef = useRef(drawIntent);
@@ -626,12 +637,10 @@ export function VideoSessionProvider(props: {
       api?.setSelected?.();
       flushPendingOverlay();
       setCtrlHeld(false);
-      setDrawingToolState(null);
-      setVideoDrawingTool(null);
       setEditModeState(v);
       setVideoEditMode(v);
     },
-    [api, flushPendingOverlay, setVideoDrawingTool, setVideoEditMode],
+    [api, flushPendingOverlay, setVideoEditMode],
   );
 
   useEffect(() => {

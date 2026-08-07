@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   ActionButton,
   Button,
@@ -40,14 +39,6 @@ export function VideoAnnotationToolbar(props: { desiredFrame: number }) {
   const { isLoading } = useSample();
   const isFramePending = isLoading && props.desiredFrame !== frame;
   const api = useAnnotator<AnnotoriousOpenSeadragonAnnotator>();
-  const [hasEnteredEditMode, setHasEnteredEditMode] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
-
-  useEffect(() => {
-    if (!editMode || hasEnteredEditMode) return;
-    setHasEnteredEditMode(true);
-    setHelpOpen(true);
-  }, [editMode, hasEnteredEditMode]);
 
   const toggleTool = (tool: DrawingTool) => {
     setDrawingTool(drawingTool === tool ? null : tool);
@@ -159,11 +150,7 @@ export function VideoAnnotationToolbar(props: { desiredFrame: number }) {
       </Flex>
 
       <Flex direction="row" justifyContent="end" marginEnd="size-100">
-        <ContextualHelp
-          isOpen={helpOpen}
-          onOpenChange={setHelpOpen}
-          aria-label="annotation-context-help"
-        >
+        <ContextualHelp aria-label="annotation-context-help">
           <Heading>Annotation Toolbar</Heading>
           <Content>
             <Text>

@@ -23,6 +23,7 @@ from toktagger.api.core.sender import (
 )
 import logging
 from platformdirs import user_cache_dir
+import shutil
 import pydantic
 from mlflow import MlflowClient, MlflowException
 from huggingface_hub import hf_hub_download
@@ -78,11 +79,9 @@ def get_actor(project: Project, model: Model, use_gpu: bool):
             )
         )
 
-        model_path = next(
-            pathlib.Path(os.environ["MODEL_STORAGE"]).glob(f"{str(model.id)}*"), None
-        )
-        if model_path:
-            ml_model.wrapped_load.remote(model_path)
+        results_dir = pathlib.Path(os.environ["MODEL_STORAGE"]).joinpath(str(model.id))
+        if results_dir.exists():
+            ml_model.wrapped_load.remote(results_dir)
         else:
             logger.debug("No saved weights found, initializing blank model")
 
@@ -124,10 +123,6 @@ def load_model_local(
         updates=ModelUpdate(training_status="started"),
     )
 
-    # Make sure model storage location in cache dir exists
-    model_dir = pathlib.Path(os.environ["MODEL_STORAGE"])
-    model_dir.mkdir(exist_ok=True)
-
     # Check worker can see weights file
     if not weights_path.exists():
         send_model_updates(
@@ -148,7 +143,9 @@ def load_model_local(
     model_actor = get_actor(project=project, model=model, use_gpu=False)
     # Try loading actor with weights file, catch and reraise any errors
     try:
-        load_temp_weights_task = model_actor.wrapped_load.remote(str(weights_path))
+        load_temp_weights_task = model_actor.wrapped_load.remote(
+            results_dir=weights_path.parent, weights_filename=weights_path.name
+        )
         ray.get(load_temp_weights_task)
     except Exception as e:
         logger.error(e)
@@ -163,10 +160,10 @@ def load_model_local(
             "message": str(e),
         }
 
-    # Save the model with the correct file name, delete temporary file
-    save_weights_task = model_actor.wrapped_save.remote(
-        model_dir.joinpath(str(model.id))
-    )
+    # Save the model with the correct dir path
+    results_dir = pathlib.Path(os.environ["MODEL_STORAGE"]).joinpath(str(model.id))
+
+    save_weights_task = model_actor.wrapped_save.remote(results_dir)
     ray.get(save_weights_task)
 
     send_model_updates(
@@ -288,6 +285,7 @@ def load_model_gitlab(
         }
 
     except requests.exceptions.Timeout:
+        download_path.unlink(missing_ok=True)
         logger.error("Failed to load weights - download timed out!")
         send_model_updates(
             project_id=project.id,
@@ -304,15 +302,17 @@ def load_model_gitlab(
     unsafe = check_safetensor(download_path, project.id, model.id)
     if unsafe:
         # Delete downloaded file
-        pathlib.Path(download_path).unlink()
+        download_path.unlink()
         return unsafe
 
     # Try loading actor with weights file, catch and reraise any errors
     try:
-        load_temp_weights_task = model_actor.wrapped_load.remote(str(download_path))
+        load_temp_weights_task = model_actor.wrapped_load.remote(
+            results_dir=download_path.parent, weights_filename=download_path.name
+        )
         ray.get(load_temp_weights_task)
     except Exception as e:
-        pathlib.Path(download_path).unlink()
+        download_path.unlink()
         logger.error(e)
         send_model_updates(
             project_id=project.id,
@@ -325,13 +325,13 @@ def load_model_gitlab(
             "message": str(e),
         }
 
-    # Save the model with the correct file name, delete temporary file
-    save_weights_task = model_actor.wrapped_save.remote(
-        model_dir.joinpath(str(model.id))
-    )
+    # Save the model with the correct dir path
+    results_dir = pathlib.Path(os.environ["MODEL_STORAGE"]).joinpath(str(model.id))
+
+    save_weights_task = model_actor.wrapped_save.remote(results_dir)
     ray.get(save_weights_task)
 
-    pathlib.Path(download_path).unlink()
+    download_path.unlink()
 
     send_model_updates(
         project_id=project.id,
@@ -380,19 +380,24 @@ def load_model_huggingface(
             "message": "requested model could not be found!",
         }
 
+    download_path = pathlib.Path(weights_path)
+
     # Check if this file is a safetensor, if required
-    unsafe = check_safetensor(weights_path, project.id, model.id)
+    unsafe = check_safetensor(download_path, project.id, model.id)
     if unsafe:
         # Delete downloaded file
-        pathlib.Path(weights_path).unlink()
+        download_path.unlink()
         return unsafe
 
     # Try loading actor with weights file, catch and reraise any errors
+    # Try loading actor with weights file, catch and reraise any errors
     try:
-        load_temp_weights_task = model_actor.wrapped_load.remote(str(weights_path))
+        load_temp_weights_task = model_actor.wrapped_load.remote(
+            results_dir=download_path.parent, weights_filename=download_path.name
+        )
         ray.get(load_temp_weights_task)
     except Exception as e:
-        pathlib.Path(weights_path).unlink()
+        download_path.unlink()
         logger.error(e)
         send_model_updates(
             project_id=project.id,
@@ -405,13 +410,13 @@ def load_model_huggingface(
             "message": str(e),
         }
 
-    # Save the model with the correct file name, delete temporary file
-    save_weights_task = model_actor.wrapped_save.remote(
-        model_dir.joinpath(str(model.id))
-    )
+    # Save the model with the correct dir path
+    results_dir = pathlib.Path(os.environ["MODEL_STORAGE"]).joinpath(str(model.id))
+
+    save_weights_task = model_actor.wrapped_save.remote(results_dir)
     ray.get(save_weights_task)
 
-    pathlib.Path(weights_path).unlink()
+    download_path.unlink()
 
     send_model_updates(
         project_id=project.id,
@@ -431,6 +436,7 @@ def train_model(
     use_gpu: bool = False,
 ):  # TODO: do we want to support retraining where we only get annotations not previously put into model?
     model_actor = get_actor(project=project, model=model, use_gpu=use_gpu)
+    results_dir = pathlib.Path(os.environ["MODEL_STORAGE"]).joinpath(str(model.id))
     try:
         logger.info(f"Running model training for project {project.id}")
         model_actor.log_progress.remote(training_status="started", progress=0)
@@ -441,9 +447,8 @@ def train_model(
         # Wait for train task to complete
         score = ray.get(train_task)
 
-        model_dir = pathlib.Path(os.environ["MODEL_STORAGE"])
-        model_dir.mkdir(exist_ok=True)  # Do i need to do this every time?
-        model_actor.wrapped_save.remote(model_dir.joinpath(str(model.id)))
+        save_task = model_actor.wrapped_save.remote(results_dir)
+        ray.get(save_task)  # Block until save is done
 
         send_model_updates(
             project_id=project.id,
@@ -463,6 +468,11 @@ def train_model(
             model_id=model.id,
             updates=ModelUpdate(training_status="failed"),
         )
+
+        # Also delete directory of results, if it has already been created
+        if results_dir.exists():
+            shutil.rmtree(results_dir)
+
         raise e
 
 

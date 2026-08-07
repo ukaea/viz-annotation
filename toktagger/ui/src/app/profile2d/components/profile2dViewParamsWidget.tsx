@@ -38,7 +38,7 @@ export function Profile2DViewParamsWidget() {
         log_scale: logScale,
       };
 
-      // Only update if the params actually changed 
+      // Only update if the params actually changed
       return shallowEqual(prevParams, nextParams) ? prevParams : nextParams;
     });
   }, [selectedSignal, logScale, setViewParams]);

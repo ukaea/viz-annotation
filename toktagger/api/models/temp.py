@@ -168,9 +168,19 @@ class YOLOv8(Model):
 
         return annotations
 
-    def save(self, file_stem: str) -> None:
-        output = f"{file_stem}.pt"
-        self.model.save(output)
+    def save(self, results_dir: pathlib.Path) -> None:
+        self.model.save(results_dir.joinpath("best.pt"))
+        results_dir.joinpath("config.yaml").touch()
 
-    def load(self, file_path: str) -> None:
-        self.model = YOLO(file_path)
+    def load(
+        self, results_dir: pathlib.Path, weights_filename: str | None = None
+    ) -> None:
+        if weights_filename:
+            results_path = results_dir.joinpath(weights_filename)
+        else:
+            results_path = results_dir.joinpath("best.pt")
+
+        if not results_path.exists():
+            raise RuntimeError("Weights file not found")
+
+        self.model = YOLO(results_path)

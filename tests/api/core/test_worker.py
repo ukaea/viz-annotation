@@ -202,7 +202,7 @@ def test_local_load(temp_models_cache, setup_model):
         assert UPDATES[-1]["updates"].progress == 100
 
         # Check model has been saved after completion
-        model_path = temp_models_cache.joinpath(f"{setup_model.id}.model")
+        model_path = temp_models_cache.joinpath(setup_model.id, "weights.model")
         assert model_path.exists()
 
         # Open the file, check contents are there
@@ -233,7 +233,7 @@ def test_local_load_missing_file(temp_models_cache, setup_model):
     assert UPDATES[-1]["updates"].training_status == "failed"
 
     # Check no model has been saved
-    model_path = temp_models_cache.joinpath(f"{setup_model.id}.model")
+    model_path = temp_models_cache.joinpath(setup_model.id, "weights.model")
     assert not model_path.exists()
 
 
@@ -259,7 +259,7 @@ def test_local_load_invalid_file(temp_models_cache, setup_model):
         assert UPDATES[-1]["updates"].training_status == "failed"
 
         # Check model has not been saved
-        model_path = temp_models_cache.joinpath(f"{setup_model.id}.model")
+        model_path = temp_models_cache.joinpath(setup_model.id, "weights.model")
         assert not model_path.exists()
 
         # Check original file untouched
@@ -297,7 +297,7 @@ def test_gitlab_load_version(temp_models_cache, setup_model, monkeypatch):
     assert UPDATES[-1]["updates"].progress == 100
 
     # Check model has been saved after completion
-    model_path = temp_models_cache.joinpath(f"{setup_model.id}.model")
+    model_path = temp_models_cache.joinpath(setup_model.id, "weights.model")
     assert model_path.exists()
 
     # Open the file, check contents are the correct URL
@@ -346,7 +346,7 @@ def test_gitlab_load_no_version(temp_models_cache, setup_model, monkeypatch):
     assert UPDATES[-1]["updates"].progress == 100
 
     # Check model has been saved after completion
-    model_path = temp_models_cache.joinpath(f"{setup_model.id}.model")
+    model_path = temp_models_cache.joinpath(setup_model.id, "weights.model")
     assert model_path.exists()
 
     # Open the file, check contents are the correct URL
@@ -397,7 +397,7 @@ def test_gitlab_load_invalid_version(temp_models_cache, setup_model, monkeypatch
     assert UPDATES[-1]["updates"].training_status == "failed"
 
     # Check model has not been saved
-    model_path = temp_models_cache.joinpath(f"{setup_model.id}.model")
+    model_path = temp_models_cache.joinpath(setup_model.id, "weights.model")
     assert not model_path.exists()
 
 
@@ -432,7 +432,7 @@ def test_gitlab_load_no_versions_found(temp_models_cache, setup_model, monkeypat
     assert UPDATES[-1]["updates"].training_status == "failed"
 
     # Check model has not been saved
-    model_path = temp_models_cache.joinpath(f"{setup_model.id}.model")
+    model_path = temp_models_cache.joinpath(setup_model.id, "weights.model")
     assert not model_path.exists()
 
 
@@ -466,7 +466,7 @@ def test_gitlab_load_invalid_file(temp_models_cache, setup_model, monkeypatch):
     assert UPDATES[-1]["updates"].training_status == "failed"
 
     # Check model has not been saved after completion
-    model_path = temp_models_cache.joinpath(f"{setup_model.id}.model")
+    model_path = temp_models_cache.joinpath(setup_model.id, "weights.model")
     assert not model_path.exists()
 
     # Check temp downloaded file deleted
@@ -525,7 +525,7 @@ def test_huggingface_load(temp_models_cache, setup_model, monkeypatch):
     assert UPDATES[-1]["updates"].progress == 100
 
     # Check model has been saved after completion
-    model_path = temp_models_cache.joinpath(f"{setup_model.id}.model")
+    model_path = temp_models_cache.joinpath(setup_model.id, "weights.model")
     assert model_path.exists()
 
     # Open the file, check contents are the correct params
@@ -537,7 +537,7 @@ def test_huggingface_load(temp_models_cache, setup_model, monkeypatch):
     assert components[2] == params.model_version  # Major version
 
     # Check temp downloaded file deleted
-    assert not temp_models_cache.joinpath("downloaded.model").exists()
+    assert not temp_models_cache.joinpath(setup_model.id, "downloaded.model").exists()
 
 
 @patch("toktagger.api.core.worker.get_actor", mock_get_actor)
@@ -566,7 +566,7 @@ def test_huggingface_load_missing(temp_models_cache, setup_model, monkeypatch):
     assert UPDATES[-1]["updates"].training_status == "failed"
 
     # Check model has not been saved
-    model_path = temp_models_cache.joinpath(f"{setup_model.id}.model")
+    model_path = temp_models_cache.joinpath(setup_model.id, "weights.model")
     assert not model_path.exists()
 
 
@@ -596,7 +596,7 @@ def test_huggingface_load_invalid(temp_models_cache, setup_model, monkeypatch):
     assert UPDATES[-1]["updates"].training_status == "failed"
 
     # Check model has not been saved
-    model_path = temp_models_cache.joinpath(f"{setup_model.id}.model")
+    model_path = temp_models_cache.joinpath(setup_model.id, "weights.model")
     assert not model_path.exists()
 
     # Check temp downloaded file deleted

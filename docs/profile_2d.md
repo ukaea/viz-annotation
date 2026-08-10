@@ -25,7 +25,7 @@ Both plots share a common time axis, enabling synchronized navigation and analys
 
 ### Color Scale
 
-The heatmap uses a continuous color scale to represent data values. The colorbar on the right side shows the mapping between colors and values:
+The heatmap uses a continuous color scale to represent data values. The colorbar on the left side shows the mapping between colors and values:
 
 - **Linear Scale**: Direct mapping of data values to colors
 - **Logarithmic Scale**: Useful for data spanning multiple orders of magnitude, with enhanced visibility of low-amplitude features
@@ -51,21 +51,23 @@ Access view parameters from the toolbar on the left:
 At the top of the interface, you'll find navigation controls to move through your dataset:
 
 - **Previous Button** (◄): Navigate to the previous sample in your project
-- **Next Button** (►): Navigate to the next sample in your project
+- **Next Button** (►): Navigate to the next sample in your project  
 - **Save Button**: Save your current annotations
-- **Delete Button**: Remove selected annotations
+- **Clear Button**: Remove selected annotations, and mark annotations in the database as not validated
+- **Save On Navigate**: Whether to automatically save any annotations to the database when you move to a different sample
+- **Jump to Shot**: Jump to a sample with a given shot ID
 
 **Keyboard Shortcuts:**
 
-- `Shift + ←`: Navigate to previous sample
-- `Shift + →`: Navigate to next sample
+- `Shift & ←`: Navigate to previous sample
+- `Shift & →`: Navigate to next sample
 
 ### Plot Toolbar
 
 The Plotly toolbar at the top of the plot provides navigation tools:
 
 - **Zoom**: Box zoom to a region of interest
-- **Select**: Rubber-band select to pick annotations
+- **Box Select**: Click and drag to select multiple annotations within a region
 - **Pan**: Click and drag to pan the view (the default drag mode)
 - **Auto Scale**: Reset axes to show all data
 - **Reset View**: Return to the initial view
@@ -199,6 +201,7 @@ be edited, relabelled and deleted exactly like hand-drawn ones.
 ### Selecting Annotations
 
 - **Click** on any annotation to select it
+- **Box Select**: enable the toolbar's Box Select tool, then drag a box to select multiple annotations at once
 - Selected annotations can be modified or deleted
 - For Zones and VSpans, right-click to access the context menu
 
@@ -228,8 +231,6 @@ To change the category of an existing annotation:
 
 1. Right-click on the annotation to open the context menu
 2. Select "Delete"
-
-Alternatively, select any annotation and click the Delete button in the navigation controls.
 
 ## Plot Interaction
 

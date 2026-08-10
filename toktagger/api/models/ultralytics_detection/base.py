@@ -325,9 +325,8 @@ class BaseUltralyticsDetection(Model):
         return get_torch_device()
 
     def define_model(self) -> str:
-        """Resolve the default pretrained checkpoint."""
-        model_path = check_pretrained_model_availability(self.model_name)
-        return str(model_path)
+        """Return the default model identifier without downloading it."""
+        return self.model_name
 
     def build_manifest(
         self,
@@ -481,6 +480,7 @@ class BaseUltralyticsDetection(Model):
                 f"Could not find model weights at {source_path}"
             )
 
+        # ultralytics weights reside in the weights directory.
         weights_dir = results_dir.joinpath("weights")
         weights_dir.mkdir(parents=True, exist_ok=True)
 
@@ -491,9 +491,9 @@ class BaseUltralyticsDetection(Model):
             # restoration can find them without a supplied filename.
             # external file → in-memory YOLO model → MODEL_STORAGE/<model_id>/weights/best.pt
             target_name = "best.pt"
-
         target_path = weights_dir.joinpath(target_name)
 
+        # each external weight submission receives a different model ID
         if source_path.resolve() != target_path.resolve():
             shutil.copy2(source_path, target_path)
 

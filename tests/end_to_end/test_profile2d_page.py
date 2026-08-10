@@ -53,7 +53,7 @@ def add_bounding_box(page: Page, label: str = "NTM", offset: int = 150) -> None:
 
     box = page.get_by_label("profile-2d").bounding_box()
     assert box is not None
-    # Start in the upper-left of the heatmap 
+    # Start in the upper-left of the heatmap
     start_x = box["x"] + box["width"] * 0.35
     start_y = box["y"] + box["height"] * 0.35
 

@@ -5,6 +5,7 @@ from typing import Literal
 from playwright.sync_api import Page, expect
 
 from tests.endpoints import create_local_samples, create_project, session
+from toktagger.api.schemas.annotators import AnnotatorTypes
 
 # The id of the div the Profile2D plot renders into (see base-plot.tsx).
 PLOT_ID = "Profile2DView"
@@ -158,7 +159,10 @@ def test_profile2d_saved_threshold_annotations_persist(server_setup, page: Page)
     assert len(annotations) >= 1
     for annotation in annotations:
         assert annotation["validated"]
-        assert annotation["created_by"] == "profile_2d_threshold"
+        assert (
+            annotation["created_by"]
+            == f"annotators::{AnnotatorTypes.PROFILE_2D_THRESHOLD.value}"
+        )
 
 
 def test_profile2d_tools_disabled_in_view_mode(server_setup, page: Page):
@@ -227,7 +231,9 @@ def test_profile2d_save_time_annotations(server_setup, page: Page):
     ).json()
     assert len(annotations) == 2
     for annotation in annotations:
-        assert annotation["created_by"] == "manual"
+        # Manually drawn annotations are stamped with the saving user's identity -
+        # the e2e page fixture is pre-authenticated as the bootstrap admin.
+        assert annotation["created_by"] == "admin"
         assert annotation["validated"]
 
     time_region = next(a for a in annotations if a["type"] == "time_region")

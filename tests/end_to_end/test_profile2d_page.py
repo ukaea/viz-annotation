@@ -1,5 +1,4 @@
 import pathlib
-import time
 from typing import Callable, Literal, Tuple
 
 import requests
@@ -44,17 +43,17 @@ def get_dragmode(page: Page) -> str:
 
 
 def add_bounding_box(page: Page, label: str = "NTM", offset: int = 150) -> None:
-    # Switch into edit mode (the button is labelled with the CURRENT mode) and pick
-    # the bounding box tool + a label, then Ctrl-drag a box on the heatmap subplot.
+    # Enter edit mode, pick the bounding box tool + a label, then Ctrl-drag a box on the heatmap subplot.
     page.get_by_role("button", name="View Mode").click()
     page.locator("body").click()
+    expect(page.get_by_role("button", name="Edit Mode")).to_be_enabled()
     page.get_by_role("button", name="BOUNDING BOX").click()
     page.get_by_test_id("select-annotation-label").click()
     page.get_by_test_id("popover").get_by_text(label).click()
 
     box = page.get_by_label("profile-2d").bounding_box()
     assert box is not None
-    # Start in the upper-left of the heatmap (yaxis2 spans the top 80% of the plot).
+    # Start in the upper-left of the heatmap 
     start_x = box["x"] + box["width"] * 0.35
     start_y = box["y"] + box["height"] * 0.35
 
@@ -75,10 +74,10 @@ def add_time_annotation(
     label: str,
     offset: int = 150,
 ) -> None:
-    # Time Region/Time Point are not restricted to the heatmap subplot, so (unlike
-    # add_bounding_box) the drag can start anywhere on the full plot.
+    # Unlike add_bounding_box, Time Region/Time Point aren't restricted to the heatmap subplot.
     page.get_by_role("button", name="View Mode").click()
     page.locator("body").click()
+    expect(page.get_by_role("button", name="Edit Mode")).to_be_enabled()
     page.get_by_role("button", name=annotation_type).click()
     page.get_by_test_id("select-annotation-label").click()
     page.get_by_test_id("popover").get_by_text(label).click()
@@ -96,8 +95,7 @@ def add_time_annotation(
     page.keyboard.up("Control")
 
     page.get_by_role("button", name="Edit Mode").click()
-
-    time.sleep(1)
+    expect(page.get_by_role("button", name="View Mode")).to_be_enabled()
 
 
 def test_profile2d_plot_renders(server_setup, page: Page):
@@ -149,8 +147,7 @@ def test_profile2d_saved_threshold_annotations_persist(server_setup, page: Page)
     page.get_by_role("switch", name="Thresholding").click(force=True)
     expect(page.get_by_label("polygon")).to_have_count(enabled_count)
 
-    # They should be stored as validated, while keeping the annotator that produced
-    # them as their creator rather than being reattributed to the user.
+    # They should be stored as validated, keeping the annotator as their creator.
     annotations = requests.get(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations"
     ).json()
@@ -170,6 +167,24 @@ def test_profile2d_tools_disabled_in_view_mode(server_setup, page: Page):
     expect(page.get_by_role("button", name="BOUNDING BOX")).to_be_disabled()
     expect(page.get_by_role("button", name="POLYGON")).to_be_disabled()
 
+    # Attempting to draw anyway (Ctrl-drag) does nothing but show a toast to switch to Edit Mode.
+    box = page.get_by_label("profile-2d").bounding_box()
+    assert box is not None
+    start_x = box["x"] + box["width"] / 2
+    start_y = box["y"] + box["height"] / 2
+
+    page.mouse.move(start_x, start_y)
+    page.keyboard.down("Control")
+    page.mouse.down()
+    page.mouse.move(start_x + 150, start_y, steps=20)
+    page.mouse.up()
+    page.keyboard.up("Control")
+
+    expect(
+        page.get_by_text("Change to Edit Mode to draw annotations", exact=False)
+    ).to_be_visible()
+    expect(page.get_by_role("gridcell")).to_have_count(0)
+
     page.get_by_role("button", name="View Mode").click()
     page.locator("body").click()
 
@@ -186,7 +201,11 @@ def test_profile2d_save_time_annotations(server_setup, page: Page):
     project_id, sample_id, _reload = setup_project(page)
 
     add_time_annotation(page, "TIME REGION", "NTM")
+    # Time Region/Time Point render once per subplot, and profile2d has two (heatmap + integrated).
+    expect(page.get_by_label("time-zone")).to_have_count(2)
+
     add_time_annotation(page, "TIME POINT", "Disruption", offset=-150)
+    expect(page.get_by_label("time-point")).to_have_count(2)
 
     expect(page.get_by_role("gridcell", name="NTM")).to_be_visible()
     expect(page.get_by_role("gridcell", name="Disruption")).to_be_visible()
@@ -215,17 +234,37 @@ def test_profile2d_save_time_annotations(server_setup, page: Page):
 
 
 def test_profile2d_annotations_locked_in_view_mode(server_setup, page: Page):
-    """Selecting or deleting an annotation is an edit-mode-only action."""
+    """Selecting, dragging or deleting an annotation is an edit-mode-only action."""
     setup_project(page)
 
     add_time_annotation(page, "TIME REGION", "NTM")
+    # Time Region renders once per subplot (heatmap + integrated).
+    expect(page.get_by_label("time-zone")).to_have_count(2)
     # add_time_annotation leaves us back in View Mode.
 
-    # Annotations have pointer events disabled in View Mode, so a right-click can't
-    # reach one to open its context menu.
+    bounds_before = (
+        page.get_by_role("row").nth(1).get_by_role("gridcell").nth(2).inner_text()
+    )
+
+    # Annotations have pointer events disabled in View Mode, so dragging one does not move it...
+    zone_box = page.get_by_label("time-zone").first.bounding_box()
+    assert zone_box is not None
+    center_x = zone_box["x"] + zone_box["width"] / 2
+    center_y = zone_box["y"] + zone_box["height"] / 2
+    page.mouse.move(center_x, center_y)
+    page.mouse.down()
+    page.mouse.move(center_x + 100, center_y, steps=10)
+    page.mouse.up()
+
+    bounds_after = (
+        page.get_by_role("row").nth(1).get_by_role("gridcell").nth(2).inner_text()
+    )
+    assert bounds_after == bounds_before
+
+    # A right-click also can't reach it to open its context menu.
     page.get_by_label("time-zone").first.click(button="right", force=True)
     expect(page.get_by_role("menuitem", name="Delete")).to_have_count(0)
-    expect(page.get_by_label("time-zone")).to_have_count(1)
+    expect(page.get_by_label("time-zone")).to_have_count(2)
 
 
 def test_profile2d_edit_mode_relabel_and_delete(server_setup, page: Page):
@@ -233,16 +272,24 @@ def test_profile2d_edit_mode_relabel_and_delete(server_setup, page: Page):
     setup_project(page)
 
     add_time_annotation(page, "TIME REGION", "NTM")
+    expect(page.get_by_label("time-zone")).to_have_count(2)
     expect(page.get_by_role("gridcell", name="NTM")).to_be_visible()
 
     # add_time_annotation leaves us in View Mode - switch back into Edit Mode.
     page.get_by_role("button", name="View Mode").click()
     page.locator("body").click()
+    expect(page.get_by_role("button", name="Edit Mode")).to_be_enabled()
 
-    # Relabel via the context menu's "Set type" submenu.
+    # Move to "Set type" manually - Locator.hover()'s scroll-into-view closes this CSS-hover menu.
     page.get_by_label("time-zone").first.click(button="right")
     expect(page.get_by_role("menuitem", name="Delete")).to_be_visible()
-    page.get_by_role("menuitem", name="Set type").hover()
+    set_type = page.get_by_role("menuitem", name="Set type")
+    set_type_box = set_type.bounding_box()
+    assert set_type_box is not None
+    page.mouse.move(
+        set_type_box["x"] + set_type_box["width"] / 2,
+        set_type_box["y"] + set_type_box["height"] / 2,
+    )
     page.get_by_role("menuitem", name="ELM", exact=True).click()
 
     expect(page.get_by_role("gridcell", name="ELM", exact=True)).to_be_visible()

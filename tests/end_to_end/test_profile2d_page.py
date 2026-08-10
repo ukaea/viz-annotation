@@ -2,10 +2,9 @@ import pathlib
 from collections.abc import Callable
 from typing import Literal
 
-import requests
 from playwright.sync_api import Page, expect
 
-from tests.endpoints import create_local_samples, create_project
+from tests.endpoints import create_local_samples, create_project, session
 
 # The id of the div the Profile2D plot renders into (see base-plot.tsx).
 PLOT_ID = "Profile2DView"
@@ -153,7 +152,7 @@ def test_profile2d_saved_threshold_annotations_persist(server_setup, page: Page)
     expect(page.get_by_label("polygon")).to_have_count(enabled_count)
 
     # They should be stored as validated, keeping the annotator as their creator.
-    annotations = requests.get(
+    annotations = session.get(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations"
     ).json()
     assert len(annotations) >= 1
@@ -223,7 +222,7 @@ def test_profile2d_save_time_annotations(server_setup, page: Page):
     ):
         page.get_by_role("button", name="Save").click(force=True)
 
-    annotations = requests.get(
+    annotations = session.get(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations"
     ).json()
     assert len(annotations) == 2

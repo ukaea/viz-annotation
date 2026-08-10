@@ -61,7 +61,8 @@ export default function Profile2DThresholdTool({
   const [isEnabled, setIsEnabled] = useState<boolean>(() => {
     return annotations.some(
       (ann) =>
-        ann.created_by === annotatorCreatedBy(AnnotatorTypes.PROFILE_2D_THRESHOLD),
+        ann.created_by ===
+        annotatorCreatedBy(AnnotatorTypes.PROFILE_2D_THRESHOLD),
     );
   });
 

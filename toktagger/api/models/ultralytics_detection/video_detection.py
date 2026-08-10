@@ -52,6 +52,11 @@ class YoloTrainParams(pydantic.BaseModel):
         default="yolo26n.pt",
         description="Pretrained YOLO checkpoint to fine-tune.",
     )
+    # Boolean fields render as checkboxes
+    show_training_output: bool = pydantic.Field(
+        default=False,
+        description="Show detailed Ultralytics training output in the server logs.",
+    )
 
 
 class YoloPredictParams(pydantic.BaseModel):

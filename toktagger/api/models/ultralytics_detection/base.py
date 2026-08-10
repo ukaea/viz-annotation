@@ -12,12 +12,13 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from ultralytics.data.augment import LetterBox
 from ultralytics.models.yolo.detect import DetectionTrainer
-from toktagger.api.schemas.projects import Project
+from ultralytics.utils import LOGGER as ULTRALYTICS_LOGGER, RANK
 
 # Callable to pass functions in another function
-from collections.abc import Callable
-from ultralytics.utils import RANK
+from collections.abc import Callable, Generator
+from contextlib import contextmanager
 
+from toktagger.api.schemas.projects import Project
 from toktagger.api.models.base import Model
 from toktagger.api.schemas.annotations import Annotation, AnnotationBase
 from toktagger.api.schemas.samples import Sample
@@ -29,6 +30,24 @@ from .utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+# https://docs.python.org/3/library/contextlib.html#contextlib.contextmanager
+@contextmanager
+def quiet_ultralytics_logging(
+    enabled: bool = True,
+) -> Generator[None, None, None]:
+    """Temporarily suppress Ultralytics info logs and tqdm progress bars."""
+    if not enabled:
+        yield
+        return
+
+    previous_level = ULTRALYTICS_LOGGER.level
+    ULTRALYTICS_LOGGER.setLevel(logging.WARNING)
+
+    try:
+        yield
+    finally:
+        ULTRALYTICS_LOGGER.setLevel(previous_level)
 
 DetectionRecord = dict[str, Any]
 
@@ -411,14 +430,20 @@ class BaseUltralyticsDetection(Model):
             overrides["device"],
         )
 
-        trainer = ToktaggerDetectionTrainer(
-            overrides=overrides,
-            train_dataset=train_dataset,
-            val_dataset=validation_dataset,
-            class_names=self.class_names,
-            progress_callback=self.log_progress,
-        )
-        trainer.train()
+        # Suppress detailed output unless explicitly requested.
+        with quiet_ultralytics_logging(
+            enabled=not params.show_training_output,
+        ):
+            # trainer dump Ultralytics version banner and configuration
+            trainer = ToktaggerDetectionTrainer(
+                overrides=overrides,
+                train_dataset=train_dataset,
+                val_dataset=validation_dataset,
+                class_names=self.class_names,
+                progress_callback=self.log_progress,
+            )
+            # dumps the training progress
+            trainer.train()
 
         best_weights = Path(trainer.best)
         last_weights = Path(trainer.last)

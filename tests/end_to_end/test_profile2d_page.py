@@ -218,6 +218,12 @@ def test_profile2d_save_time_annotations(server_setup, page: Page):
     expect(page.get_by_role("gridcell", name="NTM")).to_be_visible()
     expect(page.get_by_role("gridcell", name="Disruption")).to_be_visible()
 
+    # Drawing debounces its sync into the sample's annotation list by 100ms
+    # (see TimeSeriesContext's syncTimeoutRef) with no network activity to
+    # await, so give it time to flush before Save reads that list - otherwise
+    # the most recently drawn annotation can be missing from the saved batch.
+    page.wait_for_timeout(500)
+
     # Save, waiting for the PUT to the backend to complete.
     with page.expect_response(
         lambda r: (

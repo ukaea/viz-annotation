@@ -23,7 +23,7 @@ from toktagger.api.schemas.data import ImageData, ImageParams
 from toktagger.api.schemas.samples import Sample
 
 from .base import BaseUltralyticsDetection, DetectionRecord
-from .utils import resolve_weights_path
+from .utils import resolve_weights_path, check_pretrained_model_availability
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +31,8 @@ YoloModelName = Literal[
     "yolov8n.pt",
     "yolo11n.pt",
     "yolo26n.pt",
+    "yolo26m.pt",
+    "yolo26l.pt",
     "yolo26x.pt",
 ]
 
@@ -432,7 +434,11 @@ class YoloVideoDetectionModel(BaseUltralyticsDetection):
     YoloPredictParams,
 )
 class YoloVideoDetectionP2Model(YoloVideoDetectionModel):
-    """YOLO26 P2 detector for smaller objects."""
+    """YOLO26 P2 detector for smaller objects.
+    Builds the P2 architecture and transfer the compatible pretrained weights.
+    New P2-specific layers are randomly initialised.
+    YAML file: ultralytics/cfg/models/26/yolo26-p2.yaml
+    """
 
     model_name = "yolo26-p2.yaml"
 
@@ -448,5 +454,13 @@ class YoloVideoDetectionP2Model(YoloVideoDetectionModel):
         self,
         params: pydantic.BaseModel,
     ) -> str:
-        """Always train the P2 architecture instead of a pretrained variant."""
-        return self.model_name
+        """Build the P2 architecture matching the selected checkpoint scale."""
+        checkpoint_stem = Path(params.yolo_size).stem
+        return f"{checkpoint_stem}-p2.yaml"
+
+    def get_pretrained_weights(
+        self,
+        params: pydantic.BaseModel,
+    ) -> str:
+        """Resolve weights used to initialise compatible P2 layers."""
+        return str(check_pretrained_model_availability(params.yolo_size))

@@ -343,6 +343,15 @@ class BaseUltralyticsDetection(Model):
         """Resolve the model selected through the training form."""
         return str(check_pretrained_model_availability(params.yolo_size))
 
+    def get_pretrained_weights(
+        self,
+        params: pydantic.BaseModel,
+    ) -> str | None:
+        """Return separate initialisation weights when required.
+        Used by Yolo P2 models.
+        """
+        return None
+
     def make_train_dataset(
         self,
         records: list[DetectionRecord],
@@ -359,6 +368,7 @@ class BaseUltralyticsDetection(Model):
         epochs: int,
         learning_rate: float,
         has_validation_data: bool,
+        pretrained_weights: str | None = None,
     ) -> dict[str, Any]:
         """Build the configuration passed to Ultralytics."""
         # Save directory
@@ -382,6 +392,12 @@ class BaseUltralyticsDetection(Model):
         }
         if learning_rate > 0:
             overrides["lr0"] = learning_rate
+            # optimizer="auto" will ignore all values.
+            # So set it to Adam or something else
+            overrides["optimizer"] = "AdamW"
+        # for Yolo P2 model
+        if pretrained_weights is not None:
+            overrides["pretrained"] = pretrained_weights
         return overrides
 
     def train(
@@ -399,6 +415,8 @@ class BaseUltralyticsDetection(Model):
         epochs = params.epochs
         learning_rate = params.learning_rate
         model_path = self.get_training_model(params)
+        # For Yolo P2 model
+        pretrained_weights = self.get_pretrained_weights(params)
 
         train_records = self.build_manifest(
             samples,
@@ -421,6 +439,7 @@ class BaseUltralyticsDetection(Model):
             epochs=epochs,
             learning_rate=learning_rate,
             has_validation_data=validation_dataset is not None,
+            pretrained_weights=pretrained_weights, # for Yolo P2 Model
         )
 
         logger.info(

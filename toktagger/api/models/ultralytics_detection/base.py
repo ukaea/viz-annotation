@@ -3,6 +3,7 @@ from __future__ import annotations  # store type hints as strings
 import logging
 from pathlib import Path
 from typing import Any
+import shutil
 
 import cv2
 import numpy as np
@@ -291,50 +292,6 @@ class BaseUltralyticsDetection(Model):
     batch: int = 5
     workers: int = 0
 
-    def __init__(self, model_id: str, project: Project) -> None:
-        super().__init__(model_id=model_id, project=project)
-
-        trained_weights = self.find_trained_weights()
-
-        # IMPORTANT:
-        # TokTagger's generic worker restores models by searching for a flat
-        # <model_id> file in MODEL_STORAGE. Ultralytics already stores its trained
-        # checkpoint in the project directory, so we deliberately do
-        # not create that duplicate flat file.
-        #
-        # When Ray recreates this actor, the generic worker will not call
-        # wrapped_load() because it cannot discover the nested checkpoint.
-        # Therefore this Ultralytics-specific actor discovers and loads its own
-        # checkpoint here. Model.wrapped_predict() refuses prediction unless
-        # _trained is True, so it must be restored after a valid checkpoint has
-        # been loaded successfully.
-        if trained_weights is not None:
-            self.load(str(trained_weights))
-            self._trained = True
-
-    def get_weights_directory(self) -> Path:
-        """Return this model's project-scoped Ultralytics weights directory."""
-        return (
-            get_toktagger_cache_dir()
-            / str(self.project.id)
-            / "ultralytics"
-            / self.model_family
-            / self.id
-            / "weights"
-        )
-
-    def find_trained_weights(self) -> Path | None:
-        """Find the preferred checkpoint produced by Ultralytics."""
-        weights_directory = self.get_weights_directory()
-
-        for file_name in ("best.pt", "last.pt"):
-            # generally we just need the best.pt
-            weights_path = weights_directory / file_name
-            if weights_path.is_file():
-                return weights_path
-
-        return None
-
     @property
     def class_names(self) -> dict[int, str]:
         """Return the class-ID-to-label mapping expected by Ultralytics."""
@@ -345,6 +302,7 @@ class BaseUltralyticsDetection(Model):
         if self.gpu_available() and torch.cuda.is_available():
             return torch.device("cuda")
 
+        # return mps or cpu if cuda isn't available.
         return get_torch_device()
 
     def define_model(self) -> str:
@@ -386,12 +344,7 @@ class BaseUltralyticsDetection(Model):
     ) -> dict[str, Any]:
         """Build the configuration passed to Ultralytics."""
         # Save directory
-        training_output_root = (
-            get_toktagger_cache_dir()
-            / str(self.project.id)
-            / "ultralytics"
-            / self.model_family
-        )
+        training_output_root = get_toktagger_cache_dir()
         training_output_root.mkdir(parents=True, exist_ok=True)
 
         overrides = {
@@ -480,6 +433,11 @@ class BaseUltralyticsDetection(Model):
                 "Ultralytics training completed without producing weights."
             )
 
+        # Ensure the next prediction loads the newly trained checkpoint rather than
+        # reusing an inference model containing older weights.
+        if hasattr(self, "_prediction_model"):
+            del self._prediction_model
+
         self.log_progress(
             training_status="completed",
             progress=100,
@@ -489,11 +447,32 @@ class BaseUltralyticsDetection(Model):
         # available yet.
         return 0.0
 
-    def save(self, file_stem: str) -> None:
-        """Verify that Ultralytics persisted this model's weights.
-        Ultralytics trainer handles the saving.
-        """
-        return None
+    def save(self, results_dir: Path) -> None:
+        """Persist the active checkpoint in the model results directory."""
+        source_path = Path(self._trained_weights_path)
+
+        if not source_path.is_file():
+            raise FileNotFoundError(
+                f"Could not find model weights at {source_path}"
+            )
+
+        weights_dir = results_dir.joinpath("weights")
+        weights_dir.mkdir(parents=True, exist_ok=True)
+
+        if source_path.name in {"best.pt", "last.pt"}:
+            target_name = source_path.name
+        else:
+            # Give imported checkpoints a compatible name so normal model
+            # restoration can find them without a supplied filename.
+            # external file → in-memory YOLO model → MODEL_STORAGE/<model_id>/weights/best.pt
+            target_name = "best.pt"
+
+        target_path = weights_dir.joinpath(target_name)
+
+        if source_path.resolve() != target_path.resolve():
+            shutil.copy2(source_path, target_path)
+
+        self._trained_weights_path = target_path
 
     def predict(
         self,

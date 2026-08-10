@@ -100,3 +100,37 @@ def get_toktagger_cache_dir() -> Path:
     cache_dir = Path(os.environ["MODEL_STORAGE"])
     cache_dir.mkdir(parents=True, exist_ok=True)
     return cache_dir
+
+
+def resolve_weights_path(
+    results_dir: Path,
+    weights_filename: str | None = None,
+) -> Path:
+    """
+    Resolve an Ultralytics checkpoint within a model results directory.
+    An explicitly supplied filename takes precedence. Otherwise, prefer the
+    best training checkpoint and fall back to the final checkpoint.
+    """
+    # If a specific weights file was supplied for loading
+    if weights_filename is not None:
+        weights_path = results_dir.joinpath(weights_filename)
+
+        if not weights_path.is_file():
+            raise FileNotFoundError(
+                f"Could not find model weights at {weights_path}"
+            )
+
+        return weights_path
+
+    # Use the default Ultralytics checkpoint
+    # ultralytics weights are saved in weights directory
+    weights_dir = results_dir.joinpath("weights")
+    for filename in ("best.pt", "last.pt"):
+        weights_path = weights_dir.joinpath(filename)
+
+        if weights_path.is_file():
+            return weights_path
+
+    raise FileNotFoundError(
+        f"Could not find best.pt or last.pt in {results_dir.joinpath('weights')}"
+    )

@@ -23,6 +23,7 @@ from toktagger.api.schemas.data import ImageData, ImageParams
 from toktagger.api.schemas.samples import Sample
 
 from .base import BaseUltralyticsDetection, DetectionRecord
+from .utils import resolve_weights_path
 
 logger = logging.getLogger(__name__)
 
@@ -289,12 +290,16 @@ class YoloVideoDetectionModel(BaseUltralyticsDetection):
             data_loader=self.data_loader,
         )
 
-    def load(self, file_path: str | Path) -> None:
+    def load(
+        self,
+        results_dir: Path,
+        weights_filename: str | None = None,
+    ) -> None:
         """Load YOLO weights into this Ray actor."""
-        weights_path = Path(file_path)
-
-        if not weights_path.is_file():
-            raise FileNotFoundError(f"Could not find model weights at {weights_path}")
+        weights_path = resolve_weights_path(
+            results_dir=results_dir,
+            weights_filename=weights_filename,
+        )
 
         self._prediction_model = YOLO(str(weights_path))
         self._trained_weights_path = weights_path
@@ -307,14 +312,8 @@ class YoloVideoDetectionModel(BaseUltralyticsDetection):
     ) -> list[list[AnnotationBase]]:
         """Predict bounding boxes for every frame in each sample."""
 
-        # After training, TokTagger reuses the existing Ray actor, so load() is not
-        # called. In that case, train() provides _trained_weights_path and the model
-        # is loaded lazily on the first prediction.
-        #
-        # When TokTagger creates a fresh actor for prediction, load() provides both
-        # _trained_weights_path and _prediction_model, so this block is skipped.
-        # Keeping _prediction_model on the actor avoids reloading the weights on
-        # every prediction request i.e. when Predict button is pressed.
+        # if load() was called self._prediction_model should exist
+        # else we borrow self._trained_weights_path from self.train()
         if not hasattr(self, "_prediction_model"):
             self._prediction_model = YOLO(str(self._trained_weights_path))
 

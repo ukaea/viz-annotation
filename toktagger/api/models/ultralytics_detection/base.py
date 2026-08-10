@@ -49,7 +49,15 @@ def quiet_ultralytics_logging(
     finally:
         ULTRALYTICS_LOGGER.setLevel(previous_level)
 
-DetectionRecord = dict[str, Any]
+
+class DetectionRecord(pydantic.BaseModel):
+    """Frame-level input used by the Ultralytics training dataset."""
+
+    shot_id: int
+    frame: int
+    image: bytes
+    boxes: list[list[float]]
+    classes: list[int]
 
 
 class UltralyticsDetectionDataset(Dataset):
@@ -80,12 +88,12 @@ class UltralyticsDetectionDataset(Dataset):
     def __getitem__(self, index: int) -> dict[str, Any]:
         record = self.records[index]
 
-        encoded_image = np.frombuffer(record["image"], dtype=np.uint8)
+        encoded_image = np.frombuffer(record.image, dtype=np.uint8)
         image = cv2.imdecode(encoded_image, cv2.IMREAD_COLOR)
 
         if image is None:
             raise ValueError(
-                f"Could not decode shot {record['shot_id']} frame {record['frame']}"
+                f"Could not decode shot {record.shot_id} frame {record.frame}"
             )
 
         # Ultralytics trains its pretrained models using RGB channel ordering.
@@ -107,7 +115,7 @@ class UltralyticsDetectionDataset(Dataset):
 
         normalized_boxes = []
 
-        for x1, y1, x2, y2 in record["boxes"]:
+        for x1, y1, x2, y2 in record.boxes:
             x1 = x1 * gain + padding_width
             x2 = x2 * gain + padding_width
             y1 = y1 * gain + padding_height
@@ -128,9 +136,9 @@ class UltralyticsDetectionDataset(Dataset):
         else:
             bboxes = torch.zeros((0, 4), dtype=torch.float32)
 
-        if record["classes"]:
+        if record.classes:
             classes = torch.tensor(
-                record["classes"],
+                record.classes,
                 dtype=torch.float32,
             ).view(-1, 1)
         else:
@@ -144,7 +152,7 @@ class UltralyticsDetectionDataset(Dataset):
             "img": image_tensor,
             "cls": classes,
             "bboxes": bboxes,
-            "im_file": (f"shot-{record['shot_id']}/frame-{record['frame']}"),
+            "im_file": (f"shot-{record.shot_id}/frame-{record.frame}"),
             "ori_shape": (original_height, original_width),
             "resized_shape": (self.imgsz, self.imgsz),
             "ratio_pad": (

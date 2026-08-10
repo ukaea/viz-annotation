@@ -179,8 +179,6 @@ def build_video_frame_manifest(
 
             boxes: list[list[float]] = []
             classes: list[int] = []
-            labels: list[str] = []
-            track_ids: list[str | None] = []
 
             for annotation in frame_annotations:
                 if annotation.label not in class_map:
@@ -199,21 +197,15 @@ def build_video_frame_manifest(
 
                 boxes.append([x1, y1, x2, y2])
                 classes.append(class_map[annotation.label])
-                labels.append(annotation.label)
-                track_ids.append(getattr(annotation, "track_id", None))
 
             frame_manifest.append(
-                {
-                    "shot_id": int(sample.shot_id),
-                    "frame": frame,
-                    # ImageData stores raw encoded bytes as a JSON-compatible
-                    # list of integers. Convert it back into bytes here.
-                    "image": bytes(frame_image.values),
-                    "boxes": boxes,
-                    "classes": classes,
-                    "labels": labels,
-                    "track_ids": track_ids,
-                }
+                DetectionRecord(
+                    shot_id=int(sample.shot_id),
+                    frame=frame,
+                    image=bytes(frame_image.values),
+                    boxes=boxes,
+                    classes=classes,
+                )
             )
             sample_record_count += 1
 

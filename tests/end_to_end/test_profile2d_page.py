@@ -50,6 +50,7 @@ def add_bounding_box(page: Page, label: str = "NTM", offset: int = 150) -> None:
     page.get_by_role("button", name="BOUNDING BOX").click()
     page.get_by_test_id("select-annotation-label").click()
     page.get_by_test_id("popover").get_by_text(label).click()
+    expect(page.get_by_test_id("select-annotation-label")).to_contain_text(label)
 
     box = page.get_by_label("profile-2d").bounding_box()
     assert box is not None
@@ -81,6 +82,7 @@ def add_time_annotation(
     page.get_by_role("button", name=annotation_type).click()
     page.get_by_test_id("select-annotation-label").click()
     page.get_by_test_id("popover").get_by_text(label).click()
+    expect(page.get_by_test_id("select-annotation-label")).to_contain_text(label)
 
     box = page.get_by_label("profile-2d").bounding_box()
     assert box is not None
@@ -133,6 +135,8 @@ def test_profile2d_saved_threshold_annotations_persist(server_setup, page: Page)
     page.get_by_role("button", name="Threshold").click()
     page.get_by_role("switch", name="Thresholding").click(force=True)
     expect(page.get_by_label("polygon").first).to_be_visible()
+    # Wait for network activity to settle before snapshotting, since .count() doesn't retry.
+    page.wait_for_load_state("networkidle")
     enabled_count = page.get_by_label("polygon").count()
 
     # Save, waiting for the PUT to the backend to complete.
@@ -290,7 +294,15 @@ def test_profile2d_edit_mode_relabel_and_delete(server_setup, page: Page):
         set_type_box["x"] + set_type_box["width"] / 2,
         set_type_box["y"] + set_type_box["height"] / 2,
     )
-    page.get_by_role("menuitem", name="ELM", exact=True).click()
+    # Click() also scrolls into view first, which would close this CSS-hover menu, so move and click manually.
+    elm_item = page.get_by_role("menuitem", name="ELM", exact=True)
+    elm_box = elm_item.bounding_box()
+    assert elm_box is not None
+    page.mouse.move(
+        elm_box["x"] + elm_box["width"] / 2, elm_box["y"] + elm_box["height"] / 2
+    )
+    page.mouse.down()
+    page.mouse.up()
 
     expect(page.get_by_role("gridcell", name="ELM", exact=True)).to_be_visible()
     expect(page.get_by_role("gridcell", name="NTM", exact=True)).to_have_count(0)

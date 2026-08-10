@@ -1,26 +1,28 @@
 from enum import Enum
+from typing import Literal
 
 from toktagger.api.schemas import ConfiguredModel
 
 
 class ViewType(str, Enum):
     IDENTITY = "identity"
-    SPECTROGRAM = "spectrogram"
+    PROFILE_2D = "profile_2d"
 
 
 class ViewParams(ConfiguredModel):
-    name: ViewType = ViewType.IDENTITY
+    name: Literal[ViewType.IDENTITY] = ViewType.IDENTITY
 
 
-class SpectrogramViewParams(ViewParams):
-    nperseg: int | None = 256
+class Profile2DViewParams(ViewParams):
+    name: Literal[ViewType.PROFILE_2D] = ViewType.PROFILE_2D
+    signal_name: str
     time_min: float | None = None
     time_max: float | None = None
-    frequency_min: float | None = None
-    frequency_max: float | None = None
-    amplitude_min: float | None = None
-    amplitude_max: float | None = None
-    threshold_value: float | None = None
+    dim_1_min: float | None = None
+    dim_1_max: float | None = None
+    values_min: float | None = None
+    values_max: float | None = None
+    log_scale: bool = False
 
 
-ViewParamTypes = ViewParams | SpectrogramViewParams
+ViewParamTypes = ViewParams | Profile2DViewParams

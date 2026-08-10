@@ -10,7 +10,7 @@ class Task(str, Enum):
     """The type of labelling task for a project."""
 
     TIME_SERIES = "time-series"
-    SPECTROGRAM = "spectrogram"
+    PROFILE_2D = "profile-2d"
     VIDEO = "video"
 
 

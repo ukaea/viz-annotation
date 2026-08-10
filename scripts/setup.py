@@ -2,10 +2,10 @@ import getpass
 import os
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Optional
-import requests
-from toktagger.api.config import settings
 
+import requests
+
+from toktagger.api.config import settings
 
 BASE_URL = f"http://{settings.server.host}:{settings.server.port}"
 
@@ -56,7 +56,11 @@ def create_project(
 
 
 def create_uda_samples(
-    project_id: str, shot_ids: list[int], token: str, base_url: str = BASE_URL
+    project_id: str,
+    shot_ids: list[int],
+    token: str,
+    base_url: str = BASE_URL,
+    signals: list[str] | None = None,
 ):
     samples = []
     for shot_id in shot_ids:
@@ -64,7 +68,7 @@ def create_uda_samples(
             "project_id": project_id,
             "shot_id": shot_id,
             "data": {
-                "signal_names": ["ip", "ANE_DENSITY", "/xsx/HCAM/L/7"],
+                "signal_names": signals,
                 "protocol": "uda",
             },
         }
@@ -131,13 +135,13 @@ def create_local_samples(
     base_url: str = BASE_URL,
     base_path: str = ".",
     file_type: str = "parquet",
-    signals: Optional[list[str]] = None,
-    annotations: Optional[list[dict]] = None,
+    signals: list[str] | None = None,
+    annotations: list[dict] | None = None,
 ):
     samples = []
 
     base_path = Path(base_path)
-    for shot_id in shot_ids:
+    for i, shot_id in enumerate(shot_ids):
         file_name = str(base_path / f"{shot_id}.{file_type}")
         sample = {
             "shot_id": shot_id,
@@ -149,7 +153,7 @@ def create_local_samples(
             },
         }
         if annotations:
-            sample["annotations"] = annotations[shot_id]
+            sample["annotations"] = annotations[i]
         samples.append(sample)
 
     r = requests.post(
@@ -252,7 +256,13 @@ def main():
         token=token,
         base_url=args.url,
     )
-    create_uda_samples(project_id, shot_ids, token=token, base_url=args.url)
+    create_uda_samples(
+        project_id,
+        shot_ids,
+        token=token,
+        base_url=args.url,
+        signals=["ip", "ANE_DENSITY", "/xsx/HCAM/L/7"],
+    )
 
     project_id = create_project(
         "Local ELM Project",
@@ -276,7 +286,7 @@ def main():
     shot_ids = [int(path.stem) for path in shot_files]
     project_id = create_project(
         "Local MHD Project",
-        "spectrogram",
+        "profile-2d",
         "tabular",
         "random",
         token=token,
@@ -290,7 +300,27 @@ def main():
         base_url=args.url,
         base_path=base_path / "mhd",
         file_type="parquet",
-        signals=["mirnov"],
+        signals=["mirnov", "saddle_0"],
+    )
+
+    project_id = create_project(
+        "UDA MHD Project",
+        "profile-2d",
+        "uda",
+        "sequential",
+        token=token,
+        base_url=args.url,
+        min_time_step=1e-6,
+    )
+    shot_ids = [
+        52583,
+    ]
+    create_uda_samples(
+        project_id,
+        shot_ids,
+        token=token,
+        base_url=args.url,
+        signals=["/XMB/SANX13-01/CH13", "/XMB/SANX13-01/CH14", "/XMB/SANX13-01/CH15"],
     )
     # ---- Image / UFO demo project ----
     project_id = create_project(

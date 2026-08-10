@@ -8,22 +8,60 @@ import React, {
   useRef,
 } from "react";
 import { ToastQueue } from "@adobe/react-spectrum";
+import { z } from "zod/v4";
 import {
   Project,
   Sample,
   Data,
   Annotation,
   ViewParams,
+  ViewParamsSchema,
   PlotProps,
+  Profile2DViewParams,
+  Profile2DViewParamsSchema,
   MultiVariateTimeSeriesData,
-  SpectrogramData,
+  Profile2DData,
   MultiVariateTimeSeriesDataSchema,
+  Profile2DDataSchema,
   ImageData,
   ImageDataSchema,
   TaskType,
   DataParams,
 } from "@/types";
 import { BACKEND_API_URL, apiFetch, ensureOk } from "@/app/core";
+import { getSignalNames } from "@/app/utils";
+
+const viewParamsKey = (projectId: string) => `view-params-${projectId}`;
+const colorMapKey = (projectId: string) => `color-map-${projectId}`;
+
+// Reads persisted view params, discarding anything that fails schema validation.
+function readSavedViewParams(
+  projectId: string,
+): ViewParams | Profile2DViewParams {
+  const fallback: ViewParams = { name: "identity" };
+  if (!projectId) return fallback;
+
+  const saved = sessionStorage.getItem(viewParamsKey(projectId));
+  if (!saved) return fallback;
+
+  try {
+    const parsed: unknown = JSON.parse(saved);
+    const result = z
+      .union([ViewParamsSchema, Profile2DViewParamsSchema])
+      .safeParse(parsed);
+    if (result.success) return result.data;
+  } catch {
+    // Malformed JSON - fall through and discard.
+  }
+
+  sessionStorage.removeItem(viewParamsKey(projectId));
+  return fallback;
+}
+
+function readSavedColorMap(projectId: string): string | null {
+  if (!projectId) return null;
+  return sessionStorage.getItem(colorMapKey(projectId));
+}
 
 interface SampleContextType {
   project: Project | null;
@@ -31,7 +69,7 @@ interface SampleContextType {
   data: Data | null;
   annotations: Annotation[];
   dataParams: DataParams;
-  viewParams: ViewParams;
+  viewParams: ViewParams | Profile2DViewParams;
   plotProps: PlotProps;
   annotationLabels: { id: number; name: string }[];
   videoFrameBounds: { min: number | null; max: number | null };
@@ -40,7 +78,9 @@ interface SampleContextType {
   error: string | null;
   setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>;
   setDataParams: React.Dispatch<React.SetStateAction<DataParams>>;
-  setViewParams: (params: ViewParams) => void;
+  setViewParams: React.Dispatch<
+    React.SetStateAction<ViewParams | Profile2DViewParams>
+  >;
   setPlotProps: (props: PlotProps) => void;
   setIsValidated: (validated: boolean) => void;
 }
@@ -94,29 +134,20 @@ async function getAnnotations(
 async function parseData(
   data: Data,
   task: TaskType,
-): Promise<
-  MultiVariateTimeSeriesData | SpectrogramData | ImageData | undefined
-> {
+): Promise<MultiVariateTimeSeriesData | Profile2DData | ImageData | undefined> {
   if (task == TaskType.TimeSeries) {
     const result = MultiVariateTimeSeriesDataSchema.safeParse(data);
     if (!result.success) {
       throw new Error("Invalid data for time series view");
     }
     return result.data;
-    // } else if (task == TaskType.Spectrogram) {
-    //   const result = CompositeDataSchema.safeParse(data);
-    //   if (!result.success) {
-    //     throw new Error("Invalid data for spectrogram view");
-    //   }
-
-    //   const mhdData = SpectrogramDataSchema.safeParse(
-    //     result.data.values["mirnov"],
-    //   );
-    //   if (!mhdData.success) {
-    //     throw new Error("Invalid data for spectrogram view");
-    //   }
-
-    //   return mhdData.data;
+  } else if (task == TaskType.Profile2D) {
+    // The server selects the signal, so the response is a single profile.
+    const result = Profile2DDataSchema.safeParse(data);
+    if (!result.success) {
+      throw new Error("Invalid data for profile 2D view");
+    }
+    return result.data;
   } else if (task == TaskType.Video) {
     const result = ImageDataSchema.safeParse(data);
     if (!result.success) {
@@ -138,18 +169,33 @@ export function SampleProvider({
   const [data, setData] = useState<Data | null>(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
 
-  const [viewParams, setViewParams] = useState<ViewParams>({
-    name: "identity",
-  });
+  const [viewParams, setViewParams] = useState<
+    ViewParams | Profile2DViewParams
+  >(() => readSavedViewParams(projectId));
 
   const [dataParams, setDataParams] = useState<DataParams>({
     name: "identity",
   });
   const [prevSampleId, setPrevSampleId] = useState(sampleId);
 
-  const [plotProps, setPlotProps] = useState<PlotProps>({
-    colorMap: "Cividis",
-  });
+  const [plotProps, setPlotProps] = useState<PlotProps>(() => ({
+    colorMap: readSavedColorMap(projectId) ?? "Cividis",
+  }));
+
+  // Persist view params so they survive a refresh or navigating between samples.
+  useEffect(() => {
+    if (!projectId) return;
+    sessionStorage.setItem(
+      viewParamsKey(projectId),
+      JSON.stringify(viewParams),
+    );
+  }, [viewParams, projectId]);
+
+  // Persist only the colour map - thresholdActive has its own source of truth.
+  useEffect(() => {
+    if (!projectId || !plotProps.colorMap) return;
+    sessionStorage.setItem(colorMapKey(projectId), plotProps.colorMap);
+  }, [plotProps.colorMap, projectId]);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -241,13 +287,16 @@ export function SampleProvider({
         setIsValidated(sampleData.validated_annotations);
 
         let params = viewParams;
-        // if (projectData.task === TaskType.Spectrogram) {
-        //   params = {
-        //     ...params,
-        //     name: "spectrogram",
-        //     nperseg: 256,
-        //   } as SpectrogramViewParams;
-        // }
+        // Default to the sample's first signal until one is explicitly selected.
+        if (
+          projectData.task === TaskType.Profile2D &&
+          params.name !== "profile_2d"
+        ) {
+          params = {
+            name: "profile_2d",
+            signal_name: getSignalNames(sampleData)[0],
+          } as Profile2DViewParams;
+        }
 
         // ------------------------------------------------------------
         // video projects must request image data parameters.

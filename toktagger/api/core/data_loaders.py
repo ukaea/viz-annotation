@@ -4,6 +4,7 @@ import io
 import os
 import pathlib
 from abc import ABC, abstractmethod
+from functools import lru_cache
 from pathlib import Path
 from typing import ClassVar
 
@@ -15,12 +16,14 @@ from PIL import Image
 
 from toktagger.api import config
 from toktagger.api.schemas.data import (
-    Data,
     DataParams,
     DataParamTypes,
+    DataResponseType,
     ImageData,
     ImageParams,
+    MultiProfile2DData,
     MultiVariateTimeSeriesData,
+    Profile2DData,
     TimeSeriesData,
 )
 from toktagger.api.schemas.samples import (
@@ -67,7 +70,7 @@ class DataLoader(ABC):
         sample: Sample,
         params: DataParamTypes = DataParams(),
         **kwargs,
-    ) -> Data:
+    ) -> DataResponseType:
         pass
 
 
@@ -341,7 +344,7 @@ class UDADataLoader(DataLoader):
         time_max: float | None = None,
         min_time_step: float | None = None,
         **kwargs,
-    ) -> MultiVariateTimeSeriesData:
+    ) -> MultiVariateTimeSeriesData | MultiProfile2DData:
         if not isinstance(sample.data, ShotData):
             raise TypeError(
                 f"Expected sample data of type 'ShotData' but got '{type(sample.data)}'"
@@ -354,30 +357,9 @@ class UDADataLoader(DataLoader):
         results = {}
         for name in sample_data.signal_names:
             try:
-                signal = xr.open_dataset(f"uda://{name}:{sample.shot_id}", engine="uda")
-                data = signal["data"].values
-                time = signal["time"].values
-
-                if time_min is not None:
-                    mask = time >= time_min
-                    time = time[mask]
-                    data = data[mask]
-
-                if time_max is not None:
-                    mask = time <= time_max
-                    time = time[mask]
-                    data = data[mask]
-
-                if (
-                    min_time_step is not None
-                    and len(time) > 1
-                    and np.diff(time).mean() < min_time_step
-                ):
-                    time_base = np.arange(time[0], time[-1], min_time_step)
-                    data = np.interp(time_base, time, data)
-                    time = time_base
-
-                item = TimeSeriesData(time=time, values=data)
+                item = _get_uda_signal(
+                    name, sample.shot_id, time_min, time_max, min_time_step
+                )
                 results[name] = item
             except Exception:  # noqa: BLE001 -- one bad signal should not fail the whole multi-signal load
                 results[name] = None
@@ -387,7 +369,54 @@ class UDADataLoader(DataLoader):
                 f"Could not load any signals for shot ID '{sample.shot_id}'. Check UDA connectivity and signal names."
             )
 
-        return MultiVariateTimeSeriesData(values=results)
+        if all(isinstance(value, TimeSeriesData) for value in results.values()):
+            return MultiVariateTimeSeriesData(values=results)
+        elif all(isinstance(value, Profile2DData) for value in results.values()):
+            return MultiProfile2DData(values=results)
+        else:
+            raise DataLoaderError(
+                f"Mixed data types found for shot ID '{sample.shot_id}'. Check UDA signal names to ensure they all correspond to the same type of data (e.g., all time series or all 2D profiles)."
+            )
+
+
+@lru_cache(maxsize=128)
+def _get_uda_signal(
+    name: str,
+    shot_id: int,
+    time_min: float | None = None,
+    time_max: float | None = None,
+    min_time_step: float | None = None,
+) -> Profile2DData | TimeSeriesData:
+    ds = xr.open_dataset(f"uda://{name}:{shot_id}", engine="uda")
+    ds = ds.sel(time=slice(time_min, time_max))
+
+    time = ds["time"].values
+    if (
+        min_time_step is not None
+        and len(time) > 1
+        and np.diff(time).mean() < min_time_step
+    ):
+        time = ds["time"].values
+        time_base = np.arange(time[0], time[-1], min_time_step)
+        ds = ds.interp(time=time_base, method="linear")
+
+    if len(ds.data.shape) == 1:
+        data = ds["data"].values
+        time = ds["time"].values
+
+        item = TimeSeriesData(time=time, values=data)
+        return item
+    elif len(ds.data.shape) == 2:
+        time = ds["time"].values
+        dim_1 = ds[ds.data.dims[1]].values
+        data = ds["data"].values
+
+        item = Profile2DData(time=time, dim_1=dim_1, values=data)
+        return item
+    else:
+        raise DataLoaderError(
+            f"Unsupported data shape {ds.data.shape} for signal '{name}'"
+        )
 
 
 @LoaderRegistry.register("uda_camera")
@@ -481,7 +510,7 @@ class SALDataLoader(DataLoader):
         time_max: float | None = None,
         min_time_step: float | None = None,
         **kwargs,
-    ) -> MultiVariateTimeSeriesData:
+    ) -> MultiVariateTimeSeriesData | MultiProfile2DData:
         assert isinstance(sample.data, ShotData), "Sample data must be of type ShotData"
         sample_data: ShotData = sample.data
 
@@ -496,44 +525,71 @@ class SALDataLoader(DataLoader):
 
         results = {}
         for name in sample_data.signal_names:
-            full_name = f"pulse/{sample.shot_id}/{name}"
             try:
-                signal = xr.open_dataset(f"sal://{full_name}", engine="sal")
-                data = signal["data"].values
-                time = signal["time"].values
-
-                if time_min is not None:
-                    mask = time >= time_min
-                    time = time[mask]
-                    data = data[mask]
-
-                if time_max is not None:
-                    mask = time <= time_max
-                    time = time[mask]
-                    data = data[mask]
-
-                if (
-                    min_time_step is not None
-                    and len(time) > 1
-                    and np.diff(time).mean() < min_time_step
-                ):
-                    time_base = np.arange(time[0], time[-1], min_time_step)
-                    data = np.interp(time_base, time, data)
-                    time = time_base
-
-                print(time_min, time_max, min_time_step)
-
-                item = TimeSeriesData(time=time, values=data)
+                item = _get_sal_signal(
+                    name=name,
+                    shot_id=sample.shot_id,
+                    time_min=time_min,
+                    time_max=time_max,
+                    min_time_step=min_time_step,
+                )
                 results[name] = item
             except Exception:  # noqa: BLE001 -- one bad signal should not fail the whole multi-signal load
                 results[name] = None
 
         if all(values is None for values in results.values()):
             raise DataLoaderError(
-                f"Could not load any signals for shot ID '{sample.shot_id}'. Check SAL connectivity and signal names."
+                f"Could not load any signals for shot ID '{sample.shot_id}' from SAL. Check SAL connectivity and signal names."
             )
 
-        return MultiVariateTimeSeriesData(values=results)
+        if all(isinstance(value, TimeSeriesData) for value in results.values()):
+            return MultiVariateTimeSeriesData(values=results)
+        elif all(isinstance(value, Profile2DData) for value in results.values()):
+            return MultiProfile2DData(values=results)
+        else:
+            raise DataLoaderError(
+                f"Mixed data types found for shot ID '{sample.shot_id}' from SAL. Check signal names to ensure they all correspond to the same type of data (e.g., all time series or all 2D profiles)."
+            )
+
+
+@lru_cache(maxsize=128)
+def _get_sal_signal(
+    name: str,
+    shot_id: int,
+    time_min: float | None = None,
+    time_max: float | None = None,
+    min_time_step: float | None = None,
+) -> Profile2DData | TimeSeriesData:
+    full_name = f"pulse/{shot_id}/{name}"
+    ds = xr.open_dataset(f"sal://{full_name}", engine="sal")
+    ds = ds.sel(time=slice(time_min, time_max))
+
+    time = ds["time"].values
+    if (
+        min_time_step is not None
+        and len(time) > 1
+        and np.diff(time).mean() < min_time_step
+    ):
+        time_base = np.arange(time[0], time[-1], min_time_step)
+        ds = ds.interp(time=time_base, method="linear")
+
+    if len(ds.data.shape) == 1:
+        data = ds["data"].values
+        time = ds["time"].values
+
+        item = TimeSeriesData(time=time, values=data)
+        return item
+    elif len(ds.data.shape) == 2:
+        time = ds["time"].values
+        dim_1 = ds[ds.data.dims[1]].values
+        data = ds["data"].values
+
+        item = Profile2DData(time=time, dim_1=dim_1, values=data)
+        return item
+    else:
+        raise DataLoaderError(
+            f"Unsupported data shape {ds.data.shape} for signal '{name}'"
+        )
 
 
 @LoaderRegistry.register("fair_mast")
@@ -550,55 +606,85 @@ class FAIRMASTDataLoader(DataLoader):
         time_max: float | None = None,
         min_time_step: float | None = None,
         **kwargs,
-    ) -> MultiVariateTimeSeriesData:
+    ) -> MultiVariateTimeSeriesData | MultiProfile2DData:
         assert isinstance(sample.data, ShotData), "Sample data must be of type ShotData"
         sample_data: ShotData = sample.data
 
-        if not params.name == "identity":
-            raise TypeError(f"Expected blank parameters, but got '{params.name}'")
+        results = _get_fair_mast_signals(
+            file_path=f"https://s3.echo.stfc.ac.uk/mast/level2/shots/{sample.shot_id}.zarr",
+            signal_names=tuple(sample_data.signal_names),
+            time_min=time_min,
+            time_max=time_max,
+            min_time_step=min_time_step,
+        )
+        return results
 
-        endpoint = "https://s3.echo.stfc.ac.uk/mast/level2/shots"
-        file_path = f"{endpoint}/{sample.shot_id}.zarr"
 
-        kwargs = {"chunks": None}
+@lru_cache(maxsize=128)
+def _get_fair_mast_signals(
+    file_path: str,
+    signal_names: tuple[str],
+    time_min: float | None = None,
+    time_max: float | None = None,
+    min_time_step: float | None = None,
+) -> MultiVariateTimeSeriesData | MultiProfile2DData:
+    kwargs = {"chunks": None}
+    # check if xarray version supports create_default_indexes argument, and if so, set it to False
+    # to avoid unnecessary index creation which can cause performance issues with large datasets
+    sig = inspect.signature(xr.open_dataset)
+    if "create_default_indexes" in sig.parameters:
+        kwargs["create_default_indexes"] = False
 
-        # check if xarray version supports create_default_indexes argument, and if so, set it to False
-        # to avoid unnecessary index creation which can cause performance issues with large datasets
-        sig = inspect.signature(xr.open_dataset)
-        if "create_default_indexes" in sig.parameters:
-            kwargs["create_default_indexes"] = False
+    data_tree = xr.open_datatree(file_path, **kwargs)
 
-        data_tree = xr.open_datatree(file_path, **kwargs)
+    results = {}
+    for name in signal_names:
+        try:
+            ds = data_tree[name]
+        except KeyError:
+            results[name] = None
+            continue
 
-        results = {}
-        for name in sample_data.signal_names:
-            try:
-                ds = data_tree[name]
-                data = ds.values
-                time = ds.time.values
+        ds = ds.sel(time=slice(time_min, time_max))
 
-                if time_min is not None:
-                    mask = time >= time_min
-                    time = time[mask]
-                    data = data[mask]
+        time = ds["time"].values
 
-                if time_max is not None:
-                    mask = time <= time_max
-                    time = time[mask]
-                    data = data[mask]
+        if (
+            min_time_step is not None
+            and len(time) > 1
+            and np.diff(time).mean() < min_time_step
+        ):
+            time_base = np.arange(time[0], time[-1], min_time_step)
+            ds = ds.interp(time=time_base, method="linear")
 
-                if (
-                    min_time_step is not None
-                    and len(time) > 1
-                    and np.diff(time).mean() < min_time_step
-                ):
-                    time_base = np.arange(time[0], time[-1], min_time_step)
-                    data = np.interp(time_base, time, data)
-                    time = time_base
+        if len(ds.data.shape) == 1:
+            data = ds.values
+            time = ds["time"].values
 
-                item = TimeSeriesData(time=time, values=data)
-                results[name] = item
-            except Exception:  # noqa: BLE001 -- one bad signal should not fail the whole multi-signal load
-                results[name] = None
+            item = TimeSeriesData(time=time, values=data)
+            results[name] = item
+        elif len(ds.data.shape) == 2:
+            time = ds["time"].values
+            dim_1 = ds[ds.data.dims[1]].values
+            values = ds.values
 
+            item = Profile2DData(time=time, dim_1=dim_1, values=values)
+            results[name] = item
+        else:
+            raise DataLoaderError(
+                f"Unsupported data shape {ds.data.shape} for signal '{name}'"
+            )
+
+    if all(values is None for values in results.values()):
+        raise DataLoaderError(
+            f"Could not load any signals from FAIR-MAST file at '{file_path}'. Check signal names and file accessibility."
+        )
+
+    if all(isinstance(value, TimeSeriesData) for value in results.values()):
         return MultiVariateTimeSeriesData(values=results)
+    elif all(isinstance(value, Profile2DData) for value in results.values()):
+        return MultiProfile2DData(values=results)
+    else:
+        raise DataLoaderError(
+            f"Mixed data types found for file '{file_path}'. Check signal names to ensure they all correspond to the same type of data (e.g., all time series or all 2D profiles)."
+        )

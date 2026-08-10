@@ -16,18 +16,9 @@ import {
   InlineAlert,
   ToastContainer,
 } from "@adobe/react-spectrum";
-import {
-  MultiVariateTimeSeriesDataSchema,
-  PlotProps,
-  SpectrogramData,
-  SpectrogramDataSchema,
-  SpectrogramViewParamsSchema,
-  TaskType,
-  ViewParams,
-} from "@/types";
+import { MultiVariateTimeSeriesDataSchema, PlotProps, TaskType } from "@/types";
 import { getAnnotationsForSample } from "@/app/core";
 import { PeakDetectionTool } from "@/app/components/annotators/peaks";
-import { DataRangeSlider } from "@/app/components/tools/dataRangeSlider";
 import { ModelPredictTool } from "@/app/components/tools/modelPredictSample";
 import { ShotLabels } from "../annotators/labels";
 import { OutlierDetectionTool } from "../annotators/outliers";
@@ -37,60 +28,10 @@ import { ExportTool } from "./export";
 import { ImportButton } from "./import";
 import { NavigationBar } from "./nav";
 import { useSample } from "@/app/contexts/SampleContext";
-import SpectrogramThresholdTool from "../annotators/thresholding";
+import Profile2DThresholdTool from "../annotators/thresholding";
+import { Profile2DViewParamsWidget } from "@/app/profile2d/components/profile2dViewParamsWidget";
 import { VideoToolbox } from "@/app/video/components/video-toolbox";
 import { useServerHealth } from "@/app/contexts/healthContext";
-
-type AmplitudeSliderInfo = {
-  data: SpectrogramData;
-  viewParams: ViewParams;
-  setViewParams: (viewParams: ViewParams) => void;
-  plotProps: PlotProps;
-};
-
-function AmplitudeSlider({
-  data,
-  viewParams,
-  setViewParams,
-  plotProps,
-}: AmplitudeSliderInfo) {
-  const onAmplitudeRangeChange = async ({
-    start,
-    end,
-  }: {
-    start: number;
-    end: number;
-  }) => {
-    const params = SpectrogramViewParamsSchema.parse(viewParams);
-    params.amplitude_min = Math.pow(10, start);
-    params.amplitude_max = Math.pow(10, end);
-    setViewParams(params);
-  };
-
-  const numDigits = plotProps.numSignificantDigits || 4;
-  const smallPrecisionFactor = Math.pow(10, -1 * numDigits);
-  const largePrecisionFactor = Math.pow(10, numDigits);
-
-  let ampValues = data.amplitude.flat();
-  ampValues = ampValues.map((x: number) =>
-    Math.log10(Math.max(x, smallPrecisionFactor)),
-  );
-
-  const displayAmplitudeValues = (val: number) => {
-    return `${Math.round(Math.pow(10, val) * largePrecisionFactor) / largePrecisionFactor}`;
-  };
-
-  return (
-    <DataRangeSlider
-      name={"Amplitude Range"}
-      data={ampValues}
-      onChange={onAmplitudeRangeChange}
-      getValueLabel={(val) =>
-        `${displayAmplitudeValues(val.start)} - ${displayAmplitudeValues(val.end)}`
-      }
-    />
-  );
-}
 
 type ColorMapPickerInfo = {
   plotProps: PlotProps;
@@ -152,8 +93,6 @@ export default function ToolBar() {
     sample,
     data,
     setAnnotations,
-    viewParams,
-    setViewParams,
     plotProps,
     setPlotProps,
     isValidated,
@@ -238,24 +177,17 @@ export default function ToolBar() {
         ></JumpDetectionTool>
       ),
     });
-  } else if (data && project.task == TaskType.Spectrogram) {
-    const resultSpec = SpectrogramDataSchema.safeParse(data);
-    if (!resultSpec.success) {
-      console.warn("MHD spectrogram data is not available");
-      return null;
-    }
-
-    const mhdData = resultSpec.data;
+  } else if (project.task == TaskType.Profile2D) {
+    // Not gated on data so the signal picker below still lets the user recover.
+    const labels = project.shot_labels || ["Valid Shot", "Invalid Shot"];
     tools.push({
-      name: "Amplitude Range",
-      component: (
-        <AmplitudeSlider
-          data={mhdData}
-          viewParams={viewParams}
-          setViewParams={setViewParams}
-          plotProps={plotProps}
-        />
-      ),
+      name: "Shot Labels",
+      component: <ShotLabels labels={labels}></ShotLabels>,
+    });
+
+    tools.push({
+      name: "View Parameters",
+      component: <Profile2DViewParamsWidget />,
     });
 
     tools.push({
@@ -268,13 +200,7 @@ export default function ToolBar() {
     tools.push({
       name: "Threshold",
       component: (
-        <SpectrogramThresholdTool
-          project_id={project_id}
-          sample_id={sample_id}
-          signal_name={"mirnov"}
-          plotProps={plotProps}
-          setPlotProps={setPlotProps}
-        />
+        <Profile2DThresholdTool project_id={project_id} sample_id={sample_id} />
       ),
     });
   } else if (data && project.task === TaskType.Video) {

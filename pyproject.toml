@@ -67,6 +67,26 @@ include = ["toktagger.api*"]
 [tool.ruff]
 exclude = [".venv", "notebooks"]
 
+[tool.ruff.lint.per-file-ignores]
+# `x as x` is the standard explicit-re-export idiom (also silences F401) for
+# pytest fixtures/constants imported into conftest for their side effect of
+# registration rather than direct use — not an accidental no-op alias.
+"tests/conftest.py" = ["PLC0414"]
+"tests/db_definitions.py" = ["PLC0414"]
+"tests/api/routers/conftest.py" = ["PLC0414"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency-injection idiom calls these in argument defaults by
+# design (the call is evaluated once per request by FastAPI, not at def
+# time as B008 assumes) — ruff's docs recommend this allowlist for FastAPI.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Body",
+    "toktagger.api.schemas.data.DataParams",
+    "toktagger.api.schemas.views.ViewParams",
+]
+
 [dependency-groups]
 dev = [
     "zensical",

@@ -1,11 +1,12 @@
 import numpy as np
 import xarray as xr
+
 from toktagger.api.core.annotators import compute_stft
 from toktagger.api.schemas.data import (
     CompositeData,
+    Data,
     MultiVariateTimeSeriesData,
     SpectrogramData,
-    Data,
     TimeSeriesData,
 )
 from toktagger.api.schemas.views import SpectrogramViewParams, ViewParams, ViewType
@@ -29,7 +30,7 @@ class SpectrogramView:
             for key, value in data.values.items():
                 response[key] = self.convert_timeseries_to_spectrogram(value)
         else:
-            raise RuntimeError(f"Unsupported data type: {type(data)}")
+            raise TypeError(f"Unsupported data type: {type(data)}")
 
         return CompositeData(values=response)
 
@@ -74,7 +75,7 @@ class SpectrogramView:
             else values.max()
         )
 
-        ds = xr.DataArray(values, coords=dict(frequency=freq, time=time))
+        ds = xr.DataArray(values, coords={"frequency": freq, "time": time})
         ds = ds.sel(time=slice(time_min, time_max))
         ds = ds.sel(frequency=slice(frequency_min, frequency_max))
         ds = ds.clip(amplitude_min, amplitude_max)

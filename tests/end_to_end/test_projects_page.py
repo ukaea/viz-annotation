@@ -1,12 +1,14 @@
 import pytest
 
 pytest.importorskip("playwright")
-from playwright.sync_api import Page, expect
 import re
-from datetime import datetime
 import time
-from tests.endpoints import create_project, session
+from datetime import datetime
+
 import pytest
+from playwright.sync_api import Page, expect
+
+from tests.endpoints import create_project, session
 
 
 def check_base_page(page):
@@ -79,7 +81,9 @@ def test_single_project(server_setup, page: Page):
     expect(page.get_by_text("Test Project")).to_be_visible()
     expect(page.get_by_text("time-series")).to_be_visible()
     expect(page.get_by_text("uda")).to_be_visible()
-    expect(page.get_by_text(re.compile(f"^{datetime.now().date()}*"))).to_be_visible()
+    expect(
+        page.get_by_text(re.compile(f"^{datetime.now().date()}*"))  # noqa: DTZ005 -- matches the browser's locally-rendered date, not UTC
+    ).to_be_visible()
 
     # Expect that I can click on the row in the table and it takes me to a sample page
     table_row = page.get_by_role("rowheader", name="Test Project")

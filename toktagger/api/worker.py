@@ -1,24 +1,26 @@
+import logging
 import os
-import ray
-from ray.exceptions import ActorDiedError
 import pathlib
-from toktagger.api.schemas.projects import Project
-from toktagger.api.schemas.samples import Sample, SampleUpdate, SampleUpdateBatchItem
-from toktagger.api.schemas.data import DataParamTypes
+
+import pydantic
+import ray
+from platformdirs import user_cache_dir
+from pydantic import ValidationError
+from ray.exceptions import ActorDiedError
+
+from toktagger.api.core.sender import (
+    send_batch_annotations,
+    send_batch_samples,
+    send_model_updates,
+)
 from toktagger.api.schemas.annotations import (
     AnnotationBatchTypeAdapter,
     AnnotationOutTypes,
 )
-from pydantic import ValidationError
+from toktagger.api.schemas.data import DataParamTypes
 from toktagger.api.schemas.models import Model, ModelUpdate
-from toktagger.api.core.sender import (
-    send_batch_samples,
-    send_batch_annotations,
-    send_model_updates,
-)
-import logging
-from platformdirs import user_cache_dir
-import pydantic
+from toktagger.api.schemas.projects import Project
+from toktagger.api.schemas.samples import Sample, SampleUpdate, SampleUpdateBatchItem
 
 logger = logging.getLogger("ray")
 logger.setLevel("DEBUG")
@@ -70,7 +72,7 @@ def get_actor(project: Project, model: Model, use_gpu: bool):
         )
 
         model_path = next(
-            pathlib.Path(os.environ["MODEL_STORAGE"]).glob(f"{str(model.id)}*"), None
+            pathlib.Path(os.environ["MODEL_STORAGE"]).glob(f"{model.id!s}*"), None
         )
         if model_path:
             ml_model.wrapped_load.remote(model_path)
@@ -112,7 +114,7 @@ def load_model(
     try:
         load_temp_weights_task = model_actor.wrapped_load.remote(str(weights_path))
         ray.get(load_temp_weights_task)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 -- reported via the return value, not re-raised
         logger.error(e)
         send_model_updates(
             project_id=project.id,
@@ -122,7 +124,7 @@ def load_model(
         return {
             "project_id": project.id,
             "model_id": model.id,
-            "message": f"Failed to load weights - {str(e)}",
+            "message": f"Failed to load weights - {e!s}",
         }
 
     # Save the model with the correct file name, delete temporary file
@@ -176,7 +178,7 @@ def train_model(
             model_id=model.id,
             updates=ModelUpdate(training_status="failed"),
         )
-        raise e
+        raise
 
 
 @ray.remote(num_cpus=0.1)

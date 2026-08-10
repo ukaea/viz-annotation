@@ -12,38 +12,41 @@ os.environ.setdefault("RAY_ENABLE_UV_RUN_RUNTIME_ENV", "0")
 import pathlib
 import subprocess
 import sys
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import uvicorn
 import tempfile
+from contextlib import asynccontextmanager
+
+import uvicorn
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+from toktagger.api import config
+from toktagger.api.auth.core import get_internal_token
+from toktagger.api.auth.first_run import ensure_admin_user
+from toktagger.api.core.data_loaders import LoaderRegistry
+from toktagger.api.crud.db import MongoDBClient
+from toktagger.api.models import models_dependencies_installed
 from toktagger.api.routers.annotations import router as annotations_router
 from toktagger.api.routers.annotators import router as annotators_router
 from toktagger.api.routers.auth import router as auth_router
+from toktagger.api.routers.base import router as base_router
 from toktagger.api.routers.data import router as data_router
+from toktagger.api.routers.meta import router as meta_router
 from toktagger.api.routers.models import router as models_router
+from toktagger.api.routers.paths import router as paths_router
 from toktagger.api.routers.projects import router as projects_router
 from toktagger.api.routers.samples import router as samples_router
 from toktagger.api.routers.users import router as users_router
-from toktagger.api.routers.base import router as base_router
-from toktagger.api.routers.paths import router as paths_router
-from toktagger.api.routers.meta import router as meta_router
-from toktagger.api.core.data_loaders import LoaderRegistry
-from toktagger.api.crud.db import MongoDBClient
-from toktagger.api.auth.first_run import ensure_admin_user
-from toktagger.api.auth.core import get_internal_token
-from toktagger.api.models import models_dependencies_installed
-import toktagger.api.config as config
 
 # Only import large packages if models dependencies installed
 if models_dependencies_installed():
+    import ray
+
     from toktagger.api.models.base import (
+        ActorRegistry,
         ModelRegistry,
         WorkerRegistry,
-        ActorRegistry,
     )
-    import ray
 
 
 @asynccontextmanager
@@ -67,9 +70,8 @@ async def lifespan(app: FastAPI):
     # Tear down the Ray cluster we started so its raylet/worker processes don't
     # outlive the server on a graceful shutdown (Ctrl-C / SIGTERM). Guarded so
     # the `ray` global is only touched when models deps are installed.
-    if models_dependencies_installed():
-        if ray.is_initialized():
-            ray.shutdown()
+    if models_dependencies_installed() and ray.is_initialized():
+        ray.shutdown()
 
 
 # Ray places detached actors in an anonymous, per-driver namespace unless one

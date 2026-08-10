@@ -1,7 +1,9 @@
 import asyncio
 import re
+from collections.abc import AsyncIterator, Callable, Iterable
 from pathlib import Path
-from typing import Any, AsyncIterator, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any
+
 from filelock import FileLock
 from mongita import MongitaClientDisk
 
@@ -68,20 +70,20 @@ class AsyncCollection:
     def name(self) -> str:
         return self._name
 
-    async def insert_one(self, document: Dict[str, Any]) -> Any:
+    async def insert_one(self, document: dict[str, Any]) -> Any:
         return await self._database._client._run(
             lambda: self._sync_col.insert_one(document)
         )
 
-    async def insert_many(self, documents: Iterable[Dict[str, Any]]) -> Any:
+    async def insert_many(self, documents: Iterable[dict[str, Any]]) -> Any:
         docs = list(documents)
         return await self._database._client._run(
             lambda: self._sync_col.insert_many(docs)
         )
 
     async def find_one(
-        self, filter: Optional[Dict[str, Any]] = None, *args, **kwargs
-    ) -> Optional[Dict[str, Any]]:
+        self, filter: dict[str, Any] | None = None, *args, **kwargs
+    ) -> dict[str, Any] | None:
         f = filter or {}
         return await self._database._client._run(
             lambda: self._sync_col.find_one(f, *args, **kwargs)
@@ -89,14 +91,14 @@ class AsyncCollection:
 
     def find(
         self,
-        filter: Optional[Dict[str, Any]] = None,
+        filter: dict[str, Any] | None = None,
         *args,
         skip: int = 0,
-        limit: Optional[int] = None,
-        sort: Optional[List[Tuple[str, int]]] = None,
+        limit: int | None = None,
+        sort: list[tuple[str, int]] | None = None,
         **kwargs,
     ) -> "AsyncCursor":
-        async def _snapshot() -> List[Dict[str, Any]]:
+        async def _snapshot() -> list[dict[str, Any]]:
             mongo_filter = {}
             regex_filters = []
 
@@ -144,31 +146,31 @@ class AsyncCollection:
         return AsyncCursor(_snapshot())
 
     async def update_one(
-        self, filter: Dict[str, Any], update: Dict[str, Any], *args, **kwargs
+        self, filter: dict[str, Any], update: dict[str, Any], *args, **kwargs
     ) -> Any:
         return await self._database._client._run(
             lambda: self._sync_col.update_one(filter, update, *args, **kwargs)
         )
 
     async def update_many(
-        self, filter: Dict[str, Any], update: Dict[str, Any], *args, **kwargs
+        self, filter: dict[str, Any], update: dict[str, Any], *args, **kwargs
     ) -> Any:
         return await self._database._client._run(
             lambda: self._sync_col.update_many(filter, update, *args, **kwargs)
         )
 
-    async def delete_one(self, filter: Dict[str, Any], *args, **kwargs) -> Any:
+    async def delete_one(self, filter: dict[str, Any], *args, **kwargs) -> Any:
         return await self._database._client._run(
             lambda: self._sync_col.delete_one(filter, *args, **kwargs)
         )
 
-    async def delete_many(self, filter: Dict[str, Any], *args, **kwargs) -> Any:
+    async def delete_many(self, filter: dict[str, Any], *args, **kwargs) -> Any:
         return await self._database._client._run(
             lambda: self._sync_col.delete_many(filter, *args, **kwargs)
         )
 
     async def count_documents(
-        self, filter: Optional[Dict[str, Any]] = None, *args, **kwargs
+        self, filter: dict[str, Any] | None = None, *args, **kwargs
     ) -> int:
         f = filter or {}
         return await self._database._client._run(
@@ -184,14 +186,14 @@ class AsyncCollection:
 class AsyncCursor:
     def __init__(self, loader_coro: asyncio.Future | asyncio.Task | Any):
         self._loader = loader_coro
-        self._docs: Optional[List[Dict[str, Any]]] = None
+        self._docs: list[dict[str, Any]] | None = None
         self._idx = 0
 
-    def __aiter__(self) -> AsyncIterator[Dict[str, Any]]:
+    def __aiter__(self) -> AsyncIterator[dict[str, Any]]:
         self._idx = 0
         return self
 
-    async def __anext__(self) -> Dict[str, Any]:
+    async def __anext__(self) -> dict[str, Any]:
         if self._docs is None:
             self._docs = await self._loader
         if self._idx >= len(self._docs):
@@ -200,7 +202,7 @@ class AsyncCursor:
         self._idx += 1
         return doc
 
-    async def to_list(self, length: Optional[int] = None) -> List[Dict[str, Any]]:
+    async def to_list(self, length: int | None = None) -> list[dict[str, Any]]:
         if self._docs is None:
             self._docs = await self._loader
         if length is None:

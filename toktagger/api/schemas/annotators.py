@@ -1,6 +1,7 @@
-from typing import Literal, Optional, Union
-from pydantic import BaseModel
 from enum import Enum
+from typing import Literal
+
+from pydantic import BaseModel
 
 
 class AnnotatorTypes(str, Enum):
@@ -25,23 +26,23 @@ class PeakDetectionParams(AnnotatorParams):
     signal_name: str
     prominence: float
     distance: int
-    time_min: Optional[float] = None
-    time_max: Optional[float] = None
+    time_min: float | None = None
+    time_max: float | None = None
 
 
 class OutlierDetectionParams(AnnotatorParams):
     signal_name: str
     method: Literal["mad", "isoforest"]
-    threshold: Optional[float] = None
-    contamination: Optional[float] = None
+    threshold: float | None = None
+    contamination: float | None = None
 
 
 class ChangePointDetectionParams(AnnotatorParams):
     signal_name: str
     method: Literal["pelt", "hmm"]
     num_points: int
-    penalty: Optional[float] = None
-    num_components: Optional[int] = None  # Only used if method is 'hmm'
+    penalty: float | None = None
+    num_components: int | None = None  # Only used if method is 'hmm'
 
 
 class JumpDetectionParams(AnnotatorParams):
@@ -57,10 +58,10 @@ class SpectrogramThresholdParams(AnnotatorParams):
     percentile: float
 
 
-AnnotatorParamTypes = Union[
-    PeakDetectionParams,
-    OutlierDetectionParams,
-    ChangePointDetectionParams,
-    JumpDetectionParams,
-    SpectrogramThresholdParams,
-]
+AnnotatorParamTypes = (
+    PeakDetectionParams
+    | OutlierDetectionParams
+    | ChangePointDetectionParams
+    | JumpDetectionParams
+    | SpectrogramThresholdParams
+)

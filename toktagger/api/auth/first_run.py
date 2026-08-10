@@ -1,6 +1,8 @@
 from pathlib import Path
+
 from filelock import FileLock
-import toktagger.api.config as config
+
+from toktagger.api import config
 from toktagger.api.auth.core import hash_password
 from toktagger.api.schemas.users import UserIn
 

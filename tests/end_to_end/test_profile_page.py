@@ -4,8 +4,8 @@ import requests
 pytest.importorskip("playwright")
 from playwright.sync_api import expect
 
-from tests.endpoints import create_user
 from tests.end_to_end.conftest import login_as
+from tests.endpoints import create_user
 
 
 def test_profile_shows_own_username_and_role_read_only(

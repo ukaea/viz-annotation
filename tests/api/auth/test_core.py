@@ -4,13 +4,12 @@ import pytest
 from itsdangerous import SignatureExpired
 
 from toktagger.api.auth.core import (
-    hash_password,
-    verify_password,
+    _get_serializer,
     create_access_token,
     decode_token,
-    _get_serializer,
+    hash_password,
+    verify_password,
 )
-
 
 # ---------------------------------------------------------------------------
 # hash_password / verify_password

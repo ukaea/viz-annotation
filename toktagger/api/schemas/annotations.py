@@ -1,4 +1,4 @@
-from typing import Literal, Optional, Union
+from typing import Literal
 
 from pydantic import Field, TypeAdapter, create_model, field_validator, model_validator
 
@@ -11,12 +11,12 @@ class AnnotationBase(ConfiguredModel):
     label: str
     created_by: str
     validated: bool = False
-    uncertainty: Optional[float] = 1
+    uncertainty: float | None = 1
 
     @model_validator(mode="before")
     def set_uncertainty(cls, values):
         if isinstance(values, dict):
-            if "validated" in values and values["validated"]:
+            if values.get("validated"):
                 values["uncertainty"] = 0
             elif values.get("uncertainty") is None:
                 values["uncertainty"] = 1
@@ -122,10 +122,10 @@ class SpectrogramMask(AnnotationBase):
 class AnnotationBatch(AnnotationBase):
     """Base class for batch annotation inputs, with or without IDs."""
 
-    id: Optional[str] = Field(None, alias="_id")
-    project_id: Optional[str] = None
-    sample_id: Optional[str] = None
-    shot_id: Optional[int] = None
+    id: str | None = Field(None, alias="_id")
+    project_id: str | None = None
+    sample_id: str | None = None
+    shot_id: int | None = None
 
 
 class AnnotationOut(AnnotationBatch):
@@ -179,41 +179,41 @@ ClassLabelBatch = create_batch_model(ClassLabel)
 
 
 # Union types for annotations
-AnnotationTypes = Union[
-    TimePoint,
-    TimeRegion,
-    BoundingBox,
-    Polygon,
-    VideoBoundingBox,
-    VideoPolygon,
-    VideoPoint,
-    SpectrogramMask,
-    ClassLabel,
-]
+AnnotationTypes = (
+    TimePoint
+    | TimeRegion
+    | BoundingBox
+    | Polygon
+    | VideoBoundingBox
+    | VideoPolygon
+    | VideoPoint
+    | SpectrogramMask
+    | ClassLabel
+)
 
-AnnotationOutTypes = Union[
-    TimePointOut,
-    TimeRegionOut,
-    BoundingBoxOut,
-    PolygonOut,
-    VideoBoundingBoxOut,
-    VideoPolygonOut,
-    VideoPointOut,
-    SpectrogramMaskOut,
-    ClassLabelOut,
-]
+AnnotationOutTypes = (
+    TimePointOut
+    | TimeRegionOut
+    | BoundingBoxOut
+    | PolygonOut
+    | VideoBoundingBoxOut
+    | VideoPolygonOut
+    | VideoPointOut
+    | SpectrogramMaskOut
+    | ClassLabelOut
+)
 
-AnnotationBatchTypes = Union[
-    TimePointBatch,
-    TimeRegionBatch,
-    BoundingBoxBatch,
-    PolygonBatch,
-    VideoBoundingBoxBatch,
-    VideoPolygonBatch,
-    VideoPointBatch,
-    SpectrogramMaskBatch,
-    ClassLabelBatch,
-]
+AnnotationBatchTypes = (
+    TimePointBatch
+    | TimeRegionBatch
+    | BoundingBoxBatch
+    | PolygonBatch
+    | VideoBoundingBoxBatch
+    | VideoPolygonBatch
+    | VideoPointBatch
+    | SpectrogramMaskBatch
+    | ClassLabelBatch
+)
 
 # TypeAdapters for annotations
 AnnotationTypeAdapter = TypeAdapter(AnnotationTypes)

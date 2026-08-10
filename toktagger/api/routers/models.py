@@ -1,29 +1,32 @@
-from fastapi import APIRouter, Request, Depends, Path, Query, Body, HTTPException
-from fastapi.responses import JSONResponse
+import pathlib
 import random
+from collections import defaultdict
+
 from bson.objectid import ObjectId
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request
+from fastapi.responses import JSONResponse
+from pydantic import ValidationError
+
+from toktagger.api import config
 from toktagger.api.auth.dependencies import (
     get_current_user,
-    require_project_viewer,
-    require_project_annotator,
     require_project_admin_role,
+    require_project_annotator,
+    require_project_viewer,
 )
 from toktagger.api.crud import utils
+from toktagger.api.models import check_models_enabled, models_dependencies_installed
 from toktagger.api.schemas.annotations import AnnotationBatchTypes
-from toktagger.api.schemas.data import DataParamTypes, DataParams
-from toktagger.api.schemas.models import Model, ModelIn, ModelUpdate, LoadTypes
+from toktagger.api.schemas.data import DataParams, DataParamTypes
+from toktagger.api.schemas.models import LoadTypes, Model, ModelIn, ModelUpdate
 from toktagger.api.schemas.users import UserOut
-from toktagger.api.models import models_dependencies_installed, check_models_enabled
-from pydantic import ValidationError
-from collections import defaultdict
-import toktagger.api.config as config
-import pathlib
 
 # Only import large packages if models dependencies installed
 if models_dependencies_installed():
-    from toktagger.api.worker import load_model, train_model, get_predictions
-    from toktagger.api.models.base import ModelRegistry
     import ray
+
+    from toktagger.api.models.base import ModelRegistry
+    from toktagger.api.worker import get_predictions, load_model, train_model
 else:
     ModelRegistry = None
 
@@ -496,7 +499,7 @@ async def get_load_model_status(
         raise HTTPException(
             detail=f"Load task failed unexpectedly - {e}.",
             status_code=500,
-        )
+        ) from e
 
     if result.get("message"):
         await utils.update_model(

@@ -1,8 +1,9 @@
 from datetime import datetime
-from pydantic import BaseModel, Field, model_validator, ConfigDict
-from bson.objectid import ObjectId
+
 from bson.errors import InvalidId
+from bson.objectid import ObjectId
 from fastapi import HTTPException
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ConfiguredModel(BaseModel):

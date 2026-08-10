@@ -1,9 +1,11 @@
-from toktagger.api.schemas.samples import Sample
-from toktagger.api.schemas.annotations import Annotation, VideoBoundingBox
-import pydantic
-from toktagger.api.models.base import Model, ModelRegistry
-from toktagger.api.schemas.data import ImageParams
 import pathlib
+
+import pydantic
+
+from toktagger.api.models.base import Model, ModelRegistry
+from toktagger.api.schemas.annotations import Annotation, VideoBoundingBox
+from toktagger.api.schemas.data import ImageParams
+from toktagger.api.schemas.samples import Sample
 
 
 class VideoCNNTrainParams(pydantic.BaseModel):

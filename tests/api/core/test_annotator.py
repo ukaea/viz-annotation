@@ -1,16 +1,17 @@
-import toktagger.api.core.annotators as annotators
 import numpy
-from scipy.datasets import electrocardiogram
-from toktagger.api.schemas.annotations import SpectrogramMask
-from toktagger.api.schemas.data import TimeSeriesData, MultiVariateTimeSeriesData
 import numpy as np
+from scipy.datasets import electrocardiogram
+
+from toktagger.api.core import annotators
+from toktagger.api.schemas.annotations import SpectrogramMask
 from toktagger.api.schemas.annotators import (
-    PeakDetectionParams,
-    OutlierDetectionParams,
-    JumpDetectionParams,
-    SpectrogramThresholdParams,
     ChangePointDetectionParams,
+    JumpDetectionParams,
+    OutlierDetectionParams,
+    PeakDetectionParams,
+    SpectrogramThresholdParams,
 )
+from toktagger.api.schemas.data import MultiVariateTimeSeriesData, TimeSeriesData
 
 
 def test_find_peaks():

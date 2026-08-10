@@ -1,8 +1,9 @@
-import toktagger.api.core.query_strategy as query_strategy
 import pytest
-from toktagger.api.schemas.samples import Sample
+
+from tests import db_definitions
+from toktagger.api.core import query_strategy
 from toktagger.api.schemas.annotations import TimePointOut
-import tests.db_definitions as db_definitions
+from toktagger.api.schemas.samples import Sample
 
 
 @pytest.fixture

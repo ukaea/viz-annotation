@@ -1,5 +1,7 @@
-from typing import Union, Literal
+from typing import Literal
+
 from pydantic import BaseModel
+
 from toktagger.api.schemas import ConfiguredModel
 
 
@@ -42,12 +44,8 @@ class ImageParams(DataParams):
     return_raw: bool = False
 
 
-DataResponseType = Union[
-    Data,
-    ImageData,
-    MultiVariateTimeSeriesData,
-    CompositeData,
-    SpectrogramData,
-]
+DataResponseType = (
+    Data | ImageData | MultiVariateTimeSeriesData | CompositeData | SpectrogramData
+)
 
-DataParamTypes = Union[DataParams, ImageParams]
+DataParamTypes = DataParams | ImageParams

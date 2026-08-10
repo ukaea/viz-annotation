@@ -6,7 +6,6 @@ import {
   TextField,
   Button,
   Flex,
-  Text,
   ToastQueue,
 } from "@adobe/react-spectrum";
 import { BACKEND_API_URL, apiFetch } from "@/app/core";
@@ -71,11 +70,11 @@ export default function ProfilePage() {
               width="size-6000"
               maxWidth="100%"
             >
-              <Text UNSAFE_className="text-sm text-gray-600 dark:text-gray-300">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
                 <strong>Username:</strong> {user?.username}
                 &nbsp;&nbsp;|&nbsp;&nbsp;
                 <strong>Role:</strong> {user?.global_role}
-              </Text>
+              </p>
 
               <h2 className="text-lg font-semibold">Change Password</h2>
               <TextField

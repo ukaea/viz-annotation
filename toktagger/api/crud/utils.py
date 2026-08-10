@@ -1,20 +1,22 @@
-from pathlib import Path
 from collections import defaultdict
-from typing import Optional, Literal
+from pathlib import Path
+from typing import Literal
+
 from bson import ObjectId
 from fastapi import HTTPException
 from pydantic import TypeAdapter
+
+from toktagger.api.auth.core import hash_password
 from toktagger.api.crud.db import MongoDBClient
 from toktagger.api.schemas import convert_to_objectid
 from toktagger.api.schemas.annotations import (
-    AnnotationOutTypes,
-    AnnotationOutTypeAdapter,
     AnnotationBatchTypes,
+    AnnotationOutTypeAdapter,
+    AnnotationOutTypes,
 )
-from toktagger.api.schemas.projects import Project
-from toktagger.api.schemas.samples import FileData, Sample, SampleUpdate, SampleSummary
 from toktagger.api.schemas.models import Model, ModelIn, ModelUpdate
-from toktagger.api.auth.core import hash_password
+from toktagger.api.schemas.projects import Project
+from toktagger.api.schemas.samples import FileData, Sample, SampleSummary, SampleUpdate
 from toktagger.api.schemas.users import (
     ProjectMember,
     ProjectMemberOut,
@@ -27,11 +29,11 @@ from toktagger.api.schemas.users import (
 
 async def get_projects(
     db_client: MongoDBClient,
-    name: Optional[str] = None,
-    sort_by: Optional[str] = "_id",
-    sort_direction: Optional[Literal["ascending", "descending"]] = "descending",
-    start: Optional[int] = 0,
-    count: Optional[int] = None,
+    name: str | None = None,
+    sort_by: str | None = "_id",
+    sort_direction: Literal["ascending", "descending"] | None = "descending",
+    start: int | None = 0,
+    count: int | None = None,
 ):
     filters = {}
     if name:
@@ -67,12 +69,12 @@ async def get_project(db_client: MongoDBClient, project_id: str) -> Project:
 async def get_samples(
     db_client: MongoDBClient,
     project_id: str,
-    validated: Optional[bool] = None,
-    shot_id: Optional[int] = None,
+    validated: bool | None = None,
+    shot_id: int | None = None,
     sort_by: str = "_id",
     sort_direction: Literal["ascending", "descending"] = "descending",
     start: int = 0,
-    count: Optional[int] = None,
+    count: int | None = None,
 ) -> list[Sample]:
     # Return a list of all samples for this project and info about them
     project_obj_id = convert_to_objectid(project_id, "projects")
@@ -126,12 +128,11 @@ async def update_sample(
 async def get_models(
     db_client: MongoDBClient,
     project_id: str,
-    model_type: Optional[str] = None,
-    status: Optional[
-        Literal["queued", "started", "failed", "completed", "aborted"]
-    ] = None,
+    model_type: str | None = None,
+    status: Literal["queued", "started", "failed", "completed", "aborted"]
+    | None = None,
     start: int = 0,
-    end: Optional[int] = None,
+    end: int | None = None,
 ) -> list[Model]:
     project_obj_id = convert_to_objectid(project_id, "projects")
     filters = {"project_id": project_obj_id}
@@ -311,7 +312,7 @@ async def get_sample(
 
 
 async def delete_samples(
-    db_client: MongoDBClient, project_id: str, sample_id: str = None
+    db_client: MongoDBClient, project_id: str, sample_id: str | None = None
 ) -> None:
     project_obj_id = convert_to_objectid(project_id, "projects")
     filters = {"project_id": project_obj_id}
@@ -333,13 +334,13 @@ async def delete_samples(
 async def get_annotations(
     db_client: MongoDBClient,
     project_id: str,
-    sample_id: Optional[str] = None,
-    validated: Optional[bool] = None,
-    created_by: Optional[str] = None,
+    sample_id: str | None = None,
+    validated: bool | None = None,
+    created_by: str | None = None,
     sort_by: str = "_id",
     sort_direction: Literal["ascending", "descending"] = "descending",
     start: int = 0,
-    count: Optional[int] = None,
+    count: int | None = None,
 ) -> list[AnnotationOutTypes]:
     db_filters = {"project_id": convert_to_objectid(project_id, "projects")}
 
@@ -381,9 +382,9 @@ async def add_annotations(
 async def delete_annotations(
     db_client: MongoDBClient,
     project_id: str,
-    sample_id: Optional[str] = None,
-    annotation_id: Optional[str] = None,
-    created_by: Optional[str] = None,
+    sample_id: str | None = None,
+    annotation_id: str | None = None,
+    created_by: str | None = None,
 ) -> None:
     project_obj_id = convert_to_objectid(project_id, "projects")
     filters = {"project_id": project_obj_id}
@@ -412,7 +413,7 @@ async def update_annotations(
     project_id: str,
     sample_id: str,
     annotations: list[AnnotationBatchTypes],
-    created_by: Optional[str] = None,
+    created_by: str | None = None,
 ) -> list[str]:
     await delete_annotations(
         db_client=db_client,
@@ -435,7 +436,7 @@ async def update_annotations(
 async def get_files(dir_path: str, file_type: str) -> list[str]:
     file_names = Path(dir_path).glob(f"*.{file_type}")
     file_names = map(str, file_names)
-    file_names = list(sorted(file_names))
+    file_names = sorted(file_names)
     return file_names
 
 
@@ -443,7 +444,7 @@ async def get_directories(dir_path: str) -> list[str]:
     dir_names = Path(dir_path).glob("*/")
     dir_names = filter(lambda p: p.is_dir(), dir_names)
     dir_names = map(str, dir_names)
-    dir_names = list(sorted(dir_names))
+    dir_names = sorted(dir_names)
     return dir_names
 
 
@@ -709,11 +710,11 @@ async def get_user_projects(
     db_client: MongoDBClient,
     user_id: str,
     global_role: str,
-    name: Optional[str] = None,
+    name: str | None = None,
     sort_by: str = "_id",
     sort_direction: str = "descending",
     start: int = 0,
-    count: Optional[int] = None,
+    count: int | None = None,
 ) -> list[Project]:
     if global_role == "admin":
         return await get_projects(

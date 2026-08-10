@@ -14,13 +14,13 @@ import pytest
 pytest.importorskip("playwright")
 from playwright.sync_api import expect
 
+from tests.end_to_end.conftest import login_as
 from tests.endpoints import (
     add_project_member,
     create_local_samples,
     create_project,
     create_user,
 )
-from tests.end_to_end.conftest import login_as
 
 
 def test_logged_out_project_url_redirects_to_login(

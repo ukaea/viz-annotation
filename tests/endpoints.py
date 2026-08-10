@@ -1,6 +1,8 @@
-import requests
 import pathlib
-import tests.db_definitions as db_definitions
+
+import requests
+
+from tests import db_definitions
 from toktagger.api.schemas.annotations import TimeRegion
 
 # Shared session for all e2e helper requests below, so auth only needs to be
@@ -72,7 +74,7 @@ def create_local_samples(
     shot_ids: list[int],
     base_path: str,
     columns: list[str] | None = None,
-    file_names: list[str] = None,
+    file_names: list[str] | None = None,
 ):
     samples = []
     if not file_names:
@@ -128,8 +130,10 @@ def create_image_samples(
 def create_uda_samples(
     project_id: str,
     shot_ids: list[int],
-    signal_names: list[str] = ["ip", "ANE_DENSITY"],
+    signal_names: list[str] | None = None,
 ):
+    if signal_names is None:
+        signal_names = ["ip", "ANE_DENSITY"]
     samples = []
     for shot_id in shot_ids:
         sample = {

@@ -1,10 +1,11 @@
-from pathlib import Path
-import pymongo
-import pydantic
 import typing
-from bson.objectid import ObjectId
+from pathlib import Path
 
+import pydantic
+import pymongo
+from bson.objectid import ObjectId
 from platformdirs import user_cache_dir
+
 from toktagger.api.crud.mongita_client import AsyncMongitaClient
 
 DATABASE_NAME = "event_db"
@@ -50,7 +51,7 @@ class MongoDBClient:
             "projects", "annotations", "models", "samples", "users", "project_members"
         ],
         models: list[T],
-        ids: typing.Union[dict, list[dict]] | None = None,
+        ids: dict | list[dict] | None = None,
     ):
         ids = ids or {}
         documents = [model.model_dump(mode="python") for model in models]
@@ -108,7 +109,7 @@ class MongoDBClient:
         collection: typing.Literal[
             "projects", "annotations", "models", "samples", "users", "project_members"
         ],
-        filters: dict = {},
+        filters: dict | None = None,
         sort_by: str = "_id",
         sort_direction: typing.Literal["ascending", "descending"] = "descending",
         start=0,
@@ -118,7 +119,7 @@ class MongoDBClient:
             pymongo.ASCENDING if sort_direction == "ascending" else pymongo.DESCENDING
         )
         documents = self.db[collection].find(
-            filters,
+            filters or {},
             sort=[(sort_by, direction)],
             skip=start,
             limit=limit,
@@ -130,9 +131,9 @@ class MongoDBClient:
         collection: typing.Literal[
             "projects", "annotations", "models", "samples", "users", "project_members"
         ],
-        filters: dict = {},
+        filters: dict | None = None,
     ):
-        return await self.db[collection].delete_many(filters)
+        return await self.db[collection].delete_many(filters or {})
 
 
 # Notes to self

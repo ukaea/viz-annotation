@@ -1,5 +1,6 @@
-from toktagger.api.schemas.annotators import AnnotatorTypes
 import pytest
+
+from toktagger.api.schemas.annotators import AnnotatorTypes
 
 
 @pytest.mark.asyncio

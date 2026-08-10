@@ -1,19 +1,21 @@
-from toktagger.api.schemas.samples import Sample
-from toktagger.api.schemas.annotations import Annotation, AnnotationBase
-from toktagger.api.schemas.projects import Project, Task
-from toktagger.api.schemas.data import DataParamTypes
-from toktagger.api.core.data_loaders import DataLoader
-from sklearn.model_selection import train_test_split
-from abc import ABC, abstractmethod
-import typing
-import math
-from toktagger.api.core.sender import send_model_updates
-from toktagger.api.schemas.models import ModelUpdate
-from toktagger.api.models import models_dependencies_installed
-import pydantic
-import uuid
-from collections import OrderedDict
 import logging
+import math
+import typing
+import uuid
+from abc import ABC, abstractmethod
+from collections import OrderedDict
+
+import pydantic
+from sklearn.model_selection import train_test_split
+
+from toktagger.api.core.data_loaders import DataLoader
+from toktagger.api.core.sender import send_model_updates
+from toktagger.api.models import models_dependencies_installed
+from toktagger.api.schemas.annotations import Annotation, AnnotationBase
+from toktagger.api.schemas.data import DataParamTypes
+from toktagger.api.schemas.models import ModelUpdate
+from toktagger.api.schemas.projects import Project, Task
+from toktagger.api.schemas.samples import Sample
 
 logger = logging.getLogger("ray")
 
@@ -23,8 +25,8 @@ else:
 
     class _RayStub:
         @staticmethod
-        def remote(cls):
-            return cls
+        def remote(target):
+            return target
 
         class ObjectRef:
             pass
@@ -88,7 +90,7 @@ class Model(ABC):
         self.project = project
         self.model = self.define_model()
         loader_registry: WorkerRegistry = ray.get_actor("WorkerLoaderRegistry")
-        data_loader: typing.Type[DataLoader] = ray.get(
+        data_loader: type[DataLoader] = ray.get(
             loader_registry.get.remote(project.data_loader)
         )
         self.data_loader: DataLoader = data_loader()
@@ -150,7 +152,7 @@ class Model(ABC):
         self,
         samples: list[Sample],
         annotations: list[list[Annotation]],
-        train_val_test_split: typing.Tuple[float, float, float],
+        train_val_test_split: tuple[float, float, float],
     ) -> None:
         if len(samples) != len(annotations):
             raise ValueError("Annotations missing for some samples!")
@@ -244,22 +246,22 @@ class Model(ABC):
 
 
 class ModelRegistry:
-    _registry: dict[str, typing.Type[Model]] = {}
-    _tasks: dict[str, list[Task]] = {}
-    _training_params: dict[str, typing.Type[pydantic.BaseModel]] = {}
-    _prediction_params: dict[str, typing.Type[pydantic.BaseModel]] = {}
+    _registry: typing.ClassVar[dict[str, type[Model]]] = {}
+    _tasks: typing.ClassVar[dict[str, list[Task]]] = {}
+    _training_params: typing.ClassVar[dict[str, type[pydantic.BaseModel]]] = {}
+    _prediction_params: typing.ClassVar[dict[str, type[pydantic.BaseModel]]] = {}
 
     @classmethod
     def register(
         cls,
         name: str,
         tasks: list[Task | str],
-        training_params: typing.Type[pydantic.BaseModel] | None = None,
-        prediction_params: typing.Type[pydantic.BaseModel] | None = None,
+        training_params: type[pydantic.BaseModel] | None = None,
+        prediction_params: type[pydantic.BaseModel] | None = None,
     ):
-        def decorator(model_class: typing.Type[Model]):
+        def decorator(model_class: type[Model]):
             if not issubclass(model_class, Model):
-                raise ValueError(
+                raise TypeError(
                     f"Loader '{name}' does not inherit from Model base class."
                 )
             if training_params and not issubclass(training_params, pydantic.BaseModel):
@@ -284,13 +286,13 @@ class ModelRegistry:
 
     @classmethod
     def get(cls, name: str):
-        model_class: typing.Type[Model] | None = cls._registry.get(name)
+        model_class: type[Model] | None = cls._registry.get(name)
         if not model_class:
             raise ValueError(f"No Model class called '{name}' found in registry!")
         return ray.remote(model_class)
 
     @classmethod
-    def get_name(cls, model_class: typing.Type[Model]) -> str:
+    def get_name(cls, model_class: type[Model]) -> str:
         return next(
             name for name, model in cls._registry.items() if model_class == model
         )
@@ -311,9 +313,9 @@ class ModelRegistry:
     @classmethod
     def get_params(
         cls, name: str, schema_type: typing.Literal["training", "prediction"]
-    ) -> typing.Type[pydantic.BaseModel] | None:
+    ) -> type[pydantic.BaseModel] | None:
         if schema_type == "training":
-            params: typing.Type[pydantic.BaseModel] | None = cls._training_params.get(
+            params: type[pydantic.BaseModel] | None = cls._training_params.get(
                 name, False
             )
         elif schema_type == "prediction":
@@ -352,9 +354,7 @@ class ModelRegistry:
             The JSONSchema of the params model, if required.
         """
 
-        params: typing.Type[pydantic.BaseModel] | None = cls.get_params(
-            name, schema_type
-        )
+        params: type[pydantic.BaseModel] | None = cls.get_params(name, schema_type)
         if not params:
             return None
 
@@ -403,7 +403,7 @@ class ActorRegistry:
                 "Insufficient CPU cores available for ML model functionality"
             )
 
-        self._gpu_enabled = True if max_gpu_actors > 0 else False
+        self._gpu_enabled = max_gpu_actors > 0
         self.max_actors = max_actors
         self.max_gpu_actors = max_gpu_actors
         self.tasks = {}

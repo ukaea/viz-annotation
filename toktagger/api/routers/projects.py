@@ -1,13 +1,15 @@
 from typing import Literal
-from fastapi import APIRouter, Depends, Request, HTTPException, Query, Path
+
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
+
 from toktagger.api.auth.dependencies import (
     get_current_user,
     require_global_admin,
-    require_project_viewer,
     require_project_admin_role,
+    require_project_viewer,
 )
-from toktagger.api.crud import utils
 from toktagger.api.core.data_loaders import LoaderRegistry
+from toktagger.api.crud import utils
 from toktagger.api.crud.db import MongoDBClient
 from toktagger.api.schemas.projects import Project, ProjectIn
 from toktagger.api.schemas.users import UserOut

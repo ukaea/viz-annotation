@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, Union
+
 from toktagger.api.schemas import ConfiguredModel
 
 
@@ -13,14 +13,14 @@ class ViewParams(ConfiguredModel):
 
 
 class SpectrogramViewParams(ViewParams):
-    nperseg: Optional[int] = 256
-    time_min: Optional[float] = None
-    time_max: Optional[float] = None
-    frequency_min: Optional[float] = None
-    frequency_max: Optional[float] = None
-    amplitude_min: Optional[float] = None
-    amplitude_max: Optional[float] = None
-    threshold_value: Optional[float] = None
+    nperseg: int | None = 256
+    time_min: float | None = None
+    time_max: float | None = None
+    frequency_min: float | None = None
+    frequency_max: float | None = None
+    amplitude_min: float | None = None
+    amplitude_max: float | None = None
+    threshold_value: float | None = None
 
 
-ViewParamTypes = Union[ViewParams, SpectrogramViewParams]
+ViewParamTypes = ViewParams | SpectrogramViewParams

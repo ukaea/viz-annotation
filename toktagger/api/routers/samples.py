@@ -1,23 +1,25 @@
-from fastapi import APIRouter, Depends, Request, HTTPException, Query, Path, Body
+import logging
+from typing import Literal
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request
+
 from toktagger.api.auth.dependencies import (
     get_current_user,
-    require_project_viewer,
-    require_project_annotator,
     require_project_admin_role,
+    require_project_annotator,
+    require_project_viewer,
 )
 from toktagger.api.core.query_strategy import QUERY_STRATEGIES
 from toktagger.api.crud import utils
+from toktagger.api.schemas import convert_to_objectid
+from toktagger.api.schemas.annotations import Annotation
 from toktagger.api.schemas.samples import (
-    SampleIn,
     Sample,
+    SampleIn,
     SampleSummary,
     SampleUpdateBatchItem,
 )
-from toktagger.api.schemas.annotations import Annotation
-from toktagger.api.schemas import convert_to_objectid
 from toktagger.api.schemas.users import UserOut
-from typing import Literal
-import logging
 
 logger = logging.getLogger(__name__)
 

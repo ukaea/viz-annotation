@@ -3,13 +3,13 @@ import pytest
 pytest.importorskip("playwright")
 from playwright.sync_api import expect
 
+from tests.end_to_end.conftest import login_as
 from tests.endpoints import (
     add_project_member,
     create_project,
     create_user,
     get_project_members,
 )
-from tests.end_to_end.conftest import login_as
 
 
 def _open_members_dialog(page, project_id):

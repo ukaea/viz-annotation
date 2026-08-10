@@ -3,8 +3,8 @@ import pytest
 pytest.importorskip("playwright")
 from playwright.sync_api import expect
 
-from tests.endpoints import create_user, get_user
 from tests.end_to_end.conftest import login_as
+from tests.endpoints import create_user, get_user
 
 
 def _user_row(page, username):

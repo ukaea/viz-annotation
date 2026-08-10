@@ -1,20 +1,21 @@
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+
 from toktagger.api.auth.dependencies import (
     get_current_user,
-    require_project_viewer,
     require_project_annotator,
+    require_project_viewer,
 )
-from toktagger.api.schemas.projects import Project, Task
-from toktagger.api.schemas.samples import Sample
-from toktagger.api.schemas.data import DataParamTypes
+from toktagger.api.core.annotators import ANNOTATORS, ANNOTATORS_PER_TASK
+from toktagger.api.core.data_loaders import LoaderRegistry
+from toktagger.api.crud.utils import get_project, get_sample
 from toktagger.api.schemas.annotators import (
     AnnotatorParamTypes,
     AnnotatorTypes,
 )
+from toktagger.api.schemas.data import DataParamTypes
+from toktagger.api.schemas.projects import Project, Task
+from toktagger.api.schemas.samples import Sample
 from toktagger.api.schemas.users import UserOut
-from toktagger.api.crud.utils import get_project, get_sample
-from toktagger.api.core.annotators import ANNOTATORS, ANNOTATORS_PER_TASK
-from toktagger.api.core.data_loaders import LoaderRegistry
 
 router = APIRouter(
     prefix="/projects/{project_id}",

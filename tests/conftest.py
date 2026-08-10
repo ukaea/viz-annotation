@@ -1,21 +1,22 @@
+import asyncio
+import importlib
+import multiprocessing
+import os
 import pathlib
 import tempfile
+import time
+
 import pytest
 import pytest_asyncio
-from toktagger.api.main import Server
-from toktagger.api.crud.db import MongoDBClient
-from toktagger.api.auth.core import create_access_token
-import tests.db_definitions as db_definitions
-import tests.endpoints as endpoints
-from bson.objectid import ObjectId
-import asyncio
-from httpx import AsyncClient, ASGITransport
-import os
-import multiprocessing
 import requests
-import time
-import importlib
-import toktagger.api.config as config
+from bson.objectid import ObjectId
+from httpx import ASGITransport, AsyncClient
+
+from tests import db_definitions, endpoints
+from toktagger.api import config
+from toktagger.api.auth.core import create_access_token
+from toktagger.api.crud.db import MongoDBClient
+from toktagger.api.main import Server
 
 MODELS_ENABLED = importlib.util.find_spec("ray") is not None
 
@@ -30,10 +31,16 @@ def check_models_status(request):
 
 if MODELS_ENABLED:
     from tests.models_fixtures import (
-        ray_session as ray_session,
-        setup_model_samples as setup_model_samples,
-        setup_model_db as setup_model_db,
         models_api_client as models_api_client,
+    )
+    from tests.models_fixtures import (
+        ray_session as ray_session,
+    )
+    from tests.models_fixtures import (
+        setup_model_db as setup_model_db,
+    )
+    from tests.models_fixtures import (
+        setup_model_samples as setup_model_samples,
     )
 
 else:
@@ -74,7 +81,7 @@ def uda_test(uda_env_vars):
         import pyuda
 
         pyuda.Client().get("help::help()")
-    except Exception:
+    except Exception:  # noqa: BLE001 -- any failure means the external server is unreachable
         pytest.skip("Could not contact UDA server")
 
 

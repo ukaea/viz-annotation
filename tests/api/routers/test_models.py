@@ -2,21 +2,22 @@ import pytest
 
 pytest.importorskip("ray")
 
-from toktagger.api.schemas.models import ModelUpdate
-from toktagger.api.core.sender import (
-    send_batch_samples,
-    send_batch_annotations,
-    send_model_updates,
-)
-import ray
-from unittest.mock import patch
-from bson import ObjectId
-import tempfile
 import asyncio
+import tempfile
 import time
-import toktagger.api.config as config
+from unittest.mock import patch
+
+import ray
+from bson import ObjectId
 
 from tests.api.auth.conftest import get_auth_token
+from toktagger.api import config
+from toktagger.api.core.sender import (
+    send_batch_annotations,
+    send_batch_samples,
+    send_model_updates,
+)
+from toktagger.api.schemas.models import ModelUpdate
 
 
 def wait_for_results(
@@ -709,7 +710,7 @@ async def test_model_load_local(models_api_client, db_client, setup_model_db):
         tempf.write("Model Weights")
         tempf.flush()
         response = await models_api_client.post(
-            f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load?method=local&weights_path={str(tempf.name)}"
+            f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load?method=local&weights_path={tempf.name!s}"
         )
         assert response.status_code == 200
         model_id = response.json()["model_id"]
@@ -768,7 +769,7 @@ async def test_model_load_local_disabled(models_api_client, db_client, setup_mod
         tempf.write("Model Weights")
         tempf.flush()
         response = await models_api_client.post(
-            f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load?method=local&weights_path={str(tempf.name)}"
+            f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load?method=local&weights_path={tempf.name!s}"
         )
     config.settings.models.local_load_enabled = True
     assert response.status_code == 403
@@ -784,7 +785,7 @@ async def test_model_load_local_failed(models_api_client, db_client, setup_model
         tempf.write(b"\xff")
         tempf.flush()
         response = await models_api_client.post(
-            f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load?method=local&weights_path={str(tempf.name)}"
+            f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load?method=local&weights_path={tempf.name!s}"
         )
         # Successfully submits the load job
         assert response.status_code == 200

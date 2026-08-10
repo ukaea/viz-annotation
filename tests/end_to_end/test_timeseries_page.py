@@ -1,22 +1,25 @@
 import pytest
 
 pytest.importorskip("playwright")
-from playwright.sync_api import Page, expect
 import pathlib
+import time
+from collections.abc import Callable
+from typing import Literal
+
+import pytest
+from playwright.sync_api import Page, expect
+
+from tests.end_to_end import form_check
 from tests.endpoints import (
-    create_project,
     create_local_samples,
     create_model_samples,
+    create_project,
     session,
 )
-import pytest
-import time
 from toktagger.api.schemas.annotations import TimePoint, TimeRegion
-from typing import Literal, Tuple, Callable
-from tests.end_to_end import form_check
 
 
-def setup_project(page: Page) -> Tuple[str, str, Callable]:
+def setup_project(page: Page) -> tuple[str, str, Callable]:
     # Create Project
     project_id = create_project("Test Project", "time-series", "tabular")
     # And a sample for disruption
@@ -563,7 +566,7 @@ def test_timeseries_model_predict(
     server_setup, setup_model_samples, page: Page, model_name
 ):
     # Create Project
-    project_id, sample_ids = create_model_samples(setup_model_samples)
+    project_id, _sample_ids = create_model_samples(setup_model_samples)
 
     ids = create_local_samples(
         project_id, [10000], pathlib.Path(__file__).parents[1], ["Ip"]

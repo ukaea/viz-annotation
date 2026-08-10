@@ -1,20 +1,22 @@
 import pytest
 
 pytest.importorskip("playwright")
-from playwright.sync_api import Page, expect
+import json
 import pathlib
+import tempfile
+import time
+
+import pytest
+from playwright.sync_api import Page, expect
+
 from tests.endpoints import (
-    create_project,
     create_local_samples,
-    create_uda_samples,
+    create_project,
     create_query_strategy_samples,
+    create_uda_samples,
     session,
 )
-import pytest
-import tempfile
-import json
 from toktagger.api.schemas.annotations import TimePoint, TimeRegion
-import time
 
 
 def setup_annotations(page: Page, num_annotations: int, go_to_next: bool = False):
@@ -487,7 +489,7 @@ def test_save_on_navigate(
     page, project_id, sample_ids = setup_annotations(
         page,
         num_annotations,
-        go_to_next=True if navigate_direction == "Previous" else False,
+        go_to_next=navigate_direction == "Previous",
     )
     sample_id = sample_ids[0] if navigate_direction == "Next" else sample_ids[1]
 
@@ -526,7 +528,7 @@ def test_save_on_navigate(
 
     # Check all marked as validated if saved
     for annotation in annotations:
-        assert annotation["validated"] == (True if save_on_navigate else False)
+        assert annotation["validated"] == bool(save_on_navigate)
 
     time.sleep(1)
 
@@ -536,7 +538,7 @@ def test_save_on_navigate(
     )
     assert response.status_code == 200
     sample = response.json()
-    assert sample["validated_annotations"] == (True if save_on_navigate else False)
+    assert sample["validated_annotations"] == bool(save_on_navigate)
 
 
 def test_clear_button(server_setup, page: Page):

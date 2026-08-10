@@ -1,11 +1,13 @@
-import webbrowser
 import argparse
+import threading
+import time
+import webbrowser
+
+import uvicorn
+
+from toktagger.api.config import settings
 from toktagger.api.main import Server, run_with_gunicorn
 from toktagger.api.models import models_dependencies_installed
-from toktagger.api.config import settings
-import uvicorn
-import time
-import threading
 
 
 # Need to point to app as a module level string if we want reload option

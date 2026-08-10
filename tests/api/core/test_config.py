@@ -1,15 +1,15 @@
 # tests/test_settings.py
 
 import pathlib
+import tempfile
 
 import pydantic
 import pytest
+import tomllib
 from pydantic_settings import SettingsConfigDict
-import tempfile
-from toktagger.api.config import Settings
 
 from scripts.generate_example_config import create_default_toml_file
-import tomllib
+from toktagger.api.config import Settings
 
 ENV_VARS = [
     "SERVER_HOST",
@@ -263,8 +263,6 @@ def test_create_toml():
             example_toml = tomllib.load(toml_file)
 
         assert all(
-            (
-                key in example_toml.keys()
-                for key in ("database", "models", "sal", "server", "uda")
-            )
+            key in example_toml
+            for key in ("database", "models", "sal", "server", "uda")
         )

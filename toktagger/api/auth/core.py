@@ -4,9 +4,9 @@ import secrets
 from datetime import timedelta
 from pathlib import Path
 
-from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
-import toktagger.api.config as config
+from toktagger.api import config
 
 ACCESS_TOKEN_EXPIRE_SECONDS = 60 * 60 * 24  # 24 hours
 _SALT = "toktagger-auth-v1"

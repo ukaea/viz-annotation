@@ -1,27 +1,28 @@
-import toktagger.api.core.data_loaders as data_loaders
-import pytest
-from toktagger.api.schemas.projects import Task
-from typing import Type
-from toktagger.api.schemas.samples import (
-    Sample,
-    TimeSeriesFileData,
-    ShotData,
-    ImageFileData,
-    ImageArrayFileData,
-)
-from toktagger.api.schemas.data import (
-    TimeSeriesData,
-    MultiVariateTimeSeriesData,
-    ImageData,
-    ImageParams,
-    DataParams,
-)
-import pathlib
-import numpy
-import xarray
-from PIL import Image
 import base64
 import io
+import pathlib
+
+import numpy
+import pytest
+import xarray
+from PIL import Image
+
+from toktagger.api.core import data_loaders
+from toktagger.api.schemas.data import (
+    DataParams,
+    ImageData,
+    ImageParams,
+    MultiVariateTimeSeriesData,
+    TimeSeriesData,
+)
+from toktagger.api.schemas.projects import Task
+from toktagger.api.schemas.samples import (
+    ImageArrayFileData,
+    ImageFileData,
+    Sample,
+    ShotData,
+    TimeSeriesFileData,
+)
 
 
 def test_image_file_loader_jpeg():
@@ -172,7 +173,7 @@ def test_uda_loader(uda_test):
         import pyuda
 
         pyuda.Client().get("help::help()")
-    except Exception:
+    except Exception:  # noqa: BLE001 -- any failure means the external server is unreachable
         pytest.skip("Could not contact UDA server")
 
     uda_shot = ShotData(protocol="uda", signal_names=["ip", "ANE_DENSITY"])
@@ -203,7 +204,7 @@ def test_uda_camera_loader(uda_env_vars):
         import pyuda
 
         pyuda.Client().get("help::help()")
-    except Exception:
+    except Exception:  # noqa: BLE001 -- any failure means the external server is unreachable
         pytest.skip("Could not contact UDA server")
 
     camera_name = "rba"
@@ -382,7 +383,7 @@ def test_uda_loader_data_doesnt_exist(uda_env_vars):
         import pyuda
 
         pyuda.Client().get("help::help()")
-    except Exception:
+    except Exception:  # noqa: BLE001 -- any failure means the external server is unreachable
         pytest.skip("Could not contact UDA server")
 
     uda_shot = ShotData(protocol="uda", signal_names=["doesnt_exist"])
@@ -409,7 +410,7 @@ def test_sal_loader():
         client = SALClient("https://sal.jetdata.eu")
         client.prompt_for_password = False
         client.authenticate()
-    except Exception:
+    except Exception:  # noqa: BLE001 -- any failure means the external server is unreachable
         pytest.skip("Could not contact SAL server")
 
     sal_shot = ShotData(protocol="sal", signal_names=["ppf/signal/jetppf/magn/ipla"])
@@ -539,7 +540,7 @@ async def test_custom_data_loader(api_client):
     @data_loaders.LoaderRegistry.register("test")
     class CustomLoader(data_loaders.DataLoader):
         @classmethod
-        def sample_data_type(self) -> Type[ShotData]:
+        def sample_data_type(self) -> type[ShotData]:
             return ShotData
 
         def get_sample(self, sample: Sample, params: DataParams, **kwargs):

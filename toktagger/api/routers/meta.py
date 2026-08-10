@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Request, Depends
+import typing
+
+from fastapi import APIRouter, Depends, Request
+
+from toktagger.api import config
 from toktagger.api.auth.dependencies import get_current_user
 from toktagger.api.core.data_loaders import LoaderRegistry
+from toktagger.api.models import check_models_enabled, models_dependencies_installed
 from toktagger.api.schemas.models import LoadTypes
-from toktagger.api.models import models_dependencies_installed, check_models_enabled
-import typing
-import toktagger.api.config as config
 
 if models_dependencies_installed():
     from toktagger.api.models.base import ModelRegistry

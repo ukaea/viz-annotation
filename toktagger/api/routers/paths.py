@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Request
+
 from toktagger.api.auth.dependencies import get_current_user
 from toktagger.api.crud import utils
 

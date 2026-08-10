@@ -2,13 +2,13 @@
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
-import toktagger.api.config as config
 import toktagger.api.auth.core as auth_core
-from toktagger.api.main import Server
+from tests import db_definitions
+from toktagger.api import config
 from toktagger.api.crud.db import MongoDBClient
-import tests.db_definitions as db_definitions
+from toktagger.api.main import Server
 
 
 @pytest.fixture(autouse=True)

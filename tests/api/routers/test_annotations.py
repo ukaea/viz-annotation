@@ -106,7 +106,7 @@ async def test_get_annotations_validated(api_client, setup_db):
         setup_db["annotation_id_1"],
         setup_db["annotation_id_2"],
     ]
-    assert all([annotation["validated"] for annotation in returned_annotations])
+    assert all(annotation["validated"] for annotation in returned_annotations)
 
 
 @pytest.mark.asyncio

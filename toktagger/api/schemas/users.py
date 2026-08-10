@@ -1,5 +1,7 @@
-from typing import Literal, Optional
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
 from toktagger.api.schemas import ConfiguredModel
 
 
@@ -27,9 +29,9 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    global_role: Optional[Literal["admin", "user"]] = None
-    is_active: Optional[bool] = None
-    password: Optional[str] = None
+    global_role: Literal["admin", "user"] | None = None
+    is_active: bool | None = None
+    password: str | None = None
 
 
 class ProjectMember(ConfiguredModel):
@@ -54,8 +56,8 @@ class ProjectMemberCreate(BaseModel):
 
 
 class ProjectMemberUpdate(BaseModel):
-    role: Optional[Literal["admin", "annotator", "viewer"]] = None
-    show_others_annotations: Optional[bool] = None
+    role: Literal["admin", "annotator", "viewer"] | None = None
+    show_others_annotations: bool | None = None
 
 
 class TokenResponse(BaseModel):

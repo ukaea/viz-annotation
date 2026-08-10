@@ -1,8 +1,10 @@
+from importlib.metadata import PackageNotFoundError, version
+
 from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, RedirectResponse
-from importlib.metadata import version, PackageNotFoundError
-from toktagger.api.models import models_dependencies_installed
+
 from toktagger.api.crud import utils
+from toktagger.api.models import models_dependencies_installed
 
 if models_dependencies_installed():
     import ray
@@ -36,14 +38,12 @@ async def health_check(request: Request) -> dict:
             db_client=request.app.state.db_client,
         )
         db_conn = True
-    except Exception:
+    except Exception:  # noqa: BLE001 -- health check reports up/down, not why
         db_conn = False
 
     # If available, check whether GPUs enabled for model tasks
     model_gpu_available = False
-    if models_dependencies_installed() and hasattr(
-        request.app.state, "task_registry"
-    ):
+    if models_dependencies_installed() and hasattr(request.app.state, "task_registry"):
         model_gpu_available = ray.get(
             request.app.state.task_registry.gpu_enabled.remote()
         )

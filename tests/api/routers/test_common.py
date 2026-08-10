@@ -2,7 +2,8 @@
 
 import pytest
 from bson.objectid import ObjectId
-from tests.db_definitions import SAMPLE_1, ANNOTATION_1
+
+from tests.db_definitions import ANNOTATION_1, SAMPLE_1
 
 
 def create_endpoint(

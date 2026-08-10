@@ -1,26 +1,28 @@
 import pytest
 
 pytest.importorskip("playwright")
-from playwright.sync_api import Page, expect
-import re
-from datetime import datetime
+import csv
+import json
 import pathlib
+import re
+import tempfile
+import time
+from datetime import datetime
+
+import pytest
+from playwright.sync_api import Page, expect
+
+from tests.end_to_end import form_check
 from tests.endpoints import (
-    create_project,
     create_local_samples,
-    create_uda_samples,
     create_model_samples,
+    create_project,
     create_query_strategy_samples,
+    create_uda_samples,
     session,
 )
-from tests.end_to_end import form_check
-import time
-import tempfile
-import pytest
-import json
-import csv
+from toktagger.api import config
 from toktagger.api.schemas.annotations import TimePoint, TimeRegion
-import toktagger.api.config as config
 
 
 def check_base_page(page):
@@ -108,7 +110,9 @@ def test_single_sample(server_setup, page: Page):
 
     # Check sample information is shown
     expect(page.get_by_text("10000", exact=True)).to_be_visible()
-    expect(page.get_by_text(re.compile(f"^{datetime.now().date()}*"))).to_be_visible()
+    expect(
+        page.get_by_text(re.compile(f"^{datetime.now().date()}*"))  # noqa: DTZ005 -- matches the browser's locally-rendered date, not UTC
+    ).to_be_visible()
 
     # Expect that I can click on the row in the table and it takes me to a ELM view page
     table_row = page.get_by_role("rowheader", name="10000")
@@ -778,6 +782,10 @@ def test_samples_page_import_annotations(sample_id: bool, server_setup, page: Pa
             file_chooser = fc_info.value
             file_chooser.set_files(file.name)
 
+        # Wait for the import to finish saving client-side before navigating
+        # away, otherwise the PUT may still be in flight when we navigate.
+        expect(page.get_by_text("Annotations imported successfully")).to_be_visible()
+
         # Navigate to first sample, check annotations visible
         page.goto(
             f"http://localhost:8002/ui/projects/{project_id}/samples/{sample_ids[0]}"
@@ -888,7 +896,7 @@ def test_samples_page_export_annotations(server_setup, page: Page):
     "model_name", ["mock_timeseries_cnn", "mock_params_timeseries_cnn"]
 )
 def test_model_train_predict(server_setup, setup_model_samples, page: Page, model_name):
-    project_id, sample_ids = create_model_samples(setup_model_samples)
+    project_id, _sample_ids = create_model_samples(setup_model_samples)
 
     # Navigate to projects page
     page.goto(f"http://localhost:8002/ui/projects/{project_id}")
@@ -1017,7 +1025,7 @@ def test_model_train_predict(server_setup, setup_model_samples, page: Page, mode
 
 @pytest.mark.models_enabled
 def test_model_load_predict(server_setup, setup_model_samples, page: Page):
-    project_id, sample_ids = create_model_samples(setup_model_samples)
+    project_id, _sample_ids = create_model_samples(setup_model_samples)
     with tempfile.NamedTemporaryFile(suffix=".model", mode="w") as tempf:
         tempf.write("Loaded Model Weights")
         tempf.flush()

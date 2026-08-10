@@ -1,29 +1,26 @@
+from abc import ABC, abstractmethod
+from itertools import pairwise
+
 import numpy as np
 import ruptures as rpt
-import hmmlearn.hmm as hmm
-from abc import ABC, abstractmethod
-from scipy.signal import find_peaks, peak_widths
-from scipy.ndimage import uniform_filter1d, gaussian_filter
+from hmmlearn import hmm
 from scipy.interpolate import interp1d
-
+from scipy.ndimage import gaussian_filter, uniform_filter1d
+from scipy.signal import find_peaks, peak_widths, stft
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
-from toktagger.api.schemas.data import MultiVariateTimeSeriesData
-from toktagger.api.schemas.annotators import (
-    AnnotatorTypes,
-    ChangePointDetectionParams,
-    PeakDetectionParams,
-    JumpDetectionParams,
-    OutlierDetectionParams,
-)
-from scipy.signal import stft
 
-from toktagger.api.schemas.data import TimeSeriesData
 from toktagger.api.schemas.annotations import SpectrogramMask, TimeRegion
 from toktagger.api.schemas.annotators import (
-    SpectrogramThresholdParams,
     AnnotatorParamTypes,
+    AnnotatorTypes,
+    ChangePointDetectionParams,
+    JumpDetectionParams,
+    OutlierDetectionParams,
+    PeakDetectionParams,
+    SpectrogramThresholdParams,
 )
+from toktagger.api.schemas.data import MultiVariateTimeSeriesData, TimeSeriesData
 from toktagger.api.schemas.projects import Task
 
 
@@ -218,7 +215,7 @@ class PeakDetectionAnnotator(DataAnnotator):
         trend = uniform_filter1d(signal, 1000)
         dalpha_detrend = signal - trend
 
-        peak_idx, params = find_peaks(
+        peak_idx, _params = find_peaks(
             dalpha_detrend,
             prominence=self.params.prominence,
             width=[1, 150],
@@ -421,7 +418,7 @@ class ChangePointDetectionAnnotator(DataAnnotator):
                 label="Unknown",
                 created_by=f"annotators::{AnnotatorTypes.CHANGE_POINT_DETECTION.value}",
             )
-            for imin, imax in zip(result, result[1:])
+            for imin, imax in pairwise(result)
         ]
         return bounds
 

@@ -1,17 +1,19 @@
 from typing import Literal
-from fastapi import APIRouter, Depends, Request, Path, Query
+
+from fastapi import APIRouter, Depends, Path, Query, Request
+
 from toktagger.api.auth.dependencies import (
     get_current_user,
+    require_project_admin_role,
     require_project_annotator,
     require_project_viewer,
-    require_project_admin_role,
 )
 from toktagger.api.crud import utils
-from toktagger.api.schemas.samples import SampleUpdate
 from toktagger.api.schemas.annotations import (
     AnnotationBatchTypes,
     AnnotationOutTypes,
 )
+from toktagger.api.schemas.samples import SampleUpdate
 from toktagger.api.schemas.users import UserOut
 
 router = APIRouter(

@@ -102,8 +102,6 @@ class UltralyticsDetectionDataset(Dataset):
         original_height, original_width = image.shape[:2]
 
         letterboxed_image = self.letterbox(image=image)
-        if not isinstance(letterboxed_image, np.ndarray):
-            letterboxed_image = letterboxed_image["img"]
 
         gain = min(
             self.imgsz / original_height,

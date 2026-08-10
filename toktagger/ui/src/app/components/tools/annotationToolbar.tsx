@@ -118,7 +118,6 @@ export const AnnotationToolbar = () => {
             width="size-1600"
             variant={modeVariant}
             onPress={() => {
-              setAnnotationTool(null);
               setEditMode(!editMode);
               if (firstTimeEdit) {
                 setContextHelpManualOpen(true);

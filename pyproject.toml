@@ -94,7 +94,7 @@ dev = [
     "httpx>=0.28.1",
     "pytest>=8.4.1",
     "pytest-asyncio>=1.1.0",
-    "ruff>=0.12.9",
+    "ruff>=0.12.9,<0.16",
     "pre-commit>=4.3.0",
     "pytest-playwright>=0.7.1",
 ]

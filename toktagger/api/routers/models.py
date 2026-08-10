@@ -1,5 +1,6 @@
 import pathlib
 import random
+import shutil
 from collections import defaultdict
 
 from bson.objectid import ObjectId
@@ -152,9 +153,9 @@ async def delete_models(
         )
 
         # And delete file from storage (if it exists - may not if the job failed)
-        config.settings.models.cache_dir.joinpath(f"{model.id}.model").unlink(
-            missing_ok=True
-        )
+        model_dir = config.settings.models.cache_dir.joinpath(model.id)
+        if model_dir.exists():
+            shutil.rmtree(model_dir)
 
 
 @router.get("/models/{model_type}/train")

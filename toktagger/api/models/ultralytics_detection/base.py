@@ -23,7 +23,7 @@ from toktagger.api.models.base import Model
 from toktagger.api.schemas.annotations import Annotation, AnnotationBase
 from toktagger.api.schemas.samples import Sample
 
-from .utils import (
+from toktagger.api.models.ultralytics_detection.utils import (
     check_pretrained_model_availability,
     get_toktagger_cache_dir,
     get_torch_device,

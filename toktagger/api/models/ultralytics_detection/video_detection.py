@@ -21,9 +21,14 @@ from toktagger.api.schemas.annotations import (
 )
 from toktagger.api.schemas.data import ImageData, ImageParams
 from toktagger.api.schemas.samples import Sample
-
-from .base import BaseUltralyticsDetection, DetectionRecord
-from .utils import resolve_weights_path, check_pretrained_model_availability
+from toktagger.api.models.ultralytics_detection.base import (
+    BaseUltralyticsDetection,
+    DetectionRecord,
+)
+from toktagger.api.models.ultralytics_detection.utils import (
+    check_pretrained_model_availability,
+    resolve_weights_path,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -27,6 +27,7 @@ from .utils import (
     check_pretrained_model_availability,
     get_toktagger_cache_dir,
     get_torch_device,
+    prepare_ultralytics_amp_weights,
 )
 
 logger = logging.getLogger(__name__)
@@ -407,6 +408,7 @@ class BaseUltralyticsDetection(Model):
         if pretrained_weights is not None:
             overrides["pretrained"] = pretrained_weights
         return overrides
+        
 
     def train(
         self,
@@ -449,6 +451,10 @@ class BaseUltralyticsDetection(Model):
             has_validation_data=validation_dataset is not None,
             pretrained_weights=pretrained_weights, # for Yolo P2 Model
         )
+
+        # prevent download of a nano model for AMP check in pwd
+        if overrides["device"] == "cuda":
+            prepare_ultralytics_amp_weights()
 
         logger.info(
             "Training %s on %s.",

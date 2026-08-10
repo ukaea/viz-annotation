@@ -1,11 +1,10 @@
 import logging
 from pathlib import Path
 from urllib.request import urlretrieve
+import os
 
 import torch
-
-# import toktagger.api.config as config
-import os
+from ultralytics import settings
 
 logger = logging.getLogger(__name__)
 
@@ -138,3 +137,18 @@ def resolve_weights_path(
     raise FileNotFoundError(
         f"Could not find best.pt or last.pt in {results_dir.joinpath('weights')}"
     )
+
+def prepare_ultralytics_amp_weights() -> None:
+    """Prepare the checkpoint used by Ultralytics' CUDA AMP check.
+
+    Ultralytics performs the check using a hard-coded `yolo26n.pt`.
+    Cache that checkpoint under MODEL_STORAGE and configure Ultralytics
+    to reuse it instead of downloading another copy into the working directory.
+
+    REMOVE BELOW COMMENT AFTER SOMEONE HAS TESTED IT ON A NVIDIA GPU.
+    https://github.com/ukaea/toktagger/pull/326#discussion_r3754183103
+    It is downloaded into TokTagger's cache on the first GPU training run,
+    even when the user selected a different model size.
+    """
+    amp_checkpoint = check_pretrained_model_availability("yolo26n.pt")
+    settings.update(weights_dir=str(amp_checkpoint.parent))

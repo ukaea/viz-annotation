@@ -224,11 +224,12 @@ def load_model_gitlab(
             mlflow_model = client.get_model_version(
                 params.model_name, params.model_version
             )
-        except MlflowException:
+        except MlflowException as e:
+            logger.debug(e)
             mlflow_model = None
     else:
         mlflow_model = max(
-            client.search_model_versions(f"name='{params.model_name}'"),
+            client.get_latest_versions(params.model_name),
             key=lambda mv: int(mv.version),
             default=None,
         )

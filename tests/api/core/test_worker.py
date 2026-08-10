@@ -77,9 +77,8 @@ def mock_mlflow_get_model_version(self, name: str, version: str):
     return ModelVersion(name=name, version=v, creation_timestamp=123)
 
 
-def mock_mlflow_search_version(self, filter_string: str):
+def mock_mlflow_search_version(self, name: str):
     # Take model name from filter_string
-    name = filter_string.split("name=")[1].replace("'", "")
     if name == "invalid":
         return []
 
@@ -320,7 +319,7 @@ def test_gitlab_load_version(temp_models_cache, setup_model, monkeypatch):
 @patch("ray.get", lambda val: val)
 @patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
 @patch(
-    "toktagger.api.core.worker.MlflowClient.search_model_versions",
+    "toktagger.api.core.worker.MlflowClient.get_latest_versions",
     mock_mlflow_search_version,
 )
 @patch("toktagger.api.core.worker.requests.get", mock_requests_get)
@@ -405,7 +404,7 @@ def test_gitlab_load_invalid_version(temp_models_cache, setup_model, monkeypatch
 @patch("ray.get", lambda val: val)
 @patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
 @patch(
-    "toktagger.api.core.worker.MlflowClient.search_model_versions",
+    "toktagger.api.core.worker.MlflowClient.get_latest_versions",
     mock_mlflow_search_version,
 )
 @patch("toktagger.api.core.worker.requests.get", mock_requests_get)

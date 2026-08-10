@@ -161,7 +161,7 @@ function GitlabLoadTab({
             model_version: model_version ?? null,
           })
         }
-        description="Optional: The semantic version of the model to download, eg v1.0.0"
+        description="Optional: The semantic version of the model to download, eg 1.0.0"
       />
       <TextField
         marginTop={"size-100"}
@@ -193,7 +193,7 @@ function HuggingfaceLoadTab({
   return (
     <Flex direction="column">
       <Text marginTop={"size-100"}>
-        <em>Load model weights from HuggingFace.</em>
+        <em>Load model weights from Hugging Face.</em>
       </Text>
       <TextField
         marginTop={"size-100"}
@@ -212,8 +212,8 @@ function HuggingfaceLoadTab({
         }
         description={
           restrictedUserspace
-            ? "HuggingFace userspace or organisation is configured on the server."
-            : "The ID of the HuggingFace userspace or organisation which will be connected to."
+            ? "Hugging Face userspace or organisation is configured on the server."
+            : "The ID of the Hugging Face userspace or organisation which will be connected to."
         }
         isDisabled={restrictedUserspace}
       />
@@ -232,7 +232,7 @@ function HuggingfaceLoadTab({
             model_name,
           })
         }
-        description="The name of the project stored in HuggingFace to download weights for."
+        description="The name of the project stored in Hugging Face to download weights for."
       />
       <TextField
         marginTop={"size-100"}
@@ -266,7 +266,7 @@ function HuggingfaceLoadTab({
             weights_path,
           })
         }
-        description="The path to the weights artifact within the HuggingFace project."
+        description="The path to the weights artifact within the Hugging Face project."
       />
     </Flex>
   );
@@ -554,7 +554,7 @@ export function ModelLoadModal({
                   {loadMethods?.includes("hugging_face") ? (
                     <Item key="hugging_face" aria-label="From HuggingFace Tab">
                       <HuggingFaceIcon />
-                      <Text>From HuggingFace</Text>
+                      <Text>From Hugging Face</Text>
                     </Item>
                   ) : null}
                 </TabList>

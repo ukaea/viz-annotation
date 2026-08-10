@@ -86,25 +86,31 @@ class MyCustomModel(Model):
         # Your prediction logic here
         pass
     
-    def save(self, file_path: str):
-        """
-        Save the trained model to disk.
-        
-        Args:
-            file_path: Path where model should be saved
+    def save(self, results_dir: pathlib.Path) -> None:
+        """Save the trained model to disk.
+
+        Parameters
+        ----------
+        results_dir : pathlib.Path
+            The path to a directory in the model cache where your model weights and accompanying information should be saved.
         """
         # Your save logic here
-        pass
     
-    def load(self, file_path: str):
-        """
-        Load a trained model from disk.
-        
-        Args:
-            file_path: Path to the saved model
+    def load(
+        self, results_dir: pathlib.Path, weights_filename: str | None = None
+    ) -> None:
+        """Load a pretrained model from disk.
+
+        Parameters
+        ----------
+        results_dir : pathlib.Path
+            The path to a directory in the model cache where model weights should be loaded from.
+        weights_filename : str | None, optional
+            The name of the weights file within the above directory to load, by default None
+            Note that this is optional, but should take precedence if provided.
         """
         # Your load logic here
-        pass
+
 ```
 
 ### Step 3: Optionally define required parameters

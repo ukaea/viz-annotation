@@ -42,7 +42,10 @@ async def get_data(
     except DataLoaderError as e:
         raise HTTPException(404, str(e)) from e
 
-    data_view = DATA_VIEWS[view.name](view)
-    data = data_view(data)
+    try:
+        data_view = DATA_VIEWS[view.name](view)
+        data = data_view(data)
+    except Exception as e:
+        raise HTTPException(400, str(e)) from e
 
     return data

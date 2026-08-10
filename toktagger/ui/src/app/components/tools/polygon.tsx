@@ -24,7 +24,7 @@ const HELPER_VERTEX_COUNT = 2;
 // Fewer real vertices than this does not describe a shape, so it cannot be committed.
 const MIN_POLYGON_VERTICES = 3;
 
-export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
+export const Polygon = ({ plotId, plotReady, subplot }: ToolingProps) => {
   const {
     registerTooling,
     createAnnotation,
@@ -184,7 +184,11 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
     );
 
     // For each subplot carry out the tooling generation
-    subplotNames.forEach((subplotId) => {
+    const targetSubplots = subplot
+      ? subplotNames.filter((name) => name === subplot)
+      : subplotNames;
+
+    targetSubplots.forEach((subplotId) => {
       if (subplotId === undefined) {
         console.error("Could not find valid subplot ID");
         return;
@@ -435,6 +439,7 @@ export const Polygon = ({ plotId, plotReady }: ToolingProps) => {
     editMode,
     setOngoingAction,
     selectAnnotations,
+    subplot,
   ]); // forceUpdate is required here to keep tooling correctly positioned
 
   return <div />;

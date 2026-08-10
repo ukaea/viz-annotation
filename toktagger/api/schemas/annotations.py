@@ -11,6 +11,7 @@ class AnnotationBase(ConfiguredModel):
     label: str
     created_by: str
     validated: bool = False
+    signal_name: Optional[str] = None
     uncertainty: Optional[float] = 1
 
     @model_validator(mode="before")
@@ -114,11 +115,6 @@ class VideoPoint(AnnotationBase):
     y: int
 
 
-class SpectrogramMask(AnnotationBase):
-    type: Literal["spectrogram_mask"] = "spectrogram_mask"
-    values: list[list[float]]
-
-
 class AnnotationBatch(AnnotationBase):
     """Base class for batch annotation inputs, with or without IDs."""
 
@@ -163,7 +159,6 @@ PolygonOut = create_out_model(Polygon)
 VideoBoundingBoxOut = create_out_model(VideoBoundingBox)
 VideoPolygonOut = create_out_model(VideoPolygon)
 VideoPointOut = create_out_model(VideoPoint)
-SpectrogramMaskOut = create_out_model(SpectrogramMask)
 ClassLabelOut = create_out_model(ClassLabel)
 
 # Generate Batch classes using factory function
@@ -174,7 +169,6 @@ PolygonBatch = create_batch_model(Polygon)
 VideoBoundingBoxBatch = create_batch_model(VideoBoundingBox)
 VideoPolygonBatch = create_batch_model(VideoPolygon)
 VideoPointBatch = create_batch_model(VideoPoint)
-SpectrogramMaskBatch = create_batch_model(SpectrogramMask)
 ClassLabelBatch = create_batch_model(ClassLabel)
 
 
@@ -187,7 +181,6 @@ AnnotationTypes = Union[
     VideoBoundingBox,
     VideoPolygon,
     VideoPoint,
-    SpectrogramMask,
     ClassLabel,
 ]
 
@@ -199,7 +192,6 @@ AnnotationOutTypes = Union[
     VideoBoundingBoxOut,
     VideoPolygonOut,
     VideoPointOut,
-    SpectrogramMaskOut,
     ClassLabelOut,
 ]
 
@@ -211,7 +203,6 @@ AnnotationBatchTypes = Union[
     VideoBoundingBoxBatch,
     VideoPolygonBatch,
     VideoPointBatch,
-    SpectrogramMaskBatch,
     ClassLabelBatch,
 ]
 

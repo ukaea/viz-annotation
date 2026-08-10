@@ -2,13 +2,13 @@ import numpy as np
 import xarray as xr
 from toktagger.api.core.annotators import compute_stft
 from toktagger.api.schemas.data import (
-    CompositeData,
+    Profile2DData,
     MultiVariateTimeSeriesData,
-    SpectrogramData,
+    MultiProfile2DData,
     Data,
     TimeSeriesData,
 )
-from toktagger.api.schemas.views import SpectrogramViewParams, ViewParams, ViewType
+from toktagger.api.schemas.views import Profile2DViewParams, ViewParams, ViewType
 
 
 class IdentityView:
@@ -19,30 +19,21 @@ class IdentityView:
         return data
 
 
-class SpectrogramView:
-    def __init__(self, params: SpectrogramViewParams):
+class Profile2DView:
+    def __init__(self, params: Profile2DViewParams):
         self.params = params
 
-    def __call__(self, data: Data) -> Data:
-        if isinstance(data, MultiVariateTimeSeriesData):
-            response = {}
-            for key, value in data.values.items():
-                response[key] = self.convert_timeseries_to_spectrogram(value)
+    def convert_profile_to_view(
+        self, data: Profile2DData | TimeSeriesData
+    ) -> Profile2DData:
+        if isinstance(data, TimeSeriesData):
+            dim_1, time, values = compute_stft(data)  # shape (dim_1, time)
+        elif isinstance(data, Profile2DData):
+            time = np.array(data.time)
+            dim_1 = np.array(data.dim_1)
+            values = np.array(data.values).T  # (time, dim_1) -> (dim_1, time)
         else:
-            raise RuntimeError(f"Unsupported data type: {type(data)}")
-
-        return CompositeData(values=response)
-
-    def convert_timeseries_to_spectrogram(
-        self, data: TimeSeriesData
-    ) -> SpectrogramData:
-        time = np.array(data.time)
-        values = np.array(data.values)
-
-        # Compute the Short-Time Fourier Transform (STFT)
-        freq, ts, values = compute_stft(data)
-        freq /= 1000
-        time = ts + time[0]
+            raise RuntimeError(f"Unsupported data type for Profile2DView: {type(data)}")
 
         # Clip to time/frequency range
         time_min = (
@@ -52,41 +43,61 @@ class SpectrogramView:
             self.params.time_max if self.params.time_max is not None else time.max()
         )
 
-        frequency_min = (
-            self.params.frequency_min
-            if self.params.frequency_min is not None
-            else freq.min()
+        if (
+            self.params.time_min is not None
+            and self.params.time_max is not None
+            and self.params.time_min == self.params.time_max
+        ):
+            raise RuntimeError("time_min and time_max must not be equal")
+
+        dim_1_min = (
+            self.params.dim_1_min if self.params.dim_1_min is not None else dim_1.min()
         )
-        frequency_max = (
-            self.params.frequency_max
-            if self.params.frequency_max is not None
-            else freq.max()
+        dim_1_max = (
+            self.params.dim_1_max if self.params.dim_1_max is not None else dim_1.max()
         )
 
-        amplitude_min = (
-            self.params.amplitude_min
-            if self.params.amplitude_min is not None
-            else values.min()
+        values_min = (
+            self.params.values_min
+            if self.params.values_min is not None
+            else np.nanmin(values)
         )
-        amplitude_max = (
-            self.params.amplitude_max
-            if self.params.amplitude_max is not None
-            else values.max()
+        values_max = (
+            self.params.values_max
+            if self.params.values_max is not None
+            else np.nanmax(values)
         )
 
-        ds = xr.DataArray(values, coords=dict(frequency=freq, time=time))
+        ds = xr.DataArray(
+            values, coords=dict(dim_1=dim_1, time=time), dims=["dim_1", "time"]
+        )
         ds = ds.sel(time=slice(time_min, time_max))
-        ds = ds.sel(frequency=slice(frequency_min, frequency_max))
-        ds = ds.clip(amplitude_min, amplitude_max)
+        ds = ds.sel(dim_1=slice(dim_1_min, dim_1_max))
+        ds = ds.clip(values_min, values_max)
 
-        return SpectrogramData(
+        return Profile2DData(
             time=ds.time.values.tolist(),
-            frequency=ds.frequency.values.tolist(),
-            amplitude=ds.values.tolist(),
+            dim_1=ds.dim_1.values.tolist(),
+            values=ds.values.tolist(),
         )
+
+    def __call__(
+        self, data: MultiProfile2DData | MultiVariateTimeSeriesData
+    ) -> Profile2DData:
+        if self.params.signal_name not in data.values:
+            raise RuntimeError("Signal name not found in data")
+
+        profile_data = data.values.get(self.params.signal_name, None)
+
+        if profile_data is None:
+            raise RuntimeError(
+                f"Profile data for {self.params.signal_name} does not exist."
+            )
+
+        return self.convert_profile_to_view(profile_data)
 
 
 DATA_VIEWS = {
     ViewType.IDENTITY: IdentityView,
-    ViewType.SPECTROGRAM: SpectrogramView,
+    ViewType.PROFILE_2D: Profile2DView,
 }

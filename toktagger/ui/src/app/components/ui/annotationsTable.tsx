@@ -85,13 +85,12 @@ export const AnnotationsTable = () => {
     const entriesBuffer: TableEntry[] = [];
     annotations.forEach((annotation) => {
       const categoryId = `${annotation.type}_${annotation.label}`;
-      const category = categories.get(categoryId);
-      if (!category) {
-        console.error(
-          `Could not locate ${categoryId} when assigning table entry`,
-        );
-        return;
-      }
+      // Fall back to a category built from the annotation itself if none is configured.
+      const category = categories.get(categoryId) ?? {
+        label: annotation.label,
+        color: "black",
+        type: annotation.type,
+      };
 
       let data: string;
       switch (annotation.type) {

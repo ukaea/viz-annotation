@@ -9,6 +9,7 @@ export const BaseAnnotationSchema = z.object({
   validated: z.boolean().nullable().default(null),
   uncertainty: z.number().nullable().default(1),
   created_by: z.string().default("manual"),
+  signal_name: z.string().nullable().default(null),
   label: z.string(),
   type: z.string(),
 });
@@ -129,13 +130,13 @@ export type MultiVariateTimeSeriesData = z.infer<
   typeof MultiVariateTimeSeriesDataSchema
 >;
 
-export const SpectrogramDataSchema = z.object({
+export const Profile2DDataSchema = z.object({
   time: z.array(z.number()),
-  frequency: z.array(z.number()),
-  amplitude: z.array(z.array(z.number())),
-  threshold_mask: z.array(z.array(z.number())).optional(),
+  dim_1: z.array(z.number()),
+  // Nullable: the API serialises NaN samples in a profile as null.
+  values: z.array(z.array(z.number().nullable())),
 });
-export type SpectrogramData = z.infer<typeof SpectrogramDataSchema>;
+export type Profile2DData = z.infer<typeof Profile2DDataSchema>;
 export const ImageDataSchema = z.object({
   frame: z.number(),
   values: z.string(), // base64 PNG
@@ -145,7 +146,7 @@ export type ImageData = z.infer<typeof ImageDataSchema>;
 export const DataSchema = z.union([
   TimeSeriesDataSchema,
   MultiVariateTimeSeriesDataSchema,
-  SpectrogramDataSchema,
+  Profile2DDataSchema,
   ImageDataSchema,
 ]);
 export type Data = z.infer<typeof DataSchema>;
@@ -180,27 +181,18 @@ export const VSpanSchema = BaseDisplayAnnotationSchema.extend({
 });
 export type VSpan = z.infer<typeof VSpanSchema>;
 
-export const SpectrogramMaskSchema = z.object({
-  values: z.array(z.array(z.number())),
-});
-export type SpectrogramMask = z.infer<typeof SpectrogramMaskSchema>;
-
-export const DisplayAnnotationSchema = z.union([
-  ZoneSchema,
-  VSpanSchema,
-  SpectrogramMaskSchema,
-]);
+export const DisplayAnnotationSchema = z.union([ZoneSchema, VSpanSchema]);
 export type DisplayAnnotation = z.infer<typeof DisplayAnnotationSchema>;
 
 export enum TaskType {
   TimeSeries = "time-series",
-  // Spectrogram = "spectrogram",
+  Profile2D = "profile-2d",
   Video = "video",
 }
 
 export const TaskSchema = z.enum([
   TaskType.TimeSeries,
-  // TaskType.Spectrogram,
+  TaskType.Profile2D,
   TaskType.Video,
 ]);
 
@@ -324,21 +316,22 @@ export const SamplesSummarySchema = z.object({
 export type SamplesSummary = z.infer<typeof SamplesSummarySchema>;
 
 export const ViewParamsSchema = z.object({
-  name: z.string(),
+  name: z.literal("identity"),
 });
 export type ViewParams = z.infer<typeof ViewParamsSchema>;
 
-export const SpectrogramViewParamsSchema = ViewParamsSchema.extend({
-  nperseg: z.number().optional(),
+export const Profile2DViewParamsSchema = ViewParamsSchema.extend({
+  name: z.literal("profile_2d"),
+  signal_name: z.string(),
+  log_scale: z.boolean().default(false),
   time_min: z.number().optional(),
   time_max: z.number().optional(),
-  frequency_min: z.number().optional(),
-  frequency_max: z.number().optional(),
-  amplitude_min: z.number().optional(),
-  amplitude_max: z.number().optional(),
-  threshold_value: z.number().optional(),
+  dim_1_min: z.number().optional(),
+  dim_1_max: z.number().optional(),
+  values_min: z.number().optional(),
+  values_max: z.number().optional(),
 });
-export type SpectrogramViewParams = z.infer<typeof SpectrogramViewParamsSchema>;
+export type Profile2DViewParams = z.infer<typeof Profile2DViewParamsSchema>;
 
 export const HealthInfoSchema = z.object({
   name: z.string(),
@@ -355,6 +348,8 @@ export type ToolingProps = {
   forceUpdate?: number;
   onUpdate?: CallableFunction;
   selectedXRange?: [number, number];
+  // Restricts rendering to a single subplot (e.g. "xy2"); all subplots by default.
+  subplot?: string;
 };
 
 export enum ToolingTypes {
@@ -392,6 +387,8 @@ export type TimeSeriesAnnotation = {
   type: TimeSeriesAnnotationType;
   points: TimeSeriesAnnotationPoint[];
   selected: boolean;
+  // Binds the annotation to a specific signal; null for single-signal views.
+  signal_name?: string | null;
 };
 
 export type ToolingCallbacks = {

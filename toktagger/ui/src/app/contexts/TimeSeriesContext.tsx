@@ -648,7 +648,6 @@ export const TimeSeriesProvider = ({
       }
 
       if (event.key === "e") {
-        setAnnotationTool(null);
         setEditMode((prev) => !prev);
       }
     };
@@ -666,7 +665,7 @@ export const TimeSeriesProvider = ({
       document.removeEventListener("keydown", keyDownHandler);
       document.removeEventListener("keyup", keyUpHandler);
     };
-  }, [setAnnotationTool]);
+  }, []);
 
   const annotationLabels = Array.from(categories.values()).map(
     (category, index) => {

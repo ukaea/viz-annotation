@@ -398,12 +398,12 @@ export function annoToVideoPolygon(
   const { className, trackId } = getLabelTrack(a);
   if (!className || !trackId) return null;
 
-  const segmentation = g.points.flatMap(([x, y]) => [
+  const coordinates = g.points.flatMap(([x, y]) => [
     Math.round(x),
     Math.round(y),
   ]);
 
-  if (segmentation.length < 6) return null;
+  if (coordinates.length < 6) return null;
 
   return {
     type: "video_polygon",
@@ -411,7 +411,7 @@ export function annoToVideoPolygon(
     track_id: String(trackId),
     label: String(className),
     class_id: classIdForName(className),
-    segmentation,
+    segmentation: [coordinates],
     created_by: getAnnotationCreator(a),
   };
 }
@@ -500,10 +500,11 @@ export function videoPolygonToAnno(
   frameKey: string,
 ): ImageAnnotation {
   const points: [number, number][] = [];
+  const coordinates = p.segmentation[0];
 
-  for (let i = 0; i < p.segmentation.length - 1; i += 2) {
-    const x = Number(p.segmentation[i]);
-    const y = Number(p.segmentation[i + 1]);
+  for (let i = 0; i < coordinates.length - 1; i += 2) {
+    const x = Number(coordinates[i]);
+    const y = Number(coordinates[i + 1]);
     if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
     points.push([x, y]);
   }

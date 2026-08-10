@@ -11,6 +11,7 @@ import typing
 from toktagger.api.models.base import Model, ModelRegistry
 import logging
 import pydantic
+import pathlib
 
 logger = logging.getLogger("ray")
 
@@ -364,8 +365,15 @@ class DisruptionCNN(Model):
             for i in range(len(samples))
         ]
 
-    def save(self, file_stem: str):
-        torch.save(self.model.state_dict(), f"{file_stem}.model")
+    def save(self, results_dir: pathlib.Path) -> None:
+        torch.save(self.model.state_dict(), results_dir.joinpath("weights.model"))
 
-    def load(self, file_path: str):
-        self.model.load_state_dict(torch.load(file_path, map_location="cpu"))
+    def load(
+        self, results_dir: pathlib.Path, weights_filename: str | None = None
+    ) -> None:
+        if weights_filename:
+            results_path = results_dir.joinpath(weights_filename)
+        else:
+            results_path = results_dir.joinpath("weights.model")
+
+        self.model.load_state_dict(torch.load(results_path, map_location="cpu"))

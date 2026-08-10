@@ -39,6 +39,7 @@ dependencies = [
   "bump-my-version>=1.2.7",
   "platformdirs>=4.4.0",
   "pydantic-settings>=2.11.0",
+  "uda-mast>=1.4.1",
 ]
 [project.optional-dependencies]
 models = [
@@ -65,7 +66,7 @@ dev = [
     "httpx>=0.28.1",
     "pytest>=8.4.1",
     "pytest-asyncio>=1.1.0",
-    "ruff>=0.12.9",
+    "ruff>=0.12.9,<0.16",
     "pre-commit>=4.3.0",
     "pytest-playwright>=0.7.1",
 ]

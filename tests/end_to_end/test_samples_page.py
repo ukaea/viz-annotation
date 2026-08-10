@@ -517,6 +517,10 @@ def test_create_samples_shot_data_file(server_setup, page: Page):
             file_chooser = fc_info.value
             file_chooser.set_files(file.name)
 
+        # Wait for the CSV to be parsed client-side before continuing, otherwise
+        # the shot IDs may not be ready yet when "Add Samples" is clicked
+        expect(page.get_by_text("Loaded 6 shot IDs from CSV")).to_be_visible()
+
     # Add signal names
     modal.get_by_role("textbox", name="Signal Names").fill("ip, dalpha")
 
@@ -1079,8 +1083,9 @@ def test_model_load_predict(server_setup, setup_model_samples, page: Page):
         model_id = response.json()["_id"]
         # Check file exists and has correct contents
         new_weights_path = config.settings.models.cache_dir.joinpath(
-            f"{model_id}.model"
-        )
+            f"{model_id}"
+        ).joinpath("weights.model")
+
         assert new_weights_path.exists()
         assert new_weights_path.read_text() == "Loaded Model Weights"
 

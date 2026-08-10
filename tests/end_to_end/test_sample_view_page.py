@@ -68,9 +68,11 @@ def setup_annotations(page: Page, num_annotations: int, go_to_next: bool = False
         page.wait_for_timeout(200)
 
         if num_annotations == 2:
-            page.get_by_role("button", name="View Mode").click()
-            page.locator("body").click()
-            page.get_by_role("button", name="TIME POINT").click()
+            # Edit mode and the active tool both persist across navigation
+            # within a project, so the toolbar is already in edit mode with the
+            # TIME POINT tool selected and its label picker showing. Clicking
+            # the mode or tool buttons again would toggle them back off, so go
+            # straight to (re)selecting the label and placing the annotation.
             page.get_by_test_id("select-annotation-label").click()
             page.get_by_test_id("popover").get_by_text("Disruption").click()
             page.get_by_label("time-series").click(button="left", modifiers=["Control"])

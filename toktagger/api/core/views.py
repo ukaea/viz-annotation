@@ -1,11 +1,11 @@
-from toktagger.api.core.annotators import compute_stft
 import numpy as np
 import xarray as xr
+from toktagger.api.core.annotators import compute_stft
 from toktagger.api.schemas.data import (
     Profile2DData,
-    Data,
-    MultiProfile2DData,
     MultiVariateTimeSeriesData,
+    MultiProfile2DData,
+    Data,
     TimeSeriesData,
 )
 from toktagger.api.schemas.views import Profile2DViewParams, ViewParams, ViewType
@@ -21,9 +21,6 @@ class IdentityView:
 
 class Profile2DView:
     def __init__(self, params: Profile2DViewParams):
-        if not isinstance(params, Profile2DViewParams):
-            raise RuntimeError(f"Invalid params type for Profile2DView: {type(params)}")
-
         self.params = params
 
     def convert_profile_to_view(

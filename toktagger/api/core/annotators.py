@@ -169,24 +169,7 @@ def _coords_to_flat_list(coords: Iterable[Tuple[float, float]]) -> List[float]:
     return flat
 
 
-def smooth_binary_mask(mask: np.ndarray, radius: int = 3) -> np.ndarray:
-    """
-    Smooth a binary mask (0/1) using morphological open+close.
-    """
-    # Ensure boolean mask
-    mask = mask.astype(bool)
-
-    selem = morphology.disk(radius)
-
-    opened = morphology.opening(mask, selem)  # remove small noise
-    closed = morphology.closing(opened, selem)  # fill small holes
-
-    return closed.astype(np.uint8)
-
-
-def compute_stft(
-    data: TimeSeriesData, nfft: int = 256, nperseg: int = 256, noverlap: int = 128
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def compute_stft(data: TimeSeriesData) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     time = np.array(data.time)
     values = np.array(data.values)
 
@@ -206,9 +189,8 @@ def compute_stft(
     freq, ts, Zxx = stft(
         values,
         fs=int(sample_rate),
-        nfft=nfft,
-        nperseg=nperseg,
-        noverlap=noverlap,
+        nperseg=256,
+        noverlap=128,
     )
     freq /= 1000
     ts += time[0]

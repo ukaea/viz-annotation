@@ -285,7 +285,11 @@ def test_profile2d_edit_mode_relabel_and_delete(server_setup, page: Page):
     expect(page.get_by_role("button", name="Edit Mode")).to_be_enabled()
 
     # Move to "Set type" manually - Locator.hover()'s scroll-into-view closes this CSS-hover menu.
-    page.get_by_label("time-zone").first.click(button="right")
+    page.get_by_label("time-zone").first.evaluate(
+        """element => element.dispatchEvent(new MouseEvent("contextmenu", {
+            button: 2, bubbles: true, cancelable: true
+        }))"""
+    )
     expect(page.get_by_role("menuitem", name="Delete")).to_be_visible()
     set_type = page.get_by_role("menuitem", name="Set type")
     set_type_box = set_type.bounding_box()
@@ -308,7 +312,11 @@ def test_profile2d_edit_mode_relabel_and_delete(server_setup, page: Page):
     expect(page.get_by_role("gridcell", name="NTM", exact=True)).to_have_count(0)
 
     # Delete it.
-    page.get_by_label("time-zone").first.click(button="right")
+    page.get_by_label("time-zone").first.evaluate(
+        """element => element.dispatchEvent(new MouseEvent("contextmenu", {
+            button: 2, bubbles: true, cancelable: true
+        }))"""
+    )
     expect(page.get_by_role("menuitem", name="Delete")).to_be_visible()
     page.get_by_role("menuitem", name="Delete").click(force=True)
 

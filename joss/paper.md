@@ -30,9 +30,11 @@ authors:
   - name: Nathan Cummings
     orcid: 0000-0003-4359-6337
     affiliation: 1
+  - name: Niraj Bhujel
+    affiliation: 2
   - name: Saiful Khan
     orcid: 0000-0002-6796-5670
-    affiliation: 1
+    affiliation: 2
   - name: Prakhar Sharma
     orcid: 0000-0002-7635-1857
     affiliation: 1
@@ -43,8 +45,10 @@ authors:
     orcid: 0000-0003-3499-8262
     affiliation: 1
 affiliations:
- - name: UK Atomic Energy Authority, Culham Science Centre, United Kingdom
+ - name: United Kingdom Atomic Energy Authority (UKAEA), Culham Centre for Fusion Energy, Culham Science Centre, Abingdon OX14 3EB, United Kingdom
    index: 1
+ - name: Science and Technology Facilities Council, Rutherford Appleton Laboratory, Harwell Campus, Didcot, OX11 0QX, United Kingdom
+   index: 2 
 date: 17 July 2026
 bibliography: paper.bib
 ---

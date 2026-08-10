@@ -15,7 +15,7 @@ import xarray as xr
 from PIL import Image
 
 from toktagger.api.schemas.data import (
-    Data,
+    DataResponseType,
     DataParamTypes,
     ImageParams,
     DataParams,
@@ -70,7 +70,7 @@ class DataLoader(ABC):
         sample: Sample,
         params: DataParamTypes = DataParams(),
         **kwargs,
-    ) -> Data:
+    ) -> DataResponseType:
         pass
 
 

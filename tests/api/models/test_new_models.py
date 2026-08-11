@@ -5,6 +5,7 @@ and injecting a mocked data_loader. This lets us test the model logic itself
 without requiring a running Ray cluster.
 """
 
+import pathlib
 import pickle
 import tempfile
 from unittest.mock import MagicMock, patch
@@ -141,10 +142,10 @@ def test_dtw_motif_backward_compat_load():
         "window_size": 100,
         "threshold": 3.0,
     }
-    with tempfile.NamedTemporaryFile(suffix=".pkl", delete=False) as f:
+    results_dir = pathlib.Path(tempfile.mkdtemp())
+    with open(results_dir.joinpath("weights.model"), "wb") as f:
         pickle.dump(old_state, f)
-        path = f.name
-    model.load(path)
+    model.load(results_dir)
     assert model.model["signal_names"] == ["Ip"]
     assert "signal_name" not in model.model or model.model.get("signal_names")
 
@@ -318,10 +319,10 @@ def test_stumpy_motif_backward_compat_load():
         "window_size": 100,
         "threshold": 3.0,
     }
-    with tempfile.NamedTemporaryFile(suffix=".pkl", delete=False) as f:
+    results_dir = pathlib.Path(tempfile.mkdtemp())
+    with open(results_dir.joinpath("weights.model"), "wb") as f:
         pickle.dump(old_state, f)
-        path = f.name
-    model.load(path)
+    model.load(results_dir)
     assert model.model["signal_names"] == ["Ip"]
 
 
@@ -383,10 +384,10 @@ def test_minirocket_backward_compat_load():
         "window_size": 100,
         "pos_label": "Event",
     }
-    with tempfile.NamedTemporaryFile(suffix=".pkl", delete=False) as f:
+    results_dir = pathlib.Path(tempfile.mkdtemp())
+    with open(results_dir.joinpath("weights.model"), "wb") as f:
         pickle.dump(old_state, f)
-        path = f.name
-    model.load(path)
+    model.load(results_dir)
     assert model.model["signal_names"] == ["Ip"]
 
 

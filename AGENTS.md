@@ -1,262 +1,83 @@
-# TokTagger — Project Guide for Claude Code
+# AGENTS.md
 
-## What is TokTagger
+TokTagger is a web platform for annotating tokamak diagnostic data (video / time-series / 2D-profile views) to build ML training sets.
 
-An open-source web platform for curating labeled datasets from **tokamak diagnostic data** (MAST-U, JET, etc.).
-It provides a Python FastAPI backend, a React + Next.js frontend, and MongoDB (or local Mongita fallback) storage.
+- `toktagger/api` — FastAPI backend (Pydantic schemas, MongoDB/`mongita` storage, Ray-based optional ML worker)
+- `toktagger/ui` — Vite + React (TypeScript) frontend
+- `tests/` — all tests, at repo root (not inside `toktagger/`); mirrors `api`/`ui` structure, plus `tests/end_to_end` for Playwright
+- `docs/` — Zensical docs site; read `docs/dev/API-Design.md` (endpoints + DB shape) and `docs/creating_projects.md` (Project → Sample → Annotation → Model domain model) before making backend/API changes
 
-- **Version:** 0.3.1
-- **Python:** >=3.10, <3.14 (CI runs on 3.11)
-- **Node:** 20+ (CI also validates on 22.19.0 for builds)
-- **Repo:** <https://github.com/ukaea/toktagger>
+## How to run
 
-## Directory layout
+```sh
+uv sync --all-extras          # backend deps; drop --all-extras to skip the optional ray/torch [models] extra
+toktagger --reload --no-browser
 
-```
-toktagger/
-├── toktagger/                # Python package (doubly-named — the outer is the workspace root, inner is the package)
-│   ├── api/                  # FastAPI backend
-│   │   ├── auth/             # JWT auth, token creation, first-run admin bootstrap
-│   │   ├── core/             # Data loaders, annotators registry, data pool, query strategy, views
-│   │   ├── crud/             # MongoDB / Mongita database operations
-│   │   ├── models/           # (not present — ML model definitions live in tests/models_definitions.py)
-│   │   ├── routers/          # FastAPI route handlers (annotations, annotators, auth, data, meta, models, projects, samples, users)
-│   │   ├── schemas/          # Pydantic request/response models
-│   │   ├── static/           # Built frontend output (Vite build target)
-│   │   ├── asgi.py           # ASGI app entry
-│   │   ├── cli.py            # CLI entry point (`toktagger` command)
-│   │   ├── config.py         # Pydantic-settings config hierarchy (Settings, Server, Database, Auth, UDA, SAL, Models)
-│   │   ├── main.py           # Server class
-│   │   ├── run.py            # Startup / lifespan logic
-│   │   └── worker.py         # Ray actor worker for ML model inference
-│   └── ui/                   # React + Next.js frontend
-│       ├── src/
-│       │   ├── app/           # Next.js App Router (pages, layouts, contexts, components)
-│       │   │   ├── components/annotators/  # Annotator UI widgets (changepoints, jump, outliers, peaks, thresholding)
-│       │   │   ├── components/tools/       # Annotation tools (toolbar, export, import, time region, time point)
-│       │   │   ├── components/ui/          # Shared UI (annotations table, numerical range, schema form)
-│       │   │   ├── contexts/               # React contexts (API schema, auth, health, nav adapter, sample, sample history, time series)
-│       │   │   ├── pages/                    # Auth pages (login, profile, 404, admin/users)
-│       │   │   ├── projects/                 # Project CRUD pages
-│       │   │   ├── spectrogram/              # Spectrogram annotation page
-│       │   │   ├── time_series/              # Time series annotation page
-│       │   │   └── video/                    # Video annotation page (Annotorious + OpenSeadragon)
-│       │   ├── types.ts
-│       │   └── schemaParser.tsx
-│       ├── public/
-│       ├── vite.config.js          # Vite config → builds into api/static/
-│       ├── eslint.config.mjs       # ESLint flat config (TypeScript, React, JSX-a11y)
-│       ├── tailwind.config.ts      # Tailwind CSS config
-│       └── tsconfig.json           # Next.js-compatible TS config
-├── tests/                      # All tests live at workspace root
-│   ├── conftest.py             # Shared fixtures (db_client, api_client, setup_db, start_server, admin_token)
-│   ├── api/                    # Unit tests (mirrors api/ structure)
-│   │   ├── auth/
-│   │   ├── core/
-│   │   ├── crud/
-│   │   └── routers/
-│   ├── end_to_end/             # E2E tests against a live server process
-│   ├── db_definitions.py       # Test fixture data
-│   ├── endpoints.py            # Test helper endpoints
-│   └── models_fixtures.py      # Ray / ML model fixtures
-├── docs/                       # MkDocs / Zensical docs
-├── scripts/                    # Build scripts (generate_example_config.py)
-├── pyproject.toml              # Python project metadata, deps, tool config
-├── api.dockerfile              # Docker image for API container
-├── docker-compose.yml          # Production stack (mongo + mongo-express + api)
-├── docker-compose.dev.yml      # Dev stack (adds ui container)
-├── toktagger.example.toml      # Example TOML config (auto-generated by build)
-├── .pre-commit-config.yaml     # pre-commit hooks (ruff, check_pdb)
-├── CHANGELOG.md                # Version history (SemVer)
-└── CONTRIBUTING.md
-```
-
-## Commands
-
-### Python (API)
-
-```bash
-# Install deps (all, including optional models)
-uv sync --all-extras
-
-# Install deps (labelling only, no ML models)
-uv sync
-
-# Lint + format check
-uv run ruff check toktagger tests --ignore=C901
-uv run ruff format --check toktagger tests
-
-# Lint + auto-fix
-uv run ruff check toktagger tests --fix --exit-non-zero-on-fix --ignore=C901
-uv run ruff format toktagger tests
-
-# Run unit tests (no models)
-uv run --group dev pytest tests/api
-
-# Run unit tests (with models — requires Ray)
-uv run --all-extras pytest tests/api
-
-# Run E2E tests (launches live server, requires Playwright)
-uv run --group dev python -m playwright install --with-deps
-uv run --group dev pytest tests/end_to_end
-
-# With models + E2E
-uv run --all-extras pytest tests/end_to_end
-
-# Start dev server (auto-reload, single worker)
-toktagger --workers 1 --reload
-
-# Start production server
-toktagger --workers 4 --host 0.0.0.0 --port 8002 --no-browser
-
-# Or direct Gunicorn
-python -m gunicorn toktagger.api.asgi:app \
-    --worker-class uvicorn.workers.UvicornWorker \
-    --workers 4 \
-    --bind 0.0.0.0:8002
-```
-
-### Frontend (UI)
-
-```bash
-# Install Node deps
 npm --prefix toktagger/ui ci
+npm --prefix toktagger/ui run dev   # :5173 — expects the backend already running on :8002
+```
+Or `docker compose -f docker-compose.dev.yml up` for the full stack (API + UI + Mongo + Mongo Express).
 
-# Lint
-npm --prefix toktagger/ui exec npx eslint .
+## Build, lint, test
 
-# Format check
-npm --prefix toktagger/ui exec npx prettier --check .
-
-# Format fix
-npm --prefix toktagger/ui exec npx prettier --write .
-
-# Type check
+```sh
+uv run ruff check toktagger tests --ignore=C901 && uv run ruff format --check toktagger tests
+npm --prefix toktagger/ui exec npx eslint . && npm --prefix toktagger/ui exec npx prettier --check .
 npm --prefix toktagger/ui exec npx tsc --noEmit
 
-# Dev server (with docker-compose.dev.yml, port 5173)
-docker compose -f docker-compose.dev.yml up ui
-
-# Build → outputs to toktagger/api/static/
-npm --prefix toktagger/ui run build
+uv run --group dev pytest tests/api             # unit + API tests, models extra NOT installed
+uv run --all-extras pytest tests/api            # same tests, models extra installed
+uv run --group dev pytest tests/end_to_end      # Playwright e2e; run `playwright install --with-deps` once first
+npm --prefix toktagger/ui run build             # → toktagger/api/static/ (CI-generated, do not hand-edit)
 ```
+Prefer running a single test (`pytest path/to/test_file.py -k test_name`) over a whole suite while iterating. `pre-commit run --all-files` runs ruff plus a stray-`pdb` check and is enforced in CI.
 
-### Docker
+## Engineering conventions
 
-```bash
-# Dev (hot-reload UI + API + mongo)
-docker compose -f docker-compose.dev.yml up
+**Backend**
+- `ray`/`torch` are the optional `[models]` extra, never a base dependency. Guard imports with `models_dependencies_installed()`; keep `tests/conftest.py`/`tests/db_definitions.py` free of that import path — model-specific fixtures belong in `tests/models_fixtures.py`/`tests/models_definitions.py`.
+- Pydantic v2 style: `model_config = ConfigDict(...)`, not nested `class Config`. Modern generics (`dict[str, Any]`, `X | None`). Imports at module top level, never inside a function.
+- New config values extend `Settings` in `toktagger/api/config.py` as a nested `pydantic.BaseModel`, not ad hoc `os.environ` reads.
+- Data loaders / models / query strategies register via their `@Registry.register(...)` decorator (`core/data_loaders.py`, `models/base.py`) rather than special-casing a router.
 
-# Production
-docker compose up
+**Frontend**
+- React Spectrum components/style props over Tailwind or custom CSS; `UNSAFE_style` only once Spectrum props genuinely can't do it.
+- No `any`. Use `unknown` with a real type guard, or the type a library (Annotorious, Plotly) already exports.
+- Domain types are Zod schemas with the TS type derived via `z.infer` (`toktagger/ui/src/types.ts`); extend/union new variants the way existing ones are built.
+- View interaction state lives in a React Context provider — not `localStorage`, custom DOM events, or globals.
+- Route third-party library (Annotorious, Plotly) mutations through one function; use D3 for custom drawing/geometry layered on top rather than extending those libraries directly.
 
-# Override workers
-WORKERS=8 docker compose up
+**Both**: short one-line "why" comments, not multi-line comment blocks or docstrings. Don't loosen a type or a test assertion just to make something pass without first checking whether it's masking a real bug.
 
-# Stop
-docker compose down
-```
+## PR expectations & constraints
 
-### Docs
+- PRs need sign-off from two other developers before merging (`CONTRIBUTING.md`). Branch names are typically `<author-or-category>/<short-description>`, e.g. `wk9874/model_train_params`, `hotfix/arr_data_loader`.
+- Don't hand-edit `toktagger/api/static/*` or `toktagger.example.toml` — both are CI-generated build output committed back to the branch.
+- New third-party dependencies need a real reason; don't add a second library that duplicates one already in use.
+- CORS in `toktagger/api/main.py` only allows `http://localhost:5173` — the frontend dev server must run on that exact port for local API calls to succeed.
 
-```bash
-# Build docs site (requires Zensical)
-pip install zensical
-zensical build
+## Definition of done
 
-# Serve docs locally
-zensical serve
-```
+Ruff/ESLint/Prettier clean, `tsc --noEmit` clean, the relevant pytest suite(s) pass (include `tests/end_to_end` if UI behavior changed), and `docs/` is updated if the change affects a documented endpoint, config option, or UI workflow.
 
-### Versioning
+## Code Review Rules
 
-```bash
-# Bump version (uses bump-my-version)
-bumpversion patch    # or minor / major
-```
+### Optional ML dependency boundary
+- Do not add `ray` or `torch` (or anything importing them unguarded) as a base dependency in `pyproject.toml`, or import them at module level outside a `models_dependencies_installed()` check.
+  Safe path: guard the import, and put new model-specific test fixtures in `tests/models_fixtures.py`/`tests/models_definitions.py`, not `conftest.py`.
 
-## Pre-commit
+### Frontend state management
+- Do not introduce `localStorage`, custom DOM `CustomEvent`s, or global/window variables to synchronize UI state across components.
+  Safe path: use a React Context provider co-located with the view that owns the state.
 
-Pre-commit is configured and enforced in CI. Always run it locally:
+### Frontend styling
+- Do not add Tailwind classes or hand-written CSS to a component built from React Spectrum.
+  Safe path: use Spectrum's layout/style props first; fall back to `UNSAFE_style` only if Spectrum genuinely can't express it.
 
-```bash
-pre-commit run --all-files
-```
+### TypeScript typing
+- Do not use `any`, and do not add a type assertion/cast to silence a type error.
+  Safe path: use `unknown` with an explicit type guard, or the type the library already exports; fix the underlying mismatch instead of casting past it.
 
-Hooks:
-1. **ruff** — linter + auto-fix (ignores C901 complexity)
-2. **ruff-format** — code formatting
-3. **check_pdb_hook** — ensures no leftover `pdb` breakpoints
-
-## Testing conventions
-
-- All tests use `asyncio_mode = "auto"` (pytest-asyncio).
-- **Unit tests** hit an in-memory or temporary MongoDB via `mongita` (fixture: `db_client`).
-- **E2E tests** spin up a real Gunicorn/Uvicorn server process (fixture: `start_server`) and hit HTTP endpoints.
-- Shared fixtures live in `tests/conftest.py`:
-  - `settings` — session-scoped config with temp dirs
-  - `db_client` — function-scoped MongoDB client, auto-cleans collections
-  - `api_client` — function-scoped httpx AsyncClient with admin auth
-  - `setup_db` / `setup_db_small` — seed projects, samples, annotations
-  - `start_server` — package-scoped live server process
-  - `admin_token` — package-scoped auth token via login
-- **Model tests**: When Ray is not installed, tests using ML fixtures are skipped unless decorated with `@pytest.mark.models_enabled`. Conversely, tests requiring models are skipped without the marker when models are installed.
-
-## Backend architecture notes
-
-- **Config**: `toktagger/api/config.py` uses Pydantic Settings. Loading order: `__init__` kwargs > env vars (with `_` nested delimiter) > TOML file (`toktagger.toml`) > `.env` file.
-- **Auth**: JWT via `itsdangerous`. Admin user bootstrapped on first run (`auth/first_run.py`). Tokens created in `auth/core.py`.
-- **Database**: MongoDB (production) or Mongita (local/fallback). CRUD ops in `crud/db.py`. Collections: `projects`, `samples`, `annotations`, `models`, `users`, `project_members`.
-- **Data loaders**: Registered in `core/data_loaders.py`. Supports UDA (MAST-U/MAST) and SAL (JET) backends. Custom loaders can be added.
-- **ML models**: Optional, powered by Ray (actor pool). Workers in `worker.py`. Config in `toktagger.example.toml` under `[models]`.
-- **CLI**: Entry point `toktagger/api/cli.py`. Supports `--workers`, `--host`, `--port`, `--no-browser`, `--reload`.
-
-## Frontend architecture notes
-
-- **Framework**: Next.js 14+ (App Router), React 18, TypeScript, Vite dev server.
-- **Styling**: Tailwind CSS.
-- **UI kits**: @adobe/react-spectrum, @annotorious/react + @annotorious/openseadragon (video), plotly.js (charts).
-- **State**: Custom React contexts for API, auth, health, sample, sample history, and time series.
-- **Build output**: Vite builds into `toktagger/api/static/`, served by the FastAPI app.
-- **Routes** (App Router):
-  - `/` — project list
-  - `/projects/[project_id]` — project view
-  - `/projects/[project_id]/samples/[sample_id]` — sample annotation
-  - `/spectrogram` — spectrogram viewer
-  - `/time_series` — time series viewer
-  - `/video` — video annotation
-  - `/login`, `/profile`, `/admin/users` — auth/admin
-
-## CI / CD (GitHub Actions)
-
-Three workflows:
-
-1. **CI** (`.github/workflows/ci.yml`):
-   - `lint` — Ruff check + format check on `toktagger/` and `tests/`
-   - `eslint` — ESLint on `toktagger/ui/`
-   - `prettier` — Prettier check on `toktagger/ui/`
-   - `test_models_disabled` — pytest + E2E without Ray
-   - `test_models_enabled` — pytest + E2E with `--all-extras`
-   - `build` — full frontend build + `uv build` + auto-commits built assets to branch
-
-2. **Deploy Docs** (`.github/workflows/deploy_docs.yml`):
-   - Builds Zensical site, deploys to GitHub Pages on push to `main`.
-
-3. **Publish** (`.github/workflows/publish.yml`):
-   - Triggered by `v*` tags. Builds sdist + wheel, publishes to TestPyPI then PyPI, creates GitHub Release with changelog notes.
-
-## Configuration
-
-- TOML config at `toktagger.toml` (see `toktagger.example.toml` for all options).
-- Key sections: `[auth]`, `[database]`, `[models]`, `[server]`, `[uda]`, `[sal]`.
-- Environment variables override TOML. Key vars: `MONGO_URL`, `UDA_HOST`, `SAL_HOST`, `SERVER_*`, `MODEL_STORAGE`.
-
-## Key conventions
-
-- Python packages use **ruff** for linting and formatting (not black/flake8).
-- JS/TS uses **ESLint + Prettier** (flat config).
-- Frontend paths use `@/` alias pointing to `toktagger/ui/src/`.
-- Frontend builds overwrite `toktagger/api/static/` — committed as part of CI.
-- The `toktagger.example.toml` is auto-regenerated during the CI build step (`scripts/generate_example_config.py`).
-- Tests share a common `conftest.py` with session/function/package-scoped fixtures.
-- When modifying API routers or schemas, check that matching frontend contexts/components are updated.
+### Test integrity
+- Do not loosen a test assertion (a wider exception type, a relaxed condition) purely to make a failing test pass.
+  Safe path: confirm the original assertion isn't catching a real regression before relaxing it; ask if uncertain rather than loosening silently.

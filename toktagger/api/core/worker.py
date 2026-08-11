@@ -22,7 +22,6 @@ from toktagger.api.core.sender import (
     send_model_updates,
 )
 import logging
-from platformdirs import user_cache_dir
 import shutil
 import pydantic
 from mlflow import MlflowClient, MlflowException
@@ -33,14 +32,13 @@ import requests
 logger = logging.getLogger("ray")
 logger.setLevel("DEBUG")
 
-models_dir_default = pathlib.Path(user_cache_dir("toktagger", "ukaea")).joinpath(
-    "models"
-)
-models_dir_default.mkdir(parents=True, exist_ok=True)
-
-# Set model storage to default path if not already set
+# Create model storage directory if it doesn't already exist
 # Note that we still use env vars here since this is inside a worker node...
-os.environ["MODEL_STORAGE"] = os.environ.get("MODEL_STORAGE", str(models_dir_default))
+if not (models_dir := os.environ.get("MODEL_STORAGE")):
+    raise ValueError("Model storage directory not provided to worker node.")
+
+models_dir = pathlib.Path(models_dir)
+models_dir.mkdir(parents=True, exist_ok=True)
 
 
 def get_actor(project: Project, model: Model, use_gpu: bool):

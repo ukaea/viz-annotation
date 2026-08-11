@@ -34,7 +34,6 @@ logger = logging.getLogger(__name__)
 
 YoloModelName = Literal[
     "yolov8n.pt",
-    "yolo11n.pt",
     "yolo26n.pt",
     "yolo26m.pt",
     "yolo26l.pt",
@@ -449,7 +448,7 @@ class YoloVideoDetectionP2Model(YoloVideoDetectionModel):
 
     def get_training_model(
         self,
-        params: pydantic.BaseModel,
+        params: YoloTrainParams,
     ) -> str:
         """Build the P2 architecture matching the selected checkpoint scale."""
         checkpoint_stem = Path(params.yolo_size).stem
@@ -457,7 +456,7 @@ class YoloVideoDetectionP2Model(YoloVideoDetectionModel):
 
     def get_pretrained_weights(
         self,
-        params: pydantic.BaseModel,
+        params: YoloTrainParams,
     ) -> str:
         """Resolve weights used to initialise compatible P2 layers."""
         return str(check_pretrained_model_availability(params.yolo_size))

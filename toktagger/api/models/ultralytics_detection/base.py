@@ -353,7 +353,7 @@ class BaseUltralyticsDetection(Model):
 
     def get_training_model(
         self,
-        params: YoloTrainParams | None,
+        params: YoloTrainParams,
     ) -> str:
         """Resolve the model selected through the training form."""
         return str(check_pretrained_model_availability(params.yolo_size))

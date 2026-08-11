@@ -154,7 +154,12 @@ export function ModelTrainModal({
 
     const fetchModels = async () => {
       const response = await getModels(project._id!);
-      if (!response.ok) return;
+      if (!response.ok) {
+        const errorMessage = await response.json();
+        setMessage(errorMessage.detail);
+        setMessageIcon(<Alert aria-label="Failed" color="negative" size="S" />);
+        return;
+      }
       const data = (await response.json()) as Model[];
       setModels(data);
 

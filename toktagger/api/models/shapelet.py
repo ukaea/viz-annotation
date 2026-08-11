@@ -9,8 +9,10 @@ from sklearn.metrics import balanced_accuracy_score
 from toktagger.api.models.base import Model, ModelRegistry
 from toktagger.api.models.event_detection_utils import (
     compute_window_size,
+    load_aligned_signals,
     merge_detections,
     non_max_suppression,
+    select_training_label,
     zscore,
 )
 from toktagger.api.schemas.annotations import Annotation, AnnotationBase
@@ -47,6 +49,14 @@ class ShapeletTrainParams(pydantic.BaseModel):
         default=100,
         gt=0,
         description="Batch size for shapelet fitting",
+    )
+    event_label: str | None = pydantic.Field(
+        default=None,
+        description=(
+            "Annotation label to train the binary classifier on. Required if "
+            "annotations use more than one distinct label, since this model "
+            "only supports a single event label vs. background."
+        ),
     )
 
 
@@ -103,13 +113,14 @@ class ShapeletTransformModel(Model):
                 logger.warning(f"Signals {missing} not found in sample {sample.id}.")
                 continue
 
-            ta = np.array(data.values[params.signal_names[0]].time)
-            va = np.array(
+            ta, va = load_aligned_signals(
                 [
-                    np.array(data.values[n].values, dtype=float)
+                    (data.values[n].time, data.values[n].values)
                     for n in params.signal_names
                 ]
-            )  # (n_channels, n_samples)
+            )
+            if va.ndim == 1:
+                va = va[np.newaxis, :]  # (n_channels, n_samples)
 
             for ann in anns:
                 ann_time_pairs.append((ann, ta))
@@ -123,17 +134,7 @@ class ShapeletTransformModel(Model):
         window_size = compute_window_size(ann_time_pairs)
         logger.info(f"ShapeletTransform: inferred window_size={window_size}")
 
-        all_labels_list = [
-            ann.label
-            for _, _, anns in sample_data
-            for ann in anns
-            if hasattr(ann, "time_min")
-        ]
-        pos_label = (
-            max(set(all_labels_list), key=all_labels_list.count)
-            if all_labels_list
-            else "Event"
-        )
+        pos_label = select_training_label(sample_data, params.event_label)
 
         windows: list[np.ndarray] = []
         labels: list[int] = []
@@ -149,6 +150,9 @@ class ShapeletTransformModel(Model):
                 start_idx = int(np.searchsorted(ta, ann.time_min))
                 end_idx = int(np.searchsorted(ta, ann.time_max))
                 ann_ranges.append((start_idx, end_idx))
+
+                if ann.label != pos_label:
+                    continue
 
                 mid = (start_idx + end_idx) // 2
                 half = window_size // 2
@@ -225,11 +229,11 @@ class ShapeletTransformModel(Model):
                 results.append([])
                 continue
 
-            time_series = [data.values[n] for n in signal_names]
-            time_array = np.array(time_series[0].time)
-            signal_vals = np.array(
-                [np.array(ts.values, dtype=float) for ts in time_series]
-            )  # (n_channels, n_samples)
+            time_array, signal_vals = load_aligned_signals(
+                [(data.values[n].time, data.values[n].values) for n in signal_names]
+            )
+            if signal_vals.ndim == 1:
+                signal_vals = signal_vals[np.newaxis, :]  # (n_channels, n_samples)
 
             detections = non_max_suppression(
                 self._classify_windows(signal_vals, time_array, step_size)

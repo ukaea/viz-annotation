@@ -15,7 +15,7 @@ import toktagger.api.config as config
 import importlib
 import pathlib
 
-MODELS_ENABLED = importlib.util.find_spec("dtaidistance") is not None
+MODELS_ENABLED = importlib.util.find_spec("ray") is not None
 
 
 @pytest.fixture(autouse=True)

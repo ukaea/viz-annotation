@@ -5,6 +5,7 @@ from toktagger.api.schemas.data import DataParamTypes
 from toktagger.api.core.data_loaders import DataLoader
 from sklearn.model_selection import train_test_split
 from abc import ABC, abstractmethod
+import inspect
 import typing
 import math
 from toktagger.api.core.sender import send_model_updates
@@ -14,9 +15,12 @@ import uuid
 from collections import OrderedDict
 import logging
 
-import ray
+from toktagger.api.models import models_dependencies_installed
 
 logger = logging.getLogger("ray")
+
+if models_dependencies_installed():
+    import ray
 
 
 # Recursively walk through schema, finding things which need to be changed
@@ -279,21 +283,6 @@ class ModelRegistry:
         )
 
     @classmethod
-    def class_refs(cls) -> dict[str, tuple[str, str]]:
-        """Return the registry as (module_name, class_name) string pairs.
-
-        Used when passing the registry to Ray workers: sending class objects
-        directly triggers cloudpickle deserialization in the worker, which
-        imports the module — and some models import heavy optional dependencies
-        (e.g. torch) that are not present in the worker's isolated venv.
-        String refs defer the import to the moment the class is actually needed.
-        """
-        return {
-            name: (model_class.__module__, model_class.__name__)
-            for name, model_class in cls._registry.items()
-        }
-
-    @classmethod
     def names(cls, task: Task | None = None) -> list[str]:
         if not task:
             return list(cls._registry.keys())
@@ -327,8 +316,6 @@ class ModelRegistry:
 
     @classmethod
     def get_description(cls, name: str) -> str | None:
-        import inspect
-
         model_class = cls._registry.get(name)
         return inspect.getdoc(model_class) if model_class else None
 
@@ -374,25 +361,12 @@ class ModelRegistry:
 @ray.remote(num_cpus=0.1)
 class WorkerRegistry:
     def __init__(self, registry):
-        # registry is either:
-        #   {name: class}               — for loader registries (no heavy deps)
-        #   {name: (module, classname)} — for model registries (lazy import avoids
-        #                                 importing optional deps like torch on init)
         self._registry = registry
 
     def get(self, name):
         registered = self._registry.get(name)
-        if registered is None:
+        if not registered:
             raise ValueError(f"No class called '{name}' found in registry!")
-        if (
-            isinstance(registered, tuple)
-            and len(registered) == 2
-            and isinstance(registered[0], str)
-        ):
-            import importlib
-
-            module = importlib.import_module(registered[0])
-            return getattr(module, registered[1])
         return registered
 
 

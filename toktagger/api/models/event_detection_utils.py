@@ -59,6 +59,74 @@ def zscore(arr: np.ndarray) -> np.ndarray:
     return (arr - np.mean(arr)) / (std + 1e-8)
 
 
+def load_aligned_signals(
+    signal_data: list[tuple[np.ndarray, np.ndarray]],
+) -> tuple[np.ndarray, np.ndarray]:
+    """Align one or more signals onto a common time grid.
+
+    Parameters
+    ----------
+    signal_data : list of (time_array, values) pairs, one per channel.
+
+    Returns
+    -------
+    (time_array, values) where values is 1D if a single channel was given,
+    otherwise a 2D array of shape (n_channels, n_samples). When multiple
+    channels are given, every channel is linearly resampled onto the time
+    grid of the densest (most-sampled) input signal, so channels recorded
+    at different sampling rates can still be combined.
+    """
+    if len(signal_data) == 1:
+        ta, va = signal_data[0]
+        return np.asarray(ta, dtype=float), np.asarray(va, dtype=float)
+
+    ref_idx = max(range(len(signal_data)), key=lambda i: len(signal_data[i][0]))
+    ref_time = np.asarray(signal_data[ref_idx][0], dtype=float)
+
+    aligned = []
+    for ta, va in signal_data:
+        ta = np.asarray(ta, dtype=float)
+        va = np.asarray(va, dtype=float)
+        if ta.shape == ref_time.shape and np.array_equal(ta, ref_time):
+            aligned.append(va)
+        else:
+            aligned.append(np.interp(ref_time, ta, va))
+    return ref_time, np.array(aligned)
+
+
+def select_training_label(
+    sample_data: list[tuple[np.ndarray, np.ndarray, list]],
+    event_label: str | None,
+) -> str:
+    """Determine which annotation label to train a binary classifier on.
+
+    Models using this helper train a single binary classifier (event vs.
+    background), so exactly one annotation label must be selected. If
+    `event_label` is given it is returned as-is (callers are expected to
+    filter annotations to that label). Otherwise, the label is inferred
+    only if all annotations share the same label; if annotations use more
+    than one distinct label, a ValueError is raised rather than silently
+    collapsing them into a single positive class.
+    """
+    all_labels = {
+        ann.label
+        for _, _, anns in sample_data
+        for ann in anns
+        if hasattr(ann, "time_min")
+    }
+    if event_label is not None:
+        return event_label
+    if len(all_labels) > 1:
+        raise ValueError(
+            f"Multiple annotation labels found {sorted(all_labels)}, but this "
+            "model trains a single binary classifier. Set `event_label` to "
+            "choose which label to train on."
+        )
+    if not all_labels:
+        return "Event"
+    return next(iter(all_labels))
+
+
 def non_max_suppression(
     detections: list[TimeRegion], iou_threshold: float = 0.5
 ) -> list[TimeRegion]:
@@ -115,7 +183,7 @@ def merge_detections(
     start = end = positions[0]
 
     for pos in positions[1:]:
-        if pos <= end + 1:
+        if pos <= end + window_size:
             end = max(end, pos)
         else:
             regions.append((start, end))

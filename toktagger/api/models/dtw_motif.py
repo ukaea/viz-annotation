@@ -7,6 +7,7 @@ import pydantic
 from toktagger.api.models.base import Model, ModelRegistry
 from toktagger.api.models.event_detection_utils import (
     extract_segment,
+    load_aligned_signals,
     merge_detections,
     non_max_suppression,
     zscore,
@@ -96,16 +97,12 @@ class DTWMotifModel(Model):
                 logger.warning(f"Signals {missing} not found in sample {sample.id}.")
                 continue
 
-            ta = np.array(data.values[params.signal_names[0]].time)
-            if len(params.signal_names) == 1:
-                va = np.array(data.values[params.signal_names[0]].values, dtype=float)
-            else:
-                va = np.array(
-                    [
-                        np.array(data.values[n].values, dtype=float)
-                        for n in params.signal_names
-                    ]
-                )  # (n_channels, n_samples)
+            ta, va = load_aligned_signals(
+                [
+                    (data.values[n].time, data.values[n].values)
+                    for n in params.signal_names
+                ]
+            )
 
             for ann in anns:
                 ann_time_pairs.append((ann, ta))
@@ -166,7 +163,6 @@ class DTWMotifModel(Model):
     ) -> list[list[AnnotationBase]]:
         step_size = params.step_size
         signal_names: list[str] = self.model["signal_names"]
-        multivariate = len(signal_names) > 1
         results: list[list[AnnotationBase]] = []
 
         for sample in samples:
@@ -177,15 +173,9 @@ class DTWMotifModel(Model):
                 results.append([])
                 continue
 
-            time_series = [data.values[n] for n in signal_names]
-            time_array = np.array(time_series[0].time)
-
-            if multivariate:
-                signal_vals = np.array(
-                    [np.array(ts.values, dtype=float) for ts in time_series]
-                )
-            else:
-                signal_vals = np.array(time_series[0].values, dtype=float)
+            time_array, signal_vals = load_aligned_signals(
+                [(data.values[n].time, data.values[n].values) for n in signal_names]
+            )
 
             detections = non_max_suppression(
                 self._detect(signal_vals, time_array, step_size)

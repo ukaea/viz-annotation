@@ -13,6 +13,7 @@ from pydantic import ValidationError
 from toktagger.api.schemas.models import (
     Model,
     ModelUpdate,
+    LocalLoadParams,
     GitlabLoadParams,
     HuggingfaceLoadParams,
 )
@@ -24,21 +25,11 @@ from toktagger.api.core.sender import (
 import logging
 import shutil
 import pydantic
-from mlflow import MlflowClient, MlflowException
-from huggingface_hub import hf_hub_download
 from safetensors import safe_open
-import requests
+from toktagger.api.models.loaders import LocalLoader, GitlabLoader, HuggingfaceLoader
 
 logger = logging.getLogger("ray")
 logger.setLevel("DEBUG")
-
-# Create model storage directory if it doesn't already exist
-# Note that we still use env vars here since this is inside a worker node...
-if not (models_dir := os.environ.get("MODEL_STORAGE")):
-    raise ValueError("Model storage directory not provided to worker node.")
-
-models_dir = pathlib.Path(models_dir)
-models_dir.mkdir(parents=True, exist_ok=True)
 
 
 def get_actor(project: Project, model: Model, use_gpu: bool):
@@ -114,316 +105,35 @@ def check_safetensor(
 def load_model_local(
     model: Model, project: Project, weights_path: pathlib.Path
 ) -> dict[str : str | None]:
-    # Change status to started
-    send_model_updates(
-        project_id=project.id,
-        model_id=model.id,
-        updates=ModelUpdate(training_status="started"),
-    )
-
-    # Check worker can see weights file
-    if not weights_path.exists():
-        send_model_updates(
-            project_id=project.id,
-            model_id=model.id,
-            updates=ModelUpdate(training_status="failed"),
-        )
-        return {
-            "project_id": project.id,
-            "model_id": model.id,
-            "message": f"Worker node cannot find weights file at location {weights_path}",
-        }
-    # Check if this file is a safetensor, if required
-    unsafe = check_safetensor(weights_path, project.id, model.id)
-    if unsafe:
-        return unsafe
-
     model_actor = get_actor(project=project, model=model, use_gpu=False)
-    # Try loading actor with weights file, catch and reraise any errors
-    try:
-        load_temp_weights_task = model_actor.wrapped_load.remote(
-            results_dir=weights_path.parent, weights_filename=weights_path.name
-        )
-        ray.get(load_temp_weights_task)
-    except Exception as e:
-        logger.error(e)
-        send_model_updates(
-            project_id=project.id,
-            model_id=model.id,
-            updates=ModelUpdate(training_status="failed"),
-        )
-        return {
-            "project_id": project.id,
-            "model_id": model.id,
-            "message": str(e),
-        }
-
-    # Save the model with the correct dir path
-    results_dir = pathlib.Path(os.environ["MODEL_STORAGE"]).joinpath(str(model.id))
-
-    save_weights_task = model_actor.wrapped_save.remote(results_dir)
-    ray.get(save_weights_task)
-
-    send_model_updates(
-        project_id=project.id,
-        model_id=model.id,
-        updates=ModelUpdate(training_status="completed", progress=100),
+    # TODO make LocalLoadParams come from endpoint
+    loader = LocalLoader(
+        project=project,
+        model=model,
+        model_actor=model_actor,
+        params=LocalLoadParams(weights_path=str(weights_path)),
     )
-
-    return {"project_id": project.id, "model_id": model.id, "message": None}
+    return loader.load()
 
 
 def load_model_gitlab(
     model: Model, project: Project, params: GitlabLoadParams
 ) -> tuple[str, str | None]:
-    # Make sure model storage location in cache dir exists
-    model_dir = pathlib.Path(os.environ["MODEL_STORAGE"])
-    model_dir.mkdir(exist_ok=True)
-
-    # Change status to started
-    send_model_updates(
-        project_id=project.id,
-        model_id=model.id,
-        updates=ModelUpdate(training_status="started"),
-    )
-
     model_actor = get_actor(project=project, model=model, use_gpu=False)
-
-    # Construct URI required
-    if not all(
-        (
-            os.environ.get("MODELS_GITLAB_URL"),
-            os.environ.get("MODELS_GITLAB_TOKEN"),
-            params.gitlab_project_id,
-        )
-    ):
-        logger.error(
-            "Gitlab URL, Token or Project ID not specified when trying to load ML model!"
-        )
-        send_model_updates(
-            project_id=project.id,
-            model_id=model.id,
-            updates=ModelUpdate(training_status="failed"),
-        )
-        return {
-            "project_id": project.id,
-            "model_id": model.id,
-            "message": "required variables not defined.",
-        }
-    os.environ["MLFLOW_TRACKING_URI"] = (
-        f"{os.environ.get('MODELS_GITLAB_URL')}/api/v4/projects/{params.gitlab_project_id}/ml/mlflow"
+    loader = GitlabLoader(
+        project=project, model=model, model_actor=model_actor, params=params
     )
-    os.environ["MLFLOW_TRACKING_TOKEN"] = os.environ.get("MODELS_GITLAB_TOKEN")
-
-    # Pull object from ML Model registry
-    client = MlflowClient()
-    if params.model_version:
-        try:
-            mlflow_model = client.get_model_version(
-                params.model_name, params.model_version
-            )
-        except MlflowException as e:
-            logger.debug(e)
-            mlflow_model = None
-    else:
-        mlflow_model = max(
-            client.get_latest_versions(params.model_name),
-            key=lambda mv: int(mv.version),
-            default=None,
-        )
-
-    if not mlflow_model:
-        logger.error("Requested version of selected model could not be found!")
-        send_model_updates(
-            project_id=project.id,
-            model_id=model.id,
-            updates=ModelUpdate(training_status="failed"),
-        )
-        return {
-            "project_id": project.id,
-            "model_id": model.id,
-            "message": "requested version of selected model could not be found!",
-        }
-
-    # Download artifacts
-    # Note that it seems like download_artifacts and list_artifacts methods are broken
-    # https://gitlab.com/gitlab-org/gitlab/-/work_items/591960
-    # Will perform a workaround by downloading directly from API
-    download_path = model_dir.joinpath(pathlib.Path(params.weights_path).name)
-    try:
-        with requests.get(
-            f"{os.environ.get('MODELS_GITLAB_URL')}/api/v4/projects/{params.gitlab_project_id}/packages/ml_models/{mlflow_model.version}/files/{params.weights_path}",
-            headers={"Authorization": f"Bearer {os.environ['MLFLOW_TRACKING_TOKEN']}"},
-            stream=True,
-            timeout=600,
-        ) as response:
-            response.raise_for_status()
-            with download_path.open("wb") as file:
-                for chunk in response.iter_content(chunk_size=1024 * 1024):
-                    if chunk:
-                        file.write(chunk)
-
-    except requests.exceptions.HTTPError:
-        if response.status_code == 404:
-            err_msg = "could not find model weights at provided file location!"
-        elif response.status_code == 403:
-            err_msg = "Gitlab token does not have the correct permissions to access this model!"
-        else:
-            err_msg = "server error from Gitlab!"
-
-        logger.error(f"Failed to load weights - {err_msg}")
-        send_model_updates(
-            project_id=project.id,
-            model_id=model.id,
-            updates=ModelUpdate(training_status="failed"),
-        )
-        return {
-            "project_id": project.id,
-            "model_id": model.id,
-            "message": err_msg,
-        }
-
-    except requests.exceptions.Timeout:
-        download_path.unlink(missing_ok=True)
-        logger.error("Failed to load weights - download timed out!")
-        send_model_updates(
-            project_id=project.id,
-            model_id=model.id,
-            updates=ModelUpdate(training_status="failed"),
-        )
-        return {
-            "project_id": project.id,
-            "model_id": model.id,
-            "message": "download timed out!",
-        }
-
-    # Check if this file is a safetensor, if required
-    unsafe = check_safetensor(download_path, project.id, model.id)
-    if unsafe:
-        # Delete downloaded file
-        download_path.unlink()
-        return unsafe
-
-    # Try loading actor with weights file, catch and reraise any errors
-    try:
-        load_temp_weights_task = model_actor.wrapped_load.remote(
-            results_dir=download_path.parent, weights_filename=download_path.name
-        )
-        ray.get(load_temp_weights_task)
-    except Exception as e:
-        download_path.unlink()
-        logger.error(e)
-        send_model_updates(
-            project_id=project.id,
-            model_id=model.id,
-            updates=ModelUpdate(training_status="failed"),
-        )
-        return {
-            "project_id": project.id,
-            "model_id": model.id,
-            "message": str(e),
-        }
-
-    # Save the model with the correct dir path
-    results_dir = pathlib.Path(os.environ["MODEL_STORAGE"]).joinpath(str(model.id))
-
-    save_weights_task = model_actor.wrapped_save.remote(results_dir)
-    ray.get(save_weights_task)
-
-    download_path.unlink()
-
-    send_model_updates(
-        project_id=project.id,
-        model_id=model.id,
-        updates=ModelUpdate(training_status="completed", progress=100),
-    )
-
-    return {"project_id": project.id, "model_id": model.id, "message": None}
+    return loader.load()
 
 
 def load_model_huggingface(
     model: Model, project: Project, params: HuggingfaceLoadParams
 ) -> tuple[str, str | None]:
-    # Make sure model storage location in cache dir exists
-    model_dir = pathlib.Path(os.environ["MODEL_STORAGE"])
-    model_dir.mkdir(exist_ok=True)
-
-    # Change status to started
-    send_model_updates(
-        project_id=project.id,
-        model_id=model.id,
-        updates=ModelUpdate(training_status="started"),
-    )
-
     model_actor = get_actor(project=project, model=model, use_gpu=False)
-
-    # Pull object from Hugging Face
-    try:
-        weights_path = hf_hub_download(
-            repo_id=f"{params.huggingface_userspace}/{params.model_name}",
-            filename=params.weights_path,
-            revision=params.model_version,
-            local_dir=str(model_dir),
-        )
-    except Exception as e:
-        logger.error("Requested model could not be found!")
-        logger.error(e)
-        send_model_updates(
-            project_id=project.id,
-            model_id=model.id,
-            updates=ModelUpdate(training_status="failed"),
-        )
-        return {
-            "project_id": project.id,
-            "model_id": model.id,
-            "message": "requested model could not be found!",
-        }
-
-    download_path = pathlib.Path(weights_path)
-
-    # Check if this file is a safetensor, if required
-    unsafe = check_safetensor(download_path, project.id, model.id)
-    if unsafe:
-        # Delete downloaded file
-        download_path.unlink()
-        return unsafe
-
-    # Try loading actor with weights file, catch and reraise any errors
-    # Try loading actor with weights file, catch and reraise any errors
-    try:
-        load_temp_weights_task = model_actor.wrapped_load.remote(
-            results_dir=download_path.parent, weights_filename=download_path.name
-        )
-        ray.get(load_temp_weights_task)
-    except Exception as e:
-        download_path.unlink()
-        logger.error(e)
-        send_model_updates(
-            project_id=project.id,
-            model_id=model.id,
-            updates=ModelUpdate(training_status="failed"),
-        )
-        return {
-            "project_id": project.id,
-            "model_id": model.id,
-            "message": str(e),
-        }
-
-    # Save the model with the correct dir path
-    results_dir = pathlib.Path(os.environ["MODEL_STORAGE"]).joinpath(str(model.id))
-
-    save_weights_task = model_actor.wrapped_save.remote(results_dir)
-    ray.get(save_weights_task)
-
-    download_path.unlink()
-
-    send_model_updates(
-        project_id=project.id,
-        model_id=model.id,
-        updates=ModelUpdate(training_status="completed", progress=100),
+    loader = HuggingfaceLoader(
+        project=project, model=model, model_actor=model_actor, params=params
     )
-
-    return {"project_id": project.id, "model_id": model.id, "message": None}
+    return loader.load()
 
 
 def train_model(
@@ -435,7 +145,12 @@ def train_model(
     use_gpu: bool = False,
 ):  # TODO: do we want to support retraining where we only get annotations not previously put into model?
     model_actor = get_actor(project=project, model=model, use_gpu=use_gpu)
-    results_dir = pathlib.Path(os.environ["MODEL_STORAGE"]).joinpath(str(model.id))
+
+    if not (models_dir := os.environ.get("MODEL_STORAGE")):
+        raise ValueError("Model storage directory not provided to worker node.")
+    results_dir = pathlib.Path(models_dir).joinpath(str(model.id))
+    results_dir.mkdir(parents=True)
+
     try:
         logger.info(f"Running model training for project {project.id}")
         model_actor.log_progress.remote(training_status="started", progress=0)

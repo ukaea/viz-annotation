@@ -49,6 +49,10 @@ class LoadParams(pydantic.BaseModel):
     weights_path: str
 
 
+class LocalLoadParams(LoadParams):
+    pass
+
+
 class RemoteLoadParams(LoadParams):
     model_name: str
     model_version: str | None = None

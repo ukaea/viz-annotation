@@ -181,7 +181,7 @@ def test_check_safetensors(
 
 @patch("toktagger.api.core.worker.get_actor", mock_get_actor)
 @patch("ray.get", lambda val: val)
-@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch("toktagger.api.models.loaders.send_model_updates", mock_send_model_updates)
 @pytest.mark.models_enabled
 def test_local_load(temp_models_cache, setup_model):
     # Create tempfile
@@ -213,7 +213,7 @@ def test_local_load(temp_models_cache, setup_model):
 
 @patch("toktagger.api.core.worker.get_actor", mock_get_actor)
 @patch("ray.get", lambda val: val)
-@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch("toktagger.api.models.loaders.send_model_updates", mock_send_model_updates)
 @pytest.mark.models_enabled
 def test_local_load_missing_file(temp_models_cache, setup_model):
     # Try loading file which doesn't exist
@@ -225,7 +225,7 @@ def test_local_load_missing_file(temp_models_cache, setup_model):
 
     assert result["project_id"] == "test_project_id"
     assert result["model_id"] == setup_model.id
-    assert "Worker node cannot find weights file at location" in result["message"]
+    assert "Worker node cannot find file at" in result["message"]
 
     # Check model updated to failed
     assert UPDATES[-1]["model_id"] == setup_model.id
@@ -238,7 +238,7 @@ def test_local_load_missing_file(temp_models_cache, setup_model):
 
 @patch("toktagger.api.core.worker.get_actor", mock_get_actor)
 @patch("ray.get", lambda val: val)
-@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch("toktagger.api.models.loaders.send_model_updates", mock_send_model_updates)
 @pytest.mark.models_enabled
 def test_local_load_invalid_file(temp_models_cache, setup_model):
     # Create tempfile
@@ -267,7 +267,7 @@ def test_local_load_invalid_file(temp_models_cache, setup_model):
 
 @patch("toktagger.api.core.worker.get_actor", mock_get_actor)
 @patch("ray.get", lambda val: val)
-@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch("toktagger.api.models.loaders.send_model_updates", mock_send_model_updates)
 @patch(
     "toktagger.api.core.worker.MlflowClient.get_model_version",
     mock_mlflow_get_model_version,
@@ -317,7 +317,7 @@ def test_gitlab_load_version(temp_models_cache, setup_model, monkeypatch):
 
 @patch("toktagger.api.core.worker.get_actor", mock_get_actor)
 @patch("ray.get", lambda val: val)
-@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch("toktagger.api.models.loaders.send_model_updates", mock_send_model_updates)
 @patch(
     "toktagger.api.core.worker.MlflowClient.get_latest_versions",
     mock_mlflow_search_version,
@@ -366,7 +366,7 @@ def test_gitlab_load_no_version(temp_models_cache, setup_model, monkeypatch):
 
 @patch("toktagger.api.core.worker.get_actor", mock_get_actor)
 @patch("ray.get", lambda val: val)
-@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch("toktagger.api.models.loaders.send_model_updates", mock_send_model_updates)
 @patch(
     "toktagger.api.core.worker.MlflowClient.get_model_version",
     mock_mlflow_get_model_version,
@@ -402,7 +402,7 @@ def test_gitlab_load_invalid_version(temp_models_cache, setup_model, monkeypatch
 
 @patch("toktagger.api.core.worker.get_actor", mock_get_actor)
 @patch("ray.get", lambda val: val)
-@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch("toktagger.api.models.loaders.send_model_updates", mock_send_model_updates)
 @patch(
     "toktagger.api.core.worker.MlflowClient.get_latest_versions",
     mock_mlflow_search_version,
@@ -437,7 +437,7 @@ def test_gitlab_load_no_versions_found(temp_models_cache, setup_model, monkeypat
 
 @patch("toktagger.api.core.worker.get_actor", mock_get_actor)
 @patch("ray.get", lambda val: val)
-@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch("toktagger.api.models.loaders.send_model_updates", mock_send_model_updates)
 @patch(
     "toktagger.api.core.worker.MlflowClient.get_model_version",
     mock_mlflow_get_model_version,
@@ -476,7 +476,7 @@ def test_gitlab_load_invalid_file(temp_models_cache, setup_model, monkeypatch):
 
 @patch("toktagger.api.core.worker.get_actor", mock_get_actor)
 @patch("ray.get", lambda val: val)
-@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch("toktagger.api.models.loaders.send_model_updates", mock_send_model_updates)
 @patch(
     "toktagger.api.core.worker.MlflowClient.get_model_version",
     mock_mlflow_get_model_version,
@@ -494,14 +494,17 @@ def test_gitlab_load_missing_env_vars(temp_models_cache, setup_model, monkeypatc
 
     assert result["project_id"] == "test_project_id"
     assert result["model_id"] == setup_model.id
-    assert "required variables not defined." in result["message"]
+    assert (
+        "Gitlab URL, Token or Project ID not specified when trying to load ML model!"
+        in result["message"]
+    )
 
 
 @patch("toktagger.api.core.worker.get_actor", mock_get_actor)
 @patch("ray.get", lambda val: val)
-@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch("toktagger.api.models.loaders.send_model_updates", mock_send_model_updates)
 @patch(
-    "toktagger.api.core.worker.hf_hub_download",
+    "toktagger.api.models.loaders.hf_hub_download",
     mock_hf_hub_download,
 )
 @pytest.mark.models_enabled
@@ -541,9 +544,9 @@ def test_huggingface_load(temp_models_cache, setup_model, monkeypatch):
 
 @patch("toktagger.api.core.worker.get_actor", mock_get_actor)
 @patch("ray.get", lambda val: val)
-@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch("toktagger.api.models.loaders.send_model_updates", mock_send_model_updates)
 @patch(
-    "toktagger.api.core.worker.hf_hub_download",
+    "toktagger.api.models.loaders.hf_hub_download",
     mock_hf_hub_download,
 )
 @pytest.mark.models_enabled
@@ -571,9 +574,9 @@ def test_huggingface_load_missing(temp_models_cache, setup_model, monkeypatch):
 
 @patch("toktagger.api.core.worker.get_actor", mock_get_actor)
 @patch("ray.get", lambda val: val)
-@patch("toktagger.api.core.worker.send_model_updates", mock_send_model_updates)
+@patch("toktagger.api.models.loaders.send_model_updates", mock_send_model_updates)
 @patch(
-    "toktagger.api.core.worker.hf_hub_download",
+    "toktagger.api.models.loaders.hf_hub_download",
     mock_hf_hub_download,
 )
 @pytest.mark.models_enabled

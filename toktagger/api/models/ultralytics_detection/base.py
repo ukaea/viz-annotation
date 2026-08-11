@@ -18,7 +18,6 @@ from ultralytics.utils import LOGGER as ULTRALYTICS_LOGGER, RANK
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 
-from toktagger.api.schemas.projects import Project
 from toktagger.api.models.base import Model
 from toktagger.api.schemas.annotations import Annotation, AnnotationBase
 from toktagger.api.schemas.samples import Sample
@@ -414,7 +413,6 @@ class BaseUltralyticsDetection(Model):
         if pretrained_weights is not None:
             overrides["pretrained"] = pretrained_weights
         return overrides
-        
 
     def train(
         self,
@@ -455,7 +453,7 @@ class BaseUltralyticsDetection(Model):
             epochs=epochs,
             learning_rate=learning_rate,
             has_validation_data=validation_dataset is not None,
-            pretrained_weights=pretrained_weights, # for Yolo P2 Model
+            pretrained_weights=pretrained_weights,  # for Yolo P2 Model
         )
 
         # prevent download of a nano model for AMP check in pwd
@@ -515,9 +513,7 @@ class BaseUltralyticsDetection(Model):
         source_path = Path(self._trained_weights_path)
 
         if not source_path.is_file():
-            raise FileNotFoundError(
-                f"Could not find model weights at {source_path}"
-            )
+            raise FileNotFoundError(f"Could not find model weights at {source_path}")
 
         # ultralytics weights reside in the weights directory.
         weights_dir = results_dir.joinpath("weights")

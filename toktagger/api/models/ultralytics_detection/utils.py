@@ -119,9 +119,7 @@ def resolve_weights_path(
         weights_path = results_dir.joinpath(weights_filename)
 
         if not weights_path.is_file():
-            raise FileNotFoundError(
-                f"Could not find model weights at {weights_path}"
-            )
+            raise FileNotFoundError(f"Could not find model weights at {weights_path}")
 
         return weights_path
 
@@ -137,6 +135,7 @@ def resolve_weights_path(
     raise FileNotFoundError(
         f"Could not find best.pt or last.pt in {results_dir.joinpath('weights')}"
     )
+
 
 def prepare_ultralytics_amp_weights() -> None:
     """Prepare the checkpoint used by Ultralytics' CUDA AMP check.

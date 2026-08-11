@@ -9,7 +9,7 @@ from toktagger.api.schemas.models import (
     Model,
     ModelIn,
     ModelUpdate,
-    LoadParams,
+    LocalLoadParams,
     GitlabLoadParams,
     HuggingfaceLoadParams,
 )
@@ -321,7 +321,7 @@ async def start_model_training(
 
     task_registry.update_actors(model.id, use_gpu)
 
-    train_task = ray.remote(num_cpus=0.1)(train_model).remote(
+    train_task = train_model.remote(
         model=model,
         project=project,
         samples=samples,
@@ -401,7 +401,7 @@ async def stop_model_training(
 
 @router.post("/models/{model_type}/load/local")
 async def load_model_weights_local(
-    request: Request, project_id: str, model_type: str, params: LoadParams
+    request: Request, project_id: str, model_type: str, params: LocalLoadParams
 ):
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
@@ -422,9 +422,7 @@ async def load_model_weights_local(
     project = await utils.get_project(db_client, project_id)
     model = await create_model(db_client, project, model_type)
 
-    task = ray.remote(num_cpus=0.1)(load_model_local).remote(
-        project=project, model=model, weights_path=weights_path
-    )
+    task = load_model_local.remote(project=project, model=model, params=params)
     task_id = task_registry.register(task)
     task_registry.update_actors(model.id, use_gpu=False)
 
@@ -471,9 +469,7 @@ async def load_model_weights_gitlab(
     project = await utils.get_project(db_client, project_id)
     model = await create_model(db_client, project, model_type)
 
-    task = ray.remote(num_cpus=0.1)(load_model_gitlab).remote(
-        project=project, model=model, params=params
-    )
+    task = load_model_gitlab.remote(project=project, model=model, params=params)
 
     task_id = task_registry.register(task)
     task_registry.update_actors(model.id, use_gpu=False)
@@ -514,9 +510,7 @@ async def load_model_weights_hugging_face(
     project = await utils.get_project(db_client, project_id)
     model = await create_model(db_client, project, model_type)
 
-    task = ray.remote(num_cpus=0.1)(load_model_huggingface).remote(
-        project=project, model=model, params=params
-    )
+    task = load_model_huggingface.remote(project=project, model=model, params=params)
 
     task_id = task_registry.register(task)
     task_registry.update_actors(model.id, use_gpu=False)
@@ -685,7 +679,7 @@ async def predict(
 
     task_registry.update_actors(model.id, use_gpu)
 
-    predict_task = ray.remote(num_cpus=0.1)(get_predictions).remote(
+    predict_task = get_predictions.remote(
         project=project,
         model=model,
         samples=samples,
@@ -776,7 +770,7 @@ async def create_sample_predictions(
 
     task_registry.update_actors(model.id, use_gpu)
 
-    task = ray.remote(num_cpus=0.1)(get_predictions).remote(
+    task = get_predictions.remote(
         project=project,
         model=model,
         samples=[sample],

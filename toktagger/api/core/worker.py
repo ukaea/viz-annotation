@@ -25,7 +25,6 @@ from toktagger.api.core.sender import (
 import logging
 import shutil
 import pydantic
-from safetensors import safe_open
 from toktagger.api.models.loaders import LocalLoader, GitlabLoader, HuggingfaceLoader
 
 logger = logging.getLogger("ray")
@@ -77,33 +76,9 @@ def get_actor(project: Project, model: Model, use_gpu: bool):
     return ml_model
 
 
-def check_safetensor(
-    weights_path: str | pathlib.Path, project_id: str, model_id: str
-) -> dict[str, str | ModelUpdate] | None:
-    if os.environ.get("MODELS_SAFETENSORS_ONLY", "False").lower() == "true":
-        try:
-            with safe_open(weights_path, framework="pt", device="cpu") as f:
-                _ = list(f.keys())
-        except Exception:
-            # Not a safetensors object, return error
-            logger.error(
-                "Only permitted to load SafeTensors files due to env var setting!"
-            )
-            send_model_updates(
-                project_id=project_id,
-                model_id=model_id,
-                updates=ModelUpdate(training_status="failed"),
-            )
-            return {
-                "project_id": project_id,
-                "model_id": model_id,
-                "message": "retrieved file is not a SafeTensor!",
-            }
-        return None
-
-
+@ray.remote(num_cpus=0.1)
 def load_model_local(
-    model: Model, project: Project, weights_path: pathlib.Path
+    model: Model, project: Project, params: LocalLoadParams
 ) -> dict[str : str | None]:
     model_actor = get_actor(project=project, model=model, use_gpu=False)
     # TODO make LocalLoadParams come from endpoint
@@ -111,11 +86,12 @@ def load_model_local(
         project=project,
         model=model,
         model_actor=model_actor,
-        params=LocalLoadParams(weights_path=str(weights_path)),
+        params=params,
     )
     return loader.load()
 
 
+@ray.remote(num_cpus=0.1)
 def load_model_gitlab(
     model: Model, project: Project, params: GitlabLoadParams
 ) -> tuple[str, str | None]:
@@ -126,6 +102,7 @@ def load_model_gitlab(
     return loader.load()
 
 
+@ray.remote(num_cpus=0.1)
 def load_model_huggingface(
     model: Model, project: Project, params: HuggingfaceLoadParams
 ) -> tuple[str, str | None]:
@@ -136,6 +113,7 @@ def load_model_huggingface(
     return loader.load()
 
 
+@ray.remote(num_cpus=0.1)
 def train_model(
     model: Model,
     project: Project,
@@ -190,6 +168,7 @@ def train_model(
         raise e
 
 
+@ray.remote(num_cpus=0.1)
 def get_predictions(
     project: Project,
     model: Model,

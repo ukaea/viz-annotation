@@ -570,15 +570,15 @@ async def get_load_model_status(
             result: dict[str, str | None] = ray.get(task)
 
         except Exception as e:
-            # Find model ID of latest in progress model
-
+            err_lines = str(e).strip().splitlines()
+            err_msg = err_lines[-1] if err_lines else repr(e)
             await utils.update_model(
                 db_client=db_client,
                 model_id=model.id,
                 updates=ModelUpdate(training_status="failed", progress=0),
             )
             raise HTTPException(
-                detail=f"Load task failed unexpectedly - {str(e).strip().splitlines()[-1]}.",
+                detail=f"Load task failed unexpectedly - {err_msg}",
                 status_code=500,
             )
 

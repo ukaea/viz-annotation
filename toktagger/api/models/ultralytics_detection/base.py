@@ -2,7 +2,7 @@ from __future__ import annotations  # store type hints as strings
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 import shutil
 
 import cv2
@@ -31,6 +31,14 @@ from toktagger.api.models.ultralytics_detection.utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+# TYPE_CHECKING is always false while the application runs.Type checkers treat it as true
+# Othewise this will become a circular import.
+if TYPE_CHECKING:
+    from toktagger.api.models.ultralytics_detection.video_detection import (
+        YoloTrainParams,
+    )
+
 
 # https://docs.python.org/3/library/contextlib.html#contextlib.contextmanager
 @contextmanager
@@ -345,14 +353,14 @@ class BaseUltralyticsDetection(Model):
 
     def get_training_model(
         self,
-        params: pydantic.BaseModel | None,
+        params: YoloTrainParams | None,
     ) -> str:
         """Resolve the model selected through the training form."""
         return str(check_pretrained_model_availability(params.yolo_size))
 
     def get_pretrained_weights(
         self,
-        params: pydantic.BaseModel,
+        params: YoloTrainParams,
     ) -> str | None:
         """Return separate initialisation weights when required.
         Used by Yolo P2 models.
@@ -412,7 +420,7 @@ class BaseUltralyticsDetection(Model):
         self,
         samples: list[Sample],
         annotations: list[list[Annotation]],
-        params: pydantic.BaseModel,
+        params: YoloTrainParams,
     ) -> float:
         """Train an Ultralytics detector using TokTagger data."""
         self.log_progress(

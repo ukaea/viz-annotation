@@ -285,7 +285,7 @@ export const GitlabLoadFormSchema = z.object({
   model_name: z.string().nonempty(),
   weights_path: z.string().nonempty(),
   model_version: z.string().nullish(),
-  gitlab_project_id: z.number().nonempty(),
+  gitlab_project_id: z.number().min(1),
 });
 export type GitlabLoadForm = z.infer<typeof GitlabLoadFormSchema>;
 

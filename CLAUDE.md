@@ -33,13 +33,15 @@ npm run build    # writes into toktagger/api/static/, do not hand-edit that outp
 - Pydantic v2 idioms: `model_config = ConfigDict(...)`, not a nested `class Config`. Modern generics (`dict[str, Any]`, `X | None`), not `typing.Dict`/`Optional`. Imports at module top level, never inside a function.
 - New config values go through a nested `pydantic.BaseModel` under `Settings` in `toktagger/api/config.py`, not ad hoc `os.environ` reads.
 - Data loaders, ML models, and query strategies are added via their registry's `@Registry.register(...)` decorator (see `core/data_loaders.py`, `models/base.py`), not by special-casing a router.
+- A new annotation/schema shape should reuse an existing base+subclass pattern (e.g. how `BoundingBox`/`VideoBoundingBox` relate) rather than being bespoke — look for the analogous type before adding a new one.
 - New third-party dependencies need a real reason — don't add a second library that duplicates one already in use.
 
 ## Frontend conventions
 
 - Prefer React Spectrum components and style props over Tailwind or custom CSS; reach for `UNSAFE_style` only once Spectrum's own props genuinely can't do it.
 - No `any`. Use `unknown` with a real type guard, or the type a library (Annotorious, Plotly) already exports — don't invent a local type for a shape the library already provides.
-- Domain types are Zod schemas with the TS type derived via `z.infer` (see `toktagger/ui/src/types.ts`); build variants with `BaseSchema.extend({...})` and `z.union([...])`, mirroring how the backend's Pydantic annotation schemas are structured.
+- Domain types are Zod schemas with the TS type derived via `z.infer` (see `toktagger/ui/src/types.ts`); build variants with `BaseSchema.extend({...})` and `z.union([...])`, mirroring how the backend's Pydantic annotation schemas are structured. Parse with `Schema.safeParse()` once, check `.success`, then use `.data` — don't parse the same value twice or reach for a bare type assertion.
+- When adding a new `useEffect`, check whether an existing one already has the same dependencies and purpose and extend that instead of adding a new adjacent effect. Don't merge or restructure existing effects as a drive-by while making an unrelated change — that's out of scope.
 - View interaction state belongs in a React Context provider — not `localStorage`, custom DOM events, or globals. This is a deliberate architectural choice made after a prior implementation used those and became hard to maintain, not a style nit.
 - Route all mutations to a third-party library's annotation store (Annotorious, Plotly) through a single function rather than scattering direct calls to its API; use D3 for custom interactive drawing/geometry layered on top instead of extending Plotly/Annotorious internals directly.
 

@@ -39,11 +39,13 @@ Prefer running a single test (`pytest path/to/test_file.py -k test_name`) over a
 - Pydantic v2 style: `model_config = ConfigDict(...)`, not nested `class Config`. Modern generics (`dict[str, Any]`, `X | None`). Imports at module top level, never inside a function.
 - New config values extend `Settings` in `toktagger/api/config.py` as a nested `pydantic.BaseModel`, not ad hoc `os.environ` reads.
 - Data loaders / models / query strategies register via their `@Registry.register(...)` decorator (`core/data_loaders.py`, `models/base.py`) rather than special-casing a router.
+- A new annotation/schema shape should reuse an existing base+subclass pattern (e.g. how `BoundingBox`/`VideoBoundingBox` relate) rather than being bespoke — look for the analogous type before adding a new one.
 
 **Frontend**
 - React Spectrum components/style props over Tailwind or custom CSS; `UNSAFE_style` only once Spectrum props genuinely can't do it.
 - No `any`. Use `unknown` with a real type guard, or the type a library (Annotorious, Plotly) already exports.
-- Domain types are Zod schemas with the TS type derived via `z.infer` (`toktagger/ui/src/types.ts`); extend/union new variants the way existing ones are built.
+- Domain types are Zod schemas with the TS type derived via `z.infer` (`toktagger/ui/src/types.ts`); extend/union new variants the way existing ones are built. Parse with `Schema.safeParse()` once, check `.success`, then use `.data` — don't parse the same value twice or use a bare type assertion.
+- When adding a new `useEffect`, check whether an existing one already has the same dependencies and purpose and extend that instead of adding a new adjacent effect. Don't merge or restructure existing effects as a drive-by while making an unrelated change — that's out of scope.
 - View interaction state lives in a React Context provider — not `localStorage`, custom DOM events, or globals.
 - Route third-party library (Annotorious, Plotly) mutations through one function; use D3 for custom drawing/geometry layered on top rather than extending those libraries directly.
 

@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext } from "react";
 import { useSample } from "@/app/contexts/SampleContext";
-import { type NavAdapter } from "@/types";
+import { type Annotation, type NavAdapter } from "@/types";
 
 const NavAdapterContext = createContext<NavAdapter | null>(null);
 
@@ -34,6 +34,15 @@ export function useNavAdapter(): NavAdapter {
 
   return {
     getAnnotations: () => annotations,
+    afterSave: () => {
+      // Mirrors the server-side validation so saved annotator output isn't discarded.
+      setAnnotations((previousAnnotations: Annotation[]) =>
+        previousAnnotations.map((annotation: Annotation) => ({
+          ...annotation,
+          validated: true,
+        })),
+      );
+    },
     clear: () => {
       setAnnotations(() => []);
     },

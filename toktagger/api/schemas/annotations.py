@@ -11,6 +11,7 @@ class AnnotationBase(ConfiguredModel):
     label: str
     created_by: str
     validated: bool = False
+    signal_name: Optional[str] = None
     uncertainty: Optional[float] = 1
 
     @model_validator(mode="before")
@@ -62,17 +63,23 @@ class VideoBoundingBox(AnnotationBase):
 
 class Polygon(AnnotationBase):
     type: Literal["polygon"] = "polygon"
-    segmentation: list[float] = Field(
+    segmentation: list[list[float]] = Field(
         ...,
-        min_length=6,
-        description="COCO polygon segmentation as a flat list: [x1, y1, x2, y2, ...].",
+        min_length=1,
+        max_length=1,
+        description="COCO polygon segmentation as a list containing one polygon: [[x1, y1, x2, y2, ...]].",
     )
 
     @field_validator("segmentation")
     @classmethod
-    def validate_segmentation(cls, v: list[int]) -> list[int]:
-        if len(v) % 2 != 0:
-            raise ValueError("Segmentation must contain an even number of coordinates.")
+    def validate_segmentation(cls, v: list[list[float]]) -> list[list[float]]:
+        for polygon in v:
+            if len(polygon) < 6:
+                raise ValueError("Each polygon must contain at least three points.")
+            if len(polygon) % 2 != 0:
+                raise ValueError(
+                    "Each polygon must contain an even number of coordinates."
+                )
         return v
 
 
@@ -80,17 +87,23 @@ class VideoPolygon(AnnotationBase):
     type: Literal["video_polygon"] = "video_polygon"
     frame: int
     track_id: str
-    segmentation: list[int] = Field(
+    segmentation: list[list[int]] = Field(
         ...,
-        min_length=6,
-        description="COCO polygon segmentation as a flat list: [x1, y1, x2, y2, ...].",
+        min_length=1,
+        max_length=1,
+        description="COCO polygon segmentation as a list containing one polygon: [[x1, y1, x2, y2, ...]].",
     )
 
     @field_validator("segmentation")
     @classmethod
-    def validate_segmentation(cls, v: list[int]) -> list[int]:
-        if len(v) % 2 != 0:
-            raise ValueError("Segmentation must contain an even number of coordinates.")
+    def validate_segmentation(cls, v: list[list[int]]) -> list[list[int]]:
+        for polygon in v:
+            if len(polygon) < 6:
+                raise ValueError("Each polygon must contain at least three points.")
+            if len(polygon) % 2 != 0:
+                raise ValueError(
+                    "Each polygon must contain an even number of coordinates."
+                )
         return v
 
 
@@ -100,11 +113,6 @@ class VideoPoint(AnnotationBase):
     track_id: str
     x: int
     y: int
-
-
-class SpectrogramMask(AnnotationBase):
-    type: Literal["spectrogram_mask"] = "spectrogram_mask"
-    values: list[list[float]]
 
 
 class AnnotationBatch(AnnotationBase):
@@ -151,7 +159,6 @@ PolygonOut = create_out_model(Polygon)
 VideoBoundingBoxOut = create_out_model(VideoBoundingBox)
 VideoPolygonOut = create_out_model(VideoPolygon)
 VideoPointOut = create_out_model(VideoPoint)
-SpectrogramMaskOut = create_out_model(SpectrogramMask)
 ClassLabelOut = create_out_model(ClassLabel)
 
 # Generate Batch classes using factory function
@@ -162,7 +169,6 @@ PolygonBatch = create_batch_model(Polygon)
 VideoBoundingBoxBatch = create_batch_model(VideoBoundingBox)
 VideoPolygonBatch = create_batch_model(VideoPolygon)
 VideoPointBatch = create_batch_model(VideoPoint)
-SpectrogramMaskBatch = create_batch_model(SpectrogramMask)
 ClassLabelBatch = create_batch_model(ClassLabel)
 
 
@@ -175,7 +181,6 @@ AnnotationTypes = Union[
     VideoBoundingBox,
     VideoPolygon,
     VideoPoint,
-    SpectrogramMask,
     ClassLabel,
 ]
 
@@ -187,7 +192,6 @@ AnnotationOutTypes = Union[
     VideoBoundingBoxOut,
     VideoPolygonOut,
     VideoPointOut,
-    SpectrogramMaskOut,
     ClassLabelOut,
 ]
 
@@ -199,7 +203,6 @@ AnnotationBatchTypes = Union[
     VideoBoundingBoxBatch,
     VideoPolygonBatch,
     VideoPointBatch,
-    SpectrogramMaskBatch,
     ClassLabelBatch,
 ]
 

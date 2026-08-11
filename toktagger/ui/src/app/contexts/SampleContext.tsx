@@ -8,22 +8,60 @@ import React, {
   useRef,
 } from "react";
 import { ToastQueue } from "@adobe/react-spectrum";
+import { z } from "zod/v4";
 import {
   Project,
   Sample,
   Data,
   Annotation,
   ViewParams,
+  ViewParamsSchema,
   PlotProps,
+  Profile2DViewParams,
+  Profile2DViewParamsSchema,
   MultiVariateTimeSeriesData,
-  SpectrogramData,
+  Profile2DData,
   MultiVariateTimeSeriesDataSchema,
+  Profile2DDataSchema,
   ImageData,
   ImageDataSchema,
   TaskType,
   DataParams,
 } from "@/types";
 import { BACKEND_API_URL } from "@/app/core";
+import { getSignalNames } from "@/app/utils";
+
+const viewParamsKey = (projectId: string) => `view-params-${projectId}`;
+const colorMapKey = (projectId: string) => `color-map-${projectId}`;
+
+// Reads persisted view params, discarding anything that fails schema validation.
+function readSavedViewParams(
+  projectId: string,
+): ViewParams | Profile2DViewParams {
+  const fallback: ViewParams = { name: "identity" };
+  if (!projectId) return fallback;
+
+  const saved = sessionStorage.getItem(viewParamsKey(projectId));
+  if (!saved) return fallback;
+
+  try {
+    const parsed: unknown = JSON.parse(saved);
+    const result = z
+      .union([ViewParamsSchema, Profile2DViewParamsSchema])
+      .safeParse(parsed);
+    if (result.success) return result.data;
+  } catch {
+    // Malformed JSON - fall through and discard.
+  }
+
+  sessionStorage.removeItem(viewParamsKey(projectId));
+  return fallback;
+}
+
+function readSavedColorMap(projectId: string): string | null {
+  if (!projectId) return null;
+  return sessionStorage.getItem(colorMapKey(projectId));
+}
 
 interface SampleContextType {
   project: Project | null;
@@ -31,18 +69,18 @@ interface SampleContextType {
   data: Data | null;
   annotations: Annotation[];
   dataParams: DataParams;
-  viewParams: ViewParams;
+  viewParams: ViewParams | Profile2DViewParams;
   plotProps: PlotProps;
   annotationLabels: { id: number; name: string }[];
   videoFrameBounds: { min: number | null; max: number | null };
   isLoading: boolean;
   isValidated: boolean | null;
   error: string | null;
-  setAnnotations: (
-    updater: (annotations: Annotation[]) => Annotation[] | Annotation[],
-  ) => void;
-  setDataParams: (params: DataParams) => void;
-  setViewParams: (params: ViewParams) => void;
+  setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>;
+  setDataParams: React.Dispatch<React.SetStateAction<DataParams>>;
+  setViewParams: React.Dispatch<
+    React.SetStateAction<ViewParams | Profile2DViewParams>
+  >;
   setPlotProps: (props: PlotProps) => void;
   setIsValidated: (validated: boolean) => void;
 }
@@ -55,57 +93,61 @@ interface SampleProviderProps {
   children: ReactNode;
 }
 
-async function getData<T>(url: string): Promise<T> {
-  const response = await fetch(url);
+async function getData<T>(url: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(url, { signal });
   const payload = await response.json();
   return payload as T;
 }
 
-async function getSample(projectId: string, sampleId: string): Promise<Sample> {
+async function getSample(
+  projectId: string,
+  sampleId: string,
+  signal?: AbortSignal,
+): Promise<Sample> {
   return await getData<Sample>(
     `${BACKEND_API_URL}/projects/${projectId}/samples/${sampleId}`,
+    signal,
   );
 }
 
-async function getProject(projectId: string): Promise<Project> {
-  return await getData<Project>(`${BACKEND_API_URL}/projects/${projectId}`);
+async function getProject(
+  projectId: string,
+  signal?: AbortSignal,
+): Promise<Project> {
+  return await getData<Project>(
+    `${BACKEND_API_URL}/projects/${projectId}`,
+    signal,
+  );
 }
 
 async function getAnnotations(
   projectId: string,
   sampleId: string,
+  signal?: AbortSignal,
 ): Promise<Annotation[]> {
   return await getData<Annotation[]>(
     `${BACKEND_API_URL}/projects/${projectId}/samples/${sampleId}/annotations`,
+    signal,
   );
 }
 
 async function parseData(
   data: Data,
   task: TaskType,
-): Promise<
-  MultiVariateTimeSeriesData | SpectrogramData | ImageData | undefined
-> {
+): Promise<MultiVariateTimeSeriesData | Profile2DData | ImageData | undefined> {
   if (task == TaskType.TimeSeries) {
     const result = MultiVariateTimeSeriesDataSchema.safeParse(data);
     if (!result.success) {
       throw new Error("Invalid data for time series view");
     }
     return result.data;
-    // } else if (task == TaskType.Spectrogram) {
-    //   const result = CompositeDataSchema.safeParse(data);
-    //   if (!result.success) {
-    //     throw new Error("Invalid data for spectrogram view");
-    //   }
-
-    //   const mhdData = SpectrogramDataSchema.safeParse(
-    //     result.data.values["mirnov"],
-    //   );
-    //   if (!mhdData.success) {
-    //     throw new Error("Invalid data for spectrogram view");
-    //   }
-
-    //   return mhdData.data;
+  } else if (task == TaskType.Profile2D) {
+    // The server selects the signal, so the response is a single profile.
+    const result = Profile2DDataSchema.safeParse(data);
+    if (!result.success) {
+      throw new Error("Invalid data for profile 2D view");
+    }
+    return result.data;
   } else if (task == TaskType.Video) {
     const result = ImageDataSchema.safeParse(data);
     if (!result.success) {
@@ -127,18 +169,33 @@ export function SampleProvider({
   const [data, setData] = useState<Data | null>(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
 
-  const [viewParams, setViewParams] = useState<ViewParams>({
-    name: "identity",
-  });
+  const [viewParams, setViewParams] = useState<
+    ViewParams | Profile2DViewParams
+  >(() => readSavedViewParams(projectId));
 
   const [dataParams, setDataParams] = useState<DataParams>({
     name: "identity",
   });
   const [prevSampleId, setPrevSampleId] = useState(sampleId);
 
-  const [plotProps, setPlotProps] = useState<PlotProps>({
-    colorMap: "Cividis",
-  });
+  const [plotProps, setPlotProps] = useState<PlotProps>(() => ({
+    colorMap: readSavedColorMap(projectId) ?? "Cividis",
+  }));
+
+  // Persist view params so they survive a refresh or navigating between samples.
+  useEffect(() => {
+    if (!projectId) return;
+    sessionStorage.setItem(
+      viewParamsKey(projectId),
+      JSON.stringify(viewParams),
+    );
+  }, [viewParams, projectId]);
+
+  // Persist only the colour map - thresholdActive has its own source of truth.
+  useEffect(() => {
+    if (!projectId || !plotProps.colorMap) return;
+    sessionStorage.setItem(colorMapKey(projectId), plotProps.colorMap);
+  }, [plotProps.colorMap, projectId]);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -156,6 +213,8 @@ export function SampleProvider({
   const bootstrappedVideoSampleIdRef = useRef<string | null>(null);
   // Annotations are sample-level working state. Do not reload them on every video frame fetch.
   const loadedAnnotationsSampleKeyRef = useRef<string | null>(null);
+  // Only the latest data request may update SampleContext state.
+  const dataRequestIdRef = useRef(0);
 
   if (prevSampleId !== sampleId) {
     setPrevSampleId(sampleId);
@@ -199,6 +258,11 @@ export function SampleProvider({
 
   // Consolidated data fetching - fetch everything together
   useEffect(() => {
+    const requestId = ++dataRequestIdRef.current;
+    const controller = new AbortController();
+    const isCurrentRequest = () =>
+      dataRequestIdRef.current === requestId && !controller.signal.aborted;
+
     const refreshData = async () => {
       setIsLoading(true);
       setError(null);
@@ -206,10 +270,12 @@ export function SampleProvider({
       try {
         // Fetch project, sample, and annotations in parallel
         const [projectData, sampleData, dbAnnotations] = await Promise.all([
-          getProject(projectId),
-          getSample(projectId, sampleId),
-          getAnnotations(projectId, sampleId),
+          getProject(projectId, controller.signal),
+          getSample(projectId, sampleId, controller.signal),
+          getAnnotations(projectId, sampleId, controller.signal),
         ]);
+
+        if (!isCurrentRequest()) return;
 
         setProject(projectData);
         setSample(sampleData);
@@ -221,13 +287,16 @@ export function SampleProvider({
         setIsValidated(sampleData.validated_annotations);
 
         let params = viewParams;
-        // if (projectData.task === TaskType.Spectrogram) {
-        //   params = {
-        //     ...params,
-        //     name: "spectrogram",
-        //     nperseg: 256,
-        //   } as SpectrogramViewParams;
-        // }
+        // Default to the sample's first signal until one is explicitly selected.
+        if (
+          projectData.task === TaskType.Profile2D &&
+          params.name !== "profile_2d"
+        ) {
+          params = {
+            name: "profile_2d",
+            signal_name: getSignalNames(sampleData)[0],
+          } as Profile2DViewParams;
+        }
 
         // ------------------------------------------------------------
         // video projects must request image data parameters.
@@ -254,8 +323,11 @@ export function SampleProvider({
               "Content-Type": "application/json",
             },
             body: JSON.stringify({ params: effectiveDataParams, view: params }),
+            signal: controller.signal,
           },
         );
+
+        if (!isCurrentRequest()) return;
 
         if (!response.ok) {
           let payload: unknown = null;
@@ -264,6 +336,8 @@ export function SampleProvider({
           } catch {
             // ignore; payload stays null
           }
+
+          if (!isCurrentRequest()) return;
 
           const detail = extractDetail(payload);
 
@@ -303,56 +377,87 @@ export function SampleProvider({
                 frame: lastGood,
               }));
 
-              setIsLoading(false);
               return;
             }
           }
 
           setError(detail);
           setData(null);
-          setIsLoading(false);
           return;
         }
 
         const fetchedData: Data = await response.json();
 
+        if (!isCurrentRequest()) return;
+
         const viewData = await parseData(fetchedData, projectData.task);
+        if (!isCurrentRequest()) return;
         if (!viewData) {
           setError("Data could not read the data for the selected view");
           return;
         }
 
-        setData(viewData);
-
         // Video: remember last good frame so we can roll back on missing-frame errors.
         if (projectData.task === TaskType.Video) {
           const frame = (viewData as { frame?: unknown }).frame;
           if (typeof frame === "number" && Number.isFinite(frame)) {
+            const requestedFrame = effectiveDataParams.frame;
+
+            // Never display a response for a different explicitly requested frame.
+            if (
+              typeof requestedFrame === "number" &&
+              frame !== requestedFrame
+            ) {
+              return;
+            }
+
+            setData(viewData);
             bootstrappedVideoSampleIdRef.current = sampleId;
             lastGoodVideoFrameRef.current = frame;
-            setDataParams((prev) => {
-              if (prev.name === "image" && prev.frame === frame) {
-                return prev;
-              }
-              return {
-                name: "image",
-                frame,
-              };
-            });
+
+            // Only the initial frame:null request needs the backend response to
+            // establish the requested frame. Explicit requests already carry it.
+            if (requestedFrame === null || requestedFrame === undefined) {
+              setDataParams((prev) => {
+                if (prev.name === "image" && prev.frame === frame) {
+                  return prev;
+                }
+                return {
+                  name: "image",
+                  frame,
+                };
+              });
+            }
+
             setVideoFrameBounds((prev) => ({
               ...prev,
               min: prev.min === null ? frame : Math.min(prev.min, frame),
             }));
           }
+        } else {
+          setData(viewData);
         }
       } catch (err) {
+        if (
+          controller.signal.aborted ||
+          (err instanceof Error && err.name === "AbortError") ||
+          !isCurrentRequest()
+        ) {
+          return;
+        }
         setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
-        setIsLoading(false);
+        if (isCurrentRequest()) {
+          setIsLoading(false);
+        }
       }
     };
 
     refreshData();
+
+    return () => {
+      controller.abort();
+    };
   }, [projectId, sampleId, dataParams, viewParams, plotProps]);
 
   const annotationLabels =

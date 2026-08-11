@@ -23,6 +23,7 @@ import { useSample } from "./SampleContext";
 import {
   convertRawAnnotationsToTimeSeries,
   convertTimeSeriesToRawAnnotations,
+  isTimeSeriesAnnotation,
   randomColor,
 } from "../utils";
 import { Item, ItemParams, Menu, Submenu } from "react-contexify";
@@ -128,8 +129,11 @@ function readSavedTool(projectId: string): TimeSeriesToolDefinition | null {
 }
 
 export const TimeSeriesProvider = ({
+  signalName = null,
   children,
 }: {
+  // Binds annotations created here to a signal; null for single-signal views.
+  signalName?: string | null;
   children: React.ReactNode;
 }) => {
   const {
@@ -212,6 +216,17 @@ export const TimeSeriesProvider = ({
     [],
   );
 
+  // The sample's annotations are shared with other tools, so this view must replace
+  // only its own and carry the rest through untouched. Without this, annotations it
+  // cannot represent - shot labels, for example - are lost on every edit.
+  const mergeTimeSeriesAnnotations = useCallback(
+    (previous: Annotation[], updated: TimeSeriesAnnotation[]): Annotation[] => [
+      ...previous.filter((annotation) => !isTimeSeriesAnnotation(annotation)),
+      ...parseTimeSeriesAnnotations(updated),
+    ],
+    [parseTimeSeriesAnnotations],
+  );
+
   // Discards any in-progress annotation for the currently active tool and clears the
   // ongoing-action flag - used whenever a draw is abandoned rather than completed normally
   const cancelOngoingAction = useCallback(() => {
@@ -292,12 +307,11 @@ export const TimeSeriesProvider = ({
       return;
     }
     syncTimeoutRef.current = null;
-    const rawAnnotations = parseTimeSeriesAnnotations(annotations);
-    setRawAnnotations((_prev) => rawAnnotations);
+    setRawAnnotations((prev) => mergeTimeSeriesAnnotations(prev, annotations));
   }, [
     annotations,
     ongoingAction,
-    parseTimeSeriesAnnotations,
+    mergeTimeSeriesAnnotations,
     setRawAnnotations,
     triggerSync,
   ]);
@@ -315,12 +329,13 @@ export const TimeSeriesProvider = ({
         id,
         created_by: "manual",
         label,
+        signal_name: signalName,
         type,
         points: [],
         selected: false,
       };
     },
-    [],
+    [signalName],
   );
 
   const addAnnotation = useCallback(
@@ -539,17 +554,19 @@ export const TimeSeriesProvider = ({
         },
       );
 
-      setRawAnnotations((_prev) => parseTimeSeriesAnnotations(updatedState));
+      setRawAnnotations((prev) =>
+        mergeTimeSeriesAnnotations(prev, updatedState),
+      );
     },
-    [annotations, parseTimeSeriesAnnotations, setRawAnnotations],
+    [annotations, mergeTimeSeriesAnnotations, setRawAnnotations],
   );
 
   const batchDeleteAnnotations = useCallback(() => {
     const updatedState = annotations.filter(
       (annotation) => !annotation.selected,
     );
-    setRawAnnotations((_prev) => parseTimeSeriesAnnotations(updatedState));
-  }, [annotations, parseTimeSeriesAnnotations, setRawAnnotations]);
+    setRawAnnotations((prev) => mergeTimeSeriesAnnotations(prev, updatedState));
+  }, [annotations, mergeTimeSeriesAnnotations, setRawAnnotations]);
 
   const actionsValue: TimeSeriesActions = useMemo(
     () => ({
@@ -635,7 +652,6 @@ export const TimeSeriesProvider = ({
       }
 
       if (event.key === "e") {
-        setAnnotationTool(null);
         setEditMode((prev) => !prev);
       }
     };
@@ -653,7 +669,7 @@ export const TimeSeriesProvider = ({
       document.removeEventListener("keydown", keyDownHandler);
       document.removeEventListener("keyup", keyUpHandler);
     };
-  }, [setAnnotationTool]);
+  }, []);
 
   const annotationLabels = Array.from(categories.values()).map(
     (category, index) => {

@@ -131,9 +131,9 @@ async def setup_model_db(setup_model_samples, db_client):
 
     # Create temp files for each
     for _id in (model_id_1, model_id_2, model_id_3, model_id_4):
-        config.settings.models.cache_dir.joinpath(f"{_id}.model").write_text(
-            "Test Model"
-        )
+        results_dir = config.settings.models.cache_dir.joinpath(_id)
+        results_dir.mkdir(parents=True)
+        results_dir.joinpath("weights.model").write_text("Test Model")
     yield {
         "project_id": project_id,
         "sample_ids": sample_ids,

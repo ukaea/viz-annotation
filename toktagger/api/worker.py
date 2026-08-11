@@ -17,6 +17,7 @@ from toktagger.api.core.sender import (
     send_model_updates,
 )
 import logging
+import shutil
 from platformdirs import user_cache_dir
 import pydantic
 
@@ -69,11 +70,9 @@ def get_actor(project: Project, model: Model, use_gpu: bool):
             )
         )
 
-        model_path = next(
-            pathlib.Path(os.environ["MODEL_STORAGE"]).glob(f"{str(model.id)}*"), None
-        )
-        if model_path:
-            ray.get(ml_model.wrapped_load.remote(model_path))
+        results_dir = pathlib.Path(os.environ["MODEL_STORAGE"]).joinpath(str(model.id))
+        if results_dir.exists():
+            ray.get(ml_model.wrapped_load.remote(results_dir))
         else:
             logger.debug("No saved weights found, initializing blank model")
 
@@ -91,10 +90,6 @@ def load_model(
         updates=ModelUpdate(training_status="started"),
     )
 
-    # Make sure model storage location in cache dir exists
-    model_dir = pathlib.Path(os.environ["MODEL_STORAGE"])
-    model_dir.mkdir(exist_ok=True)
-
     # Check worker can see weights file
     if not weights_path.exists():
         send_model_updates(
@@ -110,7 +105,9 @@ def load_model(
     model_actor = get_actor(project=project, model=model, use_gpu=False)
     # Try loading actor with weights file, catch and reraise any errors
     try:
-        load_temp_weights_task = model_actor.wrapped_load.remote(str(weights_path))
+        load_temp_weights_task = model_actor.wrapped_load.remote(
+            results_dir=weights_path.parent, weights_filename=weights_path.name
+        )
         ray.get(load_temp_weights_task)
     except Exception as e:
         logger.error(e)
@@ -125,10 +122,10 @@ def load_model(
             "message": f"Failed to load weights - {str(e)}",
         }
 
-    # Save the model with the correct file name, delete temporary file
-    save_weights_task = model_actor.wrapped_save.remote(
-        model_dir.joinpath(str(model.id))
-    )
+    # Save the model with the correct dir path
+    results_dir = pathlib.Path(os.environ["MODEL_STORAGE"]).joinpath(str(model.id))
+
+    save_weights_task = model_actor.wrapped_save.remote(results_dir)
     ray.get(save_weights_task)
 
     return {"project_id": project.id, "model_id": model.id, "message": None}
@@ -143,6 +140,7 @@ def train_model(
     params: pydantic.BaseModel | None,
     use_gpu: bool = False,
 ):  # TODO: do we want to support retraining where we only get annotations not previously put into model?
+    results_dir = pathlib.Path(os.environ["MODEL_STORAGE"]).joinpath(str(model.id))
     try:
         model_actor = get_actor(project=project, model=model, use_gpu=use_gpu)
         logger.info(f"Running model training for project {project.id}")
@@ -154,9 +152,8 @@ def train_model(
         # Wait for train task to complete
         score = ray.get(train_task)
 
-        model_dir = pathlib.Path(os.environ["MODEL_STORAGE"])
-        model_dir.mkdir(exist_ok=True)  # Do i need to do this every time?
-        model_actor.wrapped_save.remote(model_dir.joinpath(str(model.id)))
+        save_task = model_actor.wrapped_save.remote(results_dir)
+        ray.get(save_task)  # Block until save is done
 
         send_model_updates(
             project_id=project.id,
@@ -177,6 +174,11 @@ def train_model(
             model_id=model.id,
             updates=ModelUpdate(training_status="failed"),
         )
+
+        # Also delete directory of results, if it has already been created
+        if results_dir.exists():
+            shutil.rmtree(results_dir)
+
         raise e
 
 

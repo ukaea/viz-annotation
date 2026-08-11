@@ -1,3 +1,4 @@
+import pathlib
 import pickle
 import logging
 import random
@@ -271,10 +272,13 @@ class ShapeletTransformModel(Model):
             positive_positions, window_size, time_array, pos_label, self.type
         )
 
-    def save(self, file_stem: str) -> None:
-        with open(f"{file_stem}.pkl", "wb") as f:
+    def save(self, results_dir: pathlib.Path) -> None:
+        with open(results_dir.joinpath("weights.model"), "wb") as f:
             pickle.dump(self.model, f)
 
-    def load(self, file_path: str) -> None:
-        with open(file_path, "rb") as f:
+    def load(
+        self, results_dir: pathlib.Path, weights_filename: str | None = None
+    ) -> None:
+        weights_path = results_dir.joinpath(weights_filename or "weights.model")
+        with open(weights_path, "rb") as f:
             self.model = pickle.load(f)

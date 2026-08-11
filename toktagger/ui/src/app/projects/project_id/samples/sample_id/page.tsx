@@ -12,7 +12,7 @@ import {
 } from "@adobe/react-spectrum";
 import { Project, Sample, TaskType } from "@/types";
 import { TimeSeriesView } from "@/app/time_series/components/time-series";
-// import { SpectrogramView } from "@/app/spectrogram/components/spectrogram";
+import { Profile2dView } from "@/app/profile2d/components/profile2d";
 import ToolBar from "@/app/components/tools/toolbar";
 import { useHref, useNavigate, useParams } from "react-router-dom";
 import ErrorView from "@/app/views/error";
@@ -57,7 +57,8 @@ const SampleView = () => {
     return isLoading ? <LoadingView /> : <TimeSeriesView />;
   if (project.task === TaskType.Video)
     return isLoading && !data ? <LoadingView /> : <VideoView />;
-  // if (project.task === TaskType.Spectrogram) return <SpectrogramView />;
+  if (project.task === TaskType.Profile2D)
+    return isLoading ? <LoadingView /> : <Profile2dView />;
   return null;
 };
 

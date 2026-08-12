@@ -598,6 +598,9 @@ def test_timeseries_model_predict(
     if model_name == "mock_params_timeseries_cnn":
         form_check(page, "Train")
 
+    # Model Name is required before the Train button becomes enabled
+    page.get_by_role("textbox", name="Model Name").fill(model_name)
+
     # Click train, should get accepted message
     page.get_by_role("button", name="Train", exact=True).click()
     expect(page.get_by_text("Model training added to job queue!")).to_be_visible(

@@ -327,7 +327,7 @@ export function ModelTrainModal({
                       onChange={setModelName}
                       width="100%"
                     />
-                    {schema && (
+                    {selectedModelName && (
                       <ModelForm
                         ref={formRef}
                         schema={schema}

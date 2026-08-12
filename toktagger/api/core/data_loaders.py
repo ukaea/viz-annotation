@@ -556,7 +556,9 @@ def _get_sal_signal(
     min_time_step: Optional[float] = None,
 ) -> Profile2DData | TimeSeriesData:
     full_name = f"pulse/{shot_id}/{name}"
-    ds = xr.open_dataset(f"sal://{full_name}", engine="sal")
+    ds = xr.open_dataset(
+        f"sal://{full_name}", engine="sal", host=os.environ["SAL_HOST"]
+    )
     ds = ds.sel(time=slice(time_min, time_max))
 
     time = ds["time"].values

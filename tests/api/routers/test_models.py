@@ -41,9 +41,7 @@ async def collect_predict_results(models_api_client, task_id):
 
 async def collect_train_results(models_api_client, task_id):
     results = wait_for_results(models_api_client.app.state.task_registry, task_id)
-    update = ModelUpdate(
-        training_status="completed", progress=100, score=results["score"]
-    )
+    update = ModelUpdate(status="completed", progress=100, score=results["score"])
     with patch("requests.put", models_api_client.put):
         response = await send_model_updates(
             results["project_id"], results["model_id"], update
@@ -342,7 +340,7 @@ async def test_model_get_sample_prediction_in_progress(
 @pytest.mark.asyncio
 @pytest.mark.models_enabled
 async def test_model_update(models_api_client, db_client, setup_model_db):
-    model_updates = ModelUpdate(training_status="started", progress=50, score=20)
+    model_updates = ModelUpdate(status="training", progress=50, score=20)
     response = await models_api_client.put(
         f"/projects/{setup_model_db['project_id']}/models/{setup_model_db['model_id_1']}",
         json=model_updates.model_dump(mode="json"),
@@ -353,7 +351,7 @@ async def test_model_update(models_api_client, db_client, setup_model_db):
     model = await db_client.get_document_by_id(
         collection="models", object_id=ObjectId(setup_model_db["model_id_1"])
     )
-    assert model["training_status"] == "started"
+    assert model["status"] == "training"
     assert model["progress"] == 50
     assert model["score"] == 20
 
@@ -375,7 +373,7 @@ async def test_model_start_training_no_params(
     )
 
     # Check model has been set to completed, with 100% completion
-    assert model["training_status"] == "completed"
+    assert model["status"] == "completed"
     assert model["progress"] == 100
     assert model["score"] == 60  # value returned by train method
 
@@ -465,7 +463,7 @@ async def test_model_start_training_params(
     )
 
     # Check model has been set to completed, with 100% completion
-    assert model["training_status"] == "completed"
+    assert model["status"] == "completed"
     assert model["progress"] == 100
     assert model["score"] == 50  # value returned from params
 
@@ -567,7 +565,7 @@ async def test_model_stop_training(
         "models", {"type": "disruption_cnn"}
     )
     model = models[0]
-    assert model["training_status"] == "aborted"
+    assert model["status"] == "aborted"
 
     assert mock_func.call_count > 0
 
@@ -588,7 +586,7 @@ async def test_model_stop_training_not_in_progress(
 
     # Check no models show as aborted
     models = await db_client.get_all_documents("models")
-    assert all(model["training_status"] != "aborted" for model in models)
+    assert all(model["status"] != "aborted" for model in models)
 
     assert mock_func.call_count == 0
 
@@ -740,7 +738,7 @@ async def test_model_load_local_failed(models_api_client, db_client, setup_model
         )
 
         # Check model has been set to failed
-        assert model["training_status"] == "failed"
+        assert model["status"] == "failed"
 
         # Check model has not been saved after completion
         model_path = (
@@ -793,7 +791,7 @@ async def test_model_load_gitlab(models_api_client, db_client, setup_model_db):
         collection="models", object_id=ObjectId(model_id)
     )
     assert model["version"] == 3  # Since v1 and v2 are already defined in db
-    assert model["training_status"] == "queued"
+    assert model["status"] == "queued"
 
 
 @pytest.mark.asyncio
@@ -900,7 +898,7 @@ async def test_model_load_huggingface(models_api_client, db_client, setup_model_
         collection="models", object_id=ObjectId(model_id)
     )
     assert model["version"] == 3  # Since v1 and v2 are already defined in db
-    assert model["training_status"] == "queued"
+    assert model["status"] == "queued"
 
 
 @pytest.mark.asyncio

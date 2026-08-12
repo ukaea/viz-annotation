@@ -8,7 +8,7 @@ import pydantic
 class ModelIn(ConfiguredModel):
     type: str
     version: int
-    training_status: Literal["queued", "started", "failed", "completed", "aborted"]
+    status: Literal["queued", "training", "loading", "failed", "completed", "aborted"]
     progress: Annotated[float, Field(strict=True, ge=0, le=100)]
     score: float
     task_id: Optional[str] | None = None
@@ -26,8 +26,8 @@ class ModelIn(ConfiguredModel):
 
 
 class ModelUpdate(ConfiguredModel):
-    training_status: Optional[
-        Literal["queued", "started", "failed", "completed", "aborted"]
+    status: Optional[
+        Literal["queued", "training", "loading", "failed", "completed", "aborted"]
     ] = None
     progress: Optional[Annotated[float, Field(strict=True, ge=0, le=100)]] = None
     score: Optional[float] = None

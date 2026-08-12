@@ -139,7 +139,7 @@ def setup_model():
     model = Model(
         type="mock_timeseries_cnn",
         version=1,
-        training_status="queued",
+        status="queued",
         progress=-0,
         score=0,
         task_id=None,
@@ -181,7 +181,7 @@ def test_check_safetensors(
         assert unsafe
         assert unsafe.get("message") == "retrieved file is not a SafeTensor!"
         assert UPDATES[-1]["model_id"] == model.id
-        assert UPDATES[-1]["updates"].training_status == "failed"
+        assert UPDATES[-1]["updates"].status == "failed"
     else:
         assert not unsafe
 
@@ -211,7 +211,7 @@ def test_local_load(temp_models_cache, setup_model):
 
         # Check model updated to completed, with 100% completion
         assert UPDATES[-1]["model_id"] == model.id
-        assert UPDATES[-1]["updates"].training_status == "completed"
+        assert UPDATES[-1]["updates"].status == "completed"
         assert UPDATES[-1]["updates"].progress == 100
 
         # Check model has been saved after completion
@@ -246,7 +246,7 @@ def test_local_load_missing_file(temp_models_cache, setup_model):
 
     # Check model updated to failed
     assert UPDATES[-1]["model_id"] == model.id
-    assert UPDATES[-1]["updates"].training_status == "failed"
+    assert UPDATES[-1]["updates"].status == "failed"
 
     # Check no model has been saved
     model_path = temp_models_cache.joinpath(model.id, "weights.model")
@@ -279,7 +279,7 @@ def test_local_load_invalid_file(temp_models_cache, setup_model):
 
         # Check model updated to failed
         assert UPDATES[-1]["model_id"] == model.id
-        assert UPDATES[-1]["updates"].training_status == "failed"
+        assert UPDATES[-1]["updates"].status == "failed"
 
         # Check model has not been saved
         model_path = temp_models_cache.joinpath(model.id, "weights.model")
@@ -323,7 +323,7 @@ def test_gitlab_load_version(temp_models_cache, setup_model, monkeypatch):
 
     # Check model updated to completed, with 100% completion
     assert UPDATES[-1]["model_id"] == model.id
-    assert UPDATES[-1]["updates"].training_status == "completed"
+    assert UPDATES[-1]["updates"].status == "completed"
     assert UPDATES[-1]["updates"].progress == 100
 
     # Check model has been saved after completion
@@ -379,7 +379,7 @@ def test_gitlab_load_no_version(temp_models_cache, setup_model, monkeypatch):
 
     # Check model updated to completed, with 100% completion
     assert UPDATES[-1]["model_id"] == model.id
-    assert UPDATES[-1]["updates"].training_status == "completed"
+    assert UPDATES[-1]["updates"].status == "completed"
     assert UPDATES[-1]["updates"].progress == 100
 
     # Check model has been saved after completion
@@ -438,7 +438,7 @@ def test_gitlab_load_invalid_version(temp_models_cache, setup_model, monkeypatch
 
     # Check model updated to failed, with 100% completion
     assert UPDATES[-1]["model_id"] == model.id
-    assert UPDATES[-1]["updates"].training_status == "failed"
+    assert UPDATES[-1]["updates"].status == "failed"
 
     # Check model has not been saved
     model_path = temp_models_cache.joinpath(model.id, "weights.model")
@@ -479,7 +479,7 @@ def test_gitlab_load_no_versions_found(temp_models_cache, setup_model, monkeypat
 
     # Check model updated to failed, with 100% completion
     assert UPDATES[-1]["model_id"] == model.id
-    assert UPDATES[-1]["updates"].training_status == "failed"
+    assert UPDATES[-1]["updates"].status == "failed"
 
     # Check model has not been saved
     model_path = temp_models_cache.joinpath(model.id, "weights.model")
@@ -520,7 +520,7 @@ def test_gitlab_load_invalid_file(temp_models_cache, setup_model, monkeypatch):
 
     # Check model updated to failed,
     assert UPDATES[-1]["model_id"] == model.id
-    assert UPDATES[-1]["updates"].training_status == "failed"
+    assert UPDATES[-1]["updates"].status == "failed"
 
     # Check model has not been saved after completion
     model_path = temp_models_cache.joinpath(model.id, "weights.model")
@@ -595,7 +595,7 @@ def test_huggingface_load(temp_models_cache, setup_model):
 
     # Check model updated to completed, with 100% completion
     assert UPDATES[-1]["model_id"] == model.id
-    assert UPDATES[-1]["updates"].training_status == "completed"
+    assert UPDATES[-1]["updates"].status == "completed"
     assert UPDATES[-1]["updates"].progress == 100
 
     # Check model has been saved after completion
@@ -644,7 +644,7 @@ def test_huggingface_load_missing(temp_models_cache, setup_model):
 
     # Check model updated to completed, with 100% completion
     assert UPDATES[-1]["model_id"] == model.id
-    assert UPDATES[-1]["updates"].training_status == "failed"
+    assert UPDATES[-1]["updates"].status == "failed"
 
     # Check model has not been saved
     model_path = temp_models_cache.joinpath(model.id, "weights.model")
@@ -681,7 +681,7 @@ def test_huggingface_load_invalid(temp_models_cache, setup_model):
 
     # Check model updated to completed, with 100% completion
     assert UPDATES[-1]["model_id"] == model.id
-    assert UPDATES[-1]["updates"].training_status == "failed"
+    assert UPDATES[-1]["updates"].status == "failed"
 
     # Check model has not been saved
     model_path = temp_models_cache.joinpath(model.id, "weights.model")

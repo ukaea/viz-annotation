@@ -77,14 +77,14 @@ async def create_model(db_client, project: Project, model_type: str) -> Model:
             [
                 db_model
                 for db_model in db_models
-                if db_model.training_status in ["queued", "started"]
+                if db_model.status in ["queued", "training", "loading"]
             ]
         )
         > 0
     ):
         raise HTTPException(
             status_code=409,
-            detail=f"Training of {model_type} model already in progress!",
+            detail=f"Training or loading of {model_type} model already in progress!",
         )
 
     if len(db_models) == 0:
@@ -96,7 +96,7 @@ async def create_model(db_client, project: Project, model_type: str) -> Model:
     model_in = ModelIn(
         type=model_type,
         version=version,
-        training_status="queued",
+        status="queued",
         progress=0,
         score=0,
     )
@@ -218,7 +218,7 @@ async def get_training_info(
     latest_model = await utils.get_model(
         db_client, project_id=project_id, model_type=model_type
     )
-    if latest_model.training_status not in ("queued", "started"):
+    if latest_model.status not in ("queued", "training", "loading"):
         raise HTTPException(
             status_code=404, detail=f"No training in progress for {model_type}"
         )
@@ -283,7 +283,7 @@ async def start_model_training(
             [
                 db_model
                 for db_model in db_models
-                if db_model.training_status in ["queued", "started"]
+                if db_model.status in ["queued", "training", "loading"]
             ]
         )
         > 0
@@ -302,7 +302,7 @@ async def start_model_training(
     model_in = ModelIn(
         type=model_type,
         version=version,
-        training_status="queued",
+        status="queued",
         progress=0,
         score=0,
     )
@@ -357,7 +357,7 @@ async def stop_model_training(
         model = await utils.get_model(
             db_client, project_id, model_type=model_type, version=version
         )
-        if model.training_status not in ("started", "queued"):
+        if model.status not in ("queued", "training", "loading"):
             raise HTTPException(
                 status_code=409,
                 detail="Model training is not in progress for this model!",
@@ -375,7 +375,7 @@ async def stop_model_training(
             db_client=db_client,
             project_id=project_id,
             model_type=model_type,
-            status="started",
+            status="training",
         )
 
     # Get the task IDs and stop them
@@ -392,7 +392,7 @@ async def stop_model_training(
         await utils.update_model(
             db_client=db_client,
             model_id=model.id,
-            updates=ModelUpdate(training_status="aborted"),
+            updates=ModelUpdate(status="aborted"),
         )
 
     # Return list of model IDs which were stopped
@@ -569,7 +569,7 @@ async def get_load_model_status(
             await utils.update_model(
                 db_client=db_client,
                 model_id=model.id,
-                updates=ModelUpdate(training_status="failed", progress=0),
+                updates=ModelUpdate(status="failed", progress=0),
             )
             raise HTTPException(
                 detail=f"Load task failed unexpectedly - {err_msg}",
@@ -580,7 +580,7 @@ async def get_load_model_status(
             await utils.update_model(
                 db_client=db_client,
                 model_id=result["model_id"],
-                updates=ModelUpdate(training_status="failed", progress=0),
+                updates=ModelUpdate(status="failed", progress=0),
             )
             raise HTTPException(
                 detail=f"Failed to load weights - {result['message']}",
@@ -642,7 +642,7 @@ async def predict(
         status="completed",
         version=version,
     )
-    if model.training_status != "completed":
+    if model.status != "completed":
         raise HTTPException(
             status_code=409,
             detail="Cannot make predictions using a model version which has not successfully finished training.",

@@ -210,7 +210,7 @@ Use the `log_progress()` method to send training updates to the UI:
 
 ```python
 # At the start of training
-self.log_progress(training_status="started")
+self.log_progress(status="training")
 
 # During training (update progress and score)
 self.log_progress(
@@ -220,7 +220,7 @@ self.log_progress(
 
 # At the end of training
 self.log_progress(
-    training_status="completed",
+    status="completed",
     progress=100,
     score=final_accuracy
 )
@@ -228,7 +228,7 @@ self.log_progress(
 
 **Training Status Options:**
 - `"queued"` - Model is waiting to start training
-- `"started"` - Training has begun
+- `"training"` - Training has begun
 - `"completed"` - Training finished successfully
 - `"failed"` - Training encountered an error
 - `"aborted"` - Training was manually stopped
@@ -366,7 +366,7 @@ class RandomForestModel(Model):
     ) -> float:
         """Train the Random Forest model"""
         
-        self.log_progress(training_status="started")
+        self.log_progress(status="training")
         
         # Split data
         self.split_data(
@@ -395,7 +395,7 @@ class RandomForestModel(Model):
             final_accuracy = train_accuracy
         
         self.log_progress(
-            training_status="completed",
+            status="completed",
             progress=100,
             score=final_accuracy
         )

@@ -81,7 +81,6 @@ def load_model_local(
     model: Model, project: Project, params: LocalLoadParams
 ) -> dict[str : str | None]:
     model_actor = get_actor(project=project, model=model, use_gpu=False)
-    # TODO make LocalLoadParams come from endpoint
     loader = LocalLoader(
         project=project,
         model=model,
@@ -131,7 +130,7 @@ def train_model(
 
     try:
         logger.info(f"Running model training for project {project.id}")
-        model_actor.log_progress.remote(training_status="started", progress=0)
+        model_actor.log_progress.remote(status="training", progress=0)
         train_task = model_actor.wrapped_train.remote(
             samples=samples, annotations=annotations, params=params
         )
@@ -145,7 +144,7 @@ def train_model(
         send_model_updates(
             project_id=project.id,
             model_id=model.id,
-            updates=ModelUpdate(training_status="completed", progress=100, score=score),
+            updates=ModelUpdate(status="completed", progress=100, score=score),
         )
 
         return {"project_id": project.id, "model_id": model.id, "score": score}
@@ -158,7 +157,7 @@ def train_model(
         send_model_updates(
             project_id=project.id,
             model_id=model.id,
-            updates=ModelUpdate(training_status="failed"),
+            updates=ModelUpdate(status="failed"),
         )
 
         # Also delete directory of results, if it has already been created

@@ -268,7 +268,7 @@ export const ModelSchema = z.object({
   project_id: z.string(),
   type: z.string(),
   version: z.int(),
-  training_status: z.string(),
+  status: z.string(),
   progress: z.number(),
   score: z.number(),
   task_id: z.string(),

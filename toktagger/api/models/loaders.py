@@ -47,7 +47,7 @@ class ModelLoader:
         send_model_updates(
             project_id=project.id,
             model_id=model.id,
-            updates=ModelUpdate(training_status="started"),
+            updates=ModelUpdate(status="loading"),
         )
 
     def _attempt_load(
@@ -78,7 +78,7 @@ class ModelLoader:
         send_model_updates(
             project_id=self.project.id,
             model_id=self.model.id,
-            updates=ModelUpdate(training_status="completed", progress=100),
+            updates=ModelUpdate(status="completed", progress=100),
         )
 
         return {
@@ -99,7 +99,7 @@ class ModelLoader:
         send_model_updates(
             project_id=self.project.id,
             model_id=self.model.id,
-            updates=ModelUpdate(training_status="failed"),
+            updates=ModelUpdate(status="failed"),
         )
 
         return {

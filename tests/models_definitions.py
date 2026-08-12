@@ -19,7 +19,7 @@ class MockDisruptionCNN(Model):
 
     def train(self, samples, annotations, *args, **kwargs):
         self.log_progress(
-            training_status="started",
+            status="training",
             progress=50,
             score=20,
         )
@@ -56,7 +56,7 @@ class TimeSeriesCNN(Model):
 
     def train(self, samples, annotations, params=None):
         self.log_progress(
-            training_status="started",
+            status="training",
             progress=50,
             score=20,
         )
@@ -130,7 +130,7 @@ class TimeSeriesCNNParams(pydantic.BaseModel):
 class MockParamsTimeSeriesCNN(TimeSeriesCNN):
     def train(self, samples, annotations, params: TimeSeriesCNNParams):
         self.log_progress(
-            training_status="started",
+            status="training",
             progress=50,
             score=20,
         )
@@ -180,7 +180,7 @@ class MockParamsTimeSeriesCNN(TimeSeriesCNN):
 MODEL_1 = ModelIn(
     type="mock_disruption_cnn",
     version=1,
-    training_status="completed",
+    status="completed",
     progress=100,
     score=80,
 )
@@ -188,14 +188,14 @@ MODEL_1 = ModelIn(
 MODEL_2 = ModelIn(
     type="mock_disruption_cnn",
     version=2,
-    training_status="completed",
+    status="completed",
     progress=100,
     score=90,
 )
 MODEL_3 = ModelIn(
     type="disruption_cnn",
     version=3,
-    training_status="started",
+    status="training",
     progress=50,
     score=60,
     task_id="abc123",
@@ -203,7 +203,7 @@ MODEL_3 = ModelIn(
 MODEL_4 = ModelIn(
     type="mock_params_timeseries_cnn",
     version=1,
-    training_status="completed",
+    status="completed",
     progress=100,
     score=80,
 )

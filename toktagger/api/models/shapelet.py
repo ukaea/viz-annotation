@@ -24,6 +24,13 @@ logger = logging.getLogger("ray")
 
 
 class ShapeletTrainParams(pydantic.BaseModel):
+    class_label: str = pydantic.Field(
+        description=(
+            "Annotation label to train the binary classifier on (event vs. "
+            "background). Must match one of the project's configured "
+            "time-region annotation labels."
+        ),
+    )
     signal_names: list[str] = pydantic.Field(
         min_length=1,
         description=(
@@ -51,14 +58,6 @@ class ShapeletTrainParams(pydantic.BaseModel):
         gt=0,
         description="Batch size for shapelet fitting",
     )
-    event_label: str | None = pydantic.Field(
-        default=None,
-        description=(
-            "Annotation label to train the binary classifier on. Required if "
-            "annotations use more than one distinct label, since this model "
-            "only supports a single event label vs. background."
-        ),
-    )
 
 
 class ShapeletPredictParams(pydantic.BaseModel):
@@ -73,14 +72,7 @@ class ShapeletPredictParams(pydantic.BaseModel):
     "shapelet_transform", ["time-series"], ShapeletTrainParams, ShapeletPredictParams
 )
 class ShapeletTransformModel(Model):
-    """Sliding-window event classifier using Shapelet Transform features.
-
-    Training extracts positive windows (centred on annotation midpoints) and
-    random negative (background) windows, fits a ShapeletTransformClassifier
-    from sktime. Supports both univariate and multivariate inputs. Inference
-    slides the fitted model across the target signal and groups consecutive
-    positive predictions into TimeRegion annotations.
-    """
+    """Sliding-window binary event classifier using Shapelet Transform features."""
 
     def define_model(self) -> dict:
         return {
@@ -135,7 +127,7 @@ class ShapeletTransformModel(Model):
         window_size = compute_window_size(ann_time_pairs)
         logger.info(f"ShapeletTransform: inferred window_size={window_size}")
 
-        pos_label = select_training_label(sample_data, params.event_label)
+        pos_label = select_training_label(sample_data, params.class_label)
 
         windows: list[np.ndarray] = []
         labels: list[int] = []

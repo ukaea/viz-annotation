@@ -21,6 +21,13 @@ logger = logging.getLogger("ray")
 
 
 class StumpyMotifTrainParams(pydantic.BaseModel):
+    class_label: str = pydantic.Field(
+        default="",
+        description=(
+            "Annotation label to include as templates. Leave blank to build "
+            "templates from every label present in the training annotations."
+        ),
+    )
     signal_names: list[str] = pydantic.Field(
         min_length=1,
         description=(
@@ -54,14 +61,7 @@ class StumpyMotifPredictParams(pydantic.BaseModel):
     "stumpy_motif", ["time-series"], StumpyMotifTrainParams, StumpyMotifPredictParams
 )
 class StumpyMotifModel(Model):
-    """Template-matching model using STUMPY's FFT-based MASS distance profile.
-
-    Training extracts z-normalised subsequences from labelled TimeRegion
-    annotations as templates. Inference computes the nearest-neighbour distance
-    profile (via MASS) from each template against the target signal and reports
-    positions whose distance falls below the trained threshold. Supports both
-    single-channel and multivariate inputs (per-channel MASS averaged).
-    """
+    """Template-matching event detector using STUMPY's FFT-based MASS distance profile."""
 
     def define_model(self) -> dict:
         return {
@@ -117,6 +117,8 @@ class StumpyMotifModel(Model):
         for ta, va, anns in sample_data:
             for ann in anns:
                 if not (hasattr(ann, "time_min") and hasattr(ann, "time_max")):
+                    continue
+                if params.class_label and ann.label != params.class_label:
                     continue
                 if multivariate:
                     segs = []

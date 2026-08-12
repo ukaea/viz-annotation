@@ -386,6 +386,43 @@ async def test_model_start_training_no_params(
 
 @pytest.mark.asyncio
 @pytest.mark.models_enabled
+async def test_model_start_training_with_name(
+    models_api_client, db_client, setup_model_db
+):
+    response = await models_api_client.put(
+        f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/train",
+        json={"name": "ELM model"},
+    )
+
+    await collect_train_results(models_api_client, response.json()["task_id"])
+    model_id = response.json()["model_id"]
+
+    model = await db_client.get_document_by_id(
+        collection="models", object_id=ObjectId(model_id)
+    )
+    assert model["name"] == "ELM model"
+
+
+@pytest.mark.asyncio
+@pytest.mark.models_enabled
+async def test_model_start_training_without_name_defaults_to_none(
+    models_api_client, db_client, setup_model_db
+):
+    response = await models_api_client.put(
+        f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/train"
+    )
+
+    await collect_train_results(models_api_client, response.json()["task_id"])
+    model_id = response.json()["model_id"]
+
+    model = await db_client.get_document_by_id(
+        collection="models", object_id=ObjectId(model_id)
+    )
+    assert model["name"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.models_enabled
 @pytest.mark.parametrize("method", ["train", "predict", "sample"])
 async def test_model_wrong_params(models_api_client, db_client, setup_model_db, method):
     if method == "sample":

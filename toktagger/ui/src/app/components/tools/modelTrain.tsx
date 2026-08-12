@@ -24,6 +24,7 @@ import {
   TabList,
   TabPanels,
   Text,
+  TextField,
   Tooltip,
   TooltipTrigger,
   Well,
@@ -72,6 +73,7 @@ export function ModelTrainModal({
   const [selectedModelName, setSelectedModelName] = useState<string | null>(
     null,
   );
+  const [modelName, setModelName] = useState<string>("");
   const [useGPU, setUseGPU] = useState<boolean>(false);
   const [schema, setSchema] = useState<RJSFSchema | null>(null);
   const [unvalidatedFormData, setUnvalidatedFormData] = useState<
@@ -128,11 +130,13 @@ export function ModelTrainModal({
     setSchema(null);
     if (!selectedModelName) return;
     (async () => {
-      const newSchema: RJSFSchema | null =
-        await getModelTrainSchema(selectedModelName);
+      const newSchema: RJSFSchema | null = await getModelTrainSchema(
+        selectedModelName,
+        project._id ?? undefined,
+      );
       setSchema(newSchema);
     })();
-  }, [selectedModelName]);
+  }, [selectedModelName, project._id]);
 
   // Fetch model description when model selection changes
   useEffect(() => {
@@ -198,6 +202,7 @@ export function ModelTrainModal({
 
   const handleModelSelection = (key: React.Key | null) => {
     setSelectedModelName(key !== null ? String(key) : null);
+    setModelName("");
     setTrainingModelId(null);
     setTrainingStatus(null);
     setMessage(null);
@@ -232,6 +237,7 @@ export function ModelTrainModal({
       selectedModelName,
       useGPU,
       params,
+      modelName,
     );
 
     if (response.ok) {
@@ -280,7 +286,7 @@ export function ModelTrainModal({
           <Heading>
             <Flex alignItems="center" gap="size-100">
               <WorkflowAdd size="S" />
-              <Text>ML Models</Text>
+              <Text>Model Training</Text>
             </Flex>
           </Heading>
           <Divider />
@@ -309,9 +315,18 @@ export function ModelTrainModal({
                     </ComboBox>
                     {modelDescription && (
                       <Well>
-                        <Text>{modelDescription}</Text>
+                        <span style={{ fontSize: "12px" }}>
+                          <Text>{modelDescription}</Text>
+                        </span>
                       </Well>
                     )}
+                    <TextField
+                      label="Model Name"
+                      isRequired
+                      value={modelName}
+                      onChange={setModelName}
+                      width="100%"
+                    />
                     {schema && (
                       <ModelForm
                         ref={formRef}
@@ -336,6 +351,9 @@ export function ModelTrainModal({
                         onSortChange={setSortDescriptor}
                       >
                         <TableHeader>
+                          <Column key="name" allowsSorting>
+                            Name
+                          </Column>
                           <Column key="type" allowsSorting>
                             Type
                           </Column>
@@ -356,6 +374,7 @@ export function ModelTrainModal({
                         <TableBody items={sortedModels}>
                           {(item) => (
                             <Row key={item._id}>
+                              <Cell>{item.name ?? item.type}</Cell>
                               <Cell>{item.type}</Cell>
                               <Cell>{item.version}</Cell>
                               <Cell>{formatTimestamp(item.timestamp)}</Cell>
@@ -422,6 +441,7 @@ export function ModelTrainModal({
               isDisabled={
                 !modelNames ||
                 !selectedModelName ||
+                !modelName.trim() ||
                 activeTab !== "train" ||
                 isTrainingActive
               }

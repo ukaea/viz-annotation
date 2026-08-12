@@ -1,5 +1,6 @@
 import pytest
 from toktagger.api.schemas.samples import ShotData
+import tests.db_definitions as db_definitions
 import toktagger.api.config as config
 
 
@@ -84,6 +85,55 @@ async def test_get_model_schema(api_client, setup_db, model_name, method):
             "selection_1",
             "selection_2",
         ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.models_enabled
+@pytest.mark.parametrize("model_name", ["minirocket", "shapelet_transform"])
+async def test_get_model_train_schema_injects_class_label_enum(
+    api_client, setup_db, model_name
+):
+    response = await api_client.get(
+        f"/meta/models/{model_name}/train?project_id={setup_db['project_id_2']}"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert (
+        data["properties"]["class_label"]["enum"]
+        == db_definitions.PROJECT_2.time_region_labels
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.models_enabled
+@pytest.mark.parametrize("model_name", ["minirocket", "shapelet_transform"])
+async def test_get_model_train_schema_without_project_id_has_no_enum(
+    api_client, setup_db, model_name
+):
+    response = await api_client.get(f"/meta/models/{model_name}/train")
+    assert response.status_code == 200
+    data = response.json()
+    assert "enum" not in data["properties"]["class_label"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.models_enabled
+@pytest.mark.parametrize("model_name", ["dtw_motif", "stumpy_motif"])
+async def test_get_model_train_schema_injects_class_label_enum_with_blank_option(
+    api_client, setup_db, model_name
+):
+    """class_label is optional (a filter) on template-matching models, so an
+    unselected/blank value must remain a valid enum choice alongside the
+    project's real labels."""
+    response = await api_client.get(
+        f"/meta/models/{model_name}/train?project_id={setup_db['project_id_2']}"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert (
+        data["properties"]["class_label"]["enum"]
+        == [""] + db_definitions.PROJECT_2.time_region_labels
+    )
 
 
 @pytest.mark.asyncio

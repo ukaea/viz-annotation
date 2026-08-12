@@ -96,17 +96,14 @@ def load_aligned_signals(
 
 def select_training_label(
     sample_data: list[tuple[np.ndarray, np.ndarray, list]],
-    event_label: str | None,
+    class_label: str,
 ) -> str:
-    """Determine which annotation label to train a binary classifier on.
+    """Validate that class_label matches a real annotation label in the data.
 
     Models using this helper train a single binary classifier (event vs.
-    background), so exactly one annotation label must be selected. If
-    `event_label` is given it is returned as-is (callers are expected to
-    filter annotations to that label). Otherwise, the label is inferred
-    only if all annotations share the same label; if annotations use more
-    than one distinct label, a ValueError is raised rather than silently
-    collapsing them into a single positive class.
+    background) against `class_label`. If no annotation in the training data
+    actually carries that label, raise a clear error rather than silently
+    training on zero positive examples.
     """
     all_labels = {
         ann.label
@@ -114,17 +111,12 @@ def select_training_label(
         for ann in anns
         if hasattr(ann, "time_min")
     }
-    if event_label is not None:
-        return event_label
-    if len(all_labels) > 1:
+    if class_label not in all_labels:
         raise ValueError(
-            f"Multiple annotation labels found {sorted(all_labels)}, but this "
-            "model trains a single binary classifier. Set `event_label` to "
-            "choose which label to train on."
+            f"class_label '{class_label}' does not match any annotation label "
+            f"found in the training data. Available labels: {sorted(all_labels)}"
         )
-    if not all_labels:
-        return "Event"
-    return next(iter(all_labels))
+    return class_label
 
 
 def non_max_suppression(

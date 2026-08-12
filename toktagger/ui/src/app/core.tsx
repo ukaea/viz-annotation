@@ -328,6 +328,7 @@ export const startTraining = async (
   selected_model: string,
   useGPU: boolean,
   params: Record<string, unknown>,
+  name: string,
 ): Promise<Response> => {
   const response = await fetch(
     `${BACKEND_API_URL}/projects/${project_id}/models/${selected_model}/train?use_gpu=${useGPU}`,
@@ -336,7 +337,7 @@ export const startTraining = async (
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ params: params }),
+      body: JSON.stringify({ params: params, name: name }),
     },
   );
   return response;
@@ -429,10 +430,12 @@ export const getModels = async (project_id: string): Promise<Response> => {
 export const getModelSchema = async (
   modelName: string,
   schemaType: string,
+  projectId?: string,
 ): Promise<RJSFSchema | null> => {
-  const response = await fetch(
-    `${BACKEND_API_URL}/meta/models/${modelName}/${schemaType}`,
-  );
+  const url =
+    `${BACKEND_API_URL}/meta/models/${modelName}/${schemaType}` +
+    (projectId ? `?project_id=${projectId}` : "");
+  const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch model schema!`);
   }
@@ -456,8 +459,9 @@ export const getModelMeta = async (
 
 export const getModelTrainSchema = async (
   modelName: string,
+  projectId?: string,
 ): Promise<RJSFSchema | null> => {
-  return getModelSchema(modelName, "train");
+  return getModelSchema(modelName, "train", projectId);
 };
 
 export const getModelPredictSchema = async (

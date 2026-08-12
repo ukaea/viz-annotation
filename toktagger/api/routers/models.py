@@ -168,6 +168,11 @@ async def start_model_training(
     params: dict = Body(
         {}, description="Optional parameters for training the model", embed=True
     ),
+    name: str | None = Body(
+        None,
+        description="User-facing display name for the trained model",
+        embed=True,
+    ),
 ):
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
@@ -235,6 +240,7 @@ async def start_model_training(
 
     model_in = ModelIn(
         type=model_type,
+        name=name,
         version=version,
         training_status="queued",
         progress=0,

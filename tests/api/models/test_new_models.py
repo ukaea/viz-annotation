@@ -134,6 +134,21 @@ def test_dtw_motif_multivariate_train_predict():
     assert isinstance(result[0], list)
 
 
+def test_dtw_motif_class_label_filters_templates():
+    model = make_model_instance(DTWMotifModel)
+    data = make_mv_data(["Ip"], n=500)
+    model.data_loader.get_sample.return_value = data
+    sample = make_sample()
+    anns = [
+        make_annotation(2.0, 3.0, label="ELM"),
+        make_annotation(5.0, 6.0, label="L-mode"),
+    ]
+    params = DTWMotifTrainParams(signal_names=["Ip"], window_size=50, class_label="ELM")
+    model.train([sample], [anns], params)
+    labels = {label for _, label in model.model["templates"]}
+    assert labels == {"ELM"}
+
+
 def test_dtw_motif_backward_compat_load():
     model = make_model_instance(DTWMotifModel)
     old_state = {
@@ -311,6 +326,23 @@ def test_stumpy_motif_detect_handles_signal_length_equal_to_window_size():
     assert len(result) == 1
 
 
+def test_stumpy_motif_class_label_filters_templates():
+    model = make_model_instance(StumpyMotifModel)
+    data = make_mv_data(["Ip"], n=500)
+    model.data_loader.get_sample.return_value = data
+    sample = make_sample()
+    anns = [
+        make_annotation(2.0, 3.0, label="ELM"),
+        make_annotation(5.0, 6.0, label="L-mode"),
+    ]
+    params = StumpyMotifTrainParams(
+        signal_names=["Ip"], threshold=3.0, class_label="ELM"
+    )
+    model.train([sample], [anns], params)
+    labels = {label for _, label in model.model["templates"]}
+    assert labels == {"ELM"}
+
+
 def test_stumpy_motif_backward_compat_load():
     model = make_model_instance(StumpyMotifModel)
     old_state = {
@@ -341,6 +373,7 @@ def _make_trained_minirocket(signal_names: list[str]) -> MiniRocketModel:
         signal_names=signal_names,
         n_background_per_shot=5,
         num_kernels=100,
+        class_label="Event",
     )
     model.train([sample], [[ann]], params)
     model._trained = True
@@ -418,6 +451,7 @@ def test_shapelet_train_predict(sktime):
         max_shapelets=2,
         n_shapelet_samples=20,
         batch_size=10,
+        class_label="Event",
     )
     score = model.train([sample], [[ann]], params)
     assert isinstance(score, float)

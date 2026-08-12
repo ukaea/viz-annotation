@@ -25,6 +25,13 @@ logger = logging.getLogger("ray")
 
 
 class MiniRocketTrainParams(pydantic.BaseModel):
+    class_label: str = pydantic.Field(
+        description=(
+            "Annotation label to train the binary classifier on (event vs. "
+            "background). Must match one of the project's configured "
+            "time-region annotation labels."
+        ),
+    )
     signal_names: list[str] = pydantic.Field(
         min_length=1,
         description=(
@@ -42,14 +49,6 @@ class MiniRocketTrainParams(pydantic.BaseModel):
         gt=0,
         description="Number of MiniRocket convolutional kernels",
     )
-    event_label: str | None = pydantic.Field(
-        default=None,
-        description=(
-            "Annotation label to train the binary classifier on. Required if "
-            "annotations use more than one distinct label, since this model "
-            "only supports a single event label vs. background."
-        ),
-    )
 
 
 class MiniRocketPredictParams(pydantic.BaseModel):
@@ -64,15 +63,7 @@ class MiniRocketPredictParams(pydantic.BaseModel):
     "minirocket", ["time-series"], MiniRocketTrainParams, MiniRocketPredictParams
 )
 class MiniRocketModel(Model):
-    """Sliding-window event classifier using MiniRocket features + Ridge regression.
-
-    Training extracts positive windows (centred on annotation midpoints) and
-    random negative (background) windows, applies MiniRocket feature
-    transformation, and fits a RidgeClassifierCV. Supports both single-channel
-    and multivariate inputs. Inference slides the fitted model across the target
-    signal and groups consecutive positive predictions into TimeRegion
-    annotations.
-    """
+    """Sliding-window binary event classifier using MiniRocket features and Ridge regression."""
 
     def define_model(self) -> dict:
         return {
@@ -131,7 +122,7 @@ class MiniRocketModel(Model):
 
         multivariate = len(params.signal_names) > 1
 
-        pos_label = select_training_label(sample_data, params.event_label)
+        pos_label = select_training_label(sample_data, params.class_label)
 
         windows: list[np.ndarray] = []
         labels: list[int] = []

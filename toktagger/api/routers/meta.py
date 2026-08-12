@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, Query
 from toktagger.api.core.data_loaders import LoaderRegistry
+from toktagger.api.crud import utils
 from toktagger.api.schemas.models import LoadTypes
 from toktagger.api.models import models_dependencies_installed, check_models_enabled
 import typing
@@ -56,11 +57,33 @@ async def get_model_meta(model: str) -> dict[str, typing.Any]:
     "/models/{model}/train",
     dependencies=[Depends(check_models_enabled)],
 )
-async def get_model_training_schema(model: str) -> dict[str, typing.Any] | None:
+async def get_model_training_schema(
+    request: Request,
+    model: str,
+    project_id: str | None = Query(
+        None,
+        description=(
+            "If provided, populate any class_label field's dropdown options "
+            "from this project's configured time-region annotation labels."
+        ),
+    ),
+) -> dict[str, typing.Any] | None:
     """Get params required for training this model."""
-    return ModelRegistry.get_params_schema(
+    schema = ModelRegistry.get_params_schema(
         model, schema_type="training", return_draft_07=True
     )
+    if schema and project_id and "class_label" in schema.get("properties", {}):
+        db_client = request.app.state.db_client
+        project = await utils.get_project(db_client, project_id)
+        labels = list(project.time_region_labels or [])
+        # Fields with a default (e.g. the optional filter on template-matching
+        # models) allow an unselected/blank value, so it must stay a valid
+        # enum choice. Required fields (e.g. minirocket/shapelet) must not
+        # offer a blank option, since the user must always pick a real label.
+        if "class_label" not in schema.get("required", []):
+            labels = [""] + labels
+        schema["properties"]["class_label"]["enum"] = labels
+    return schema
 
 
 @router.get(

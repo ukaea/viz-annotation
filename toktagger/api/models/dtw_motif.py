@@ -21,6 +21,13 @@ logger = logging.getLogger("ray")
 
 
 class DTWMotifTrainParams(pydantic.BaseModel):
+    class_label: str = pydantic.Field(
+        default="",
+        description=(
+            "Annotation label to include as templates. Leave blank to build "
+            "templates from every label present in the training annotations."
+        ),
+    )
     signal_names: list[str] = pydantic.Field(
         min_length=1,
         description=(
@@ -59,14 +66,7 @@ class DTWMotifPredictParams(pydantic.BaseModel):
     "dtw_motif", ["time-series"], DTWMotifTrainParams, DTWMotifPredictParams
 )
 class DTWMotifModel(Model):
-    """Template-matching model using z-normalised Dynamic Time Warping.
-
-    Training extracts subsequences around each labelled TimeRegion annotation
-    and stores them as z-normalised templates. Inference slides a window across
-    the target signal, z-normalises each window locally, and reports positions
-    whose DTW distance to any template falls below the trained threshold.
-    Supports both single-channel and multivariate inputs.
-    """
+    """Template-matching event detector using z-normalised Dynamic Time Warping distance."""
 
     def define_model(self) -> dict:
         return {
@@ -122,6 +122,8 @@ class DTWMotifModel(Model):
         for ta, va, anns in sample_data:
             for ann in anns:
                 if not (hasattr(ann, "time_min") and hasattr(ann, "time_max")):
+                    continue
+                if params.class_label and ann.label != params.class_label:
                     continue
                 if multivariate:
                     segs = []

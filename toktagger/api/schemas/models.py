@@ -6,6 +6,7 @@ from enum import Enum
 
 class ModelIn(ConfiguredModel):
     type: str
+    name: Optional[str] = None
     version: int
     training_status: Literal["queued", "started", "failed", "completed", "aborted"]
     progress: Annotated[float, Field(strict=True, ge=0, le=100)]

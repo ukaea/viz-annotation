@@ -6,14 +6,17 @@ from toktagger.api.models.event_detection_utils import (
     compute_window_size,
     extract_segment,
     merge_detections,
+    select_training_label,
     zscore,
 )
 
 
-def _make_ann(time_min, time_max):
+def _make_ann(time_min, time_max, label=None):
     ann = MagicMock()
     ann.time_min = time_min
     ann.time_max = time_max
+    if label is not None:
+        ann.label = label
     return ann
 
 
@@ -121,6 +124,21 @@ def test_merge_detections_created_by_set_to_model_type():
     results = merge_detections([10], 5, t, "ev", "minirocket")
     assert results[0].created_by == "minirocket"
     assert results[0].validated is False
+
+
+def test_select_training_label_returns_class_label_when_present():
+    t = np.arange(100, dtype=float)
+    anns = [_make_ann(0.0, 10.0, label="ELM")]
+    sample_data = [(t, t, anns)]
+    assert select_training_label(sample_data, "ELM") == "ELM"
+
+
+def test_select_training_label_raises_when_no_matching_annotation():
+    t = np.arange(100, dtype=float)
+    anns = [_make_ann(0.0, 10.0, label="ELM")]
+    sample_data = [(t, t, anns)]
+    with pytest.raises(ValueError, match="does not match any annotation label"):
+        select_training_label(sample_data, "L-mode")
 
 
 def test_merge_detections_overlapping_windows_merge():

@@ -899,7 +899,7 @@ def test_model_train_predict(server_setup, setup_model_samples, page: Page, mode
     page.get_by_role("button", name="Train ML Model").click()
 
     # Check modal has opened
-    expect(page.get_by_role("heading", name="ML Models")).to_be_visible()
+    expect(page.get_by_role("heading", name="Model Training")).to_be_visible()
     expect(page.get_by_role("combobox", name="Select Model Type")).to_be_visible()
     expect(page.get_by_role("button", name="Close")).to_be_visible()
     expect(page.get_by_role("button", name="Train", exact=True)).to_be_visible()
@@ -930,7 +930,7 @@ def test_model_train_predict(server_setup, setup_model_samples, page: Page, mode
     # Close modal, check it disappears
     page.get_by_role("button", name="Close", exact=True).click()
 
-    expect(page.get_by_role("heading", name="ML Models")).to_be_hidden()
+    expect(page.get_by_role("heading", name="Model Training")).to_be_hidden()
     expect(page.get_by_role("combobox", name="Select Model Type")).to_be_hidden()
     expect(page.get_by_role("button", name="Close")).to_be_hidden()
     expect(page.get_by_role("button", name="Train", exact=True)).to_be_hidden()

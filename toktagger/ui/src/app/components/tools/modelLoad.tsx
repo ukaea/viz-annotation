@@ -420,7 +420,6 @@ export function ModelLoadModal({
     if (!modalOpen || !taskId || !project._id || !pollingModelName.current)
       return;
 
-    let pollCounter = 0;
     // Poll for result from GET predictions endpoint
     const interval = setInterval(async () => {
       if (pollingModelName.current == null) {
@@ -436,7 +435,7 @@ export function ModelLoadModal({
 
       if (response.status === 202) {
         // Load check queued but not done yet, so continue to poll
-        pollCounter += 1;
+        return;
       } else if (response.ok && payload === true) {
         setMessage("Model loaded successfully!");
         setMessageIcon(

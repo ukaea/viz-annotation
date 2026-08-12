@@ -25,6 +25,7 @@ from toktagger.api.models.loaders import (
     GitlabLoader,
     HuggingfaceLoader,
 )
+from requests import Response
 
 PROJECT = Project(
     name="test_project_1",
@@ -119,7 +120,9 @@ def mock_hf_hub_download(repo_id, filename, revision, local_dir, *args, **kwargs
     if repo_id.split("/")[-1] == "invalid":
         out_file.write_bytes(b"\xff")
     elif repo_id.split("/")[-1] == "missing":
-        raise RepositoryNotFoundError("Repo not found!")
+        response = Response()
+        response.status_code = 404
+        raise RepositoryNotFoundError("Repo not found!", response=response)
     else:
         out_file.write_text(f"{repo_id},{filename},{revision}")
 
@@ -640,7 +643,7 @@ def test_huggingface_load_missing(temp_models_cache, setup_model):
 
     assert result["project_id"] == "test_project_id"
     assert result["model_id"] == model.id
-    assert result["message"] == "requested model could not be found!"
+    assert result["message"] == "repository not found!"
 
     # Check model updated to completed, with 100% completion
     assert UPDATES[-1]["model_id"] == model.id

@@ -149,23 +149,6 @@ function GitlabLoadTab({
       <TextField
         marginTop={"size-100"}
         width={"100%"}
-        label="Model Version"
-        value={form.model_version ?? undefined}
-        validationState={
-          "model_version" in validationErrors ? "invalid" : undefined
-        }
-        errorMessage={validationErrors.model_version ?? ""}
-        onChange={(model_version) =>
-          setForm({
-            ...form,
-            model_version: model_version ?? null,
-          })
-        }
-        description="Optional: The semantic version of the model to download, eg 1.0.0"
-      />
-      <TextField
-        marginTop={"size-100"}
-        width={"100%"}
         label="Weights Path"
         value={form.weights_path}
         validationState={
@@ -179,6 +162,23 @@ function GitlabLoadTab({
           })
         }
         description="The path to the weights artifact within the model registry."
+      />
+      <TextField
+        marginTop={"size-100"}
+        width={"100%"}
+        label="Model Version"
+        value={form.model_version ?? undefined}
+        validationState={
+          "model_version" in validationErrors ? "invalid" : undefined
+        }
+        errorMessage={validationErrors.model_version ?? ""}
+        onChange={(model_version) =>
+          setForm({
+            ...form,
+            model_version: model_version ?? null,
+          })
+        }
+        description="Optional: The semantic version of the model to download, eg 1.0.0"
       />
     </Flex>
   );
@@ -237,23 +237,6 @@ function HuggingfaceLoadTab({
       <TextField
         marginTop={"size-100"}
         width={"100%"}
-        label="Model Version"
-        value={form.model_version ?? undefined}
-        validationState={
-          "model_version" in validationErrors ? "invalid" : undefined
-        }
-        errorMessage={validationErrors.model_version ?? ""}
-        onChange={(model_version) =>
-          setForm({
-            ...form,
-            model_version: model_version ?? null,
-          })
-        }
-        description="Optional: The semantic version or revision of the model to download, eg v1.0.0."
-      />
-      <TextField
-        marginTop={"size-100"}
-        width={"100%"}
         label="Weights Path"
         value={form.weights_path}
         validationState={
@@ -267,6 +250,23 @@ function HuggingfaceLoadTab({
           })
         }
         description="The path to the weights artifact within the Hugging Face project."
+      />
+      <TextField
+        marginTop={"size-100"}
+        width={"100%"}
+        label="Model Version"
+        value={form.model_version ?? undefined}
+        validationState={
+          "model_version" in validationErrors ? "invalid" : undefined
+        }
+        errorMessage={validationErrors.model_version ?? ""}
+        onChange={(model_version) =>
+          setForm({
+            ...form,
+            model_version: model_version ?? null,
+          })
+        }
+        description="Optional: The semantic version or revision of the model to download, eg v1.0.0."
       />
     </Flex>
   );

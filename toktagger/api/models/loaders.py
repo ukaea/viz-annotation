@@ -17,6 +17,11 @@ from toktagger.api.core.sender import (
 import logging
 import shutil
 from mlflow import MlflowClient, MlflowException
+from huggingface_hub.errors import (
+    RepositoryNotFoundError,
+    EntryNotFoundError,
+    RevisionNotFoundError,
+)
 from huggingface_hub import hf_hub_download
 from safetensors import safe_open
 import requests
@@ -292,9 +297,15 @@ class HuggingfaceLoader(ModelLoader):
                 revision=self.params.model_version,
                 local_dir=self.models_dir,
             )
+        except RepositoryNotFoundError as e:
+            return self._log_error(error=e, message="repository not found!")
+        except EntryNotFoundError as e:
+            return self._log_error(error=e, message="file not found within repository!")
+        except RevisionNotFoundError as e:
+            return self._log_error(error=e, message="requested version not found!")
         except Exception as e:
             return self._log_error(
-                error=e, message="requested model could not be found!"
+                error=e, message="failed to download model from Hugging Face!"
             )
 
         download_path = pathlib.Path(weights_path)

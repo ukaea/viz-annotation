@@ -153,9 +153,10 @@ export function ModelTrainModal({
           </Content>
           <Footer>
             {message && (
-              <Text>
-                {messageIcon} {message}
-              </Text>
+              <Flex alignItems="center" gap="size-100">
+                {messageIcon}
+                <Text>{message}</Text>
+              </Flex>
             )}
           </Footer>
           <ButtonGroup>

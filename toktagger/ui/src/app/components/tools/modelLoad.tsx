@@ -67,6 +67,24 @@ type HuggingfaceLoadProps = {
   validationErrors: Record<string, string>;
 };
 
+const INITIAL_LOCAL_FORM: LocalLoadForm = {
+  weights_path: "",
+};
+
+const INITIAL_GITLAB_FORM: GitlabLoadForm = {
+  gitlab_project_id: 0,
+  model_name: "",
+  weights_path: "",
+  model_version: null,
+};
+
+const INITIAL_HUGGINGFACE_FORM: HuggingfaceLoadForm = {
+  model_name: "",
+  weights_path: "",
+  model_version: null,
+  huggingface_userspace: "",
+};
+
 function LocalLoadTab({ form, setForm, validationErrors }: LocalLoadProps) {
   return (
     <Flex direction="column">
@@ -291,41 +309,49 @@ export function ModelLoadModal({
   const pollingModelName = useRef<string | null>(null);
   const [loadMethods, setLoadMethods] = useState<string[] | null>(null);
   const [restrictedRemoteId, setRestrictedRemoteId] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [taskId, setTaskId] = useState<string | null>(null);
 
   const [selectedTab, setSelectedTab] = useState<LoadMethod | null>(null);
 
-  const [localForm, setLocalForm] = useState<LocalLoadForm>({
-    weights_path: "",
-  });
+  const [localForm, setLocalForm] = useState<LocalLoadForm>(INITIAL_LOCAL_FORM);
 
-  const [gitlabForm, setGitlabForm] = useState<GitlabLoadForm>({
-    gitlab_project_id: 0,
-    model_name: "",
-    weights_path: "",
-    model_version: null,
-  });
+  const [gitlabForm, setGitlabForm] =
+    useState<GitlabLoadForm>(INITIAL_GITLAB_FORM);
 
-  const [huggingfaceForm, setHuggingfaceForm] = useState<HuggingfaceLoadForm>({
-    model_name: "",
-    weights_path: "",
-    model_version: null,
-    huggingface_userspace: "",
-  });
+  const [huggingfaceForm, setHuggingfaceForm] = useState<HuggingfaceLoadForm>(
+    INITIAL_HUGGINGFACE_FORM,
+  );
 
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string>
   >({});
 
+  const resetModal = () => {
+    setMessage(null);
+    setMessageIcon(null);
+    setValidationErrors({});
+
+    setSelectedModelName(null);
+
+    setTaskId(null);
+    pollingModelName.current = null;
+
+    setRestrictedRemoteId(false);
+
+    setLocalForm(INITIAL_LOCAL_FORM);
+    setGitlabForm(INITIAL_GITLAB_FORM);
+    setHuggingfaceForm(INITIAL_HUGGINGFACE_FORM);
+  };
+
   const submitLoadJob = async () => {
     if (!selectedModelName || !selectedTab || !project._id) {
       return;
     }
-    let params: LocalLoadForm | GitlabLoadForm;
+    let params: LocalLoadForm | GitlabLoadForm | HuggingfaceLoadForm;
     let valid:
       | z.ZodSafeParseResult<LocalLoadForm>
-      | z.ZodSafeParseResult<GitlabLoadForm>;
+      | z.ZodSafeParseResult<GitlabLoadForm>
+      | z.ZodSafeParseResult<HuggingfaceLoadForm>;
 
     if (selectedTab == "local") {
       params = localForm;
@@ -365,10 +391,12 @@ export function ModelLoadModal({
     const payload = await response.json();
 
     if (response.ok) {
-      setIsLoading(true);
       setTaskId(payload.task_id);
       pollingModelName.current = selectedModelName;
-      setMessage(null);
+      setMessage("Model loading added to job queue!");
+      setMessageIcon(
+        <ProgressCircle aria-label="Loading…" size="S" isIndeterminate />,
+      );
     } else if (response.status == 422) {
       setMessage("Invalid parameters provided!");
       setMessageIcon(<Alert aria-label="Failed" color="negative" size="S" />);
@@ -389,14 +417,14 @@ export function ModelLoadModal({
   };
 
   useEffect(() => {
-    if (!taskId || !project._id || !pollingModelName.current) return;
+    if (!modalOpen || !taskId || !project._id || !pollingModelName.current)
+      return;
 
     let pollCounter = 0;
     // Poll for result from GET predictions endpoint
     const interval = setInterval(async () => {
       if (pollingModelName.current == null) {
         clearInterval(interval);
-        setIsLoading(false);
         return;
       }
       const response = await getLoadModelStatus(
@@ -409,34 +437,22 @@ export function ModelLoadModal({
       if (response.status === 202) {
         // Load check queued but not done yet, so continue to poll
         pollCounter += 1;
-        if (pollCounter > 60) {
-          setMessage(
-            "Timed out while loading model - check models tab to see current status.",
-          );
-          setMessageIcon(
-            <Alert aria-label="Timeout" color="notice" size="S" />,
-          );
-          clearInterval(interval);
-          setIsLoading(false);
-        }
       } else if (response.ok && payload === true) {
         setMessage("Model loaded successfully!");
         setMessageIcon(
           <CheckmarkCircle aria-label="Success" color="positive" size="S" />,
         );
         clearInterval(interval);
-        setIsLoading(false);
       } else {
         setMessage(
           payload === false ? "Model failed to load!" : payload.detail,
         );
         setMessageIcon(<Alert aria-label="Failed" color="negative" size="S" />);
         clearInterval(interval);
-        setIsLoading(false);
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [project._id, taskId]);
+  }, [project._id, taskId, modalOpen]);
 
   useEffect(() => {
     if (!selectedTab) {
@@ -472,6 +488,7 @@ export function ModelLoadModal({
 
   useEffect(() => {
     if (!modalOpen) {
+      resetModal();
       return;
     }
     (async () => {
@@ -534,9 +551,12 @@ export function ModelLoadModal({
               <Tabs
                 aria-label="ML Model Tabs"
                 selectedKey={selectedTab}
-                onSelectionChange={(key) =>
-                  setSelectedTab(String(key) as LoadMethod)
-                }
+                onSelectionChange={(key) => {
+                  setSelectedTab(String(key) as LoadMethod);
+                  setValidationErrors({});
+                  setMessage(null);
+                  setMessageIcon(null);
+                }}
               >
                 <TabList>
                   {loadMethods?.includes("local") ? (
@@ -597,12 +617,10 @@ export function ModelLoadModal({
           </Content>
           <Footer>
             {message && (
-              <Text>
-                {messageIcon} {message}
-              </Text>
-            )}
-            {isLoading && (
-              <ProgressCircle aria-label="Loading…" isIndeterminate />
+              <Flex alignItems="center" gap="size-100">
+                {messageIcon}
+                <Text>{message}</Text>
+              </Flex>
             )}
           </Footer>
           <ButtonGroup>
@@ -612,7 +630,7 @@ export function ModelLoadModal({
             <Button
               variant="accent"
               onPress={submitLoadJob}
-              isDisabled={!selectedModelName || isLoading}
+              isDisabled={!selectedModelName}
             >
               Submit
             </Button>

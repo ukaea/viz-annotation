@@ -379,9 +379,10 @@ export type ToolingCallbacks = {
   move: (x: number, y: number) => void;
   end: (x: number, y: number) => void;
   hover?: (x: number, y: number) => void;
-  // Discards any in-progress annotation and resets tool-local state - called when a draw
-  // is abandoned (tool switched mid-draw, Escape pressed) rather than completed normally
+  // Called when a draw is abandoned (tool switched or Escape pressed) instead of finished
   cancel?: () => void;
+  // Alternative gesture for finishing an in-progress shape (e.g. double-click to close a polygon)
+  doubleClick?: (x: number, y: number) => void;
 };
 
 export type PlotProps = {

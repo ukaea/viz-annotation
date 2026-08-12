@@ -31,6 +31,8 @@ const DEFAULT_PLOTLY_CONFIG: Partial<Config> = {
   displayModeBar: true,
   scrollZoom: true,
   responsive: true,
+  // Disabled so double-click is free for annotation tools to use instead
+  doubleClick: false,
 };
 
 // The typing for plotly's selection relayout is not great - this avoids errors and ensures the correct object is used
@@ -353,7 +355,7 @@ export const BaseTimeSeriesPlot = ({
     }
 
     function getClickData(
-      event: PointerEvent,
+      event: MouseEvent,
       _plot: PlotlyHTMLElement,
       resolveAgainst?: HTMLElement | null, // This is used to ensure the annotation is resolved against the starting subplot
     ): TimeSeriesAnnotationPoint & { axisSize: { x: number; y: number } } {
@@ -501,11 +503,25 @@ export const BaseTimeSeriesPlot = ({
       setOngoingAction(false); // Ensure this is always called even if the tool callback isn't found
     };
 
+    // Double-click to finish a shape (e.g. close a polygon), same gating as starting one
+    const doubleClickAnnotation = (event: MouseEvent) => {
+      if (!event.ctrlKey || !editMode || !activeAnnotationTool) return;
+      const clickLocation = getClickData(
+        event,
+        plot,
+        lockedSubplotElementRef.current,
+      );
+      toolingCallbacks
+        .get(activeAnnotationTool.type)
+        ?.doubleClick?.(clickLocation.x, clickLocation.y);
+    };
+
     draggableElements.forEach((element) => {
       element.addEventListener("contextmenu", handleContextMenu);
       element.addEventListener("pointerdown", handleCancelSelection);
       element.addEventListener("pointerdown", startAnnotationCreation);
       element.addEventListener("pointermove", hoverAnnotation);
+      element.addEventListener("dblclick", doubleClickAnnotation);
 
       if (editMode) {
         element.addEventListener("pointermove", updateAnnotation);
@@ -519,6 +535,7 @@ export const BaseTimeSeriesPlot = ({
         element.removeEventListener("pointerdown", handleCancelSelection);
         element.removeEventListener("pointerdown", startAnnotationCreation);
         element.removeEventListener("pointermove", hoverAnnotation);
+        element.removeEventListener("dblclick", doubleClickAnnotation);
         element.removeEventListener("pointermove", updateAnnotation);
         element.removeEventListener("pointerup", finishAnnotationCreation);
       });

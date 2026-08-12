@@ -17,8 +17,7 @@ import * as d3 from "d3";
 import { useEffect, useRef } from "react";
 import { useContextMenu } from "react-contexify";
 
-// A polygon being drawn carries two helper vertices: one that tracks the cursor and a
-// temporary vertex that keeps the outline closed. Both are dropped once it is committed.
+// Extra vertices used only while drawing (cursor tracker + closing point), dropped on commit
 const HELPER_VERTEX_COUNT = 2;
 
 // Fewer real vertices than this does not describe a shape, so it cannot be committed.
@@ -47,6 +46,14 @@ export const Polygon = ({ plotId, plotReady, subplot }: ToolingProps) => {
   });
 
   useEffect(() => {
+    // Finishes closing a polygon, used by both the click-near-start and double-click paths
+    const closePolygon = (annotation: TimeSeriesAnnotation) => {
+      setOngoingAction(false); // Since this has hover functionality the callback must end the ongoing action
+      isUpdatingPolygon.current = false;
+      annotation.points.splice(annotation.points.length - 2, 2); // This removes the temporary points added to prevent polygons with 2 vertices
+      updateAnnotation(annotation);
+    };
+
     const toolingCallbacks: ToolingCallbacks = {
       // For polgons the start callback is responsible for creating the polygon but also appeanding vertices and closing shape too
       start: (x, y, label, axisSize) => {
@@ -75,10 +82,7 @@ export const Polygon = ({ plotId, plotReady, subplot }: ToolingProps) => {
           ) {
             // The polygon should only be allowed to close if there are 4 points - if not this would reduce to 2 vertices which is not allowed
             if (pointArrayLength > 4) {
-              setOngoingAction(false); // Since this has hover functionality the callback must end the ongoing action
-              isUpdatingPolygon.current = false;
-              currentAnnotation.current.points.splice(pointArrayLength - 2, 2); // This removes the temmporary point added to prevent polygons with 2 vertices
-              updateAnnotation(currentAnnotation.current);
+              closePolygon(currentAnnotation.current);
             }
             return;
           }
@@ -120,6 +124,26 @@ export const Polygon = ({ plotId, plotReady, subplot }: ToolingProps) => {
         currentAnnotation.current = null;
         isUpdatingPolygon.current = false;
       },
+      // Closes the polygon on double-click, first removing the duplicate vertex the extra click added
+      doubleClick(_x, _y) {
+        if (
+          !isUpdatingPolygon.current ||
+          !currentAnnotation.current ||
+          currentAnnotation.current.type !== TimeSeriesAnnotationType.POLYGON
+        ) {
+          return;
+        }
+
+        const annotation = currentAnnotation.current;
+        const pointArrayLength = annotation.points.length;
+        const realVertexCount = pointArrayLength - HELPER_VERTEX_COUNT;
+
+        // Stop if removing the duplicate vertex would leave too few points for a shape
+        if (realVertexCount - 1 < MIN_POLYGON_VERTICES) return;
+
+        annotation.points.splice(pointArrayLength - 3, 1); // Drop the duplicate vertex from the preceding click
+        closePolygon(annotation);
+      },
     };
     registerTooling(TimeSeriesAnnotationType.POLYGON, toolingCallbacks);
   }, [
@@ -131,10 +155,7 @@ export const Polygon = ({ plotId, plotReady, subplot }: ToolingProps) => {
     updateAnnotation,
   ]);
 
-  // Releasing the modifier key ends the drawing gesture. Every other tool has already
-  // committed its shape by that point, so an in-progress polygon is committed here too
-  // rather than being left with its open edge tracking the cursor. A shape that does
-  // not yet have enough real vertices cannot be committed, so it is discarded instead.
+  // Releasing the modifier key ends drawing - commit the polygon, or discard it if too small
   const wasDrawing = useRef(isDrawing);
   useEffect(() => {
     const drawingEnded = wasDrawing.current && !isDrawing;

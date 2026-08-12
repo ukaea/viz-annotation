@@ -697,6 +697,8 @@ async def create_sample_predictions(
         validated=False,
     )
 
+    task_registry.update_actors(model.id, use_gpu)
+
     task = get_predictions.remote(
         project=project,
         model=model,

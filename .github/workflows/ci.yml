@@ -116,7 +116,7 @@ jobs:
   test_models_enabled:
     name: Pytest (Models Enabled)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
 
     strategy:
       matrix:

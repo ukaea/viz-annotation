@@ -21,7 +21,7 @@ import tests.db_definitions as db_definitions
 
 def wait_for_results(task_registry: ActorRegistry, task_id: str):
     task = task_registry.get(task_id)
-    results = ray.get(task, timeout=300)
+    results = ray.get(task, timeout=120)
     return results
 
 
@@ -244,7 +244,7 @@ async def test_model_get_sample_prediction(
 
     # Poll the endpoint until results arrive
     t = 0
-    while t < 90:
+    while t < 30:
         get_response = await models_api_client.get(
             f"/projects/{setup_model_db['project_id']}/samples/{setup_model_db['sample_ids'][-1]}/models/mock_disruption_cnn/predict/{task_id}"
         )
@@ -291,7 +291,7 @@ async def test_model_get_sample_prediction_wrong_sample(
 
     # Ask for predictions from this task for a sample which we did not predict on
     t = 0
-    while t < 90:
+    while t < 30:
         get_response = await models_api_client.get(
             f"/projects/{setup_model_db['project_id']}/samples/{setup_model_db['sample_ids'][-2]}/models/mock_disruption_cnn/predict/{task_id}"
         )
@@ -674,7 +674,7 @@ async def test_model_load_local(models_api_client, db_client, setup_model_db):
         task_id = response.json()["task_id"]
 
         t = 0
-        while t < 90:
+        while t < 30:
             response = await models_api_client.get(
                 f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load/{task_id}"
             )
@@ -755,7 +755,7 @@ async def test_model_load_local_failed(models_api_client, db_client, setup_model
         task_id = response.json()["task_id"]
         # Get results from endpoint polling
         t = 0
-        while t < 90:
+        while t < 30:
             response = await models_api_client.get(
                 f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/load/{task_id}"
             )

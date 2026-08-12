@@ -922,12 +922,14 @@ def test_model_train_predict(server_setup, setup_model_samples, page: Page, mode
     # type is selected and its training schema has loaded
     expect(page.get_by_role("switch", name="Allocate GPU")).to_be_visible()
 
+    # Model Name is required before the Train button becomes enabled - fill it
+    # in before form_check so its Train click below is only blocked by the
+    # custom-param validation it's testing, not a missing Model Name too
+    page.get_by_role("textbox", name="Model Name").fill(model_name)
+
     # If params model chosen, new form should open
     if model_name == "mock_params_timeseries_cnn":
         form_check(page, "Train")
-
-    # Model Name is required before the Train button becomes enabled
-    page.get_by_role("textbox", name="Model Name").fill(model_name)
 
     # Click train, should get accepted message
     page.get_by_role("button", name="Train", exact=True).click()

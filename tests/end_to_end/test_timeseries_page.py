@@ -567,8 +567,11 @@ def test_timeseries_model_predict(
     # Navigate to samples table page
     page.goto(f"http://localhost:8002/ui/projects/{project_id}")
 
-    # Click on model train modal
-    page.get_by_role("button", name="Train ML Model").click()
+    # Click on model train modal, and wait for available model types to load
+    with page.expect_response(
+        lambda r: "/meta/models?task=" in r.url and r.request.method == "GET"
+    ):
+        page.get_by_role("button", name="Train ML Model").click()
 
     # Check modal has opened
     expect(page.get_by_role("heading", name="Model Training")).to_be_visible()

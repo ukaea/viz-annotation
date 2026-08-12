@@ -895,8 +895,11 @@ def test_model_train_predict(server_setup, setup_model_samples, page: Page, mode
 
     # Check contextual help explains models buttons
 
-    # Click on model train modal
-    page.get_by_role("button", name="Train ML Model").click()
+    # Click on model train modal, and wait for available model types to load
+    with page.expect_response(
+        lambda r: "/meta/models?task=" in r.url and r.request.method == "GET"
+    ):
+        page.get_by_role("button", name="Train ML Model").click()
 
     # Check modal has opened
     expect(page.get_by_role("heading", name="Model Training")).to_be_visible()

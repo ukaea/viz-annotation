@@ -129,8 +129,11 @@ function readSavedTool(projectId: string): TimeSeriesToolDefinition | null {
 }
 
 export const TimeSeriesProvider = ({
+  signalName = null,
   children,
 }: {
+  // Binds annotations created here to a signal; null for single-signal views.
+  signalName?: string | null;
   children: React.ReactNode;
 }) => {
   const {
@@ -326,12 +329,13 @@ export const TimeSeriesProvider = ({
         id,
         created_by: "manual",
         label,
+        signal_name: signalName,
         type,
         points: [],
         selected: false,
       };
     },
-    [],
+    [signalName],
   );
 
   const addAnnotation = useCallback(
@@ -648,7 +652,6 @@ export const TimeSeriesProvider = ({
       }
 
       if (event.key === "e") {
-        setAnnotationTool(null);
         setEditMode((prev) => !prev);
       }
     };
@@ -666,7 +669,7 @@ export const TimeSeriesProvider = ({
       document.removeEventListener("keydown", keyDownHandler);
       document.removeEventListener("keyup", keyUpHandler);
     };
-  }, [setAnnotationTool]);
+  }, []);
 
   const annotationLabels = Array.from(categories.values()).map(
     (category, index) => {

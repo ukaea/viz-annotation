@@ -167,14 +167,23 @@ class MultiVariateTimeSeriesData(Data):
     values: dict[str, TimeSeriesData | None]  # Signal name -> data
 ```
 
-#### `SpectrogramData`
-For frequency-time representations:
+#### `Profile2DData`
+For a quantity measured against time and one other dimension, such as frequency,
+radius or channel:
 
 ```python
-class SpectrogramData(Data):
+class Profile2DData(Data):
     time: list[float]
-    frequency: list[float]
-    amplitude: list[list[float]]  # 2D array
+    dim_1: list[float]
+    values: list[list[float]]  # 2D array, indexed [dim_1][time]
+```
+
+#### `MultiProfile2DData`
+For multiple 2D profiles:
+
+```python
+class MultiProfile2DData(Data):
+    values: dict[str, Profile2DData | None]  # Signal name -> profile
 ```
 
 

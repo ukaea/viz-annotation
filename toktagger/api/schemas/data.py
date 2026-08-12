@@ -16,14 +16,14 @@ class MultiVariateTimeSeriesData(Data):
     values: dict[str, TimeSeriesData | None]
 
 
-class CompositeData(Data):
-    values: dict[str, "DataResponseType"]
-
-
-class SpectrogramData(Data):
+class Profile2DData(Data):
     time: list[float]
-    frequency: list[float]
-    amplitude: list[list[float]]
+    dim_1: list[float]
+    values: list[list[float]]
+
+
+class MultiProfile2DData(Data):
+    values: dict[str, Profile2DData | None]
 
 
 class ImageData(Data):
@@ -46,8 +46,8 @@ DataResponseType = Union[
     Data,
     ImageData,
     MultiVariateTimeSeriesData,
-    CompositeData,
-    SpectrogramData,
+    Profile2DData,
+    MultiProfile2DData,
 ]
 
 DataParamTypes = Union[DataParams, ImageParams]

@@ -28,7 +28,7 @@ if importlib.util.find_spec("ray") is not None:
 # Define some common things to add to db
 PROJECT_1 = ProjectIn(
     name="test_project_0",
-    task=Task.SPECTROGRAM,
+    task=Task.PROFILE_2D,
     query_strategy=QueryStrategyType.SEQUENTIAL,
     data_loader="uda",
 )

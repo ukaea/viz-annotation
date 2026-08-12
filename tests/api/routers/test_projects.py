@@ -43,7 +43,7 @@ async def test_get_all_projects_sortby(api_client, setup_db):
     response = await api_client.get("/projects?sort_by=task")
     # Should sort alphabetically by task
     # Sorts by case first (all uppers before any lowers)
-    # So time series (project 1), then video (project 2), then spectrogram (project 0)
+    # So time series (project 1), then video (project 2), then profile2d (project 0)
     # Default sort direction is descending, so will return the opposite of this: 0, 2, 1
     assert response.status_code == 200
     returned_projects = response.json()
@@ -118,7 +118,7 @@ async def test_get_project_id(api_client, setup_db):
     returned_project = response.json()
     # Check info matches what we created the entry with
     assert returned_project.get("name") == "test_project_0"
-    assert returned_project.get("task") == Task.SPECTROGRAM
+    assert returned_project.get("task") == Task.PROFILE_2D
     assert returned_project.get("query_strategy") == "sequential"
     assert returned_project.get("data_loader") == "uda"
 

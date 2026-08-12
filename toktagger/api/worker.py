@@ -71,7 +71,7 @@ def get_actor(project: Project, model: Model, use_gpu: bool):
         )
 
         results_dir = pathlib.Path(os.environ["MODEL_STORAGE"]).joinpath(str(model.id))
-        if results_dir.exists():
+        if results_dir.joinpath("weights.model").exists():
             ray.get(ml_model.wrapped_load.remote(results_dir))
         else:
             logger.debug("No saved weights found, initializing blank model")

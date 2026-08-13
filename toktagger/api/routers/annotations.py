@@ -170,12 +170,12 @@ async def get_annotations(
     )
 
     # Membership already validated by require_project_viewer; re-fetch only to check
-    # the per-user show_others_annotations preference (global admins get None → show all)
-    membership = None
-    if current_user.global_role != "admin":
-        membership = await utils.get_project_membership(
-            db_client, project_id, current_user.id
-        )
+    # the per-user show_others_annotations preference. Fetched for admins too, since an
+    # admin who is also an explicit project member has their own preference to honor;
+    # non-member admins simply get None back and fall through to seeing everything.
+    membership = await utils.get_project_membership(
+        db_client, project_id, current_user.id
+    )
 
     # Apply per-user annotation visibility filter
     effective_created_by = created_by
@@ -240,8 +240,9 @@ async def update_annotations(
         else:
             # Brand-new annotation. Preserve synthetic authorship (a just-run
             # model prediction or annotator suggestion); otherwise the server
-            # is authoritative for identity.
-            if not is_internal and not annotation.created_by.startswith(
+            # is authoritative for identity. created_by may be absent entirely
+            # (it's optional on AnnotationBatch), hence the "" fallback.
+            if not is_internal and not (annotation.created_by or "").startswith(
                 RESERVED_CREATED_BY_PREFIXES
             ):
                 annotation.created_by = current_user.username

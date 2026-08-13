@@ -6,13 +6,18 @@ import {
   TextField,
   Button,
   Flex,
+  InlineAlert,
+  Heading,
+  Content,
   ToastQueue,
 } from "@adobe/react-spectrum";
+import { useNavigate } from "react-router-dom";
 import { BACKEND_API_URL, apiFetch } from "@/app/core";
 import { useAuth } from "@/app/contexts/AuthContext";
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
+  const navigate = useNavigate();
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -34,7 +39,10 @@ export default function ProfilePage() {
     try {
       const res = await apiFetch(`${BACKEND_API_URL}/users/${user._id}`, {
         method: "PUT",
-        body: JSON.stringify({ password: newPassword }),
+        body: JSON.stringify({
+          password: newPassword,
+          must_change_password: false,
+        }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
@@ -43,6 +51,11 @@ export default function ProfilePage() {
       ToastQueue.positive("Password changed", { timeout: 2000 });
       setNewPassword("");
       setConfirmPassword("");
+      const wasForced = user.must_change_password;
+      await refreshUser();
+      if (wasForced) {
+        navigate("/ui/projects");
+      }
     } catch (e) {
       ToastQueue.negative(e instanceof Error ? e.message : "Error", {
         timeout: 3000,
@@ -75,6 +88,15 @@ export default function ProfilePage() {
                 &nbsp;&nbsp;|&nbsp;&nbsp;
                 <strong>Role:</strong> {user?.global_role}
               </p>
+
+              {user?.must_change_password && (
+                <InlineAlert variant="notice" width="100%">
+                  <Heading>Password change required</Heading>
+                  <Content>
+                    You must set a new password before continuing.
+                  </Content>
+                </InlineAlert>
+              )}
 
               <h2 className="text-lg font-semibold">Change Password</h2>
               <TextField

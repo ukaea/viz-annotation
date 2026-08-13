@@ -122,6 +122,10 @@ class AnnotationBatch(AnnotationBase):
     project_id: str | None = None
     sample_id: str | None = None
     shot_id: int | None = None
+    # Optional here (unlike AnnotationBase) so imported/saved annotations don't need to
+    # supply it — both routes that accept a batch always stamp the caller's own identity
+    # over whatever's provided anyway.
+    created_by: str | None = None
 
 
 class AnnotationOut(AnnotationBatch):

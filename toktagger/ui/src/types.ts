@@ -2,6 +2,7 @@ import { PlotlyHTMLElement } from "plotly.js";
 import { z } from "zod/v4";
 
 export const BaseAnnotationSchema = z.object({
+  _id: z.string().nullable().default(null),
   project_id: z.string().nullable().default(null),
   sample_id: z.string().nullable().default(null),
   shot_id: z.number().optional(),
@@ -360,6 +361,11 @@ export type TimeSeriesAnnotationPoint = {
 
 export type TimeSeriesAnnotation = {
   id: string;
+  // The backend's own _id, when this annotation already exists in the DB (e.g. loaded
+  // via GET, possibly another user's). null for annotations drawn locally and not yet
+  // saved. Must round-trip back out on save so the server can tell "existing" from
+  // "new" and avoid re-stamping someone else's annotation under the saving user.
+  db_id: string | null;
   created_by: string;
   label: string;
   type: TimeSeriesAnnotationType;
@@ -378,6 +384,7 @@ export const CurrentUserSchema = z.object({
   username: z.string(),
   global_role: z.enum(["admin", "user"]),
   is_active: z.boolean(),
+  must_change_password: z.boolean(),
 });
 export type CurrentUser = z.infer<typeof CurrentUserSchema>;
 

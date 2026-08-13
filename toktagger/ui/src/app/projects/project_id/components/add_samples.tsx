@@ -35,9 +35,11 @@ import NumericalRange, {
 export const AddSamplesEditor = ({
   project,
   onModify,
+  canAnnotate = true,
 }: {
   project: Project;
   onModify?: () => void;
+  canAnnotate?: boolean;
 }) => {
   const dataLoader = project.data_loader;
 
@@ -328,7 +330,7 @@ export const AddSamplesEditor = ({
 
   return (
     <DialogTrigger>
-      <Button variant="primary">
+      <Button variant="primary" isDisabled={!canAnnotate}>
         <AddCircle />
         <Text>Add Samples</Text>
       </Button>

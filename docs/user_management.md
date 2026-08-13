@@ -62,6 +62,17 @@ The panel lists all registered accounts with their username, role, and active st
 3. Select a **Role** (`user` or `admin`).
 4. Click **Create**.
 
+!!! warning
+    You set the initial password. Give it to the new user through a secure channel. Do not send it by email or chat. TokTagger asks the new user to change the password at their next login.
+
+### Resetting a User's Password
+
+1. Find the user in the table and click **Reset Password**.
+2. Type a new password.
+3. Click **Reset**.
+
+TokTagger asks the user to change this password at their next login. Give the new password to the user through a secure channel.
+
 ### Changing a User's Role
 
 1. Find the user in the table and click **Edit**.

@@ -6,7 +6,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { BACKEND_API_URL } from "@/app/core";
 import type { CurrentUser } from "@/types";
 
@@ -18,6 +18,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,6 +30,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const refreshUser = async () => {
+    const stored = localStorage.getItem(TOKEN_KEY);
+    if (!stored) return;
+    const res = await fetch(`${BACKEND_API_URL}/auth/me`, {
+      headers: { Authorization: `Bearer ${stored}` },
+    });
+    if (res.ok) {
+      setUser((await res.json()) as CurrentUser);
+    }
+  };
+
+  // Force a password change before anything else - an admin knows the password they
+  // just set on a new account, so the new owner must replace it on first login.
+  useEffect(() => {
+    if (user?.must_change_password && location.pathname !== "/ui/profile") {
+      navigate("/ui/profile", { replace: true });
+    }
+  }, [user, location.pathname, navigate]);
 
   // Validate stored token on mount. Always calls /auth/me since auth is required.
   useEffect(() => {
@@ -94,7 +115,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout }}>
+    <AuthContext.Provider
+      value={{ user, token, isLoading, login, logout, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

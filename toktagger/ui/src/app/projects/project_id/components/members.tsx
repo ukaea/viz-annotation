@@ -18,7 +18,6 @@ import {
   TextField,
   Picker,
   Item,
-  InlineAlert,
   ToastQueue,
 } from "@adobe/react-spectrum";
 import { BACKEND_API_URL, apiFetch } from "@/app/core";
@@ -32,7 +31,6 @@ interface Props {
 export function ProjectMembersDialog({ projectId, isProjectAdmin }: Props) {
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [open, setOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const res = await apiFetch(
@@ -48,7 +46,6 @@ export function ProjectMembersDialog({ projectId, isProjectAdmin }: Props) {
   }, [open, refresh]);
 
   const removeMember = async (userId: string) => {
-    setError(null);
     try {
       const res = await apiFetch(
         `${BACKEND_API_URL}/projects/${projectId}/members/${userId}`,
@@ -61,12 +58,13 @@ export function ProjectMembersDialog({ projectId, isProjectAdmin }: Props) {
       await refresh();
       ToastQueue.positive("Member removed", { timeout: 2000 });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      ToastQueue.negative(e instanceof Error ? e.message : "Error", {
+        timeout: 3000,
+      });
     }
   };
 
   const updateRole = async (userId: string, role: string) => {
-    setError(null);
     try {
       const res = await apiFetch(
         `${BACKEND_API_URL}/projects/${projectId}/members/${userId}`,
@@ -82,22 +80,19 @@ export function ProjectMembersDialog({ projectId, isProjectAdmin }: Props) {
       await refresh();
       ToastQueue.positive("Role updated", { timeout: 2000 });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      ToastQueue.negative(e instanceof Error ? e.message : "Error", {
+        timeout: 3000,
+      });
     }
   };
 
   return (
     <DialogTrigger isOpen={open} onOpenChange={setOpen}>
-      <Button variant="secondary">Manage Members</Button>
-      <Dialog width="size-6000">
+      <Button variant="primary">Manage Members</Button>
+      <Dialog width="size-8000">
         <Heading>Project Members</Heading>
         <Divider />
         <Content>
-          {error && (
-            <InlineAlert variant="negative" marginBottom="size-100">
-              {error}
-            </InlineAlert>
-          )}
           {isProjectAdmin && (
             <AddMemberForm projectId={projectId} onAdded={refresh} />
           )}
@@ -169,10 +164,8 @@ function AddMemberForm({
   const [role, setRole] = useState<"admin" | "annotator" | "viewer">(
     "annotator",
   );
-  const [error, setError] = useState<string | null>(null);
 
   const add = async () => {
-    setError(null);
     try {
       const res = await apiFetch(
         `${BACKEND_API_URL}/projects/${projectId}/members`,
@@ -190,17 +183,14 @@ function AddMemberForm({
       onAdded();
       ToastQueue.positive("Member added", { timeout: 2000 });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      ToastQueue.negative(e instanceof Error ? e.message : "Error", {
+        timeout: 3000,
+      });
     }
   };
 
   return (
     <Flex gap="size-100" alignItems="end" wrap>
-      {error && (
-        <InlineAlert variant="negative" width="100%">
-          {error}
-        </InlineAlert>
-      )}
       <TextField
         label="Username"
         value={username}
@@ -219,12 +209,7 @@ function AddMemberForm({
         <Item key="annotator">Annotator</Item>
         <Item key="viewer">Viewer</Item>
       </Picker>
-      <Button
-        variant="cta"
-        isDisabled={!username}
-        onPress={add}
-        marginTop="size-200"
-      >
+      <Button variant="cta" isDisabled={!username} onPress={add}>
         Add
       </Button>
     </Flex>

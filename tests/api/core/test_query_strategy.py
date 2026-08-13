@@ -36,8 +36,10 @@ def annotations():
     ]
     annotations = [
         TimePointOut(
-            **annotation_in.model_dump(),
+            **annotation_in.model_dump(exclude={"project_id", "sample_id"}),
             _id="test",
+            project_id="test",
+            sample_id="test",
         )
         for annotation_in in annotation_ins
     ]

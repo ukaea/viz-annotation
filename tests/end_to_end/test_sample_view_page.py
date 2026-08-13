@@ -17,6 +17,7 @@ from tests.endpoints import (
     session,
 )
 from toktagger.api.schemas.annotations import TimePoint, TimeRegion
+from toktagger.api.schemas.annotators import AnnotatorTypes
 
 
 def setup_annotations(page: Page, num_annotations: int, go_to_next: bool = False):
@@ -33,7 +34,7 @@ def setup_annotations(page: Page, num_annotations: int, go_to_next: bool = False
     if num_annotations > 0:
         flat_top = TimeRegion(
             label="Flat Top",
-            created_by="peak_detection",
+            created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
             time_min=10,
             time_max=20,
             validated=False,
@@ -345,9 +346,16 @@ def test_export_annotations(server_setup, page: Page, all_samples: bool):
 
     # Add annotations
     flat_top = TimeRegion(
-        label="Flat Top", created_by="peak_detection", time_min=50, time_max=70
+        label="Flat Top",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time_min=50,
+        time_max=70,
     )
-    disruption = TimePoint(label="Disruption", created_by="peak_detection", time=71)
+    disruption = TimePoint(
+        label="Disruption",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time=71,
+    )
     response = session.put(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_ids[0]}/annotations",
         json=[model.model_dump(mode="json") for model in (flat_top, disruption)],
@@ -355,9 +363,16 @@ def test_export_annotations(server_setup, page: Page, all_samples: bool):
     assert response.status_code == 200
 
     ramp_up = TimeRegion(
-        label="Ramp Up", created_by="peak_detection", time_min=40, time_max=60
+        label="Ramp Up",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time_min=40,
+        time_max=60,
     )
-    control_loss = TimePoint(label="Control Loss", created_by="peak_detection", time=61)
+    control_loss = TimePoint(
+        label="Control Loss",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time=61,
+    )
     response = session.put(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_ids[1]}/annotations",
         json=[model.model_dump(mode="json") for model in (ramp_up, control_loss)],
@@ -462,9 +477,14 @@ def test_save_button(server_setup, page: Page, num_annotations: int):
 
     assert len(annotations) == num_annotations
 
-    # Check all marked as validated:
+    # Only the saving user's own annotations get validated - a pre-existing
+    # annotators::peak_detection annotation (num_annotations >= 1) isn't the
+    # admin's to touch, so saving must leave it as it was.
     for annotation in annotations:
-        assert annotation["validated"]
+        if annotation["created_by"] == "admin":
+            assert annotation["validated"]
+        else:
+            assert not annotation["validated"]
 
     # Check sample is now marked as validated
     response = session.get(
@@ -526,9 +546,14 @@ def test_save_on_navigate(
             0 if num_annotations == 0 else 1
         )  # Because it shouldnt have saved the human annotation if num_annotations=2
 
-    # Check all marked as validated if saved
+    # Only the saving user's own annotations get validated - a pre-existing
+    # annotators::peak_detection annotation (num_annotations >= 1) isn't the
+    # admin's to touch, so it's never validated regardless of save_on_navigate.
     for annotation in annotations:
-        assert annotation["validated"] == bool(save_on_navigate)
+        if annotation["created_by"] == "admin":
+            assert annotation["validated"] == bool(save_on_navigate)
+        else:
+            assert not annotation["validated"]
 
     time.sleep(1)
 
@@ -542,6 +567,8 @@ def test_save_on_navigate(
 
 
 def test_clear_button(server_setup, page: Page):
+    # num_annotations=2 seeds one pre-existing annotators::peak_detection annotation
+    # (renders as time-zone) plus one admin-drawn TIME POINT (renders as time-point).
     page, project_id, sample_ids = setup_annotations(page, 2)
     sample_id = sample_ids[0]
     # Click save to commit annotations to db
@@ -557,14 +584,17 @@ def test_clear_button(server_setup, page: Page):
     # Press Clear
     page.get_by_role("button", name="Clear").click()
 
-    # Check no annotations visible
+    # Clear only removes the current user's own annotations from view - the
+    # admin-drawn time-point goes, but the peak_detection time-zone (not admin's)
+    # stays visible.
     expect(page.get_by_label("time-point").first).to_be_hidden()
-    expect(page.get_by_label("time-zone").first).to_be_hidden()
+    expect(page.get_by_label("time-zone").first).to_be_visible()
 
     # Check sample now shows as not validated
     expect(page.get_by_text("Annotations Not Validated")).to_be_visible()
 
-    # Press save, check no annotations in db
+    # Press save - only admin's own (now empty) selection is replaced; the
+    # peak_detection annotation was never admin's to delete, so it survives.
     page.get_by_role("button", name="Save").click()
 
     # Pull from backend, check correct number of annotations saved
@@ -574,7 +604,12 @@ def test_clear_button(server_setup, page: Page):
     assert response.status_code == 200
     annotations = response.json()
 
-    assert len(annotations) == 0
+    assert len(annotations) == 1
+    assert (
+        annotations[0]["created_by"]
+        == f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}"
+    )
+    assert not annotations[0]["validated"]
 
 
 @pytest.mark.parametrize(

@@ -52,6 +52,7 @@ async def create_user(
         username=body.username,
         hashed_password=hash_password(body.password),
         global_role=body.global_role,
+        must_change_password=body.must_change_password,
     )
     user_id = await utils.create_user(request.app.state.db_client, user)
     return {"_id": user_id}

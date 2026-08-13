@@ -10,13 +10,17 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from tests.end_to_end import form_check
+from tests.end_to_end.conftest import login_as
 from tests.endpoints import (
+    add_project_member,
     create_local_samples,
     create_model_samples,
     create_project,
+    create_user,
     session,
 )
 from toktagger.api.schemas.annotations import TimePoint, TimeRegion
+from toktagger.api.schemas.annotators import AnnotatorTypes
 
 
 def setup_project(page: Page) -> tuple[str, str, Callable]:
@@ -386,15 +390,28 @@ def test_timeseries_load_annotations(server_setup, page: Page):
 
     # Create annotations of each type
     rampup = TimeRegion(
-        label="Ramp Up", created_by="peak_detection", time_min=10, time_max=20
+        label="Ramp Up",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time_min=10,
+        time_max=20,
     )
     flattop = TimeRegion(
-        label="Flat Top", created_by="peak_detection", time_min=20, time_max=70
+        label="Flat Top",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time_min=20,
+        time_max=70,
     )
     rampdown = TimeRegion(
-        label="Ramp Down", created_by="peak_detection", time_min=70, time_max=90
+        label="Ramp Down",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time_min=70,
+        time_max=90,
     )
-    disruption = TimePoint(label="Disruption", created_by="peak_detection", time=91)
+    disruption = TimePoint(
+        label="Disruption",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time=91,
+    )
     # Add annotations
     response = session.put(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations",
@@ -447,12 +464,22 @@ def test_timeseries_update_annotations(server_setup, page: Page):
 
     # Create annotations of each type
     rampup = TimeRegion(
-        label="Ramp Up", created_by="peak_detection", time_min=10, time_max=20
+        label="Ramp Up",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time_min=10,
+        time_max=20,
     )
     flattop = TimeRegion(
-        label="Flat Top", created_by="peak_detection", time_min=20, time_max=70
+        label="Flat Top",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time_min=20,
+        time_max=70,
     )
-    disruption = TimePoint(label="Disruption", created_by="peak_detection", time=71)
+    disruption = TimePoint(
+        label="Disruption",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time=71,
+    )
     # Add annotations
     response = session.put(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations",
@@ -502,20 +529,90 @@ def test_timeseries_update_annotations(server_setup, page: Page):
 
     time.sleep(1)
 
-    # Check one annotation removed
-    assert len(annotations) == 2
-    print(annotations)
-
-    # Check all annotations marked as validated
+    # These annotations are all annotators::peak_detection's, not admin's - admin's
+    # local delete-one/move-one edits are never admin's to persist, so saving must
+    # leave all three exactly as they were: nothing deleted, nothing moved, nothing
+    # (re)validated.
+    assert len(annotations) == 3
     for annotation in annotations:
-        assert annotation["validated"]  # == True
-        assert annotation["uncertainty"] == 0
+        assert not annotation["validated"]
+        assert (
+            annotation["created_by"]
+            == f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}"
+        )
 
-    # Check time of disruption updated
     disruption_annotation = next(
         ann for ann in annotations if ann["label"] == "Disruption"
     )
-    assert round(disruption_annotation["time"], 4) == updated_disruption_time
+    assert disruption_annotation["time"] == 71
+    assert round(disruption_annotation["time"], 4) != updated_disruption_time
+
+
+def test_viewer_cannot_enter_edit_mode(server_setup, admin_token, browser):
+    create_user("viewer_erin", "erin_pass123")
+    project_id = create_project("Viewer Lock Project", "time-series", "tabular")
+    ids = create_local_samples(
+        project_id, [10000], pathlib.Path(__file__).parents[1], ["Ip"]
+    )
+    add_project_member(project_id, "viewer_erin", role="viewer")
+
+    erin_page = login_as(browser, "viewer_erin", "erin_pass123")
+    erin_page.goto(f"http://localhost:8002/ui/projects/{project_id}/samples/{ids[0]}")
+    expect(erin_page.get_by_label("time-series")).to_be_visible()
+
+    # Save and the edit-mode toggle are both disabled for a viewer.
+    expect(erin_page.get_by_role("button", name="Save")).to_be_disabled()
+    expect(erin_page.get_by_role("button", name="View Mode")).to_be_disabled()
+
+    # Clicking the disabled mode toggle (force=True bypasses Playwright's normal
+    # actionability check) must not flip it into Edit Mode - it's blocked
+    # server-side by the same canAnnotate check the button's own disabled state
+    # reflects, not just by the click never registering.
+    erin_page.get_by_role("button", name="View Mode").click(force=True)
+    expect(erin_page.get_by_role("button", name="View Mode")).to_be_visible()
+    expect(erin_page.get_by_role("button", name="Edit Mode")).to_be_hidden()
+
+    erin_page.context.close()
+
+
+def test_show_others_annotations_toggle_works_for_admin(
+    server_setup, admin_token, browser, page: Page
+):
+    # The backend always stamps created_by with the authenticated caller, so a
+    # genuinely different identity's annotation has to come from a second real
+    # user's own session - not from PUTting a different created_by as admin.
+    create_user("annotator_frank", "frank_pass123")
+    project_id = create_project("Show Others Toggle Project", "time-series", "tabular")
+    ids = create_local_samples(
+        project_id, [10000], pathlib.Path(__file__).parents[1], ["Ip"]
+    )
+    sample_id = ids[0]
+    add_project_member(project_id, "annotator_frank", role="annotator")
+
+    frank_page = login_as(browser, "annotator_frank", "frank_pass123")
+    frank_page.goto(
+        f"http://localhost:8002/ui/projects/{project_id}/samples/{sample_id}"
+    )
+    expect(frank_page.get_by_label("time-series")).to_be_visible()
+    add_annotation(frank_page, "TIME POINT", "Disruption")
+    with frank_page.expect_response(
+        lambda r: (
+            f"samples/{sample_id}/annotations" in r.url and r.request.method == "PUT"
+        )
+    ):
+        frank_page.get_by_role("button", name="Save").click(force=True)
+    frank_page.context.close()
+
+    # create_project auto-adds its creator (admin) as a project member, so this
+    # toggle has a real membership preference to flip.
+    page.goto(f"http://localhost:8002/ui/projects/{project_id}/samples/{sample_id}")
+    expect(page.get_by_label("time-point").first).to_be_visible()
+
+    page.get_by_role("checkbox", name="Show Others' Annotations").click()
+    expect(page.get_by_label("time-point")).to_have_count(0)
+
+    page.get_by_role("checkbox", name="Show Others' Annotations").click()
+    expect(page.get_by_label("time-point").first).to_be_visible()
 
 
 def test_timeseries_annotator(server_setup, page: Page):

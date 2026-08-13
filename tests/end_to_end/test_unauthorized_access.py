@@ -4,9 +4,10 @@ URL into the address bar without the credentials/membership to see it.
 
   - Not logged in at all -> redirected to /ui/login (RequireAuth in App.jsx).
   - Logged in, but not a member of that project -> a clear "Error" panel
-    ("You are not a member of this project"), not a blank or broken page.
-  - A project id that doesn't exist at all -> the same clean Error panel,
-    with the backend's "not found" message.
+    reading "Project not found." — deliberately the same message a genuinely
+    nonexistent project gets, so a non-member can't tell the two apart and
+    learn whether a given project id exists (mirrors GitHub/GitLab).
+  - A project id that doesn't exist at all -> the same clean Error panel.
 """
 
 import pytest
@@ -55,9 +56,7 @@ def test_non_member_sees_access_denied_not_blank_page(
     # but the page shows a clear error instead of blank/garbled content.
     expect(outsider_page).to_have_url(f"http://localhost:8002/ui/projects/{project_id}")
     expect(outsider_page.get_by_text("Error")).to_be_visible()
-    expect(
-        outsider_page.get_by_text("You are not a member of this project")
-    ).to_be_visible()
+    expect(outsider_page.get_by_text("Project not found.")).to_be_visible()
     outsider_page.context.close()
 
 
@@ -74,16 +73,14 @@ def test_non_member_sees_access_denied_on_sample_view(
     )
 
     expect(outsider_page.get_by_text("Error")).to_be_visible()
-    expect(
-        outsider_page.get_by_text("You are not a member of this project")
-    ).to_be_visible()
+    expect(outsider_page.get_by_text("Project not found.")).to_be_visible()
     outsider_page.context.close()
 
 
 def test_nonexistent_project_shows_not_found_not_blank_page(server_setup, page):
     page.goto("http://localhost:8002/ui/projects/000000000000000000000000")
     expect(page.get_by_text("Error")).to_be_visible()
-    expect(page.get_by_text("Project not found with that ID.")).to_be_visible()
+    expect(page.get_by_text("Project not found.")).to_be_visible()
 
 
 def test_viewer_member_can_access_project(server_setup, admin_token, browser):

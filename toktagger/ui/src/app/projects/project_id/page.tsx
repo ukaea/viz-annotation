@@ -27,6 +27,7 @@ import {
   Provider,
   defaultTheme,
   ToastContainer,
+  Text,
 } from "@adobe/react-spectrum";
 import { SortDescriptor } from "@react-types/shared";
 import { AddSamplesEditor } from "./components/add_samples";
@@ -50,6 +51,7 @@ import { ExportButton } from "@/app/components/tools/export";
 import { JumpToNextButton } from "@/app/components/tools/nav";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useServerHealth } from "@/app/contexts/healthContext";
+import { useProjectRole } from "@/app/hooks/useProjectRole";
 
 const SampleBreadCrumbs = ({ project }: { project: Project }) => {
   const navigate = useNavigate();
@@ -73,6 +75,7 @@ type SamplesTableProps = {
   sortDescriptor: SortDescriptor;
   onSortChange: (sort: SortDescriptor) => void;
   onModify?: () => void;
+  isAdmin: boolean;
 };
 
 const SamplesTable = ({
@@ -81,6 +84,7 @@ const SamplesTable = ({
   sortDescriptor,
   onSortChange,
   onModify,
+  isAdmin,
 }: SamplesTableProps) => {
   const rows = samples.map(({ _id, ...rest }) => ({
     ...rest,
@@ -125,7 +129,11 @@ const SamplesTable = ({
               <Cell>
                 <Flex direction="row" gap="size-100">
                   <DialogTrigger>
-                    <Button aria-label="Delete" variant="negative">
+                    <Button
+                      aria-label="Delete"
+                      variant="negative"
+                      isDisabled={!isAdmin}
+                    >
                       <Delete />
                     </Button>
                     {(close) => (
@@ -172,6 +180,7 @@ const SamplesTable = ({
 export default function ProjectView() {
   const { project_id } = useParams();
   const { user: currentUser } = useAuth();
+  const { isAdmin, canAnnotate } = useProjectRole(project_id);
   const hasId = project_id !== undefined;
 
   const [samplesPerPage, setSamplesPerPage] = useState<number>(10);
@@ -203,9 +212,15 @@ export default function ProjectView() {
       const project = await getProject(project_id);
       setProject(project);
     } catch (err) {
-      setLoadError(
-        err instanceof ApiError ? err.message : "Failed to load project.",
-      );
+      if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
+        // Don't distinguish "doesn't exist" from "exists but you can't see it" —
+        // that would leak the project's existence to non-members.
+        setLoadError("Project not found.");
+      } else {
+        setLoadError(
+          err instanceof ApiError ? err.message : "Failed to load project.",
+        );
+      }
     }
   }, [project_id, shotId, currentPage, samplesPerPage, sortDescriptor, hasId]);
 
@@ -299,7 +314,11 @@ export default function ProjectView() {
               justifyContent="space-between"
             >
               <Flex gap="size-100" alignItems="center" justifyContent="start">
-                <AddSamplesEditor project={project} onModify={refreshSamples} />
+                <AddSamplesEditor
+                  project={project}
+                  onModify={refreshSamples}
+                  canAnnotate={canAnnotate}
+                />
                 {project_id && (
                   <ProjectMembersDialog
                     projectId={project_id}
@@ -307,8 +326,9 @@ export default function ProjectView() {
                   />
                 )}
                 <DialogTrigger>
-                  <Button variant="negative">
-                    <Delete /> Clear Samples
+                  <Button variant="negative" isDisabled={!isAdmin}>
+                    <Delete />
+                    <Text>Clear Samples</Text>
                   </Button>
                   {(close) => (
                     <Dialog>
@@ -343,8 +363,8 @@ export default function ProjectView() {
                 </DialogTrigger>
               </Flex>
               <Flex gap="size-100" alignItems="center" justifyContent="end">
-                <Flex gap="size-100" alignItems="center" marginTop="size-200">
-                  <ImportButton project={project} />
+                <Flex gap="size-100" alignItems="center">
+                  <ImportButton project={project} canAnnotate={canAnnotate} />
                   <ExportButton project={project} />
                   <JumpToNextButton
                     project={project}
@@ -365,6 +385,7 @@ export default function ProjectView() {
               sortDescriptor={sortDescriptor}
               onSortChange={onSortChange}
               onModify={refreshSamples}
+              isAdmin={isAdmin}
             />
             <div className="flex items-center justify-between pl-4 pr-4">
               <Button

@@ -40,6 +40,7 @@ import { useSampleHistory } from "@/app/contexts/SampleHistoryContext";
 import { getNextSample } from "@/app/core";
 import type { SortDescriptor, SortDirection, Key } from "@react-types/shared";
 import { useNavAdapter } from "@/app/contexts/NavAdapterContext";
+import { useProjectRole } from "@/app/hooks/useProjectRole";
 
 const TOAST_TIMEOUT = 5000;
 
@@ -98,6 +99,7 @@ type ButtonInfo = {
 
 type SaveButtonInfo = ButtonInfo & {
   saveOnNavigate?: boolean;
+  canAnnotate: boolean;
 };
 
 type NextButtonInfo = ButtonInfo & {
@@ -303,6 +305,7 @@ function SaveButton({
   saveOnNavigate: _saveOnNavigate,
   navAdapter,
   onPermissionError,
+  canAnnotate,
 }: SaveButtonInfo) {
   const handleClick = async () => {
     try {
@@ -332,10 +335,21 @@ function SaveButton({
 
   return (
     <View marginStart="size-100">
-      <ActionButton aria-label="Save" onPress={handleClick}>
-        <SaveFloppy />
-        <Text>Save</Text>
-      </ActionButton>
+      <TooltipTrigger delay={1000} placement="bottom">
+        <ActionButton
+          aria-label="Save"
+          onPress={handleClick}
+          isDisabled={!canAnnotate}
+        >
+          <SaveFloppy />
+          <Text>Save</Text>
+        </ActionButton>
+        <Tooltip>
+          {canAnnotate
+            ? "Save annotations for this sample."
+            : "You have view-only access to this project — annotations cannot be saved."}
+        </Tooltip>
+      </TooltipTrigger>
     </View>
   );
 }
@@ -434,24 +448,7 @@ export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
   const { user } = useAuth();
   const navAdapter = useNavAdapter();
   const [permissionDenied, setPermissionDenied] = useState(false);
-  const [canAnnotate, setCanAnnotate] = useState(true);
-
-  useEffect(() => {
-    if (!user) return;
-    if (user.global_role === "admin") {
-      setCanAnnotate(true);
-      return;
-    }
-    apiFetch(`${BACKEND_API_URL}/projects/${project_id}/members`)
-      .then((r) => r.json())
-      .then((members: Array<{ user_id: string; role: string }>) => {
-        const membership = members.find((m) => m.user_id === user._id);
-        setCanAnnotate(
-          membership ? ["admin", "annotator"].includes(membership.role) : false,
-        );
-      })
-      .catch(() => setCanAnnotate(false)); // fail closed
-  }, [project_id, user]);
+  const { canAnnotate } = useProjectRole(project_id);
 
   const {
     visitedSampleIds,
@@ -515,6 +512,7 @@ export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
           setIsValidated={setIsValidated}
           navAdapter={navAdapter}
           onPermissionError={() => setPermissionDenied(true)}
+          canAnnotate={canAnnotate}
         />
         <PreviousButton
           project_id={project_id}
@@ -546,7 +544,7 @@ export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
       </ButtonGroup>
       <TooltipTrigger delay={1000} placement="bottom">
         <Checkbox
-          isSelected={SaveOnNavigate}
+          isSelected={SaveOnNavigate && canAnnotate}
           onChange={setSaveOnNavigate}
           isDisabled={!canAnnotate}
         >

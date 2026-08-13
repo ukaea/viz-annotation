@@ -137,6 +137,7 @@ export default function AdminUsersPage() {
                   <Cell>
                     <Flex gap="size-100">
                       <ChangeRoleDialog user={item} onChanged={refresh} />
+                      <ResetPasswordDialog user={item} />
                       <Button
                         variant="secondary"
                         isDisabled={item.id === currentUser?._id}
@@ -260,6 +261,83 @@ function CreateUserDialog({ onCreated }: { onCreated: () => void }) {
               onPress={() => submit(close)}
             >
               Create
+            </Button>
+          </ButtonGroup>
+        </Dialog>
+      )}
+    </DialogTrigger>
+  );
+}
+
+function ResetPasswordDialog({ user }: { user: UserRow }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const save = async (close: () => void) => {
+    setError(null);
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await apiFetch(`${BACKEND_API_URL}/users/${user.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ password, must_change_password: true }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.detail ?? "Failed to reset password");
+      }
+      setPassword("");
+      close();
+      ToastQueue.positive(`Password reset for ${user.username}`, {
+        timeout: 2000,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <DialogTrigger onOpenChange={(isOpen) => !isOpen && setPassword("")}>
+      <Button variant="secondary">Reset Password</Button>
+      {(close) => (
+        <Dialog>
+          <Heading>Reset password for {user.username}</Heading>
+          <Divider />
+          <Content>
+            {error && (
+              <InlineAlert variant="negative" marginBottom="size-100">
+                {error}
+              </InlineAlert>
+            )}
+            <TextField
+              label="New password"
+              type="password"
+              value={password}
+              onChange={setPassword}
+              isRequired
+              width="100%"
+            />
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+              {user.username} will be required to change this password on
+              their next login. Communicate it to them securely.
+            </p>
+          </Content>
+          <ButtonGroup>
+            <Button variant="secondary" onPress={close}>
+              Cancel
+            </Button>
+            <Button
+              variant="cta"
+              isDisabled={!password || saving}
+              onPress={() => save(close)}
+            >
+              Reset
             </Button>
           </ButtonGroup>
         </Dialog>

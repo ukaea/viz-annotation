@@ -195,7 +195,7 @@ export default function Projects() {
             alignItems="center"
             justifyContent="space-between"
           >
-            {isAdmin && <ProjectConfigEditor onModify={refreshProjects} />}
+            <ProjectConfigEditor onModify={refreshProjects} />
             <SearchField
               label="Search By Name"
               onSubmit={(name) => {

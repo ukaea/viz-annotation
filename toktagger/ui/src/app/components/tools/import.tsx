@@ -5,7 +5,6 @@ import {
   FileTrigger,
   ToastQueue,
   Text,
-  Flex,
 } from "@adobe/react-spectrum";
 import Import from "@spectrum-icons/workflow/Import";
 
@@ -13,10 +12,12 @@ export function ImportButton({
   project,
   sample,
   refreshAnnotations,
+  canAnnotate = true,
 }: {
   project: Project;
   sample?: Sample;
   refreshAnnotations?: () => void;
+  canAnnotate?: boolean;
 }) {
   const project_id = project._id;
   const shot_id = sample?.shot_id || null;
@@ -46,18 +47,14 @@ export function ImportButton({
   };
 
   return (
-    <>
-      <FileTrigger
-        onSelect={handleFileChange}
-        acceptedFileTypes={["application/json"]}
-      >
-        <Flex justifyContent="center" alignItems="end">
-          <Button variant="primary">
-            <Import />
-            <Text>{sample ? "Import" : "Import Annotations"}</Text>
-          </Button>
-        </Flex>
-      </FileTrigger>
-    </>
+    <FileTrigger
+      onSelect={handleFileChange}
+      acceptedFileTypes={["application/json"]}
+    >
+      <Button variant="primary" isDisabled={!canAnnotate}>
+        <Import />
+        <Text>{sample ? "Import" : "Import Annotations"}</Text>
+      </Button>
+    </FileTrigger>
   );
 }

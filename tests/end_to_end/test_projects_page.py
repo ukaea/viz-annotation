@@ -8,7 +8,8 @@ from datetime import datetime
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests.endpoints import create_project, session
+from tests.end_to_end.conftest import login_as
+from tests.endpoints import create_project, create_user, session
 
 
 def check_base_page(page):
@@ -389,6 +390,33 @@ def test_edit_project(server_setup, page: Page):
     assert project["query_strategy"] == "sequential"
     assert project["task"] == "time-series"
     assert project["data_loader"] == "uda"
+
+
+def test_non_admin_user_can_create_project(server_setup, admin_token, browser):
+    create_user("regular_bob", "bob_pass123")
+    bob_page = login_as(browser, "regular_bob", "bob_pass123")
+    bob_page.goto("http://localhost:8002/ui/projects/")
+
+    # Project creation is available to every authenticated user, not just admins -
+    # the backend never restricted POST /projects to admins, only the "Create"
+    # button used to be hidden for non-admins.
+    expect(bob_page.get_by_role("button", name="Create")).to_be_visible()
+    bob_page.get_by_role("button", name="Create").click()
+
+    modal = bob_page.get_by_role("dialog")
+    modal.get_by_role("button", name="Task").click()
+    bob_page.get_by_role("option", name="time-series").click()
+    modal.get_by_role("button", name="Data Loader").click()
+    bob_page.get_by_role("option", name="tabular", exact=True).click()
+    modal.get_by_role("radio", name="Random").click()
+    modal.get_by_role("textbox", name="Project Name").fill("Bob's Project")
+    modal.get_by_role("button", name="Create").click()
+
+    expect(bob_page.get_by_role("rowheader", name="Bob's Project")).to_be_visible()
+
+    # The Admin Panel button, and per-project edit/delete actions, stay admin-only.
+    expect(bob_page.get_by_role("button", name="Admin Panel")).to_be_hidden()
+    bob_page.context.close()
 
 
 @pytest.mark.parametrize(

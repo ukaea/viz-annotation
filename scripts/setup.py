@@ -141,7 +141,7 @@ def create_local_samples(
     samples = []
 
     base_path = Path(base_path)
-    for i, shot_id in enumerate(shot_ids):
+    for shot_id in shot_ids:
         file_name = str(base_path / f"{shot_id}.{file_type}")
         sample = {
             "shot_id": shot_id,
@@ -153,7 +153,7 @@ def create_local_samples(
             },
         }
         if annotations:
-            sample["annotations"] = annotations[i]
+            sample["annotations"] = annotations[shot_id]
         samples.append(sample)
 
     r = requests.post(

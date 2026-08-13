@@ -85,3 +85,54 @@ def test_non_admin_cannot_access_admin_users_page(server_setup, admin_token, bro
     regular_page.goto("http://localhost:8002/ui/admin/users")
     expect(regular_page).to_have_url("http://localhost:8002/ui/projects/", timeout=3000)
     regular_page.context.close()
+
+
+def test_admin_created_user_forced_to_change_password(server_setup, browser, page):
+    # Admin-created accounts default to must_change_password=True - unlike
+    # tests.endpoints.create_user, which explicitly opts test fixtures out of it.
+    page.goto("http://localhost:8002/ui/admin/users")
+    page.get_by_role("button", name="Add User").click()
+    page.get_by_role("textbox", name="Username").fill("freshgina")
+    page.get_by_role("textbox", name="Password").fill("initial_pass123")
+    page.get_by_role("button", name="Create").click()
+    expect(_user_row(page, "freshgina")).to_be_visible()
+
+    gina_page = login_as(browser, "freshgina", "initial_pass123")
+    gina_page.goto("http://localhost:8002/ui/projects/")
+
+    # Redirected straight to the profile page before reaching anything else.
+    expect(gina_page).to_have_url("http://localhost:8002/ui/profile", timeout=3000)
+    expect(gina_page.get_by_text("Password change required")).to_be_visible()
+
+    gina_page.get_by_role("textbox", name="New password", exact=True).fill(
+        "gina_new_pass456"
+    )
+    gina_page.get_by_role("textbox", name="Confirm new password").fill(
+        "gina_new_pass456"
+    )
+    gina_page.get_by_role("button", name="Change Password").click()
+
+    # Once changed, the redirect stops firing and normal navigation works.
+    expect(gina_page).to_have_url("http://localhost:8002/ui/projects", timeout=3000)
+    gina_page.goto("http://localhost:8002/ui/projects/")
+    expect(gina_page).to_have_url("http://localhost:8002/ui/projects/", timeout=3000)
+    gina_page.context.close()
+
+
+def test_admin_can_reset_user_password(server_setup, admin_token, browser, page):
+    create_user("resetme_hank", "old_pass123")
+    page.goto("http://localhost:8002/ui/admin/users")
+
+    row = _user_row(page, "resetme_hank")
+    row.get_by_role("button", name="Reset Password").click()
+    dialog = page.get_by_role("dialog")
+    dialog.get_by_role("textbox", name="New password").fill("hank_reset_pass456")
+    dialog.get_by_role("button", name="Reset", exact=True).click()
+
+    expect(page.get_by_text("Password reset for resetme_hank")).to_be_visible()
+
+    # The old password no longer works; the new one does, and forces a change.
+    hank_page = login_as(browser, "resetme_hank", "hank_reset_pass456")
+    hank_page.goto("http://localhost:8002/ui/projects/")
+    expect(hank_page).to_have_url("http://localhost:8002/ui/profile", timeout=3000)
+    hank_page.context.close()

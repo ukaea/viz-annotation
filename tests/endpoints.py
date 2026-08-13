@@ -23,6 +23,9 @@ def create_user(username: str, password: str, role: str = "user") -> str:
             "username": username,
             "password": password,
             "global_role": role,
+            # Test-created accounts should be usable immediately, not stuck behind
+            # the forced-password-change redirect real admin-created accounts get.
+            "must_change_password": False,
         },
     )
     assert response.status_code == 200, response.text

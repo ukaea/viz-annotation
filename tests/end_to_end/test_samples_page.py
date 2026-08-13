@@ -13,16 +13,20 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from tests.end_to_end import form_check
+from tests.end_to_end.conftest import login_as
 from tests.endpoints import (
+    add_project_member,
     create_local_samples,
     create_model_samples,
     create_project,
     create_query_strategy_samples,
     create_uda_samples,
+    create_user,
     session,
 )
 from toktagger.api import config
 from toktagger.api.schemas.annotations import TimePoint, TimeRegion
+from toktagger.api.schemas.annotators import AnnotatorTypes
 
 
 def check_base_page(page):
@@ -719,6 +723,56 @@ def test_clear_samples(server_setup, page: Page):
     assert len(samples) == 0
 
 
+@pytest.mark.parametrize(
+    ("role", "add_enabled", "import_enabled", "delete_enabled", "clear_enabled"),
+    [
+        ("viewer", False, False, False, False),
+        ("annotator", True, True, False, False),
+        ("admin", True, True, True, True),
+    ],
+)
+def test_samples_page_buttons_gated_by_role(
+    role,
+    add_enabled,
+    import_enabled,
+    delete_enabled,
+    clear_enabled,
+    server_setup,
+    admin_token,
+    browser,
+):
+    username = f"role_carl_{role}"
+    create_user(username, "carl_pass123")
+    project_id = create_project("Role Gated Project", "time-series", "tabular")
+    create_local_samples(project_id, [10000], pathlib.Path(__file__).parents[1], ["Ip"])
+    add_project_member(project_id, username, role=role)
+
+    carl_page = login_as(browser, username, "carl_pass123")
+    carl_page.goto(f"http://localhost:8002/ui/projects/{project_id}")
+
+    def expect_enabled(locator, enabled):
+        if enabled:
+            expect(locator).to_be_enabled()
+        else:
+            expect(locator).to_be_disabled()
+
+    expect_enabled(
+        carl_page.get_by_role("button", name="Add Samples", exact=True), add_enabled
+    )
+    expect_enabled(
+        carl_page.get_by_role("button", name="Import Annotations"), import_enabled
+    )
+    expect_enabled(
+        carl_page.get_by_role("button", name="Clear Samples", exact=True),
+        clear_enabled,
+    )
+    expect_enabled(
+        carl_page.get_by_role("row").nth(1).get_by_role("button", name="Delete"),
+        delete_enabled,
+    )
+    carl_page.context.close()
+
+
 @pytest.mark.parametrize("sample_id", (True, False))
 def test_samples_page_import_annotations(sample_id: bool, server_setup, page: Page):
     # Create a project
@@ -819,9 +873,16 @@ def test_samples_page_export_annotations(server_setup, page: Page):
 
     # Add annotations
     flat_top = TimeRegion(
-        label="Flat Top", created_by="peak_detection", time_min=50, time_max=70
+        label="Flat Top",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time_min=50,
+        time_max=70,
     )
-    disruption = TimePoint(label="Disruption", created_by="peak_detection", time=71)
+    disruption = TimePoint(
+        label="Disruption",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time=71,
+    )
     response = session.put(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_ids[0]}/annotations",
         json=[model.model_dump(mode="json") for model in (flat_top, disruption)],
@@ -829,9 +890,16 @@ def test_samples_page_export_annotations(server_setup, page: Page):
     assert response.status_code == 200
 
     ramp_up = TimeRegion(
-        label="Ramp Up", created_by="peak_detection", time_min=40, time_max=60
+        label="Ramp Up",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time_min=40,
+        time_max=60,
     )
-    control_loss = TimePoint(label="Control Loss", created_by="peak_detection", time=61)
+    control_loss = TimePoint(
+        label="Control Loss",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time=61,
+    )
     response = session.put(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_ids[1]}/annotations",
         json=[model.model_dump(mode="json") for model in (ramp_up, control_loss)],

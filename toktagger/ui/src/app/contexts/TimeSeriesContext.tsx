@@ -20,6 +20,7 @@ import React, {
 } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { useSample } from "./SampleContext";
+import { useProjectRole } from "@/app/hooks/useProjectRole";
 import {
   convertRawAnnotationsToTimeSeries,
   convertTimeSeriesToRawAnnotations,
@@ -59,6 +60,7 @@ type TimeSeriesState = {
   ongoingAction: boolean;
   categories: Map<string, TimeSeriesCategory>;
   editMode: boolean;
+  canAnnotate: boolean;
 };
 
 const TimeSeriesActionsContext = createContext<TimeSeriesActions | null>(null);
@@ -145,6 +147,7 @@ export const TimeSeriesProvider = ({
   // project is guaranteed non-null here: TimeSeriesProvider is only rendered
   // after SampleView confirms project is loaded.
   const projectId = project?._id ?? "";
+  const { canAnnotate } = useProjectRole(project?._id);
 
   const [annotations, setAnnotations] = useState<TimeSeriesAnnotation[]>([]);
   const [toolingCallbacks, setToolingCallbacks] = useState<
@@ -164,10 +167,29 @@ export const TimeSeriesProvider = ({
   const [categories, setCategories] = useState<Map<string, TimeSeriesCategory>>(
     new Map(),
   );
-  const [editMode, setEditMode] = useState<boolean>(
+  const [editMode, setEditModeRaw] = useState<boolean>(
     () => sessionStorage.getItem(`ts-edit-mode-${projectId}`) === "true",
   );
   const [ongoingAction, setOngoingAction] = useState(false);
+
+  // Viewers can't enter edit mode - gated here (rather than only disabling the
+  // toolbar button) so the "e" keyboard shortcut is blocked too.
+  const setEditMode = useCallback(
+    (update: boolean | ((prev: boolean) => boolean)) => {
+      setEditModeRaw((prev) => {
+        const next = typeof update === "function" ? update(prev) : update;
+        return canAnnotate ? next : false;
+      });
+    },
+    [canAnnotate],
+  );
+
+  // If the role check resolves to "can't annotate" after edit mode was already on
+  // (e.g. restored from a previous session, or a mid-session role change), drop back
+  // to view mode.
+  useEffect(() => {
+    if (!canAnnotate) setEditModeRaw(false);
+  }, [canAnnotate]);
 
   // Persist editMode to sessionStorage on every change
   useEffect(() => {
@@ -327,6 +349,7 @@ export const TimeSeriesProvider = ({
       const id = uuidv4();
       return {
         id,
+        db_id: null,
         created_by: "manual",
         label,
         signal_name: signalName,
@@ -595,6 +618,7 @@ export const TimeSeriesProvider = ({
       triggerUpdate,
       selectAnnotations,
       findSelectedAnnotations,
+      setEditMode,
     ],
   );
 
@@ -608,6 +632,7 @@ export const TimeSeriesProvider = ({
       ongoingAction,
       categories,
       editMode,
+      canAnnotate,
     }),
     [
       annotations,
@@ -618,6 +643,7 @@ export const TimeSeriesProvider = ({
       ongoingAction,
       categories,
       editMode,
+      canAnnotate,
     ],
   );
 
@@ -643,6 +669,15 @@ export const TimeSeriesProvider = ({
     setRawAnnotations,
   ]);
 
+  // setEditMode's identity changes whenever canAnnotate resolves (see above), so it's
+  // read through a ref rather than a dependency here - re-registering these listeners
+  // on that change would tear down the "Control" keydown/keyup pair mid-drag and break
+  // the ctrl-drag gesture tools rely on to draw. The ref always has the latest guard.
+  const setEditModeRef = useRef(setEditMode);
+  useEffect(() => {
+    setEditModeRef.current = setEditMode;
+  }, [setEditMode]);
+
   useEffect(() => {
     const keyDownHandler = (event: KeyboardEvent) => {
       if (isEditableEventTarget(event.target)) return;
@@ -652,7 +687,7 @@ export const TimeSeriesProvider = ({
       }
 
       if (event.key === "e") {
-        setEditMode((prev) => !prev);
+        setEditModeRef.current((prev) => !prev);
       }
     };
 

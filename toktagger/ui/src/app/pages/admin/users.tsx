@@ -324,8 +324,8 @@ function ResetPasswordDialog({ user }: { user: UserRow }) {
               width="100%"
             />
             <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-              {user.username} will be required to change this password on
-              their next login. Communicate it to them securely.
+              {user.username} will be required to change this password on their
+              next login. Communicate it to them securely.
             </p>
           </Content>
           <ButtonGroup>

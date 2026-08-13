@@ -1,11 +1,6 @@
 import { importJSONFile } from "@/app/core";
 import { Project, Sample } from "@/types";
-import {
-  Button,
-  FileTrigger,
-  ToastQueue,
-  Text,
-} from "@adobe/react-spectrum";
+import { Button, FileTrigger, ToastQueue, Text } from "@adobe/react-spectrum";
 import Import from "@spectrum-icons/workflow/Import";
 
 export function ImportButton({

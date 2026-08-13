@@ -212,7 +212,10 @@ export default function ProjectView() {
       const project = await getProject(project_id);
       setProject(project);
     } catch (err) {
-      if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
+      if (
+        err instanceof ApiError &&
+        (err.status === 403 || err.status === 404)
+      ) {
         // Don't distinguish "doesn't exist" from "exists but you can't see it" —
         // that would leak the project's existence to non-members.
         setLoadError("Project not found.");

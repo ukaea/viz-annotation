@@ -112,8 +112,8 @@ class VideoCNN(Model):
     ["video"],
 )
 class YOLOv8(Model):
-    def define_model(self) -> YOLO:
-        return YOLO("yolov8n")
+    def define_model(self) -> YOLO | None:
+        return None
 
     def train(
         self,

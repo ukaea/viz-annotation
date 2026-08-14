@@ -144,7 +144,9 @@ export const AnnotationsTable = () => {
   }, [annotations, categories]);
 
   return (
-    <div className="relative w-[70%] overflow-x-auto shadow-md sm:rounded-lg ml-auto mr-auto p-4">
+    // shrink-0 so the table keeps its full height and the plot above it gives up
+    // the space instead - otherwise the last rows are pushed off the window.
+    <div className="relative ml-auto mr-auto w-[70%] shrink-0 overflow-x-auto px-4 pb-4 shadow-md sm:rounded-lg">
       {/* <ToolingControls /> */}
       <Flex justifyContent="center" marginBottom="size-200">
         <h1 className="text-xl font-bold">Annotations</h1>

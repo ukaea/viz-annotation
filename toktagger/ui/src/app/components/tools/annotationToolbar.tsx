@@ -114,6 +114,7 @@ export const AnnotationToolbar = () => {
       width="size-3000"
       flexShrink={0}
       marginTop="size-200"
+      overflow="auto"
       data-testid="annotation-toolbar"
     >
       <Flex direction="column" alignItems="center" gap="size-150">

@@ -9,9 +9,19 @@ import { applyGlobalStyle, arrayMax, arrayMin } from "@/app/utils";
 import { useEffect, useMemo, useState } from "react";
 import { TimePoint } from "@/app/components/tools/timePoint";
 import { useSample } from "@/app/contexts/SampleContext";
-import { Flex, View } from "@adobe/react-spectrum";
+import { View } from "@adobe/react-spectrum";
 import { AnnotationsTable } from "@/app/components/ui/annotationsTable";
 import { AnnotationToolbar } from "@/app/components/tools/annotationToolbar";
+import { useElementHeight } from "@/app/hooks/useElementHeight";
+
+// The traces are stacked, so each one needs its own share of the height. Below
+// this the subplots are too squashed to read, so the plot keeps its size and the
+// page scrolls instead. The rangeslider takes 10% of the plot, hence the extra.
+const MIN_TRACE_HEIGHT = 105;
+const RANGESLIDER_FRACTION = 0.1;
+
+// Floor for a single trace, also used before the container has been measured.
+const MIN_PLOT_HEIGHT = 320;
 
 export const TimeSeriesView = () => {
   const { data } = useSample();
@@ -60,6 +70,18 @@ export const TimeSeriesView = () => {
     }));
     setPlotData(plotData);
   }, [data, viewData]);
+
+  // The plot fills whatever height is left once the annotations table has taken
+  // its share, but never drops below what the stacked traces need to stay legible.
+  const { ref: plotAreaRef, height: plotAreaHeight } =
+    useElementHeight<HTMLDivElement>();
+  const minPlotHeight = Math.max(
+    MIN_PLOT_HEIGHT,
+    Math.round(
+      (plotData.length * MIN_TRACE_HEIGHT) / (1 - RANGESLIDER_FRACTION),
+    ),
+  );
+  const plotHeight = Math.max(plotAreaHeight, minPlotHeight);
 
   const plotLayout: Partial<Plotly.Layout> = useMemo(() => {
     let maxTime = -Infinity;
@@ -112,7 +134,7 @@ export const TimeSeriesView = () => {
         //grid: { rows: 1, columns: 1, pattern: "independent" },
         dragmode: "pan",
         autosize: true,
-        height: window.innerHeight * 0.9,
+        height: plotHeight,
         xaxis: {
           minallowed: minTime,
           maxallowed: maxTime,
@@ -133,18 +155,22 @@ export const TimeSeriesView = () => {
       },
       isDarkMode,
     );
-  }, [plotData, isDarkMode]);
+  }, [plotData, isDarkMode, plotHeight]);
 
   if (!viewData) {
     return null;
   }
 
   return (
-    <View width="100%">
-      <Flex justifyContent="center" alignItems="center">
-        <TimeSeriesProvider>
-          <Flex direction="row" flex justifyContent="space-between">
-            <Flex direction="column" flex gap="size-200">
+    <View width="100%" height="100%" minHeight={0}>
+      <TimeSeriesProvider>
+        <div className="flex h-full min-h-0 flex-row justify-between">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+            <div
+              ref={plotAreaRef}
+              className="flex-1"
+              style={{ minHeight: minPlotHeight }}
+            >
               <BaseTimeSeriesPlot
                 plotId="TimesSeriesView"
                 plotConfig={{ data: plotData, layout: plotLayout }}
@@ -152,12 +178,12 @@ export const TimeSeriesView = () => {
                 <TimeRegion />
                 <TimePoint />
               </BaseTimeSeriesPlot>
-              <AnnotationsTable />
-            </Flex>
-            <AnnotationToolbar />
-          </Flex>
-        </TimeSeriesProvider>
-      </Flex>
+            </div>
+            <AnnotationsTable />
+          </div>
+          <AnnotationToolbar />
+        </div>
+      </TimeSeriesProvider>
     </View>
   );
 };

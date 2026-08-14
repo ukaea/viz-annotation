@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { Flex } from "@adobe/react-spectrum";
 import { TaskType } from "@/types";
 import { TimeSeriesView } from "@/app/time_series/components/time-series";
 import { Profile2dView } from "@/app/profile2d/components/profile2d";
@@ -78,14 +77,15 @@ function SamplePageContent(props: { sampleId: string }) {
     return <LoadingView />;
   }
 
+  // h-full/min-h-0 hand the height of the area below the top bar down to the
+  // toolbar and the view, so each can scroll internally instead of the whole
+  // page growing past the bottom of the window.
   return (
-    <div>
-      <Flex>
-        <SampleTaskProviders>
-          <ToolBar />
-          <SampleView />
-        </SampleTaskProviders>
-      </Flex>
+    <div className="flex h-full min-h-0">
+      <SampleTaskProviders>
+        <ToolBar />
+        <SampleView />
+      </SampleTaskProviders>
     </div>
   );
 }

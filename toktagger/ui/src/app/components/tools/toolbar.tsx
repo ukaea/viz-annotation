@@ -237,9 +237,11 @@ export default function ToolBar() {
   };
 
   return (
-    <Provider theme={defaultTheme} height="100vh">
+    // 100% (not 100vh) so the toolbar stops at the bottom of the window rather
+    // than running on below it by the height of the top bar.
+    <Provider theme={defaultTheme} height="100%">
       <ToastContainer placement="top" />
-      <View overflow="auto" height="100vh" width="18vw">
+      <View overflow="auto" height="100%" width="18vw" flexShrink={0}>
         <Flex
           direction="column"
           alignItems="center"

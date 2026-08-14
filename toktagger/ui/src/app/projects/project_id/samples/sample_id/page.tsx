@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { Breadcrumbs, Item, Flex } from "@adobe/react-spectrum";
-import { Project, Sample, TaskType } from "@/types";
+import { Flex } from "@adobe/react-spectrum";
+import { TaskType } from "@/types";
 import { TimeSeriesView } from "@/app/time_series/components/time-series";
 import { Profile2dView } from "@/app/profile2d/components/profile2d";
 import ToolBar from "@/app/components/tools/toolbar";
@@ -12,26 +12,7 @@ import LoadingView from "@/app/views/loading";
 import { SampleProvider, useSample } from "@/app/contexts/SampleContext";
 import { VideoProviders, VideoView } from "@/app/video/components/video-view";
 import { SampleHistoryProvider } from "@/app/contexts/SampleHistoryContext";
-
-type SampleDataBreadCrumbsInfo = {
-  project: Project;
-  sample: Sample;
-};
-
-const SampleDataBreadCrumbs = ({
-  project,
-  sample,
-}: SampleDataBreadCrumbsInfo) => (
-  <Breadcrumbs>
-    <Item key="projects" href={`/ui/projects`}>
-      Projects
-    </Item>
-    <Item key="project" href={`/ui/projects/${project._id}`}>
-      Project: {project.name}
-    </Item>
-    <Item key="samples">Shot: {sample.shot_id}</Item>
-  </Breadcrumbs>
-);
+import { useBreadcrumbs } from "@/app/contexts/BreadcrumbContext";
 
 const SampleView = () => {
   const { project, error, isLoading, data } = useSample();
@@ -59,6 +40,19 @@ function SampleTaskProviders({ children }: { children: React.ReactNode }) {
 
 function SamplePageContent(props: { sampleId: string }) {
   const { project, sample, isLoading, error } = useSample();
+  useBreadcrumbs(
+    project && sample
+      ? [
+          { key: "projects", label: "Projects", href: "/ui/projects" },
+          {
+            key: "project",
+            label: `Project: ${project.name}`,
+            href: `/ui/projects/${project._id}`,
+          },
+          { key: "samples", label: `Shot: ${sample.shot_id}` },
+        ]
+      : [{ key: "projects", label: "Projects", href: "/ui/projects" }],
+  );
 
   // Early returns AFTER all hooks
   if (error) return <ErrorView message={error} />;
@@ -86,7 +80,6 @@ function SamplePageContent(props: { sampleId: string }) {
 
   return (
     <div>
-      <SampleDataBreadCrumbs project={project} sample={sample} />
       <Flex>
         <SampleTaskProviders>
           <ToolBar />

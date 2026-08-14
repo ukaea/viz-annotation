@@ -3,8 +3,8 @@ import { useState, useEffect, useCallback } from "react";
 import { deleteProject, getProjects } from "@/app/core";
 import Delete from "@spectrum-icons/workflow/Delete";
 import { ProjectConfigEditor } from "./components/project_config";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { useBreadcrumbs } from "@/app/contexts/BreadcrumbContext";
 import {
   Cell,
   Column,
@@ -12,7 +12,6 @@ import {
   TableView,
   TableBody,
   TableHeader,
-  Breadcrumbs,
   Item,
   Button,
   Picker,
@@ -125,9 +124,11 @@ const ProjectsTable = ({
 };
 
 export default function Projects() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const isAdmin = user?.global_role === "admin";
-  const navigate = useNavigate();
+  useBreadcrumbs([
+    { key: "projects", label: "Projects", href: "/ui/projects/" },
+  ]);
   const [projectsPerPage, setProjectsPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [projectName, setProjectName] = useState<string>("");
@@ -155,38 +156,11 @@ export default function Projects() {
   if (!projects) return;
 
   return (
-    <div>
-      <Breadcrumbs>
-        <Item key="projects" href="/ui/projects/">
-          Projects
-        </Item>
-      </Breadcrumbs>
-      <div className="w-screen h-screen flex items-center justify-center bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400 dark:from-gray-700 dark:via-gray-800 dark:to-gray-900">
+    <div className="h-full">
+      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400 dark:from-gray-700 dark:via-gray-800 dark:to-gray-900">
         <div className="w-full md:w-4/5 p-6 bg-white/60 dark:bg-gray-800/60 text-gray-800 dark:text-gray-100 rounded-lg shadow-lg backdrop-blur-sm">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold">Projects</h1>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600 dark:text-gray-300">
-                Signed in as <strong>{user?.username}</strong>
-              </span>
-              <Button
-                variant="secondary"
-                onPress={() => navigate("/ui/profile")}
-              >
-                Profile
-              </Button>
-              {isAdmin && (
-                <Button
-                  variant="secondary"
-                  onPress={() => navigate("/ui/admin/users")}
-                >
-                  Admin Panel
-                </Button>
-              )}
-              <Button variant="negative" onPress={logout}>
-                Sign Out
-              </Button>
-            </div>
           </div>
           <Flex
             direction="row"

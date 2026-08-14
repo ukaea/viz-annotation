@@ -1,8 +1,6 @@
 "use client";
 import { useState } from "react";
 import {
-  Breadcrumbs,
-  Item,
   TextField,
   Button,
   Flex,
@@ -14,10 +12,15 @@ import {
 import { useNavigate } from "react-router-dom";
 import { BACKEND_API_URL, apiFetch } from "@/app/core";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { useBreadcrumbs } from "@/app/contexts/BreadcrumbContext";
 
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
+  useBreadcrumbs([
+    { key: "projects", label: "Projects", href: "/ui/projects/" },
+    { key: "profile", label: "Profile" },
+  ]);
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -66,14 +69,8 @@ export default function ProfilePage() {
   };
 
   return (
-    <div>
-      <Breadcrumbs>
-        <Item key="projects" href="/ui/projects/">
-          Projects
-        </Item>
-        <Item key="profile">Profile</Item>
-      </Breadcrumbs>
-      <div className="w-screen h-screen flex items-center justify-center bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400 dark:from-gray-700 dark:via-gray-800 dark:to-gray-900">
+    <div className="h-full">
+      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400 dark:from-gray-700 dark:via-gray-800 dark:to-gray-900">
         <div className="w-full md:w-4/5 p-6 bg-white/60 dark:bg-gray-800/60 text-gray-800 dark:text-gray-100 rounded-lg shadow-lg backdrop-blur-sm">
           <h1 className="text-2xl font-bold mb-4">Profile</h1>
           <Flex direction="column" alignItems="center">

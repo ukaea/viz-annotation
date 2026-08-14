@@ -20,18 +20,23 @@ import {
   Item,
   InlineAlert,
   ToastQueue,
-  Breadcrumbs,
 } from "@adobe/react-spectrum";
 import Edit from "@spectrum-icons/workflow/Edit";
 import Delete from "@spectrum-icons/workflow/Delete";
 import { BACKEND_API_URL, apiFetch } from "@/app/core";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { useBreadcrumbs } from "@/app/contexts/BreadcrumbContext";
 import type { CurrentUser } from "@/types";
 
 type UserRow = CurrentUser & { id: string };
 
 export default function AdminUsersPage() {
-  const { user: currentUser, logout } = useAuth();
+  const { user: currentUser } = useAuth();
+  useBreadcrumbs([
+    { key: "projects", label: "Projects", href: "/ui/projects/" },
+    { key: "admin", label: "Admin" },
+    { key: "users", label: "Users" },
+  ]);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,15 +92,8 @@ export default function AdminUsersPage() {
   };
 
   return (
-    <div>
-      <Breadcrumbs>
-        <Item key="projects" href="/ui/projects/">
-          Projects
-        </Item>
-        <Item key="admin">Admin</Item>
-        <Item key="users">Users</Item>
-      </Breadcrumbs>
-      <div className="w-screen min-h-screen flex items-start justify-center bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400 dark:from-gray-700 dark:via-gray-800 dark:to-gray-900 py-6">
+    <div className="h-full">
+      <div className="w-full min-h-full flex items-start justify-center bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400 dark:from-gray-700 dark:via-gray-800 dark:to-gray-900 py-6">
         <div className="w-full md:w-4/5 p-6 bg-white/60 dark:bg-gray-800/60 text-gray-800 dark:text-gray-100 rounded-lg shadow-lg backdrop-blur-sm">
           <Flex
             justifyContent="space-between"
@@ -103,14 +101,6 @@ export default function AdminUsersPage() {
             marginBottom="size-200"
           >
             <Heading level={2}>User Management</Heading>
-            <Flex gap="size-100" alignItems="center">
-              <span className="text-sm text-gray-600 dark:text-gray-300">
-                Signed in as <strong>{currentUser?.username}</strong>
-              </span>
-              <Button variant="negative" onPress={logout}>
-                Sign Out
-              </Button>
-            </Flex>
           </Flex>
 
           {error && (

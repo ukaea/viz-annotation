@@ -16,6 +16,8 @@ import SampleView from "./src/app/projects/project_id/samples/sample_id/page";
 import LoginPage from "./src/app/pages/login";
 import AdminUsersPage from "./src/app/pages/admin/users";
 import ProfilePage from "./src/app/pages/profile";
+import TopBar from "./src/app/components/layout/TopBar";
+import { BreadcrumbProvider } from "./src/app/contexts/BreadcrumbContext";
 
 function SpectrumProvider({ children }) {
   const navigate = useNavigate();
@@ -27,11 +29,22 @@ function SpectrumProvider({ children }) {
   );
 }
 
+function AuthenticatedLayout({ children }) {
+  return (
+    <BreadcrumbProvider>
+      <div className="flex flex-col h-screen">
+        <TopBar />
+        <div className="flex-1 min-h-0 overflow-auto">{children}</div>
+      </div>
+    </BreadcrumbProvider>
+  );
+}
+
 function RequireAuth({ children }) {
   const { user, isLoading } = useAuth();
   if (isLoading) return null;
   if (!user) return <Navigate to="/ui/login" replace />;
-  return children;
+  return <AuthenticatedLayout>{children}</AuthenticatedLayout>;
 }
 
 function RequireAdmin({ children }) {
@@ -40,7 +53,7 @@ function RequireAdmin({ children }) {
   if (!user) return <Navigate to="/ui/login" replace />;
   if (user.global_role !== "admin")
     return <Navigate to="/ui/projects/" replace />;
-  return children;
+  return <AuthenticatedLayout>{children}</AuthenticatedLayout>;
 }
 
 function App() {

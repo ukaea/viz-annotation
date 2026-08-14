@@ -2,6 +2,7 @@
 import {
   Form,
   Button,
+  ActionButton,
   DialogTrigger,
   Dialog,
   Divider,
@@ -330,10 +331,10 @@ export const AddSamplesEditor = ({
 
   return (
     <DialogTrigger>
-      <Button variant="primary" isDisabled={!canAnnotate}>
+      <ActionButton isQuiet isDisabled={!canAnnotate}>
         <AddCircle />
         <Text>Add Samples</Text>
-      </Button>
+      </ActionButton>
       {(close) => (
         <Dialog>
           <Heading>Add Samples to Project</Heading>

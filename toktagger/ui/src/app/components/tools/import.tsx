@@ -1,6 +1,11 @@
 import { importJSONFile } from "@/app/core";
 import { Project, Sample } from "@/types";
-import { Button, FileTrigger, ToastQueue, Text } from "@adobe/react-spectrum";
+import {
+  ActionButton,
+  FileTrigger,
+  ToastQueue,
+  Text,
+} from "@adobe/react-spectrum";
 import Import from "@spectrum-icons/workflow/Import";
 
 export function ImportButton({
@@ -46,10 +51,10 @@ export function ImportButton({
       onSelect={handleFileChange}
       acceptedFileTypes={["application/json"]}
     >
-      <Button variant="primary" isDisabled={!canAnnotate}>
+      <ActionButton isQuiet isDisabled={!canAnnotate}>
         <Import />
         <Text>{sample ? "Import" : "Import Annotations"}</Text>
-      </Button>
+      </ActionButton>
     </FileTrigger>
   );
 }

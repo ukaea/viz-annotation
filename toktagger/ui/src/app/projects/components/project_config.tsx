@@ -1,6 +1,7 @@
 import { Project, TaskType } from "@/types";
 import {
   Button,
+  ActionButton,
   ButtonGroup,
   Content,
   Dialog,
@@ -271,13 +272,16 @@ export function ProjectConfigEditor({
 
   return (
     <DialogTrigger>
-      <Button
-        aria-label={isEditing ? "Edit" : buttonText}
-        variant={isEditing ? "accent" : "primary"}
-      >
-        {icon}
-        {!isEditing ? <Text>{buttonText}</Text> : <></>}
-      </Button>
+      {isEditing ? (
+        <Button aria-label="Edit" variant="accent">
+          {icon}
+        </Button>
+      ) : (
+        <ActionButton isQuiet aria-label={buttonText}>
+          {icon}
+          <Text>{buttonText}</Text>
+        </ActionButton>
+      )}
       {(close) => (
         <Dialog>
           <Heading>{titleText}</Heading>

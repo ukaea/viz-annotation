@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Button,
+  ActionButton,
   DialogTrigger,
   Dialog,
   Heading,
@@ -18,8 +19,10 @@ import {
   TextField,
   Picker,
   Item,
+  Text,
   ToastQueue,
 } from "@adobe/react-spectrum";
+import UserGroup from "@spectrum-icons/workflow/UserGroup";
 import { BACKEND_API_URL, apiFetch } from "@/app/core";
 import type { ProjectMember } from "@/types";
 
@@ -88,7 +91,10 @@ export function ProjectMembersDialog({ projectId, isProjectAdmin }: Props) {
 
   return (
     <DialogTrigger isOpen={open} onOpenChange={setOpen}>
-      <Button variant="primary">Manage Members</Button>
+      <ActionButton isQuiet>
+        <UserGroup />
+        <Text>Manage Members</Text>
+      </ActionButton>
       <Dialog width="size-8000">
         <Heading>Project Members</Heading>
         <Divider />

@@ -2,7 +2,6 @@
 import { Project, type NavAdapter } from "@/types";
 import {
   Flex,
-  Button,
   ActionButton,
   ButtonGroup,
   ToastQueue,
@@ -205,13 +204,13 @@ export function JumpToNextButton({
 
   return (
     <View marginStart="size-100">
-      <Button
-        variant="primary"
+      <ActionButton
+        isQuiet
         aria-label="Jump to Next Sample"
         onPress={moveNextShot}
       >
         <Text>Jump to Next Sample</Text> <StepForward />
-      </Button>
+      </ActionButton>
     </View>
   );
 }

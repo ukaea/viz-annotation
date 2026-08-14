@@ -11,6 +11,7 @@ import {
   Item,
   Flex,
   Button,
+  ActionButton,
   Picker,
   SearchField,
   DialogTrigger,
@@ -309,79 +310,83 @@ export default function ProjectView() {
               </Flex>
             </View>
             <ToastContainer placement="top" />
-            <Flex
-              direction="row"
-              margin="size-100"
-              gap="size-100"
-              alignItems="center"
-              justifyContent="space-between"
-            >
-              <Flex gap="size-100" alignItems="center" justifyContent="start">
-                <AddSamplesEditor
-                  project={project}
-                  onModify={refreshSamples}
-                  canAnnotate={canAnnotate}
-                />
-                {project_id && (
-                  <ProjectMembersDialog
-                    projectId={project_id}
-                    isProjectAdmin={currentUser?.global_role === "admin"}
-                  />
-                )}
-                <DialogTrigger>
-                  <Button variant="negative" isDisabled={!isAdmin}>
-                    <Delete />
-                    <Text>Clear Samples</Text>
-                  </Button>
-                  {(close) => (
-                    <Dialog>
-                      <Heading>Confirm Clear All Samples</Heading>
-                      <Divider />
-                      <Content>
-                        Are you sure you want to delete{" "}
-                        <strong>all samples</strong> in this project? You will
-                        lose <strong>all annotations</strong> associated with
-                        the samples as well. This action cannot be undone.
-                      </Content>
-                      <ButtonGroup>
-                        <Button variant="secondary" onPress={close}>
-                          Cancel
-                        </Button>
-                        <Button
-                          variant="negative"
-                          onPress={async () => {
-                            if (!project_id) {
-                              return;
-                            }
-                            await deleteSamples(project_id);
-                            refreshSamples();
-                            close();
-                          }}
-                        >
-                          Clear All
-                        </Button>
-                      </ButtonGroup>
-                    </Dialog>
-                  )}
-                </DialogTrigger>
-              </Flex>
-              <Flex gap="size-100" alignItems="center" justifyContent="end">
-                <Flex gap="size-100" alignItems="center">
-                  <ImportButton project={project} canAnnotate={canAnnotate} />
-                  <ExportButton project={project} />
-                  <JumpToNextButton
+            <View overflow="auto">
+              <Flex
+                direction="row"
+                marginY="size-100"
+                gap="size-100"
+                alignItems="end"
+                justifyContent="space-between"
+              >
+                <Flex gap="size-100" alignItems="end" justifyContent="start">
+                  <AddSamplesEditor
                     project={project}
-                    sortDescriptor={sortDescriptor}
+                    onModify={refreshSamples}
+                    canAnnotate={canAnnotate}
+                  />
+                  {project_id && (
+                    <ProjectMembersDialog
+                      projectId={project_id}
+                      isProjectAdmin={currentUser?.global_role === "admin"}
+                    />
+                  )}
+                </Flex>
+                <Flex gap="size-100" alignItems="end" justifyContent="end">
+                  <Flex gap="size-100" alignItems="end">
+                    <ImportButton project={project} canAnnotate={canAnnotate} />
+                    <ExportButton project={project} />
+                    <JumpToNextButton
+                      project={project}
+                      sortDescriptor={sortDescriptor}
+                    />
+                    <DialogTrigger>
+                      <ActionButton isQuiet isDisabled={!isAdmin}>
+                        <Delete />
+                        <Text>Clear Samples</Text>
+                      </ActionButton>
+                      {(close) => (
+                        <Dialog>
+                          <Heading>Confirm Clear All Samples</Heading>
+                          <Divider />
+                          <Content>
+                            Are you sure you want to delete{" "}
+                            <strong>all samples</strong> in this project? You
+                            will lose <strong>all annotations</strong>{" "}
+                            associated with the samples as well. This action
+                            cannot be undone.
+                          </Content>
+                          <ButtonGroup>
+                            <Button variant="secondary" onPress={close}>
+                              Cancel
+                            </Button>
+                            <Button
+                              variant="negative"
+                              onPress={async () => {
+                                if (!project_id) {
+                                  return;
+                                }
+                                await deleteSamples(project_id);
+                                refreshSamples();
+                                close();
+                              }}
+                            >
+                              Clear All
+                            </Button>
+                          </ButtonGroup>
+                        </Dialog>
+                      )}
+                    </DialogTrigger>
+                  </Flex>
+                  <SearchField
+                    label="Search By Shot ID"
+                    width="size-1700"
+                    onSubmit={onSearchSubmit}
+                    validationState={errorMessage ? "invalid" : undefined}
+                    errorMessage={errorMessage}
                   />
                 </Flex>
-                <SearchField
-                  label="Search By Shot ID"
-                  onSubmit={onSearchSubmit}
-                  validationState={errorMessage ? "invalid" : undefined}
-                  errorMessage={errorMessage}
-                />
               </Flex>
-            </Flex>
+            </View>
             <SamplesTable
               project_id={project_id}
               samples={samples}

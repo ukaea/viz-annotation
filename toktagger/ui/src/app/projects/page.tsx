@@ -190,9 +190,9 @@ export default function Projects() {
           </div>
           <Flex
             direction="row"
-            margin="size-100"
+            marginY="size-100"
             gap="size-100"
-            alignItems="center"
+            alignItems="end"
             justifyContent="space-between"
           >
             <ProjectConfigEditor onModify={refreshProjects} />

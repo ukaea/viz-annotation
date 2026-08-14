@@ -1,6 +1,7 @@
 import {
   Text,
   Button,
+  ActionButton,
   Flex,
   Item,
   ComboBox,
@@ -14,10 +15,10 @@ import { exportAnnotations } from "@/app/core";
 
 export function ExportButton({ project }: { project: Project }) {
   return (
-    <Button variant="primary" onPress={() => exportAnnotations(project)}>
+    <ActionButton isQuiet onPress={() => exportAnnotations(project)}>
       <Export />
       <Text>Export Annotations</Text>
-    </Button>
+    </ActionButton>
   );
 }
 type ExportToolInfo = {

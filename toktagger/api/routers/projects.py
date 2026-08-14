@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from toktagger.api.auth.dependencies import (
     get_current_user,
     require_global_admin,
-    require_project_admin_role,
+    require_project_annotator,
     require_project_viewer,
 )
 from toktagger.api.core.data_loaders import LoaderRegistry
@@ -106,7 +106,7 @@ async def update_project(
     request: Request,
     project: Project,
     project_id: str = Path(description="The ID of the project to update"),
-    current_user: UserOut = Depends(require_project_admin_role),
+    current_user: UserOut = Depends(require_project_annotator),
 ):
     """Update a project's information."""
     await utils.update_project(request.app.state.db_client, project_id, project)
@@ -122,7 +122,7 @@ async def update_project(
 async def delete_project(
     request: Request,
     project_id: str = Path(description="The ID of the project to delete"),
-    current_user: UserOut = Depends(require_project_admin_role),
+    current_user: UserOut = Depends(require_project_annotator),
 ):
     """Permanently delete a project."""
     db_client = request.app.state.db_client

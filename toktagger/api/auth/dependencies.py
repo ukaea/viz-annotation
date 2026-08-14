@@ -85,8 +85,10 @@ async def require_project_annotator(
 ) -> UserOut:
     if current_user.global_role == "admin":
         return current_user
-    # Reject any role that is not explicitly allowed to write (viewer or unknown future roles)
-    if membership and membership.role not in ("admin", "annotator"):
+    # Only roles explicitly allowed to write pass. `membership is None` reaches here
+    # only if get_project_membership ever stops raising for non-members, so fail
+    # closed on it rather than relying on that behaviour.
+    if membership is None or membership.role not in ("admin", "annotator"):
         raise HTTPException(
             status_code=403, detail="Viewers cannot create or modify annotations"
         )
@@ -94,18 +96,13 @@ async def require_project_annotator(
 
 
 async def require_project_admin_role(
-    project_id: str,
-    request: Request,
+    membership: ProjectMember | None = Depends(get_project_membership),
     current_user: UserOut = Depends(get_current_user),
 ) -> UserOut:
     if current_user.global_role == "admin":
         return current_user
 
-    db_client = request.app.state.db_client
-    membership = await utils.get_project_membership(
-        db_client, project_id, current_user.id
-    )
-    if not membership or membership.role != "admin":
+    if membership is None or membership.role != "admin":
         raise HTTPException(
             status_code=403,
             detail="Project admin access required",

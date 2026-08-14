@@ -133,58 +133,68 @@ export default function ToolBar() {
     const labels = project.shot_labels || ["Valid Shot", "Invalid Shot"];
     tools.push({
       name: "Shot Labels",
-      component: <ShotLabels labels={labels}></ShotLabels>,
-    });
-
-    tools.push({
-      name: "Peak Detection",
       component: (
-        <PeakDetectionTool
-          project_id={project_id}
-          sample_id={sample_id}
-          data={tsData}
-        ></PeakDetectionTool>
+        <ShotLabels labels={labels} canAnnotate={canAnnotate}></ShotLabels>
       ),
     });
 
-    tools.push({
-      name: "Outlier Detection",
-      component: (
-        <OutlierDetectionTool
-          project_id={project_id}
-          sample_id={sample_id}
-          data={tsData}
-        ></OutlierDetectionTool>
-      ),
-    });
+    // The automatic annotators exist only to write annotations, and each POSTs to
+    // /annotator/* from an effect as soon as it is enabled -- which for a sample that
+    // already holds its suggestions happens on mount. Disabling the controls would
+    // not stop that, so they are left out entirely for a viewer.
+    if (canAnnotate) {
+      tools.push({
+        name: "Peak Detection",
+        component: (
+          <PeakDetectionTool
+            project_id={project_id}
+            sample_id={sample_id}
+            data={tsData}
+          ></PeakDetectionTool>
+        ),
+      });
 
-    tools.push({
-      name: "Change Point Detection",
-      component: (
-        <ChangePointDetectionTool
-          project_id={project_id}
-          sample_id={sample_id}
-          data={tsData}
-        ></ChangePointDetectionTool>
-      ),
-    });
+      tools.push({
+        name: "Outlier Detection",
+        component: (
+          <OutlierDetectionTool
+            project_id={project_id}
+            sample_id={sample_id}
+            data={tsData}
+          ></OutlierDetectionTool>
+        ),
+      });
 
-    tools.push({
-      name: "Jump Detection",
-      component: (
-        <JumpDetectionTool
-          project_id={project_id}
-          sample_id={sample_id}
-          data={tsData}
-        ></JumpDetectionTool>
-      ),
-    });
+      tools.push({
+        name: "Change Point Detection",
+        component: (
+          <ChangePointDetectionTool
+            project_id={project_id}
+            sample_id={sample_id}
+            data={tsData}
+          ></ChangePointDetectionTool>
+        ),
+      });
+
+      tools.push({
+        name: "Jump Detection",
+        component: (
+          <JumpDetectionTool
+            project_id={project_id}
+            sample_id={sample_id}
+            data={tsData}
+          ></JumpDetectionTool>
+        ),
+      });
+    }
   } else if (project.task == TaskType.Profile2D) {
     // Not gated on data so the signal picker below still lets the user recover.
     const labels = project.shot_labels || ["Valid Shot", "Invalid Shot"];
     tools.push({
       name: "Shot Labels",
-      component: <ShotLabels labels={labels}></ShotLabels>,
+      component: (
+        <ShotLabels labels={labels} canAnnotate={canAnnotate}></ShotLabels>
+      ),
     });
 
     tools.push({
@@ -199,18 +209,23 @@ export default function ToolBar() {
       ),
     });
 
-    tools.push({
-      name: "Threshold",
-      component: (
-        <Profile2DThresholdTool project_id={project_id} sample_id={sample_id} />
-      ),
-    });
+    if (canAnnotate) {
+      tools.push({
+        name: "Threshold",
+        component: (
+          <Profile2DThresholdTool
+            project_id={project_id}
+            sample_id={sample_id}
+          />
+        ),
+      });
+    }
   } else if (data && project.task === TaskType.Video) {
     const labels = project.shot_labels || ["Valid Shot", "Invalid Shot"];
 
     tools.push({
       name: "Shot Labels",
-      component: <ShotLabels labels={labels} />,
+      component: <ShotLabels labels={labels} canAnnotate={canAnnotate} />,
     });
 
     tools.push({
@@ -219,7 +234,8 @@ export default function ToolBar() {
       defaultExpanded: true,
     });
   }
-  if (modelsEnabled) {
+  // Predicting writes annotations, so it needs the annotator role.
+  if (modelsEnabled && canAnnotate) {
     tools.push({
       name: "Model Prediction",
       component: (

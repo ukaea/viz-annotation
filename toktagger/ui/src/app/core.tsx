@@ -157,8 +157,8 @@ export const getProjects = async (
     params.append("name", name);
   }
 
-  const response = await apiFetch(
-    `${BACKEND_API_URL}/projects?${params.toString()}`,
+  const response = await ensureOk(
+    await apiFetch(`${BACKEND_API_URL}/projects?${params.toString()}`),
   );
   const data = await response.json();
   const projects = data as Project[];

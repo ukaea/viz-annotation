@@ -6,8 +6,10 @@ Permission matrix (role -> expected outcome), asserted explicitly for every acti
 below rather than relying on weaker roles being implied by stronger ones:
   - Unauthenticated       -> 401 on everything (no token at all)
   - Non-member             -> 403 on everything (authenticated, not a project member)
-  - Viewer                 -> 200 on reads, 403 on writes/deletes
-  - Annotator               -> 200 on reads and writes, 403 on destructive deletes
+  - Viewer                 -> 200 on reads, 403 on every write and delete
+  - Annotator               -> 200 on reads, writes and deletes (samples, annotations
+                              and the project itself), 403 only on member management
+                              and on deleting a trained model artifact
   - Project admin (member role="admin") -> 200 on everything
   - Global admin            -> 200 on everything
 """
@@ -98,7 +100,7 @@ ACTIONS: dict[str, Action] = {
             "unauthenticated": _status(401),
             "non_member": _status(403),
             "viewer": _status(403),
-            "annotator": _status(403),
+            "annotator": _status(200),
             "project_admin": _status(200),
             "global_admin": _status(200),
         },
@@ -110,7 +112,7 @@ ACTIONS: dict[str, Action] = {
             "unauthenticated": _status(401),
             "non_member": _status(403),
             "viewer": _status(403),
-            "annotator": _status(403),
+            "annotator": _status(200),
             "project_admin": _status(200),
             "global_admin": _status(200),
         },
@@ -159,7 +161,7 @@ ACTIONS: dict[str, Action] = {
             "unauthenticated": _status(401),
             "non_member": _status(403),
             "viewer": _status(403),
-            "annotator": _status(403),
+            "annotator": _status(200),
             "project_admin": _status(200),
             "global_admin": _status(200),
         },
@@ -171,7 +173,7 @@ ACTIONS: dict[str, Action] = {
             "unauthenticated": _status(401),
             "non_member": _status(403),
             "viewer": _status(403),
-            "annotator": _status(403),
+            "annotator": _status(200),
             "project_admin": _status(200),
             "global_admin": _status(200),
         },
@@ -185,6 +187,103 @@ ACTIONS: dict[str, Action] = {
             "non_member": _status(403),
             "viewer": _not_forbidden(),
             "annotator": _not_forbidden(),
+            "project_admin": _not_forbidden(),
+            "global_admin": _not_forbidden(),
+        },
+    ),
+    "update_project": Action(
+        method="PUT",
+        path="/projects/{project_id}",
+        body=lambda project_id, _: {
+            "_id": project_id,
+            "name": "renamed_project",
+            "task": "time-series",
+            "query_strategy": "sequential",
+            "data_loader": "tabular",
+        },
+        expected={
+            "unauthenticated": _status(401),
+            "non_member": _status(403),
+            "viewer": _status(403),
+            "annotator": _status(200),
+            "project_admin": _status(200),
+            "global_admin": _status(200),
+        },
+    ),
+    "delete_project": Action(
+        method="DELETE",
+        path="/projects/{project_id}",
+        expected={
+            "unauthenticated": _status(401),
+            "non_member": _status(403),
+            "viewer": _status(403),
+            "annotator": _status(200),
+            "project_admin": _status(200),
+            "global_admin": _status(200),
+        },
+    ),
+    # A well-formed but absent annotation ID: an authorised caller gets past the guard
+    # and finds nothing (404), so a 403 here can only come from the permission check.
+    "delete_single_annotation": Action(
+        method="DELETE",
+        path="/projects/{project_id}/samples/{sample_id}/annotations/{missing_id}",
+        expected={
+            "unauthenticated": _status(401),
+            "non_member": _status(403),
+            "viewer": _status(403),
+            "annotator": _status(404),
+            "project_admin": _status(404),
+            "global_admin": _status(404),
+        },
+    ),
+    # Deletes prediction annotations, so annotators may run it. May 503 when the ML
+    # extras aren't installed, hence _not_forbidden for the roles that are allowed.
+    "delete_predictions": Action(
+        method="DELETE",
+        path="/projects/{project_id}/models/dummy/predict",
+        expected={
+            "unauthenticated": _status(401),
+            "non_member": _status(403),
+            "viewer": _status(403),
+            "annotator": _not_forbidden(),
+            "project_admin": _not_forbidden(),
+            "global_admin": _not_forbidden(),
+        },
+    ),
+    # A trained model artifact is not an annotation, so this stays project-admin only.
+    "delete_model": Action(
+        method="DELETE",
+        path="/projects/{project_id}/models/dummy",
+        expected={
+            "unauthenticated": _status(401),
+            "non_member": _status(403),
+            "viewer": _status(403),
+            "annotator": _status(403),
+            "project_admin": _not_forbidden(),
+            "global_admin": _not_forbidden(),
+        },
+    ),
+    "add_member": Action(
+        method="POST",
+        path="/projects/{project_id}/members",
+        body=lambda *_: {"username": "bob", "role": "viewer"},
+        expected={
+            "unauthenticated": _status(401),
+            "non_member": _status(403),
+            "viewer": _status(403),
+            "annotator": _status(403),
+            "project_admin": _status(200),
+            "global_admin": _status(200),
+        },
+    ),
+    "remove_member": Action(
+        method="DELETE",
+        path="/projects/{project_id}/members/{bob_id}",
+        expected={
+            "unauthenticated": _status(401),
+            "non_member": _status(403),
+            "viewer": _status(403),
+            "annotator": _status(403),
             "project_admin": _not_forbidden(),
             "global_admin": _not_forbidden(),
         },
@@ -204,7 +303,13 @@ async def test_permission_matrix(project_setup, action_name, role):
 
     token = await _get_role_token(client, admin_token, project_id, role)
 
-    path = action.path.format(project_id=project_id, sample_id=sample_id)
+    path = action.path.format(
+        project_id=project_id,
+        sample_id=sample_id,
+        bob_id=project_setup["bob_id"],
+        # Valid ObjectId shape, guaranteed not to exist.
+        missing_id="0" * 24,
+    )
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     kwargs = {"headers": headers}
     if action.body is not None:

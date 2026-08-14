@@ -1,10 +1,9 @@
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Path, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 
 from toktagger.api.auth.dependencies import (
     get_current_user,
-    require_project_admin_role,
     require_project_annotator,
     require_project_viewer,
 )
@@ -117,7 +116,7 @@ async def delete_all_annotations(
     project_id: str = Path(
         description="The ID of the project to delete all annotations for"
     ),
-    current_user: UserOut = Depends(require_project_admin_role),
+    current_user: UserOut = Depends(require_project_annotator),
 ):
     """Delete ALL annotations for the given project."""
     db_client = request.app.state.db_client
@@ -219,7 +218,12 @@ async def update_annotations(
     ),
     current_user: UserOut = Depends(require_project_annotator),
 ):
-    """Update the annotations for a sample. Replaces only the current user's annotations."""
+    """Update the annotations for a sample.
+
+    The caller's own annotations are replaced wholesale. Annotations belonging to
+    another user or to a model are edited in place instead, keeping their author, so
+    a client that cannot see them (show_others_annotations=false) can never delete them.
+    """
     db_client = request.app.state.db_client
 
     await utils.get_project(db_client=db_client, project_id=project_id)
@@ -231,11 +235,19 @@ async def update_annotations(
     owned_annotations = []
     for annotation in annotations:
         if annotation.id is not None:
-            # Pre-existing annotation (fetched via GET, e.g. someone else's or
-            # a model's). Only re-save it if it's this user's own — anything
-            # else is already correct in the DB, so skip it to avoid
-            # duplicating it under the saving user's identity.
+            # Pre-existing annotation (fetched via GET, e.g. someone else's or a
+            # model's). The delete-then-reinsert path below is scoped to this user's
+            # own created_by, so re-saving it there would duplicate it under the
+            # saving user's identity. Apply a targeted in-place edit instead, which
+            # keeps the original author.
             if not is_internal and annotation.created_by != current_user.username:
+                await utils.update_annotation_by_id(
+                    db_client=db_client,
+                    project_id=project_id,
+                    sample_id=sample_id,
+                    annotation_id=annotation.id,
+                    annotation=annotation,
+                )
                 continue
         else:
             # Brand-new annotation. Preserve synthetic authorship (a just-run
@@ -280,7 +292,7 @@ async def remove_annotations(
     sample_id: str = Path(
         description="The ID of the sample to delete annotations from."
     ),
-    current_user: UserOut = Depends(require_project_admin_role),
+    current_user: UserOut = Depends(require_project_annotator),
 ):
     """Delete ALL annotations for a given sample from a given project."""
     db_client = request.app.state.db_client
@@ -291,3 +303,42 @@ async def remove_annotations(
     await utils.delete_annotations(
         db_client=db_client, project_id=project_id, sample_id=sample_id
     )
+
+
+@router.delete(
+    "/samples/{sample_id}/annotations/{annotation_id}",
+    responses={
+        200: {"description": "Annotation deleted successfully."},
+        404: {"description": "Project, Sample or Annotation not found with that ID."},
+    },
+)
+async def remove_annotation(
+    request: Request,
+    project_id: str = Path(description="The ID of the project to delete from."),
+    sample_id: str = Path(
+        description="The ID of the sample to delete an annotation from."
+    ),
+    annotation_id: str = Path(description="The ID of the annotation to delete."),
+    current_user: UserOut = Depends(require_project_annotator),
+):
+    """Delete a single annotation, whoever created it.
+
+    The batch save (PUT above) carries no "deleted ids" signal and its replace step is
+    scoped to the caller's own annotations, so removing someone else's annotation --
+    or a model's prediction -- has to be an explicit call.
+    """
+    db_client = request.app.state.db_client
+    await utils.get_project(db_client=db_client, project_id=project_id)
+    await utils.get_sample(
+        db_client=db_client, project_id=project_id, sample_id=sample_id
+    )
+    deleted = await utils.delete_annotations(
+        db_client=db_client,
+        project_id=project_id,
+        sample_id=sample_id,
+        annotation_id=annotation_id,
+    )
+    if not deleted:
+        raise HTTPException(
+            status_code=404, detail="Annotation not found for that project and sample."
+        )

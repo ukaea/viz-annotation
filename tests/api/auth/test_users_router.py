@@ -2,7 +2,7 @@
 
 import pytest
 
-from tests.api.auth.conftest import get_auth_token
+from tests.api.auth.conftest import add_member, get_auth_token
 
 
 @pytest.mark.asyncio
@@ -369,3 +369,107 @@ async def test_remove_project_member(project_setup):
     )
     usernames = [m["username"] for m in list_resp.json()]
     assert "alice" not in usernames
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("role", ["viewer", "annotator"])
+async def test_member_cannot_self_promote_project_role(project_setup, role):
+    """A member must not be able to promote themselves by editing their own membership.
+
+    The self-edit path exists so a member can set show_others_annotations, but it
+    must not extend to `role` — otherwise a viewer PUTs {"role": "admin"} on their
+    own membership and becomes a project admin.
+    """
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
+    alice_id = project_setup["alice_id"]
+
+    await add_member(client, admin_token, project_id, "alice", role)
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
+
+    resp = await client.put(
+        f"/projects/{project_id}/members/{alice_id}",
+        json={"role": "admin"},
+        headers={"Authorization": f"Bearer {alice_token}"},
+    )
+    assert resp.status_code == 403
+
+    # The stored role must be untouched.
+    members_resp = await client.get(
+        f"/projects/{project_id}/members",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    alice_member = next(m for m in members_resp.json() if m["username"] == "alice")
+    assert alice_member["role"] == role
+
+
+@pytest.mark.asyncio
+async def test_project_admin_can_manage_members_without_global_admin(project_setup):
+    """A project admin whose global_role is only "user" can still manage members."""
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
+
+    await add_member(client, admin_token, project_id, "alice", "admin")
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
+
+    # alice is a project admin but a plain global user
+    me_resp = await client.get(
+        "/auth/me", headers={"Authorization": f"Bearer {alice_token}"}
+    )
+    assert me_resp.json()["global_role"] == "user"
+
+    add_resp = await client.post(
+        f"/projects/{project_id}/members",
+        json={"username": "bob", "role": "viewer"},
+        headers={"Authorization": f"Bearer {alice_token}"},
+    )
+    assert add_resp.status_code == 200, add_resp.text
+
+    # ...including changing another member's role, which the self-edit guard must
+    # not have broken.
+    role_resp = await client.put(
+        f"/projects/{project_id}/members/{project_setup['bob_id']}",
+        json={"role": "annotator"},
+        headers={"Authorization": f"Bearer {alice_token}"},
+    )
+    assert role_resp.status_code == 200, role_resp.text
+
+    del_resp = await client.delete(
+        f"/projects/{project_id}/members/{project_setup['bob_id']}",
+        headers={"Authorization": f"Bearer {alice_token}"},
+    )
+    assert del_resp.status_code == 200, del_resp.text
+
+
+@pytest.mark.asyncio
+async def test_list_my_memberships_is_self_scoped(project_setup):
+    """/users/me/memberships reports only the caller's own memberships."""
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
+
+    await add_member(client, admin_token, project_id, "alice", "viewer")
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
+    bob_token = await get_auth_token(client, "bob", "bob_pass")
+
+    alice_resp = await client.get(
+        "/users/me/memberships", headers={"Authorization": f"Bearer {alice_token}"}
+    )
+    assert alice_resp.status_code == 200
+    alice_memberships = alice_resp.json()
+    assert len(alice_memberships) == 1
+    assert alice_memberships[0]["project_id"] == project_id
+    assert alice_memberships[0]["role"] == "viewer"
+    assert alice_memberships[0]["user_id"] == project_setup["alice_id"]
+
+    # bob is in no projects
+    bob_resp = await client.get(
+        "/users/me/memberships", headers={"Authorization": f"Bearer {bob_token}"}
+    )
+    assert bob_resp.status_code == 200
+    assert bob_resp.json() == []
+
+    # "me" must not be read as a user_id by GET /users/{user_id}
+    assert (await client.get("/users/me/memberships")).status_code == 401

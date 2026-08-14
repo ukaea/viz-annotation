@@ -10,11 +10,12 @@ export type ProjectRoleInfo = {
   // admin who bypasses membership entirely. null while loading or if the user has
   // no membership and isn't a global admin.
   role: ProjectRole;
-  // Global admin, or a project-level admin - can manage members, delete samples/
-  // annotations. Mirrors the backend's require_project_admin_role.
+  // Global admin, or a project-level admin - can manage members and delete a trained
+  // model artifact. Mirrors the backend's require_project_admin_role.
   isAdmin: boolean;
-  // Global admin, or a project-level admin/annotator - can create/edit annotations
-  // and samples. Mirrors the backend's require_project_annotator.
+  // Global admin, or a project-level admin/annotator - can create, edit and delete
+  // annotations and samples, and edit or delete the project itself. Mirrors the
+  // backend's require_project_annotator.
   canAnnotate: boolean;
   loading: boolean;
 };
@@ -66,6 +67,62 @@ export function useProjectRole(
     role,
     isAdmin: restricted ? role === "admin" : true,
     canAnnotate: restricted ? role === "admin" || role === "annotator" : true,
+    loading,
+  };
+}
+
+export type MyProjectRoles = {
+  roleFor: (project_id: string | null | undefined) => ProjectRole;
+  isAdminIn: (project_id: string | null | undefined) => boolean;
+  canAnnotateIn: (project_id: string | null | undefined) => boolean;
+  loading: boolean;
+};
+
+// The same permission booleans as useProjectRole, but for every project the user
+// belongs to in a single request. The projects list gates each row, and mounting
+// useProjectRole per row costs one /projects/{id}/members request per row.
+//
+// Unlike useProjectRole this reports "not permitted" while loading rather than
+// defaulting open: the list only shows or hides whole controls, so failing open
+// would flash Edit/Delete buttons on every row and then withdraw them. There is no
+// click to swallow, because the buttons are simply not rendered yet. A global admin
+// resolves synchronously from the auth context and never waits.
+export function useMyProjectRoles(): MyProjectRoles {
+  const { user } = useAuth();
+  const [roles, setRoles] = useState<Record<string, ProjectRole>>({});
+  const [loading, setLoading] = useState(true);
+
+  const isGlobalAdmin = user?.global_role === "admin";
+
+  useEffect(() => {
+    if (!user || isGlobalAdmin) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    apiFetch(`${BACKEND_API_URL}/users/me/memberships`)
+      .then((r) => r.json())
+      .then((memberships: Array<{ project_id: string; role: ProjectRole }>) => {
+        setRoles(
+          Object.fromEntries(memberships.map((m) => [m.project_id, m.role])),
+        );
+      })
+      .catch(() => setRoles({})) // fail closed on a real error
+      .finally(() => setLoading(false));
+  }, [user, isGlobalAdmin]);
+
+  const roleFor = (project_id: string | null | undefined): ProjectRole => {
+    if (isGlobalAdmin) return "admin";
+    return project_id ? (roles[project_id] ?? null) : null;
+  };
+
+  return {
+    roleFor,
+    isAdminIn: (project_id) => roleFor(project_id) === "admin",
+    canAnnotateIn: (project_id) => {
+      const role = roleFor(project_id);
+      return role === "admin" || role === "annotator";
+    },
     loading,
   };
 }

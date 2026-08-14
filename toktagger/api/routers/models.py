@@ -626,7 +626,7 @@ async def predict(
 async def delete_predictions(
     request: Request,
     project_id: str = Path(description="The ID of the project to get models for."),
-    current_user: UserOut = Depends(require_project_admin_role),
+    current_user: UserOut = Depends(require_project_annotator),
     model_type: str = Path(description="The type of model to delete predictions from."),
 ):
     db_client = request.app.state.db_client

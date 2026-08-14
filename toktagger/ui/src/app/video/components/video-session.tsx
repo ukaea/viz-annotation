@@ -19,6 +19,7 @@ import {
 import type { Annotation } from "@/types";
 import { useSample } from "@/app/contexts/SampleContext";
 import { useVideoUiState } from "@/app/video/components/video-context";
+import { useProjectRole } from "@/app/hooks/useProjectRole";
 import {
   VideoBoundingBoxSchema,
   VideoPointSchema,
@@ -95,6 +96,9 @@ type VideoSessionCtx = {
   /** When true, drawing is disabled and frame drag/pan is enabled. */
   panMode: boolean;
   setPanMode: (v: boolean) => void;
+  // Project admin or annotator. False for a viewer, who is pinned into pan mode and
+  // must not be offered any control that creates, edits or deletes annotations.
+  canAnnotate: boolean;
   propagate: boolean;
   setPropagate: (v: boolean) => void;
   hideAnnotations: boolean;
@@ -402,6 +406,7 @@ export function VideoSessionProvider(props: {
     videoDrawingTool,
     setVideoDrawingTool,
   } = useVideoUiState();
+  const { canAnnotate } = useProjectRole(projectId);
 
   const api = useAnnotator<AnnotoriousOpenSeadragonAnnotator>();
 
@@ -470,7 +475,9 @@ export function VideoSessionProvider(props: {
   });
   const [drawingTool, setDrawingToolState] =
     useState<DrawingTool>(videoDrawingTool);
-  const [panMode, setPanModeState] = useState(videoPanMode);
+  // panMode is this view's edit-mode toggle, inverted: drawing is enabled when it is
+  // false. A viewer is pinned into pan mode, so it starts true and cannot be turned off.
+  const [panMode, setPanModeState] = useState(canAnnotate ? videoPanMode : true);
   const [hideAnnotations, setHideAnnotationsState] = useState(false);
   const hideAnnotationsRef = useRef(false);
 
@@ -600,17 +607,31 @@ export function VideoSessionProvider(props: {
     [api, flushPendingOverlay, setVideoDrawingTool],
   );
 
+  // Gate the setter rather than only the toolbar button, so the Shift-key shortcut in
+  // frame-annotator-host cannot leave pan mode either. Mirrors TimeSeriesContext's
+  // setEditMode wrapper.
   const setPanMode = useCallback(
     (v: boolean) => {
+      const next = canAnnotate ? v : true;
       api?.setSelected?.();
       flushPendingOverlay();
-      setPanModeState(v);
-      setVideoPanMode(v);
+      setPanModeState(next);
+      setVideoPanMode(next);
     },
-    [api, flushPendingOverlay, setVideoPanMode],
+    [api, flushPendingOverlay, setVideoPanMode, canAnnotate],
   );
 
+  // canAnnotate defaults open and only corrects downward once the membership check
+  // resolves, so force pan mode back on if this turns out to be a viewer.
+  useEffect(() => {
+    if (!canAnnotate) {
+      setPanModeState(true);
+      setVideoPanMode(true);
+    }
+  }, [canAnnotate, setVideoPanMode]);
+
   const clearCurrentFrame = useCallback(() => {
+    if (!canAnnotate) return;
     api?.setSelected?.();
     flushPendingOverlay();
     pendingFocusRef.current = null;
@@ -627,6 +648,7 @@ export function VideoSessionProvider(props: {
     }
   }, [
     api,
+    canAnnotate,
     finishProgrammaticAnnotationSync,
     flushPendingOverlay,
     frame,
@@ -634,6 +656,7 @@ export function VideoSessionProvider(props: {
   ]);
 
   const clearAllFrames = useCallback(() => {
+    if (!canAnnotate) return;
     api?.setSelected?.();
     flushPendingOverlay();
     pendingFocusRef.current = null;
@@ -650,6 +673,7 @@ export function VideoSessionProvider(props: {
     }
   }, [
     api,
+    canAnnotate,
     finishProgrammaticAnnotationSync,
     flushPendingOverlay,
     updateByFrame,
@@ -674,12 +698,13 @@ export function VideoSessionProvider(props: {
   }, [api, drawingTool, hideAnnotations, panMode, selection.className]);
 
   const createNewInstanceForClass = useCallback((className: string) => {
+    if (!canAnnotate) return;
     const cname = (className || "").trim();
     const trackId = allocateNextTrackId(nextTrackNumsRef.current, cname);
 
     setSelectionState({ className: cname, trackId, source: "auto" });
     return { className: cname, trackId };
-  }, []);
+  }, [canAnnotate]);
 
   /**
    * Delete a specific (className, trackId) across all frames.
@@ -687,6 +712,7 @@ export function VideoSessionProvider(props: {
    */
   const deleteInstanceAcrossFrames = useCallback(
     (className: string, trackId: string) => {
+      if (!canAnnotate) return;
       const cls = (className || "").trim();
       const tid = canonicalizeTrackId(trackId || "");
       if (!cls || !tid) return;
@@ -711,7 +737,7 @@ export function VideoSessionProvider(props: {
         return prev;
       });
     },
-    [updateByFrame],
+    [updateByFrame, canAnnotate],
   );
 
   /**
@@ -719,9 +745,15 @@ export function VideoSessionProvider(props: {
    * Now implemented via deleteInstanceAcrossFrames to avoid stale selection issues.
    */
   const deleteSelectedInstanceAcrossFrames = useCallback(() => {
+    if (!canAnnotate) return;
     if (!selection.className || !selection.trackId) return;
     deleteInstanceAcrossFrames(selection.className, selection.trackId);
-  }, [deleteInstanceAcrossFrames, selection.className, selection.trackId]);
+  }, [
+    deleteInstanceAcrossFrames,
+    selection.className,
+    selection.trackId,
+    canAnnotate,
+  ]);
 
   /**
    * Copies current frame annotations into `nextFrame` if it's empty.
@@ -729,6 +761,7 @@ export function VideoSessionProvider(props: {
    */
   const forwardPropToNextIfEmpty = useCallback(
     (nextFrame: FrameIndex) => {
+      if (!canAnnotate) return;
       updateByFrame(
         (prev) =>
           forwardPropagateIfEmpty(prev, frame, nextFrame, {
@@ -738,11 +771,12 @@ export function VideoSessionProvider(props: {
         { markDirty: true },
       );
     },
-    [frame, projectId, sampleId, updateByFrame],
+    [frame, projectId, sampleId, updateByFrame, canAnnotate],
   );
 
   const createPointAnnotation = useCallback(
     (point: { x: number; y: number }) => {
+      if (!canAnnotate) return;
       if (!api?.getAnnotations) return;
 
       const cls = (selection.className ?? "").trim();
@@ -818,6 +852,7 @@ export function VideoSessionProvider(props: {
     [
       api,
       applyAnnotatorInteractionMode,
+      canAnnotate,
       finishProgrammaticAnnotationSync,
       frame,
       frameKey,
@@ -1303,11 +1338,12 @@ export function VideoSessionProvider(props: {
 
   const deleteAnnotation = useCallback(
     (id: string) => {
+      if (!canAnnotate) return;
       if (!id) return;
       api?.removeAnnotation?.(id);
       api?.setSelected?.();
     },
-    [api],
+    [api, canAnnotate],
   );
 
   useEffect(() => {
@@ -1345,6 +1381,7 @@ export function VideoSessionProvider(props: {
       setDrawingTool,
       panMode,
       setPanMode,
+      canAnnotate,
       propagate,
       setPropagate,
       hideAnnotations,
@@ -1380,6 +1417,7 @@ export function VideoSessionProvider(props: {
       setDrawingTool,
       panMode,
       setPanMode,
+      canAnnotate,
       propagate,
       setPropagate,
       hideAnnotations,

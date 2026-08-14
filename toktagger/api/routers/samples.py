@@ -5,7 +5,6 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Reques
 
 from toktagger.api.auth.dependencies import (
     get_current_user,
-    require_project_admin_role,
     require_project_annotator,
     require_project_viewer,
 )
@@ -327,7 +326,7 @@ async def remove_sample(
         description="The ID of the project to delete a sample from."
     ),
     sample_id: str = Path(description="The ID of the sample to delete."),
-    current_user: UserOut = Depends(require_project_admin_role),
+    current_user: UserOut = Depends(require_project_annotator),
 ):
     """
     Get the specified sample from this project.
@@ -355,7 +354,7 @@ async def remove_all_samples(
     project_id: str = Path(
         description="The ID of the project to delete all samples from."
     ),
-    current_user: UserOut = Depends(require_project_admin_role),
+    current_user: UserOut = Depends(require_project_annotator),
 ):
     """
     Remove all samples from this project.

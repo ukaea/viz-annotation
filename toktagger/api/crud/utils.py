@@ -385,7 +385,8 @@ async def delete_annotations(
     sample_id: str | None = None,
     annotation_id: str | None = None,
     created_by: str | None = None,
-) -> None:
+) -> int:
+    """Delete annotations matching the given filters, returning how many were removed."""
     project_obj_id = convert_to_objectid(project_id, "projects")
     filters = {"project_id": project_obj_id}
 
@@ -431,6 +432,44 @@ async def update_annotations(
         sample_id=sample_id,
         annotations=annotations,
     )
+
+
+async def update_annotation_by_id(
+    db_client: MongoDBClient,
+    project_id: str,
+    sample_id: str,
+    annotation_id: str,
+    annotation: AnnotationBatchTypes,
+) -> bool:
+    """Edit one existing annotation in place, keeping its original author.
+
+    `update_annotations` above replaces annotations by delete-then-reinsert scoped to
+    a single `created_by`, so it cannot touch annotations written by someone else (or
+    by a model) without deleting work the caller may not even be able to see. An
+    annotator editing a colleague's annotation therefore comes through here instead.
+
+    The filter is scoped to project and sample, so an annotation ID belonging to
+    another project cannot be reached. Returns False if nothing matched.
+    """
+    filters = {
+        "_id": convert_to_objectid(annotation_id, "annotations"),
+        "project_id": convert_to_objectid(project_id, "projects"),
+        "sample_id": convert_to_objectid(sample_id, "samples"),
+    }
+
+    # Identity is never taken from the request body: `created_by` keeps whatever the
+    # database already holds, and the id/project/sample triple is pinned by the filter.
+    updates = annotation.model_dump(
+        mode="python",
+        exclude_unset=True,
+        exclude_none=True,
+        exclude={"id", "created_by", "project_id", "sample_id"},
+    )
+    if not updates:
+        return True
+
+    result = await db_client.db["annotations"].update_one(filters, {"$set": updates})
+    return result.matched_count > 0
 
 
 async def get_files(dir_path: str, file_type: str) -> list[str]:
@@ -637,6 +676,31 @@ async def _get_project_membership_doc(
     return docs[0] if docs else None
 
 
+async def _get_user_membership_docs(
+    db_client: MongoDBClient, user_oid: ObjectId
+) -> list[dict]:
+    """Raw membership documents for one user, project_id left as an ObjectId."""
+    return await db_client.get_filtered_documents(
+        "project_members", filters={"user_id": user_oid}
+    )
+
+
+async def get_user_memberships(
+    db_client: MongoDBClient, user_id: str
+) -> list[ProjectMember]:
+    """Every project membership held by one user.
+
+    Lets a client learn its own role in all its projects with a single request,
+    instead of one `get_project_members` call per project.
+    """
+    docs = await _get_user_membership_docs(
+        db_client, convert_to_objectid(user_id, "users")
+    )
+    for doc in docs:
+        doc["user_id"] = str(doc["user_id"])
+    return [ProjectMember.model_validate(doc) for doc in docs]
+
+
 async def get_project_membership(
     db_client: MongoDBClient, project_id: str, user_id: str
 ) -> ProjectMember | None:
@@ -726,9 +790,8 @@ async def get_user_projects(
             count=count,
         )
 
-    user_oid = convert_to_objectid(user_id, "users")
-    memberships = await db_client.get_filtered_documents(
-        "project_members", filters={"user_id": user_oid}
+    memberships = await _get_user_membership_docs(
+        db_client, convert_to_objectid(user_id, "users")
     )
     project_oids = [m["project_id"] for m in memberships]
 

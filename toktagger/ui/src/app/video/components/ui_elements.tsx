@@ -262,6 +262,7 @@ export function CanvasModeToolbar(props: {
   panMode: boolean;
   drawingTool: "rectangle" | "polygon" | "point";
   hideAnnotations: boolean;
+  canAnnotate: boolean;
   onTogglePanMode: () => void;
   onSelectRectangle: () => void;
   onSelectPolygon: () => void;
@@ -271,9 +272,11 @@ export function CanvasModeToolbar(props: {
   const { colorScheme } = useProvider();
   const isDark = colorScheme === "dark";
   const isEditMode = !props.panMode;
-  const modeLabel = isEditMode
-    ? "Edit mode. Click to return to view mode."
-    : "View mode. Click to enter edit mode, or hold Shift to edit temporarily.";
+  const modeLabel = !props.canAnnotate
+    ? "You have view-only access to this project — annotations cannot be edited."
+    : isEditMode
+      ? "Edit mode. Click to return to view mode."
+      : "View mode. Click to enter edit mode, or hold Shift to edit temporarily.";
 
   return (
     <View
@@ -300,7 +303,7 @@ export function CanvasModeToolbar(props: {
           <CanvasModeToggle
             label={modeLabel}
             isSelected={isEditMode}
-            isDisabled={props.hideAnnotations}
+            isDisabled={props.hideAnnotations || !props.canAnnotate}
             onPress={props.onTogglePanMode}
           >
             <Draw aria-hidden="true" size="S" />
@@ -312,6 +315,7 @@ export function CanvasModeToolbar(props: {
           <CanvasModeToggle
             label="Rectangle"
             isSelected={props.drawingTool === "rectangle"}
+            isDisabled={!props.canAnnotate}
             onPress={props.onSelectRectangle}
           >
             <RectangleIcon />
@@ -319,6 +323,7 @@ export function CanvasModeToolbar(props: {
           <CanvasModeToggle
             label="Polygon"
             isSelected={props.drawingTool === "polygon"}
+            isDisabled={!props.canAnnotate}
             onPress={props.onSelectPolygon}
           >
             <PolygonIcon />
@@ -326,6 +331,7 @@ export function CanvasModeToolbar(props: {
           <CanvasModeToggle
             label="Point"
             isSelected={props.drawingTool === "point"}
+            isDisabled={!props.canAnnotate}
             onPress={props.onSelectPoint}
           >
             <PointIcon />
@@ -362,6 +368,7 @@ export function InstancePanel({
   onRequestDeleteAllInstances,
   profileCounts,
   showCreator = true,
+  canAnnotate = true,
   // Only used when showCreator=true
   classItems,
 }: {
@@ -374,6 +381,7 @@ export function InstancePanel({
   onRequestDeleteAllInstances: () => void;
   profileCounts?: Record<string, number>;
   showCreator?: boolean;
+  canAnnotate?: boolean;
   classItems?: { name: string }[];
 }) {
   const [open, setOpen] = useState(false);
@@ -386,7 +394,10 @@ export function InstancePanel({
     `auto-${Math.random().toString(36).slice(2, 7)}`;
   const [trackId, setTrackId] = useState<string>(() => makeAutoTrackId());
 
-  const creatorEnabled = Boolean(classItems && classItems.length > 0);
+  const creatorEnabled = Boolean(
+    canAnnotate && classItems && classItems.length > 0,
+  );
+  const canDeleteInstances = canAnnotate && profiles.length > 0;
 
   return (
     <div className="w-48 shrink-0 mx-auto">
@@ -409,7 +420,9 @@ export function InstancePanel({
 
           {!creatorEnabled && (
             <div className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-              Creator disabled (no class items provided).
+              {canAnnotate
+                ? "Creator disabled (no class items provided)."
+                : "You have view-only access to this project."}
             </div>
           )}
         </div>
@@ -417,13 +430,17 @@ export function InstancePanel({
 
       <button
         onClick={onRequestDeleteAllInstances}
-        disabled={profiles.length === 0}
+        disabled={!canDeleteInstances}
         className={`mb-2 w-full rounded-lg px-2.5 py-1.5 text-left border shadow-sm ${
-          profiles.length
+          canDeleteInstances
             ? "border-red-300 bg-white text-red-700 hover:border-red-400 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-400/30 dark:border-red-500/70 dark:bg-gray-950 dark:text-red-300 dark:hover:border-red-400 dark:hover:bg-red-950/40"
             : "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-500"
         }`}
-        title="Delete all instances and their annotations across all frames"
+        title={
+          canAnnotate
+            ? "Delete all instances and their annotations across all frames"
+            : "You have view-only access to this project — annotations cannot be deleted."
+        }
       >
         <span className="text-sm">Delete All Instances</span>
       </button>

@@ -1,4 +1,5 @@
 import asyncio
+import os
 import re
 from collections.abc import AsyncIterator, Callable, Iterable
 from pathlib import Path
@@ -9,6 +10,27 @@ from mongita import MongitaClientDisk
 
 
 class AsyncMongitaClient:
+    """Async, multi-process-safe wrapper around the embedded Mongita store.
+
+    Mongita is a single-process database. `DiskEngine` loads a collection's document
+    index (`$.file_attrs`) the first time it is asked for and then never re-reads it,
+    and `put_metadata` writes that in-memory index straight back over the file. Two
+    workers sharing a store therefore diverge immediately, and the divergence is not
+    merely stale reads: whichever worker writes next replaces the other's index
+    entries, leaving their documents in `$.data` but unreachable -- silent data loss.
+
+    To make several gunicorn workers safe, this class keeps a version counter beside
+    the store. Every operation runs inside the cross-process FileLock, and reads the
+    counter first: if another worker has written since our last operation, all cached
+    state is dropped and re-read from disk. Writes bump the counter. Read-only
+    workloads leave the counter untouched, so caches stay warm.
+
+    Note that the FileLock serialises every database operation across all workers, so
+    extra workers add no database concurrency -- only parallelism for the work either
+    side of it (data loading, response building). Use a real MongoDB if you need
+    concurrent database throughput.
+    """
+
     def __init__(
         self,
         db_path: str,
@@ -19,23 +41,71 @@ class AsyncMongitaClient:
         self._closed = False
         self._mutex = asyncio.Lock()
         self._file_lock = FileLock(str(path) + ".lock")
+        # Kept beside the store rather than inside it, like the lock file, so that
+        # dropping a database cannot delete the counter along with the data.
+        self._version_path = Path(str(path) + ".version")
+        # The store version our caches correspond to. None forces a refresh on the
+        # first operation, which is free because nothing is cached yet.
+        self._seen_version: int | None = None
 
     def __getitem__(self, name: str) -> "AsyncDatabase":
         return AsyncDatabase(self, name)
 
-    async def _run(self, fn: Callable) -> Any:
+    def _read_version(self) -> int | None:
+        """Return the store's current version, or None if it could not be read.
+
+        None is treated as "somebody else may have written", which fails in the safe
+        direction: caches are dropped and the store is re-read.
+        """
+        try:
+            return int(self._version_path.read_text())
+        except (OSError, ValueError):
+            return None
+
+    def _refresh_if_stale(self) -> None:
+        """Drop cached state if another process has written since our last operation.
+
+        `engine.close()` clears the document cache, collection metadata, the document
+        index and the open file handles. The engine object itself is reused rather
+        than replaced, so the Database and Collection objects that hold a reference
+        to it stay valid, and the handles are reopened lazily on next use.
+        """
+        version = self._read_version()
+        if version is None or version != self._seen_version:
+            self._client.engine.close()
+            self._seen_version = version
+
+    def _bump_version(self) -> None:
+        """Record that this worker has written, invalidating every other worker."""
+        next_version = (self._read_version() or 0) + 1
+        # Written via a temporary file so a crash mid-write cannot leave a truncated
+        # counter. A missing or unreadable counter only costs an extra refresh.
+        tmp_path = Path(str(self._version_path) + ".tmp")
+        tmp_path.write_text(str(next_version))
+        os.replace(tmp_path, self._version_path)
+        self._seen_version = next_version
+
+    async def _run(self, fn: Callable, *, mutates: bool = False) -> Any:
         """Run fn in a thread, holding the cross-process FileLock.
 
         asyncio.Lock prevents multiple coroutines in this worker from
         queuing up threads; FileLock prevents concurrent access from
         other gunicorn workers.
+
+        The staleness check and the version bump happen under the same lock as fn, so
+        another worker cannot interleave with a read-modify-write cycle. Callers that
+        change the store must pass mutates=True, otherwise other workers will keep
+        serving from caches this write has invalidated.
         """
         async with self._mutex:
-            file_lock = self._file_lock
 
             def _in_thread():
-                with file_lock:
-                    return fn()
+                with self._file_lock:
+                    self._refresh_if_stale()
+                    result = fn()
+                    if mutates:
+                        self._bump_version()
+                    return result
 
             return await asyncio.to_thread(_in_thread)
 
@@ -72,13 +142,13 @@ class AsyncCollection:
 
     async def insert_one(self, document: dict[str, Any]) -> Any:
         return await self._database._client._run(
-            lambda: self._sync_col.insert_one(document)
+            lambda: self._sync_col.insert_one(document), mutates=True
         )
 
     async def insert_many(self, documents: Iterable[dict[str, Any]]) -> Any:
         docs = list(documents)
         return await self._database._client._run(
-            lambda: self._sync_col.insert_many(docs)
+            lambda: self._sync_col.insert_many(docs), mutates=True
         )
 
     async def find_one(
@@ -149,24 +219,26 @@ class AsyncCollection:
         self, filter: dict[str, Any], update: dict[str, Any], *args, **kwargs
     ) -> Any:
         return await self._database._client._run(
-            lambda: self._sync_col.update_one(filter, update, *args, **kwargs)
+            lambda: self._sync_col.update_one(filter, update, *args, **kwargs),
+            mutates=True,
         )
 
     async def update_many(
         self, filter: dict[str, Any], update: dict[str, Any], *args, **kwargs
     ) -> Any:
         return await self._database._client._run(
-            lambda: self._sync_col.update_many(filter, update, *args, **kwargs)
+            lambda: self._sync_col.update_many(filter, update, *args, **kwargs),
+            mutates=True,
         )
 
     async def delete_one(self, filter: dict[str, Any], *args, **kwargs) -> Any:
         return await self._database._client._run(
-            lambda: self._sync_col.delete_one(filter, *args, **kwargs)
+            lambda: self._sync_col.delete_one(filter, *args, **kwargs), mutates=True
         )
 
     async def delete_many(self, filter: dict[str, Any], *args, **kwargs) -> Any:
         return await self._database._client._run(
-            lambda: self._sync_col.delete_many(filter, *args, **kwargs)
+            lambda: self._sync_col.delete_many(filter, *args, **kwargs), mutates=True
         )
 
     async def count_documents(
@@ -179,7 +251,7 @@ class AsyncCollection:
 
     async def create_index(self, keys: Any, *args, **kwargs) -> Any:
         return await self._database._client._run(
-            lambda: self._sync_col.create_index(keys, *args, **kwargs)
+            lambda: self._sync_col.create_index(keys, *args, **kwargs), mutates=True
         )
 
 

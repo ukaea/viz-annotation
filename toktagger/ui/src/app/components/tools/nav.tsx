@@ -358,7 +358,8 @@ function ClearButton({
   sample_id,
   setIsValidated,
   navAdapter,
-}: ButtonInfo) {
+  canAnnotate,
+}: SaveButtonInfo) {
   const handleClick = () => {
     navAdapter.clear();
     // Mark as unvalidated annotations
@@ -368,10 +369,21 @@ function ClearButton({
 
   return (
     <View marginStart="size-100">
-      <ActionButton aria-label="Clear" onPress={handleClick}>
-        <Delete />
-        <Text>Clear</Text>
-      </ActionButton>
+      <TooltipTrigger delay={1000} placement="bottom">
+        <ActionButton
+          aria-label="Clear"
+          onPress={handleClick}
+          isDisabled={!canAnnotate}
+        >
+          <Delete />
+          <Text>Clear</Text>
+        </ActionButton>
+        <Tooltip>
+          {canAnnotate
+            ? "Discard the annotations for this sample."
+            : "You have view-only access to this project — annotations cannot be cleared."}
+        </Tooltip>
+      </TooltipTrigger>
     </View>
   );
 }
@@ -539,6 +551,8 @@ export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
           sample_id={sample_id}
           setIsValidated={setIsValidated}
           navAdapter={navAdapter}
+          onPermissionError={() => setPermissionDenied(true)}
+          canAnnotate={canAnnotate}
         />
       </ButtonGroup>
       <TooltipTrigger delay={1000} placement="bottom">

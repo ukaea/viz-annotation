@@ -49,7 +49,6 @@ import { useParams } from "react-router-dom";
 import { ImportButton } from "@/app/components/tools/import";
 import { ExportButton } from "@/app/components/tools/export";
 import { JumpToNextButton } from "@/app/components/tools/nav";
-import { useAuth } from "@/app/contexts/AuthContext";
 import { useServerHealth } from "@/app/contexts/healthContext";
 import { useProjectRole } from "@/app/hooks/useProjectRole";
 import { useBreadcrumbs } from "@/app/contexts/BreadcrumbContext";
@@ -60,7 +59,7 @@ type SamplesTableProps = {
   sortDescriptor: SortDescriptor;
   onSortChange: (sort: SortDescriptor) => void;
   onModify?: () => void;
-  isAdmin: boolean;
+  canAnnotate: boolean;
 };
 
 const SamplesTable = ({
@@ -69,7 +68,7 @@ const SamplesTable = ({
   sortDescriptor,
   onSortChange,
   onModify,
-  isAdmin,
+  canAnnotate,
 }: SamplesTableProps) => {
   const rows = samples.map(({ _id, ...rest }) => ({
     ...rest,
@@ -117,7 +116,7 @@ const SamplesTable = ({
                     <Button
                       aria-label="Delete"
                       variant="negative"
-                      isDisabled={!isAdmin}
+                      isDisabled={!canAnnotate}
                     >
                       <Delete />
                     </Button>
@@ -164,7 +163,6 @@ const SamplesTable = ({
 
 export default function ProjectView() {
   const { project_id } = useParams();
-  const { user: currentUser } = useAuth();
   const { isAdmin, canAnnotate } = useProjectRole(project_id);
   const hasId = project_id !== undefined;
 
@@ -292,7 +290,7 @@ export default function ProjectView() {
                   {project_id && (
                     <ProjectMembersDialog
                       projectId={project_id}
-                      isProjectAdmin={currentUser?.global_role === "admin"}
+                      isProjectAdmin={isAdmin}
                     />
                   )}
                   <ImportButton project={project} canAnnotate={canAnnotate} />
@@ -302,7 +300,7 @@ export default function ProjectView() {
                     sortDescriptor={sortDescriptor}
                   />
                   <DialogTrigger>
-                    <ActionButton isQuiet isDisabled={!isAdmin}>
+                    <ActionButton isQuiet isDisabled={!canAnnotate}>
                       <Delete />
                       <Text>Clear Samples</Text>
                     </ActionButton>
@@ -390,7 +388,7 @@ export default function ProjectView() {
               sortDescriptor={sortDescriptor}
               onSortChange={onSortChange}
               onModify={refreshSamples}
-              isAdmin={isAdmin}
+              canAnnotate={canAnnotate}
             />
             <div className="flex items-center justify-between pl-4 pr-4">
               <Button

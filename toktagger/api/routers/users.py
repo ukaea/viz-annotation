@@ -8,6 +8,7 @@ from toktagger.api.auth.dependencies import (
 )
 from toktagger.api.crud import utils
 from toktagger.api.schemas.users import (
+    ProjectMember,
     ProjectMemberCreate,
     ProjectMemberOut,
     ProjectMemberUpdate,
@@ -56,6 +57,22 @@ async def create_user(
     )
     user_id = await utils.create_user(request.app.state.db_client, user)
     return {"_id": user_id}
+
+
+@router.get("/users/me/memberships", response_model=list[ProjectMember])
+async def list_my_memberships(
+    request: Request,
+    current_user: UserOut = Depends(get_current_user),
+):
+    """Every project membership held by the caller.
+
+    Self-scoped, so it needs no role check. The projects list uses it to gate each
+    row without issuing one `/projects/{id}/members` request per row. A global admin
+    is unrestricted by membership and gets an empty list.
+    """
+    return await utils.get_user_memberships(
+        request.app.state.db_client, current_user.id
+    )
 
 
 @router.get("/users/{user_id}", response_model=UserOut)
@@ -191,8 +208,12 @@ async def update_project_member(
 ):
     db_client = request.app.state.db_client
 
-    # Project admins can change any member; non-admins may only update their own preferences
-    if current_user.id != user_id and current_user.global_role != "admin":
+    # Project admins can change any member. A non-admin may edit only their own
+    # membership, and then only its preferences -- `role` always needs project admin.
+    # Without the `body.role` clause a viewer could PUT their own membership with
+    # {"role": "admin"} and self-promote (mirrors the field-level guard in update_user).
+    is_self = current_user.id == user_id
+    if (not is_self or body.role is not None) and current_user.global_role != "admin":
         membership = await utils.get_project_membership(
             db_client, project_id, current_user.id
         )

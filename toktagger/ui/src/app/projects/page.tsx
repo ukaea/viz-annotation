@@ -4,7 +4,7 @@ import { deleteProject, getProjects } from "@/app/core";
 import Delete from "@spectrum-icons/workflow/Delete";
 import { ProjectConfigEditor } from "./components/project_config";
 import { useBreadcrumbs } from "@/app/contexts/BreadcrumbContext";
-import { useProjectRole } from "@/app/hooks/useProjectRole";
+import { useMyProjectRoles } from "@/app/hooks/useProjectRole";
 import {
   Cell,
   Column,
@@ -29,14 +29,20 @@ import type { Project } from "@/types";
 
 type ProjectActionsProps = {
   project: Project;
+  canAnnotate: boolean;
   onModify?: () => void;
 };
 
 // Per-row: whether the current user can edit/delete a given project depends on
 // their membership role for that specific project, not just their global role.
-const ProjectActions = ({ project, onModify }: ProjectActionsProps) => {
-  const { isAdmin } = useProjectRole(project._id);
-  if (!isAdmin) return null;
+// Annotators and project admins may both edit and delete a project; viewers may not.
+// The role comes from the table so the whole page costs one membership request.
+const ProjectActions = ({
+  project,
+  canAnnotate,
+  onModify,
+}: ProjectActionsProps) => {
+  if (!canAnnotate) return null;
   return (
     <Flex direction="row" gap="size-100">
       <ProjectConfigEditor project={project} onModify={onModify} />
@@ -90,6 +96,7 @@ const ProjectsTable = ({
   onModify,
 }: ProjectsTableProps) => {
   const rows = projects.map(({ _id, ...rest }) => ({ ...rest, id: _id, _id }));
+  const { canAnnotateIn } = useMyProjectRoles();
 
   return (
     <Flex height="size-5000" width="100%" direction="column">
@@ -124,7 +131,11 @@ const ProjectsTable = ({
               <Cell>{item["timestamp"]}</Cell>
               <Cell>{item["data_loader"]}</Cell>
               <Cell>
-                <ProjectActions project={item} onModify={onModify} />
+                <ProjectActions
+                  project={item}
+                  canAnnotate={canAnnotateIn(item._id)}
+                  onModify={onModify}
+                />
               </Cell>
             </Row>
           )}
@@ -148,14 +159,21 @@ export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
 
   const refreshProjects = useCallback(async () => {
-    setProjects(
-      await getProjects(
-        sortDescriptor,
-        currentPage,
-        projectsPerPage,
-        projectName,
-      ),
-    );
+    try {
+      setProjects(
+        await getProjects(
+          sortDescriptor,
+          currentPage,
+          projectsPerPage,
+          projectName,
+        ),
+      );
+    } catch (err) {
+      // getProjects now surfaces a non-2xx response instead of casting the error
+      // body to Project[]. Show an empty list rather than garbage rows.
+      console.warn("Failed to load projects", err);
+      setProjects([]);
+    }
   }, [sortDescriptor, currentPage, projectsPerPage, projectName]);
 
   useEffect(() => {

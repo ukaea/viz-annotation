@@ -6,9 +6,12 @@ import { useSample } from "@/app/contexts/SampleContext";
 
 export type ShotLabelsType = {
   labels: string[];
+  // Supplied by the toolbar, which already resolves the project role, so this does
+  // not cost another membership request.
+  canAnnotate?: boolean;
 };
 
-export function ShotLabels({ labels = [] }: ShotLabelsType) {
+export function ShotLabels({ labels = [], canAnnotate = true }: ShotLabelsType) {
   const { project, sample, annotations, setAnnotations } = useSample();
   const items = labels.map((label, index) => ({ id: index, name: label }));
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
@@ -29,6 +32,10 @@ export function ShotLabels({ labels = [] }: ShotLabelsType) {
 
   const onSelectionChange = useCallback(
     (keys: Selection) => {
+      // Gate the handler, not just the ListView: the number-key shortcut below
+      // routes through here too, so a viewer could otherwise relabel with the
+      // keyboard even while the list is disabled.
+      if (!canAnnotate) return;
       let newKeys = new Set<string>();
       if (keys === "all") {
         items.forEach((item) => newKeys.add(item.id.toString()));
@@ -61,7 +68,7 @@ export function ShotLabels({ labels = [] }: ShotLabelsType) {
         return newAnnotations;
       });
     },
-    [project, sample, items, setAnnotations],
+    [project, sample, items, setAnnotations, canAnnotate],
   );
 
   useEffect(() => {
@@ -97,7 +104,7 @@ export function ShotLabels({ labels = [] }: ShotLabelsType) {
         items={items}
         selectedKeys={selectedKeys}
         onSelectionChange={onSelectionChange}
-        selectionMode="multiple"
+        selectionMode={canAnnotate ? "multiple" : "none"}
         aria-label="Labels"
         maxWidth="size-6000"
       >

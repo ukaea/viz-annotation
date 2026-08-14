@@ -22,6 +22,8 @@ import {
   ToastQueue,
   Breadcrumbs,
 } from "@adobe/react-spectrum";
+import Edit from "@spectrum-icons/workflow/Edit";
+import Delete from "@spectrum-icons/workflow/Delete";
 import { BACKEND_API_URL, apiFetch } from "@/app/core";
 import { useAuth } from "@/app/contexts/AuthContext";
 import type { CurrentUser } from "@/types";
@@ -124,9 +126,15 @@ export default function AdminUsersPage() {
           <TableView aria-label="Users" selectionMode="none">
             <TableHeader>
               <Column key="username">Username</Column>
-              <Column key="global_role">Role</Column>
-              <Column key="is_active">Active</Column>
-              <Column key="actions">Actions</Column>
+              <Column key="global_role" width={120}>
+                Role
+              </Column>
+              <Column key="is_active" width={100}>
+                Active
+              </Column>
+              <Column key="actions" minWidth={380}>
+                Actions
+              </Column>
             </TableHeader>
             <TableBody items={users}>
               {(item) => (
@@ -137,20 +145,13 @@ export default function AdminUsersPage() {
                   <Cell>
                     <Flex gap="size-100">
                       <ChangeRoleDialog user={item} onChanged={refresh} />
-                      <ResetPasswordDialog user={item} />
-                      <Button
-                        variant="secondary"
-                        isDisabled={item.id === currentUser?._id}
-                        onPress={() => deactivate(item.id, item.is_active)}
-                      >
-                        {item.is_active ? "Deactivate" : "Activate"}
-                      </Button>
                       <DialogTrigger>
                         <Button
+                          aria-label="Delete"
                           variant="negative"
                           isDisabled={item.id === currentUser?._id}
                         >
-                          Delete
+                          <Delete />
                         </Button>
                         {(close) => (
                           <Dialog>
@@ -174,6 +175,15 @@ export default function AdminUsersPage() {
                           </Dialog>
                         )}
                       </DialogTrigger>
+                      <ResetPasswordDialog user={item} />
+                      <Button
+                        variant="secondary"
+                        isDisabled={item.id === currentUser?._id}
+                        onPress={() => deactivate(item.id, item.is_active)}
+                        UNSAFE_style={{ minInlineSize: 0, flexShrink: 0 }}
+                      >
+                        {item.is_active ? "Deactivate" : "Activate"}
+                      </Button>
                     </Flex>
                   </Cell>
                 </Row>
@@ -304,7 +314,12 @@ function ResetPasswordDialog({ user }: { user: UserRow }) {
 
   return (
     <DialogTrigger onOpenChange={(isOpen) => !isOpen && setPassword("")}>
-      <Button variant="secondary">Reset Password</Button>
+      <Button
+        variant="secondary"
+        UNSAFE_style={{ minInlineSize: 0, flexShrink: 0 }}
+      >
+        Reset Password
+      </Button>
       {(close) => (
         <Dialog>
           <Heading>Reset password for {user.username}</Heading>
@@ -377,7 +392,9 @@ function ChangeRoleDialog({
 
   return (
     <DialogTrigger>
-      <Button variant="secondary">Edit</Button>
+      <Button aria-label="Edit" variant="accent">
+        <Edit />
+      </Button>
       {(close) => (
         <Dialog>
           <Heading>Edit {user.username}</Heading>

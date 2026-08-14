@@ -23,6 +23,7 @@ import {
   ToastQueue,
 } from "@adobe/react-spectrum";
 import UserGroup from "@spectrum-icons/workflow/UserGroup";
+import Delete from "@spectrum-icons/workflow/Delete";
 import { BACKEND_API_URL, apiFetch } from "@/app/core";
 import type { ProjectMember } from "@/types";
 
@@ -95,7 +96,7 @@ export function ProjectMembersDialog({ projectId, isProjectAdmin }: Props) {
         <UserGroup />
         <Text>Manage Members</Text>
       </ActionButton>
-      <Dialog width="size-8000">
+      <Dialog width="size-9000">
         <Heading>Project Members</Heading>
         <Divider />
         <Content>
@@ -109,8 +110,12 @@ export function ProjectMembersDialog({ projectId, isProjectAdmin }: Props) {
           >
             <TableHeader>
               <Column key="username">Username</Column>
-              <Column key="role">Role</Column>
-              <Column key="actions">{isProjectAdmin ? "Actions" : ""}</Column>
+              <Column key="role" width={220}>
+                Role
+              </Column>
+              <Column key="actions" width={100}>
+                {isProjectAdmin ? "Actions" : ""}
+              </Column>
             </TableHeader>
             <TableBody items={members}>
               {(item) => (
@@ -124,7 +129,7 @@ export function ProjectMembersDialog({ projectId, isProjectAdmin }: Props) {
                         onSelectionChange={(k) =>
                           updateRole(item.user_id, k as string)
                         }
-                        width="size-1600"
+                        width="100%"
                       >
                         <Item key="admin">Admin</Item>
                         <Item key="annotator">Annotator</Item>
@@ -138,9 +143,10 @@ export function ProjectMembersDialog({ projectId, isProjectAdmin }: Props) {
                     {isProjectAdmin && (
                       <Button
                         variant="negative"
+                        aria-label="Remove member"
                         onPress={() => removeMember(item.user_id)}
                       >
-                        Remove
+                        <Delete />
                       </Button>
                     )}
                   </Cell>
@@ -209,7 +215,7 @@ function AddMemberForm({
         onSelectionChange={(k) =>
           setRole(k as "admin" | "annotator" | "viewer")
         }
-        width="size-1600"
+        width="size-2000"
       >
         <Item key="admin">Admin</Item>
         <Item key="annotator">Annotator</Item>

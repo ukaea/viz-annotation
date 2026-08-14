@@ -45,17 +45,30 @@ async def test_get_model_types(api_client, setup_db, task):
 @pytest.mark.asyncio
 @pytest.mark.models_enabled
 @pytest.mark.parametrize("local", [True, False])
-async def test_get_model_load_methods(api_client, setup_db, local):
+@pytest.mark.parametrize("gitlab", [True, False])
+@pytest.mark.parametrize("hugging_face", [True, False])
+async def test_get_model_load_methods(
+    api_client, setup_db, local, gitlab, hugging_face
+):
+    expected_methods = ["local", "gitlab", "hugging_face"]
     if not local:
         config.settings.models.local_load_enabled = False
+        expected_methods.remove("local")
+    if not gitlab:
+        config.settings.models.gitlab_load_enabled = False
+        expected_methods.remove("gitlab")
+    if not hugging_face:
+        config.settings.models.huggingface_load_enabled = False
+        expected_methods.remove("hugging_face")
+
     response = await api_client.get("/meta/models/load")
-    config.settings.models.local_load_enabled = True  # Restore default setting
+    config.settings.models.local_load_enabled = True  # Restore default settings
+    config.settings.models.huggingface_load_enabled = True
+    config.settings.models.gitlab_load_enabled = True
+
     assert response.status_code == 200
     data = response.json()
-    if local:
-        assert data == ["local"]
-    else:
-        assert data == []
+    assert data == expected_methods
 
 
 @pytest.mark.asyncio

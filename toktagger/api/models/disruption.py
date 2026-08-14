@@ -113,7 +113,7 @@ class DisruptionCNN(Model):
         annotations: list[list[Annotation]],
         params: DisruptionCNNTrainParams,
     ) -> float:
-        self.log_progress(training_status="started")
+        self.log_progress(status="training")
 
         if not self.gpu_available() and params.device != "cpu":
             raise ValueError(
@@ -305,7 +305,7 @@ class DisruptionCNN(Model):
         final_accuracy = test_accuracy or val_accuracy or train_accuracy
 
         self.log_progress(
-            training_status="completed",
+            status="completed",
             progress=int((epoch / params.num_epochs) * 100),
             score=final_accuracy,
         )

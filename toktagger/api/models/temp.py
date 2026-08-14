@@ -5,6 +5,12 @@ from toktagger.api.models.base import Model, ModelRegistry
 from toktagger.api.schemas.data import ImageParams
 import pathlib
 
+from ultralytics import YOLO
+
+import base64
+from io import BytesIO
+from PIL import Image
+
 
 class VideoCNNTrainParams(pydantic.BaseModel):
     num_epochs: int
@@ -99,3 +105,82 @@ class VideoCNN(Model):
         self, results_dir: pathlib.Path, weights_filename: str | None = None
     ) -> None:
         self.model = None
+
+
+@ModelRegistry.register(
+    "YOLOv8",
+    ["video"],
+)
+class YOLOv8(Model):
+    def define_model(self) -> YOLO | None:
+        return None
+
+    def train(
+        self,
+        samples: list[Sample],
+        annotations: list[list[Annotation]],
+        params: None,
+    ):
+        return None
+
+    def predict(self, samples, params: VideoCNNPredictParams, data_params: ImageParams):
+        annotations = []
+        data = None
+        for sample in samples:
+            anns = []
+            # keep going until no more files
+            while True:
+                if not data:
+                    # Get first frame
+                    data = self.data_loader.get_sample(
+                        sample, ImageParams(name="image", frame=None)
+                    )
+                else:
+                    try:
+                        data = self.data_loader.get_sample(
+                            sample, ImageParams(name="image", frame=data.frame + 1)
+                        )
+                    except FileNotFoundError:
+                        break
+                image = Image.open(BytesIO(base64.b64decode(data.values)))
+
+                result = self.model.predict(
+                    image,
+                    verbose=False,
+                )[0]
+
+                for box in result.boxes:
+                    xyxy = box.xyxy[0].cpu().numpy()
+                    anns.append(
+                        VideoBoundingBox(
+                            label="UFO",
+                            height=int(xyxy[3] - xyxy[1]),
+                            width=int(xyxy[2] - xyxy[0]),
+                            x_min=int(xyxy[0]),
+                            y_min=int(xyxy[1]),
+                            frame=data.frame,
+                            created_by="YOLOv8",
+                            track_id="test",
+                        )
+                    )
+
+            annotations.append(anns)
+
+        return annotations
+
+    def save(self, results_dir: pathlib.Path) -> None:
+        self.model.save(results_dir.joinpath("best.pt"))
+        results_dir.joinpath("config.yaml").touch()
+
+    def load(
+        self, results_dir: pathlib.Path, weights_filename: str | None = None
+    ) -> None:
+        if weights_filename:
+            results_path = results_dir.joinpath(weights_filename)
+        else:
+            results_path = results_dir.joinpath("best.pt")
+
+        if not results_path.exists():
+            raise RuntimeError("Weights file not found")
+
+        self.model = YOLO(results_path)

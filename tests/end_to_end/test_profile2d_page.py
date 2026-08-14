@@ -175,7 +175,9 @@ def test_profile2d_saved_threshold_annotations_persist(server_setup, page: Page)
         page.get_by_role("button", name="Save").click(force=True)
 
     # Toggle the annotator off - the saved annotations must remain on the plot.
-    page.get_by_role("switch", name="Thresholding").click(force=True)
+    page.get_by_role("switch", name="Thresholding").click()
+    print("here")
+    expect(page.get_by_role("switch", name="Thresholding")).not_to_be_checked()
     expect(page.get_by_label("polygon")).to_have_count(enabled_count)
 
     # They should be stored as validated, keeping the annotator as their creator.

@@ -9,11 +9,14 @@ import time
 import pytest
 from playwright.sync_api import Page, expect
 
+from tests.end_to_end.conftest import login_as
 from tests.endpoints import (
+    add_project_member,
     create_local_samples,
     create_project,
     create_query_strategy_samples,
     create_uda_samples,
+    create_user,
     session,
 )
 from toktagger.api.schemas.annotations import TimePoint, TimeRegion
@@ -662,6 +665,180 @@ def test_clear_button_hiding_others_clears_own_only(server_setup, page: Page):
         annotations[0]["created_by"]
         == f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}"
     )
+
+
+def setup_role_gated_sample(browser, username: str, role: str):
+    """A one-sample project holding one seeded annotation, seen as a project member
+    with the given role.
+
+    The annotation is authored by annotators::peak_detection, so it belongs to no real
+    user and stays visible whichever member is looking at it.
+    """
+    create_user(username, f"{username}_pass123")
+    project_id = create_project("Role Gated Sample Project", "time-series", "tabular")
+    sample_ids = create_local_samples(
+        project_id, [10000], pathlib.Path(__file__).parents[1], ["Ip"]
+    )
+    sample_id = sample_ids[0]
+    flat_top = TimeRegion(
+        label="Flat Top",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time_min=10,
+        time_max=20,
+        validated=False,
+        uncertainty=0.9,
+    )
+    response = session.put(
+        f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations",
+        json=[flat_top.model_dump(mode="json")],
+    )
+    assert response.status_code == 200
+    add_project_member(project_id, username, role=role)
+
+    user_page = login_as(browser, username, f"{username}_pass123")
+    user_page.goto(
+        f"http://localhost:8002/ui/projects/{project_id}/samples/{sample_id}"
+    )
+    expect(user_page.get_by_label("time-series")).to_be_visible()
+    return user_page, project_id, sample_id
+
+
+# A viewer may look at a project but never change its annotations, so every control
+# that writes them is disabled. The "Show Others' Annotations" checkbox is a display
+# preference rather than annotation work, so it stays available to a viewer.
+@pytest.mark.parametrize("role", ["viewer", "annotator", "admin"])
+def test_sample_view_controls_gated_by_role(role, server_setup, admin_token, browser):
+    can_annotate = role != "viewer"
+    user_page, _project_id, _sample_id = setup_role_gated_sample(
+        browser, f"navrole_{role}", role
+    )
+
+    def expect_enabled(locator, enabled):
+        if enabled:
+            expect(locator).to_be_enabled()
+        else:
+            expect(locator).to_be_disabled()
+
+    expect_enabled(user_page.get_by_role("button", name="Save"), can_annotate)
+    expect_enabled(
+        user_page.get_by_role("button", name="Clear", exact=True), can_annotate
+    )
+    expect_enabled(
+        user_page.get_by_role("checkbox", name="Save on Navigate"), can_annotate
+    )
+    # Navigation itself is a read, so it is never gated.
+    expect(user_page.get_by_role("button", name="Next")).to_be_enabled()
+    expect(
+        user_page.get_by_role("checkbox", name="Show Others' Annotations")
+    ).to_be_enabled()
+
+    # Save on Navigate must also read as off for a viewer, not merely be unclickable -
+    # navigating away from a sample must not try to save it.
+    if can_annotate:
+        expect(
+            user_page.get_by_role("checkbox", name="Save on Navigate")
+        ).to_be_checked()
+    else:
+        expect(
+            user_page.get_by_role("checkbox", name="Save on Navigate")
+        ).not_to_be_checked()
+
+    user_page.context.close()
+
+
+def test_viewer_cannot_clear_annotations(server_setup, admin_token, browser):
+    """A viewer's Clear does nothing, and reaches no further than the button.
+
+    Clear now issues a DELETE for every annotation on the sample when others' are on
+    display, so a viewer getting through would destroy other users' work rather than
+    only their own local view.
+    """
+    user_page, project_id, sample_id = setup_role_gated_sample(
+        browser, "clearviewer", "viewer"
+    )
+    expect(user_page.get_by_label("time-zone").first).to_be_visible()
+
+    # force=True bypasses Playwright's actionability check, so the click is genuinely
+    # attempted rather than skipped.
+    user_page.get_by_role("button", name="Clear", exact=True).click(force=True)
+
+    expect(user_page.get_by_label("time-zone").first).to_be_visible()
+    expect(user_page.get_by_text("Annotations Not Validated")).to_be_visible()
+
+    response = session.get(
+        f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations"
+    )
+    assert response.status_code == 200
+    annotations = response.json()
+    assert len(annotations) == 1
+    assert (
+        annotations[0]["created_by"]
+        == f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}"
+    )
+    user_page.context.close()
+
+
+def test_clear_tooltip_describes_what_it_discards(server_setup, page: Page):
+    """Clear's tooltip names its scope, which the "Show Others' Annotations" state
+    decides. The tooltip is the only warning that Clear can take other users' work.
+    """
+    page, _project_id, _sample_ids = setup_annotations(page, 1)
+
+    clear_button = page.get_by_role("button", name="Clear", exact=True)
+    clear_button.hover()
+    expect(
+        page.get_by_text("Discard all annotations for this sample, including other")
+    ).to_be_visible(timeout=5000)
+
+    # Hiding others' annotations narrows both what Clear removes and what it says.
+    page.get_by_role("checkbox", name="Show Others' Annotations").click()
+    clear_button.hover()
+    expect(
+        page.get_by_text("Discard your own annotations for this sample.")
+    ).to_be_visible(timeout=5000)
+
+
+def test_show_others_preference_survives_reload(server_setup, admin_token, browser):
+    """The checkbox is restored from the membership record, not reset to its default.
+
+    The server filters annotations by the stored preference, so a checkbox that came
+    back checked after a reload would claim others' annotations were on display when
+    they were filtered out - and would send Clear after annotations it cannot see.
+    """
+    user_page, project_id, _sample_id = setup_role_gated_sample(
+        browser, "prefannotator", "annotator"
+    )
+    checkbox = user_page.get_by_role("checkbox", name="Show Others' Annotations")
+    expect(checkbox).to_be_checked()
+    expect(user_page.get_by_label("time-zone").first).to_be_visible()
+
+    # Wait for the preference to reach the membership record before reloading.
+    with user_page.expect_response(
+        lambda r: (
+            f"/projects/{project_id}/members/" in r.url and r.request.method == "PUT"
+        )
+    ):
+        checkbox.click()
+    expect(user_page.get_by_label("time-zone")).to_have_count(0)
+
+    user_page.reload()
+    expect(user_page.get_by_label("time-series")).to_be_visible()
+    expect(checkbox).not_to_be_checked()
+    expect(user_page.get_by_label("time-zone")).to_have_count(0)
+
+    # And back again, so the restore follows the record rather than sticking off.
+    with user_page.expect_response(
+        lambda r: (
+            f"/projects/{project_id}/members/" in r.url and r.request.method == "PUT"
+        )
+    ):
+        checkbox.click()
+    user_page.reload()
+    expect(user_page.get_by_label("time-series")).to_be_visible()
+    expect(checkbox).to_be_checked()
+    expect(user_page.get_by_label("time-zone").first).to_be_visible()
+
+    user_page.context.close()
 
 
 @pytest.mark.parametrize(

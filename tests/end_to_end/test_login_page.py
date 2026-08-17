@@ -50,6 +50,23 @@ def test_login_button_disabled_with_empty_fields(server_setup, guest_page):
     expect(guest_page.get_by_role("button", name="Sign In")).to_be_enabled()
 
 
+def test_login_password_visibility_can_be_toggled(server_setup, guest_page):
+    """The login form uses the shared PasswordField, whose toggle is labelled after
+    the field it belongs to ("Show Password", not "Show password").
+    """
+    guest_page.goto("http://localhost:8002/ui/login")
+    password = guest_page.get_by_role("textbox", name="Password")
+    password.fill("admin")
+    expect(password).to_have_attribute("type", "password")
+
+    guest_page.get_by_role("button", name="Show Password").click()
+    expect(password).to_have_attribute("type", "text")
+    expect(password).to_have_value("admin")
+
+    guest_page.get_by_role("button", name="Hide Password").click()
+    expect(password).to_have_attribute("type", "password")
+
+
 def test_already_logged_in_user_redirected_away_from_login(server_setup, page):
     # `page` is pre-authenticated as admin (see tests/end_to_end/conftest.py).
     page.goto("http://localhost:8002/ui/login")

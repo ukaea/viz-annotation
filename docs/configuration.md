@@ -23,13 +23,28 @@ These settings should be defined under the `[database]` heading in the TOML file
 | mongo_url       | DATABASE_MONGO_URL      | str          | ./toktagger_db                          | URL of the MongoDB server to connect to as a backend, by default uses local Mongita client. |
 
 ## Models Settings
+
 These settings should be defined under the `[models]` heading in the TOML file:
 
-| Setting         | Environment Variable    | Type         | Default                                 | Description                                                              |
-|-----------------|-------------------------|--------------|-----------------------------------------|--------------------------------------------------------------------------|
-| cache_dir       | MODELS_CACHE_DIR        | pathlib.Path | ~/.cache/toktagger/models               | The directory to use for storing ML model weights.                       |
-| max_actors      | MODELS_MAX_ACTORS       | int          | 5                                       | The maximum number of ML models which can be loaded concurrently.        |
-| local_load_enabled      | MODELS_LOCAL_LOAD_ENABLED       | bool          | true                                       | Whether to enable the loading of model weights files from local disk. Should be disabled for production servers.        |
+| Setting | Environment Variable | Type | Default | Description |
+|---------|----------------------|------|---------|-------------|
+| cache_dir | MODELS_CACHE_DIR | pathlib.Path | ~/.cache/toktagger/models | The directory to use for storing ML model weights. |
+| max_actors | MODELS_MAX_ACTORS | int \| None | 5 | The maximum number of ML models which can be loaded concurrently, set to None to detect automatically and use all available cores. |
+| max_gpu_actors | MODELS_MAX_GPU_ACTORS | int \| None | None | The maximum number of GPUs to use for ML model tasks, leave blank to detect automatically and use all available cores. |
+| force_num_gpus | MODELS_FORCE_NUM_GPUS | bool | false | Force the set number of GPU actors available, even if insufficient available GPU cores detected on hardware. |
+| load_safetensors_only | MODELS_LOAD_SAFETENSORS_ONLY | bool | false | Whether to only allow loading of SafeTensors files for added security. |
+| local_load_enabled | MODELS_LOCAL_LOAD_ENABLED | bool | true | Whether to enable the loading of model weights files from local disk. Should be disabled for production servers. |
+| gitlab_load_enabled | MODELS_GITLAB_LOAD_ENABLED | bool | true | Whether to enable the loading of model weights files from Gitlab. |
+| gitlab_url | MODELS_GITLAB_URL | str \| None | None | The URL of the Gitlab server to load ML model weights from. |
+| gitlab_token | MODELS_GITLAB_TOKEN | str \| None | None | The PAT Token to use when connecting to Gitlab to load model weights. |
+| gitlab_project_id | MODELS_GITLAB_PROJECT_ID | int \| None | None | Limit the user to load ML model weights from a specific Gitlab project. Leave blank to allow the user to choose. |
+| huggingface_load_enabled | MODELS_HUGGINGFACE_LOAD_ENABLED | bool | true | Whether to enable the loading of model weights files from Hugging Face. |
+| huggingface_userspace | MODELS_HUGGINGFACE_USERSPACE | str \| None | None | Limit the user to load ML model weights from a specific Hugging Face userspace / organisation. Leave blank to allow the user to choose. |
+
+!!! note
+    TOML does not support `None` or `null` values. To leave an optional setting
+    unset, omit it from the TOML file or leave the corresponding line commented
+    out.
 
 
 ## UDA Connection Settings

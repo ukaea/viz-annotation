@@ -378,7 +378,7 @@ export type ToolingCallbacks = {
   ) => void;
   move: (x: number, y: number) => void;
   end: (x: number, y: number) => void;
-  hover?: (x: number, y: number) => void;
+  hover?: (x: number, y: number, axisSize: { x: number; y: number }) => void;
   // Called when a draw is abandoned (tool switched or Escape pressed) instead of finished
   cancel?: () => void;
   // Alternative gesture for finishing an in-progress shape (e.g. double-click to close a polygon)

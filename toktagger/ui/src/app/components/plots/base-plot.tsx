@@ -478,7 +478,7 @@ export const BaseTimeSeriesPlot = ({
       );
       toolingCallbacks
         .get(activeAnnotationTool.type)
-        ?.hover?.(clickLocation.x, clickLocation.y);
+        ?.hover?.(clickLocation.x, clickLocation.y, clickLocation.axisSize);
     };
 
     const finishAnnotationCreation = (event: PointerEvent) => {

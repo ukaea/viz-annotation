@@ -54,6 +54,20 @@ export const Polygon = ({ plotId, plotReady, subplot }: ToolingProps) => {
       updateAnnotation(annotation);
     };
 
+    // Shared closeness check used both to close on click and to snap the hover vertex to the start point
+    const isNearStart = (
+      x: number,
+      y: number,
+      points: TimeSeriesAnnotation["points"],
+      axisSize: { x: number; y: number },
+    ) => {
+      const closeThreshold = { x: axisSize.x * 0.02, y: axisSize.y * 0.02 };
+      return (
+        Math.abs(x - points[0].x) < closeThreshold.x &&
+        Math.abs(y - points[0].y) < closeThreshold.y
+      );
+    };
+
     const toolingCallbacks: ToolingCallbacks = {
       // For polgons the start callback is responsible for creating the polygon but also appeanding vertices and closing shape too
       start: (x, y, label, axisSize) => {
@@ -71,15 +85,9 @@ export const Polygon = ({ plotId, plotReady, subplot }: ToolingProps) => {
           }
 
           const pointArrayLength = currentAnnotation.current.points.length;
-          const closeThreshold = { x: axisSize.x * 0.02, y: axisSize.y * 0.02 };
 
           // Logic used to close the polygon when a vertex is added near the start point
-          if (
-            Math.abs(x - currentAnnotation.current.points[0].x) <
-              closeThreshold.x &&
-            Math.abs(y - currentAnnotation.current.points[0].y) <
-              closeThreshold.y
-          ) {
+          if (isNearStart(x, y, currentAnnotation.current.points, axisSize)) {
             // The polygon should only be allowed to close if there are 4 points - if not this would reduce to 2 vertices which is not allowed
             if (pointArrayLength > 4) {
               closePolygon(currentAnnotation.current);
@@ -110,10 +118,14 @@ export const Polygon = ({ plotId, plotReady, subplot }: ToolingProps) => {
       },
       move(_x, _y) {}, // Points are added using clicks so this is not needed
       end(_x, _y) {}, // Shape is closed inside the start callback as it relies on clicks
-      hover(x, y) {
+      hover(x, y, axisSize) {
         if (!currentAnnotation.current || !isUpdatingPolygon.current) return;
-        const pointArrayLength = currentAnnotation.current.points.length;
-        currentAnnotation.current.points[pointArrayLength - 2] = { x, y }; // Ensure the temporary hover vertex is kept up-to-date with the mouse position
+        const points = currentAnnotation.current.points;
+        const pointArrayLength = points.length;
+        // Snap to the start point once close enough to close, mirroring the video tool's snap
+        const canClose =
+          pointArrayLength > 4 && isNearStart(x, y, points, axisSize);
+        points[pointArrayLength - 2] = canClose ? { ...points[0] } : { x, y };
         updateAnnotation(currentAnnotation.current);
       },
       cancel() {

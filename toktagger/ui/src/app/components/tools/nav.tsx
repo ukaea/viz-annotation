@@ -107,6 +107,12 @@ type NextButtonInfo = ButtonInfo & {
   sortDescriptor: SortDescriptor | null;
 };
 
+type ClearButtonInfo = ButtonInfo & {
+  canAnnotate: boolean;
+  // The "Show Others' Annotations" state, which decides how much Clear discards.
+  showOthers: boolean;
+};
+
 type PreviousButtonInfo = ButtonInfo & {
   saveOnNavigate?: boolean;
   isDisabled: boolean;
@@ -358,10 +364,26 @@ function ClearButton({
   sample_id,
   setIsValidated,
   navAdapter,
+  onPermissionError,
   canAnnotate,
-}: SaveButtonInfo) {
-  const handleClick = () => {
-    navAdapter.clear();
+  showOthers,
+}: ClearButtonInfo) {
+  const handleClick = async () => {
+    try {
+      // Clear whatever the user can see: everything when others' annotations are on
+      // display, only their own when they are not.
+      await navAdapter.clear(showOthers);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        onPermissionError();
+      } else {
+        const message = err instanceof Error ? err.message : String(err);
+        ToastQueue.negative(`Failed to clear annotations: ${message}`, {
+          timeout: TOAST_TIMEOUT,
+        });
+      }
+      return;
+    }
     // Mark as unvalidated annotations
     updateSample(project_id, sample_id, { validated_annotations: false });
     setIsValidated(false);
@@ -379,9 +401,11 @@ function ClearButton({
           <Text>Clear</Text>
         </ActionButton>
         <Tooltip>
-          {canAnnotate
-            ? "Discard the annotations for this sample."
-            : "You have view-only access to this project — annotations cannot be cleared."}
+          {!canAnnotate
+            ? "You have view-only access to this project — annotations cannot be cleared."
+            : showOthers
+              ? "Discard all annotations for this sample, including other users'."
+              : "Discard your own annotations for this sample."}
         </Tooltip>
       </TooltipTrigger>
     </View>
@@ -482,6 +506,38 @@ export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
 
   const [showOthers, setShowOthers] = useState(true);
 
+  // The preference lives on the membership record, so read it back rather than
+  // assuming the default - the checkbox has to agree with the filter the server is
+  // applying, and the Clear button now acts on what it says. A user with no
+  // membership row (a global admin who is not a member) gets no filter server-side,
+  // which is the same as having it on.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    apiFetch(`${BACKEND_API_URL}/users/me/memberships`)
+      .then((response) => (response.ok ? response.json() : []))
+      .then(
+        (
+          memberships: Array<{
+            project_id: string;
+            show_others_annotations: boolean;
+          }>,
+        ) => {
+          if (cancelled) return;
+          const membership = memberships.find(
+            (candidate) => candidate.project_id === project_id,
+          );
+          setShowOthers(membership?.show_others_annotations ?? true);
+        },
+      )
+      .catch(() => {
+        // Leave the default in place - the server is the authority on the filter.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [project_id, user]);
+
   const toggleShowOthers = useCallback(
     async (next: boolean) => {
       setShowOthers(next);
@@ -553,6 +609,7 @@ export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
           navAdapter={navAdapter}
           onPermissionError={() => setPermissionDenied(true)}
           canAnnotate={canAnnotate}
+          showOthers={showOthers}
         />
       </ButtonGroup>
       <TooltipTrigger delay={1000} placement="bottom">

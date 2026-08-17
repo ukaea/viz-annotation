@@ -40,6 +40,7 @@ import {
   ApiError,
 } from "@/app/core";
 import ErrorView from "@/app/views/error";
+import ForbiddenView from "@/app/views/forbidden";
 import { ModelTrainModal } from "@/app/components/tools/modelTrain";
 import { ModelPredictModal } from "@/app/components/tools/modelPredict";
 import { ModelLoadModal } from "@/app/components/tools/modelLoad";
@@ -59,7 +60,7 @@ type SamplesTableProps = {
   sortDescriptor: SortDescriptor;
   onSortChange: (sort: SortDescriptor) => void;
   onModify?: () => void;
-  canAnnotate: boolean;
+  canManageSamples: boolean;
 };
 
 const SamplesTable = ({
@@ -68,7 +69,7 @@ const SamplesTable = ({
   sortDescriptor,
   onSortChange,
   onModify,
-  canAnnotate,
+  canManageSamples,
 }: SamplesTableProps) => {
   const rows = samples.map(({ _id, ...rest }) => ({
     ...rest,
@@ -116,7 +117,7 @@ const SamplesTable = ({
                     <Button
                       aria-label="Delete"
                       variant="negative"
-                      isDisabled={!canAnnotate}
+                      isDisabled={!canManageSamples}
                     >
                       <Delete />
                     </Button>
@@ -176,7 +177,10 @@ export default function ProjectView() {
   });
   const [samples, setSamples] = useState<Sample[]>([]);
   const [project, setProject] = useState<Project | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<{
+    forbidden: boolean;
+    message: string;
+  } | null>(null);
   const { modelsEnabled } = useServerHealth();
   useBreadcrumbs(
     project
@@ -206,18 +210,24 @@ export default function ProjectView() {
       setSamples(samples);
       const project = await getProject(project_id);
       setProject(project);
+      setLoadError(null);
     } catch (err) {
-      if (
-        err instanceof ApiError &&
-        (err.status === 403 || err.status === 404)
-      ) {
-        // Don't distinguish "doesn't exist" from "exists but you can't see it" —
-        // that would leak the project's existence to non-members.
-        setLoadError("Project not found.");
+      if (err instanceof ApiError && err.status === 403) {
+        // A non-member is told plainly that access is refused, rather than that the
+        // project does not exist. This does confirm the project exists to anyone who
+        // guesses its ID, which is the accepted trade for an actionable message.
+        setLoadError({
+          forbidden: true,
+          message: err.message || "You are not a member of this project.",
+        });
+      } else if (err instanceof ApiError && err.status === 404) {
+        setLoadError({ forbidden: false, message: "Project not found." });
       } else {
-        setLoadError(
-          err instanceof ApiError ? err.message : "Failed to load project.",
-        );
+        setLoadError({
+          forbidden: false,
+          message:
+            err instanceof ApiError ? err.message : "Failed to load project.",
+        });
       }
     }
   }, [project_id, shotId, currentPage, samplesPerPage, sortDescriptor, hasId]);
@@ -235,7 +245,11 @@ export default function ProjectView() {
   ]);
 
   if (loadError) {
-    return <ErrorView message={loadError} />;
+    return loadError.forbidden ? (
+      <ForbiddenView message={loadError.message} />
+    ) : (
+      <ErrorView message={loadError.message} />
+    );
   }
 
   if (!project || !hasId) {
@@ -285,7 +299,7 @@ export default function ProjectView() {
                   <AddSamplesEditor
                     project={project}
                     onModify={refreshSamples}
-                    canAnnotate={canAnnotate}
+                    canManageSamples={isAdmin}
                   />
                   {project_id && (
                     <ProjectMembersDialog
@@ -300,7 +314,7 @@ export default function ProjectView() {
                     sortDescriptor={sortDescriptor}
                   />
                   <DialogTrigger>
-                    <ActionButton isQuiet isDisabled={!canAnnotate}>
+                    <ActionButton isQuiet isDisabled={!isAdmin}>
                       <Delete />
                       <Text>Clear Samples</Text>
                     </ActionButton>
@@ -310,10 +324,9 @@ export default function ProjectView() {
                         <Divider />
                         <Content>
                           Are you sure you want to delete{" "}
-                          <strong>all samples</strong> in this project? You
-                          will lose <strong>all annotations</strong>{" "}
-                          associated with the samples as well. This action
-                          cannot be undone.
+                          <strong>all samples</strong> in this project? You will
+                          lose <strong>all annotations</strong> associated with
+                          the samples as well. This action cannot be undone.
                         </Content>
                         <ButtonGroup>
                           <Button variant="secondary" onPress={close}>
@@ -388,7 +401,7 @@ export default function ProjectView() {
               sortDescriptor={sortDescriptor}
               onSortChange={onSortChange}
               onModify={refreshSamples}
-              canAnnotate={canAnnotate}
+              canManageSamples={isAdmin}
             />
             <div className="flex items-center justify-between pl-4 pr-4">
               <Button

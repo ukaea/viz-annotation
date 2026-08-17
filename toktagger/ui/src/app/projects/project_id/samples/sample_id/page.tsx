@@ -7,6 +7,7 @@ import { Profile2dView } from "@/app/profile2d/components/profile2d";
 import ToolBar from "@/app/components/tools/toolbar";
 import { useParams } from "react-router-dom";
 import ErrorView from "@/app/views/error";
+import ForbiddenView from "@/app/views/forbidden";
 import LoadingView from "@/app/views/loading";
 import { SampleProvider, useSample } from "@/app/contexts/SampleContext";
 import { VideoProviders, VideoView } from "@/app/video/components/video-view";
@@ -14,9 +15,14 @@ import { SampleHistoryProvider } from "@/app/contexts/SampleHistoryContext";
 import { useBreadcrumbs } from "@/app/contexts/BreadcrumbContext";
 
 const SampleView = () => {
-  const { project, error, isLoading, data } = useSample();
+  const { project, error, errorStatus, isLoading, data } = useSample();
   if (!project) return null;
-  if (error) return <ErrorView message={error} />;
+  if (error)
+    return errorStatus === 403 ? (
+      <ForbiddenView message={error} />
+    ) : (
+      <ErrorView message={error} />
+    );
 
   if (project.task === TaskType.TimeSeries)
     return isLoading ? <LoadingView /> : <TimeSeriesView />;
@@ -38,7 +44,7 @@ function SampleTaskProviders({ children }: { children: React.ReactNode }) {
 }
 
 function SamplePageContent(props: { sampleId: string }) {
-  const { project, sample, isLoading, error } = useSample();
+  const { project, sample, isLoading, error, errorStatus } = useSample();
   useBreadcrumbs(
     project && sample
       ? [
@@ -54,7 +60,12 @@ function SamplePageContent(props: { sampleId: string }) {
   );
 
   // Early returns AFTER all hooks
-  if (error) return <ErrorView message={error} />;
+  if (error)
+    return errorStatus === 403 ? (
+      <ForbiddenView message={error} />
+    ) : (
+      <ErrorView message={error} />
+    );
 
   if (!project) {
     return isLoading ? (

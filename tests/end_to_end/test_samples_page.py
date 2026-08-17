@@ -723,11 +723,14 @@ def test_clear_samples(server_setup, page: Page):
     assert len(samples) == 0
 
 
+# Managing which samples a project holds is project configuration, so Add Samples,
+# per-row Delete and Clear Samples are project-admin only. Import Annotations is
+# annotation work, so an annotator keeps it.
 @pytest.mark.parametrize(
     ("role", "add_enabled", "import_enabled", "delete_enabled", "clear_enabled"),
     [
         ("viewer", False, False, False, False),
-        ("annotator", True, True, False, False),
+        ("annotator", False, True, False, False),
         ("admin", True, True, True, True),
     ],
 )

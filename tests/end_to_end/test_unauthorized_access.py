@@ -3,11 +3,11 @@ Direct-navigation access control: what happens when you paste a project/sample
 URL into the address bar without the credentials/membership to see it.
 
   - Not logged in at all -> redirected to /ui/login (RequireAuth in App.jsx).
-  - Logged in, but not a member of that project -> a clear "Error" panel
-    reading "Project not found." — deliberately the same message a genuinely
-    nonexistent project gets, so a non-member can't tell the two apart and
-    learn whether a given project id exists (mirrors GitHub/GitLab).
-  - A project id that doesn't exist at all -> the same clean Error panel.
+  - Logged in, but not a member of that project -> a "403 - Forbidden" panel
+    telling them access is refused, so they know to ask for membership rather
+    than assume the project is gone.
+  - A project id that doesn't exist at all -> an "Error" panel reading
+    "Project not found.".
 """
 
 import pytest
@@ -53,10 +53,12 @@ def test_non_member_sees_access_denied_not_blank_page(
     outsider_page.goto(f"http://localhost:8002/ui/projects/{project_id}")
 
     # Still on the project URL (RequireAuth passed — outsider1 IS logged in),
-    # but the page shows a clear error instead of blank/garbled content.
+    # but the page shows a clear refusal instead of blank/garbled content.
     expect(outsider_page).to_have_url(f"http://localhost:8002/ui/projects/{project_id}")
-    expect(outsider_page.get_by_text("Error")).to_be_visible()
-    expect(outsider_page.get_by_text("Project not found.")).to_be_visible()
+    expect(outsider_page.get_by_text("403 - Forbidden")).to_be_visible()
+    expect(
+        outsider_page.get_by_text("You are not a member of this project")
+    ).to_be_visible()
     outsider_page.context.close()
 
 
@@ -72,8 +74,10 @@ def test_non_member_sees_access_denied_on_sample_view(
         f"http://localhost:8002/ui/projects/{project_id}/samples/{sample_ids[0]}"
     )
 
-    expect(outsider_page.get_by_text("Error")).to_be_visible()
-    expect(outsider_page.get_by_text("Project not found.")).to_be_visible()
+    expect(outsider_page.get_by_text("403 - Forbidden")).to_be_visible()
+    expect(
+        outsider_page.get_by_text("You are not a member of this project")
+    ).to_be_visible()
     outsider_page.context.close()
 
 

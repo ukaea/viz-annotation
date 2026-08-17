@@ -1,11 +1,12 @@
 import getpass
 import os
-from pathlib import Path
-from argparse import ArgumentParser
-import numpy
 import random
-from setup import BASE_URL, create_project, create_local_samples, get_token
+from argparse import ArgumentParser
+from pathlib import Path
+
+import numpy
 import pandas as pd
+from setup import BASE_URL, create_local_samples, create_project, get_token
 
 
 def create_mock_data(base_path: Path, shot_ids: list):
@@ -73,9 +74,7 @@ def main():
     )
     args = parser.parse_args()
 
-    password = os.environ.get("TOKTAGGER_PASSWORD") or getpass.getpass(
-        "Password: "
-    )
+    password = os.environ.get("TOKTAGGER_PASSWORD") or getpass.getpass("Password: ")
 
     token = get_token(args.url, args.username, password)
 
@@ -93,7 +92,9 @@ def main():
         base_url=args.url,
         time_max=time[-1],
     )
-    # Make annotations to add at same time as sample
+    # Make annotations to add at same time as sample. created_by is left out: the
+    # server records the account this script authenticates as, so the annotations
+    # belong to a real user in the UI.
     annotations = {
         shot_id: [
             {
@@ -101,7 +102,6 @@ def main():
                 "validated": True,
                 "label": "Disruption",
                 "time": item["annotations"]["disruption"],
-                "created_by": "manual",
             }
         ]
         for shot_id, item in data.items()

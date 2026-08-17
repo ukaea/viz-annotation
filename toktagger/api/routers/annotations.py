@@ -9,6 +9,7 @@ from toktagger.api.auth.dependencies import (
 )
 from toktagger.api.crud import utils
 from toktagger.api.schemas.annotations import (
+    RESERVED_CREATED_BY_PREFIXES,
     AnnotationBatchTypes,
     AnnotationOutTypes,
 )
@@ -20,10 +21,6 @@ router = APIRouter(
     tags=["Annotations"],
     dependencies=[Depends(get_current_user)],
 )
-
-# Mirrors the reserved-username prefixes enforced in routers/users.py, so a
-# model prediction's or annotator suggestion's created_by survives a save.
-RESERVED_CREATED_BY_PREFIXES = ("model::", "annotators::")
 
 
 @router.get(

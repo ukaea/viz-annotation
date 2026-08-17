@@ -16,7 +16,12 @@ def set_auth_token(token: str) -> None:
     session.headers.update({"Authorization": f"Bearer {token}"})
 
 
-def create_user(username: str, password: str, role: str = "user") -> str:
+def create_user(
+    username: str,
+    password: str,
+    role: str = "user",
+    must_change_password: bool = False,
+) -> str:
     response = session.post(
         "http://localhost:8002/users",
         json={
@@ -25,7 +30,8 @@ def create_user(username: str, password: str, role: str = "user") -> str:
             "global_role": role,
             # Test-created accounts should be usable immediately, not stuck behind
             # the forced-password-change redirect real admin-created accounts get.
-            "must_change_password": False,
+            # Pass must_change_password=True to test that redirect itself.
+            "must_change_password": must_change_password,
         },
     )
     assert response.status_code == 200, response.text

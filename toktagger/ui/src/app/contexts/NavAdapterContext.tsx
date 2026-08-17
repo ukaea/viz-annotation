@@ -3,6 +3,7 @@
 import React, { createContext, useContext } from "react";
 import { useSample } from "@/app/contexts/SampleContext";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { deleteSampleAnnotations } from "@/app/core";
 import { type Annotation, type NavAdapter } from "@/types";
 
 const NavAdapterContext = createContext<NavAdapter | null>(null);
@@ -27,7 +28,7 @@ export function useNavAdapterOptional(): NavAdapter | null {
 
 export function useNavAdapter(): NavAdapter {
   const navAdapter = useNavAdapterOptional();
-  const { annotations, setAnnotations } = useSample();
+  const { annotations, setAnnotations, project, sample } = useSample();
   const { user } = useAuth();
 
   if (navAdapter) {
@@ -45,13 +46,23 @@ export function useNavAdapter(): NavAdapter {
         })),
       );
     },
-    clear: () => {
-      // Only clear the current user's own annotations from the local view - other
-      // users' annotations (visible via "show others") were never this user's to
-      // delete, and the server never touches them on save either. "manual" is the
-      // client-side placeholder for an annotation not yet round-tripped through a
-      // save, so it always belongs to whoever is currently drawing - the server
-      // only stamps the real username once it's saved.
+    clear: async (includeOthers?: boolean) => {
+      // Clearing what the user can see means clearing other users' annotations and
+      // model predictions too. A save cannot do that - its replace step is scoped to
+      // the caller's own created_by - so they are deleted here explicitly, and the
+      // local view is only emptied once that succeeds.
+      if (includeOthers) {
+        if (project?._id && sample?._id) {
+          await deleteSampleAnnotations(project._id, sample._id);
+        }
+        setAnnotations(() => []);
+        return;
+      }
+
+      // "Show others" is off, so the user can only see their own annotations and
+      // only those are cleared. They are removed from the local view alone; the save
+      // that follows is what deletes them server-side. "manual" is the placeholder
+      // used until the auth context resolves, so it belongs to whoever is drawing.
       setAnnotations((previousAnnotations: Annotation[]) =>
         previousAnnotations.filter(
           (annotation) =>

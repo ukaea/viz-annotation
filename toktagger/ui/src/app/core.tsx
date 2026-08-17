@@ -253,6 +253,21 @@ export async function saveSampleAnnotations(
   }
 }
 
+// Removes every annotation on the sample, whoever created it. The batch save (PUT)
+// only replaces the caller's own annotations, so clearing another user's - or a
+// model's - has to be an explicit call.
+export async function deleteSampleAnnotations(
+  project_id: string,
+  sample_id: string,
+): Promise<void> {
+  await ensureOk(
+    await apiFetch(
+      `${BACKEND_API_URL}/projects/${project_id}/samples/${sample_id}/annotations`,
+      { method: "DELETE" },
+    ),
+  );
+}
+
 export async function saveAnnotations(
   project_id: string,
   annotations: Annotation[],

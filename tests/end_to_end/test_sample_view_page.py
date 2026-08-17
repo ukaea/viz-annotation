@@ -566,7 +566,27 @@ def test_save_on_navigate(
     assert sample["validated_annotations"] == bool(save_on_navigate)
 
 
-def test_clear_button(server_setup, page: Page):
+def test_new_annotation_is_attributed_to_signed_in_user(server_setup, page: Page):
+    """A just-drawn annotation names its author in the table before it is saved.
+
+    The server stamps created_by on save, but the table must not show the internal
+    "manual" placeholder while the annotation is still local.
+    """
+    # num_annotations=2 draws a TIME POINT through the UI and leaves it unsaved,
+    # alongside a seeded annotators::peak_detection annotation.
+    page, _project_id, _sample_ids = setup_annotations(page, 2)
+
+    annotations_table = page.get_by_role("grid", name="Annotations table")
+    expect(annotations_table.get_by_role("gridcell", name="admin")).to_have_count(1)
+    expect(annotations_table.get_by_role("gridcell", name="manual")).to_have_count(0)
+
+
+def test_clear_button_showing_others_clears_everything(server_setup, page: Page):
+    """With "Show Others' Annotations" on, Clear discards every annotation shown.
+
+    Other users' annotations and tool output cannot be removed by a save - its
+    replace step only covers the caller's own - so Clear deletes them outright.
+    """
     # num_annotations=2 seeds one pre-existing annotators::peak_detection annotation
     # (renders as time-zone) plus one admin-drawn TIME POINT (renders as time-point).
     page, project_id, sample_ids = setup_annotations(page, 2)
@@ -574,28 +594,59 @@ def test_clear_button(server_setup, page: Page):
     # Click save to commit annotations to db
     page.get_by_role("button", name="Save").click()
 
-    # Check both annotations visible
+    # Check both annotations visible, and the checkbox that decides Clear's scope is on
     expect(page.get_by_label("time-point").first).to_be_visible()
     expect(page.get_by_label("time-zone").first).to_be_visible()
+    expect(
+        page.get_by_role("checkbox", name="Show Others' Annotations")
+    ).to_be_checked()
 
     # Check sample shows as validated
     expect(page.get_by_text("Annotations Validated")).to_be_visible()
 
-    # Press Clear
+    # Press Clear - everything on display goes, whoever created it
     page.get_by_role("button", name="Clear").click()
 
-    # Clear only removes the current user's own annotations from view - the
-    # admin-drawn time-point goes, but the peak_detection time-zone (not admin's)
-    # stays visible.
-    expect(page.get_by_label("time-point").first).to_be_hidden()
-    expect(page.get_by_label("time-zone").first).to_be_visible()
+    expect(page.get_by_label("time-point")).to_have_count(0)
+    expect(page.get_by_label("time-zone")).to_have_count(0)
 
     # Check sample now shows as not validated
+    expect(page.get_by_text("Annotations Not Validated")).to_be_visible()
+
+    # No save needed - the delete already reached the backend
+    response = session.get(
+        f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations"
+    )
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_clear_button_hiding_others_clears_own_only(server_setup, page: Page):
+    """With "Show Others' Annotations" off, Clear discards only the user's own."""
+    page, project_id, sample_ids = setup_annotations(page, 2)
+    sample_id = sample_ids[0]
+    page.get_by_role("button", name="Save").click()
+    expect(page.get_by_label("time-point").first).to_be_visible()
+
+    # Hide others' annotations - the peak_detection time-zone is filtered out
+    # server-side, leaving only the admin's own time-point on display.
+    page.get_by_role("checkbox", name="Show Others' Annotations").click()
+    expect(page.get_by_label("time-zone")).to_have_count(0)
+    expect(page.get_by_label("time-point").first).to_be_visible()
+
+    page.get_by_role("button", name="Clear").click()
+    expect(page.get_by_label("time-point")).to_have_count(0)
     expect(page.get_by_text("Annotations Not Validated")).to_be_visible()
 
     # Press save - only admin's own (now empty) selection is replaced; the
     # peak_detection annotation was never admin's to delete, so it survives.
     page.get_by_role("button", name="Save").click()
+
+    # Show others' annotations again: the peak_detection annotation is still there,
+    # and the backend stops filtering it out of admin's requests - including the
+    # helper session's GET below, which shares admin's membership preference.
+    page.get_by_role("checkbox", name="Show Others' Annotations").click()
+    expect(page.get_by_label("time-zone").first).to_be_visible()
 
     # Pull from backend, check correct number of annotations saved
     response = session.get(
@@ -604,12 +655,13 @@ def test_clear_button(server_setup, page: Page):
     assert response.status_code == 200
     annotations = response.json()
 
+    # Only the peak_detection annotation is left: admin's own went with the clear,
+    # and the one they never owned was untouched.
     assert len(annotations) == 1
     assert (
         annotations[0]["created_by"]
         == f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}"
     )
-    assert not annotations[0]["validated"]
 
 
 @pytest.mark.parametrize(

@@ -12,7 +12,11 @@ export default function TopBar() {
 
   return (
     <div className="w-full flex-none h-14 flex items-center justify-between gap-4 px-6 border-b border-gray-300 dark:border-gray-700 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm text-gray-800 dark:text-gray-100">
-      <div className="min-w-0">
+      {/* flex-1 so the breadcrumbs get the space the right-hand buttons leave over.
+          Without it this div shrinks to its content-free width and Spectrum folds
+          every crumb but the last into a "…" menu. min-w-0 keeps it from pushing
+          the buttons off the bar when a project name is long. */}
+      <div className="min-w-0 flex-1">
         {breadcrumbItems.length > 0 && (
           <Breadcrumbs>
             {breadcrumbItems.map((item) => (

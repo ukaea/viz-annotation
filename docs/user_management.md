@@ -19,9 +19,14 @@ TokTagger has two layers of roles:
 
 | Project Role | Permissions |
 |---|---|
-| `admin` | Manage project membership, delete samples and annotations |
-| `annotator` | Submit and update annotations for samples |
+| `admin` | Manage project membership, add and delete samples, and everything an `annotator` can do |
+| `annotator` | Submit, update and delete annotations for the project's samples |
 | `viewer` | Read-only access to the project's samples and annotations |
+
+Which samples a project contains is part of its configuration, so only a project
+admin can add or delete them. An `annotator` gets the samples the project admin
+selects and annotates them. In the UI, the **Add Samples**, **Clear Samples** and
+per-row **Delete** buttons are greyed out for annotators and viewers.
 
 A global `admin` automatically has unrestricted access to all projects regardless of project role.
 
@@ -37,7 +42,7 @@ Password : admin
 ```
 
 !!! warning
-    This is an insecure default password. Change it immediately after first login from the **Profile** page.
+    This is an insecure default password. TokTagger holds this account on the **Profile** page at first login until you set a new password. This applies to every account, admin accounts included.
 
 ---
 
@@ -102,13 +107,17 @@ Any signed-in user can update their own profile. Click **Profile** from the Proj
 2. Confirm it in **Confirm new password**.
 3. Click **Change Password**.
 
+Each field has a button that shows or hides the characters you type, as on the sign-in page.
+
+If TokTagger asks you to change your password, it keeps you on this page until you do.
+
 ---
 
 ## Project Membership
 
 Access to a project is controlled per-project. From the project's Samples page, an admin can click **Members** to add or remove users.
 
-Only members (and admins) can view samples and submit annotations for a given project.
+Only members (and admins) can view samples and submit annotations for a given project. If you open the URL of a project you are not a member of, the page shows a **403 - Forbidden** message. Ask a project admin to add you as a member.
 
 ---
 

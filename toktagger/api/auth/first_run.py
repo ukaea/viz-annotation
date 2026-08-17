@@ -21,11 +21,15 @@ async def ensure_admin_user(db_client) -> bool:
             return True
 
         password = "admin"
+        # The default password is public knowledge, so this account is no different
+        # from an admin-created one: the first person to sign in must replace it
+        # before they can reach any other page.
         admin = UserIn(
             username="admin",
             hashed_password=hash_password(password),
             global_role="admin",
             is_active=True,
+            must_change_password=True,
         )
         await db_client.insert(collection="users", model=admin)
 
@@ -36,7 +40,7 @@ async def ensure_admin_user(db_client) -> bool:
     print("  Username : admin")
     print(f"  Password : {password}")
     print("  ⚠  This is an insecure default password.")
-    print("  ⚠  Change it immediately after first login.")
+    print("  ⚠  You must change it at first login.")
     print(f"{border}\n")
 
     return True

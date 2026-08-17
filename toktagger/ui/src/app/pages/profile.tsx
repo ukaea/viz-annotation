@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import {
-  TextField,
   Button,
   Flex,
   InlineAlert,
@@ -13,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { BACKEND_API_URL, apiFetch } from "@/app/core";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useBreadcrumbs } from "@/app/contexts/BreadcrumbContext";
+import { PasswordField } from "@/app/components/ui/passwordField";
 
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
@@ -96,19 +96,15 @@ export default function ProfilePage() {
               )}
 
               <h2 className="text-lg font-semibold">Change Password</h2>
-              <TextField
+              <PasswordField
                 label="New password"
-                type="password"
                 value={newPassword}
                 onChange={setNewPassword}
-                width="100%"
               />
-              <TextField
+              <PasswordField
                 label="Confirm new password"
-                type="password"
                 value={confirmPassword}
                 onChange={setConfirmPassword}
-                width="100%"
               />
               <Button
                 variant="primary"

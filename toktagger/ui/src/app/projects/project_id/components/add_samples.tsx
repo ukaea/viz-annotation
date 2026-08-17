@@ -36,11 +36,13 @@ import NumericalRange, {
 export const AddSamplesEditor = ({
   project,
   onModify,
-  canAnnotate = true,
+  // Which samples a project holds is project configuration, so only a project
+  // admin may add them - mirrors require_project_admin_role on POST /samples.
+  canManageSamples = true,
 }: {
   project: Project;
   onModify?: () => void;
-  canAnnotate?: boolean;
+  canManageSamples?: boolean;
 }) => {
   const dataLoader = project.data_loader;
 
@@ -331,7 +333,7 @@ export const AddSamplesEditor = ({
 
   return (
     <DialogTrigger>
-      <ActionButton isQuiet isDisabled={!canAnnotate}>
+      <ActionButton isQuiet isDisabled={!canManageSamples}>
         <AddCircle />
         <Text>Add Samples</Text>
       </ActionButton>

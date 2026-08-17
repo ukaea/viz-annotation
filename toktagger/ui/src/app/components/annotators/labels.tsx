@@ -3,6 +3,7 @@ import { ListView, Item } from "@adobe/react-spectrum";
 import { Annotation, ClassLabel } from "@/types";
 import { Selection } from "@react-types/shared";
 import { useSample } from "@/app/contexts/SampleContext";
+import { useAuth } from "@/app/contexts/AuthContext";
 
 export type ShotLabelsType = {
   labels: string[];
@@ -11,8 +12,12 @@ export type ShotLabelsType = {
   canAnnotate?: boolean;
 };
 
-export function ShotLabels({ labels = [], canAnnotate = true }: ShotLabelsType) {
+export function ShotLabels({
+  labels = [],
+  canAnnotate = true,
+}: ShotLabelsType) {
   const { project, sample, annotations, setAnnotations } = useSample();
+  const { user } = useAuth();
   const items = labels.map((label, index) => ({ id: index, name: label }));
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
@@ -62,13 +67,15 @@ export function ShotLabels({ labels = [], canAnnotate = true }: ShotLabelsType) 
             shot_id: sample?.shot_id,
             type: "class_label",
             label: item.name,
-            created_by: "manual",
+            // Authored by whoever selected the label; the server stamps the same
+            // username on save.
+            created_by: user?.username ?? "manual",
           } as ClassLabel);
         });
         return newAnnotations;
       });
     },
-    [project, sample, items, setAnnotations, canAnnotate],
+    [project, sample, items, setAnnotations, canAnnotate, user],
   );
 
   useEffect(() => {

@@ -477,7 +477,9 @@ export function VideoSessionProvider(props: {
     useState<DrawingTool>(videoDrawingTool);
   // panMode is this view's edit-mode toggle, inverted: drawing is enabled when it is
   // false. A viewer is pinned into pan mode, so it starts true and cannot be turned off.
-  const [panMode, setPanModeState] = useState(canAnnotate ? videoPanMode : true);
+  const [panMode, setPanModeState] = useState(
+    canAnnotate ? videoPanMode : true,
+  );
   const [hideAnnotations, setHideAnnotationsState] = useState(false);
   const hideAnnotationsRef = useRef(false);
 
@@ -697,14 +699,17 @@ export function VideoSessionProvider(props: {
     }
   }, [api, drawingTool, hideAnnotations, panMode, selection.className]);
 
-  const createNewInstanceForClass = useCallback((className: string) => {
-    if (!canAnnotate) return;
-    const cname = (className || "").trim();
-    const trackId = allocateNextTrackId(nextTrackNumsRef.current, cname);
+  const createNewInstanceForClass = useCallback(
+    (className: string) => {
+      if (!canAnnotate) return;
+      const cname = (className || "").trim();
+      const trackId = allocateNextTrackId(nextTrackNumsRef.current, cname);
 
-    setSelectionState({ className: cname, trackId, source: "auto" });
-    return { className: cname, trackId };
-  }, [canAnnotate]);
+      setSelectionState({ className: cname, trackId, source: "auto" });
+      return { className: cname, trackId };
+    },
+    [canAnnotate],
+  );
 
   /**
    * Delete a specific (className, trackId) across all frames.

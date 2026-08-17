@@ -22,6 +22,17 @@ async def test_ensure_admin_user_creates_admin_on_empty_db(auth_db_client):
 
 
 @pytest.mark.asyncio
+async def test_ensure_admin_user_must_change_password(auth_db_client):
+    """The default password is published in the terminal banner and the docs, so the
+    bootstrap admin is held to the same first-login password change as any other
+    account.
+    """
+    await ensure_admin_user(auth_db_client)
+    users = await auth_db_client.get_all_documents("users")
+    assert users[0]["must_change_password"] is True
+
+
+@pytest.mark.asyncio
 async def test_ensure_admin_user_password_is_hashed(auth_db_client):
     await ensure_admin_user(auth_db_client)
     users = await auth_db_client.get_all_documents("users")

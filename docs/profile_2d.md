@@ -53,8 +53,9 @@ At the top of the interface, you'll find navigation controls to move through you
 - **Previous Button** (◄): Navigate to the previous sample in your project
 - **Next Button** (►): Navigate to the next sample in your project  
 - **Save Button**: Save your current annotations
-- **Clear Button**: Remove selected annotations, and mark annotations in the database as not validated
+- **Clear Button**: Remove the annotations for this sample, and mark the annotations in the database as not validated. If **Show Others' Annotations** is selected, the button removes all annotations, including the annotations of other users. If it is not selected, the button removes only your own annotations
 - **Save On Navigate**: Whether to automatically save any annotations to the database when you move to a different sample
+- **Show Others' Annotations**: Whether to show the annotations that other users made. TokTagger keeps this setting for each project
 - **Jump to Shot**: Jump to a sample with a given shot ID
 
 **Keyboard Shortcuts:**

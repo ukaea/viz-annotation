@@ -20,6 +20,7 @@ import React, {
 } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { useSample } from "./SampleContext";
+import { useAuth } from "./AuthContext";
 import { useProjectRole } from "@/app/hooks/useProjectRole";
 import {
   convertRawAnnotationsToTimeSeries,
@@ -148,6 +149,7 @@ export const TimeSeriesProvider = ({
   // after SampleView confirms project is loaded.
   const projectId = project?._id ?? "";
   const { canAnnotate } = useProjectRole(project?._id);
+  const { user } = useAuth();
 
   const [annotations, setAnnotations] = useState<TimeSeriesAnnotation[]>([]);
   const [toolingCallbacks, setToolingCallbacks] = useState<
@@ -344,13 +346,17 @@ export const TimeSeriesProvider = ({
     syncAnnotations();
   }, [syncAnnotations, syncCounter]);
 
+  // A new annotation belongs to whoever is drawing it, so it carries their username
+  // from the moment it appears in the table - the same value the server stamps on it
+  // when it is saved. "manual" is only a fallback for the brief window before the
+  // auth context resolves.
   const createAnnotation = useCallback(
     (type: TimeSeriesAnnotationType, label: string): TimeSeriesAnnotation => {
       const id = uuidv4();
       return {
         id,
         db_id: null,
-        created_by: "manual",
+        created_by: user?.username ?? "manual",
         label,
         signal_name: signalName,
         type,
@@ -358,7 +364,7 @@ export const TimeSeriesProvider = ({
         selected: false,
       };
     },
-    [signalName],
+    [signalName, user],
   );
 
   const addAnnotation = useCallback(

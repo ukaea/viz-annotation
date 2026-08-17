@@ -317,6 +317,24 @@ def admin_token(start_server) -> str:
     )
     assert response.status_code == 200, response.text
     token = response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # The bootstrap admin ships with must_change_password set, so a real first login
+    # is held on the profile page until the default password is replaced. Clear it
+    # here so this session behaves like any other logged-in admin — the same opt-out
+    # tests.endpoints.create_user applies to the accounts it creates. The forced
+    # change itself is covered in tests/end_to_end/test_profile_page.py and
+    # tests/api/auth/test_first_run.py.
+    response = requests.get("http://localhost:8002/auth/me", headers=headers)
+    assert response.status_code == 200, response.text
+    admin_id = response.json()["_id"]
+    response = requests.put(
+        f"http://localhost:8002/users/{admin_id}",
+        json={"must_change_password": False},
+        headers=headers,
+    )
+    assert response.status_code == 200, response.text
+
     endpoints.set_auth_token(token)
     return token
 

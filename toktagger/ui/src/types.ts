@@ -111,7 +111,10 @@ export type Annotation = z.infer<typeof AnnotationSchema>;
 
 export type NavAdapter = {
   getAnnotations: () => Annotation[];
-  clear: () => void;
+  // includeOthers clears every annotation on the sample rather than only the
+  // caller's own. The Clear button passes the "Show Others' Annotations" state, so
+  // what the button discards is always what the user can see.
+  clear: (includeOthers?: boolean) => void | Promise<void>;
   afterSave?: () => void;
 };
 

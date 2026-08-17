@@ -10,15 +10,13 @@ import {
   View,
   Form,
 } from "@adobe/react-spectrum";
-import Visibility from "@spectrum-icons/workflow/Visibility";
-import VisibilityOff from "@spectrum-icons/workflow/VisibilityOff";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { PasswordField } from "@/app/components/ui/passwordField";
 
 export default function LoginPage() {
   const { login, isLoading, user } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -80,27 +78,11 @@ export default function LoginPage() {
               autoFocus
               width="100%"
             />
-            <View position="relative" width="100%">
-              <TextField
-                label="Password"
-                type={isPasswordVisible ? "text" : "password"}
-                value={password}
-                onChange={setPassword}
-                width="100%"
-              />
-              <View position="absolute" right="size-50" bottom="size-0">
-                <button
-                  type="button"
-                  aria-label={
-                    isPasswordVisible ? "Hide password" : "Show password"
-                  }
-                  onClick={() => setIsPasswordVisible((prev) => !prev)}
-                  className="flex h-8 w-8 items-center justify-center border-none bg-transparent text-gray-600 dark:text-gray-300"
-                >
-                  {isPasswordVisible ? <VisibilityOff /> : <Visibility />}
-                </button>
-              </View>
-            </View>
+            <PasswordField
+              label="Password"
+              value={password}
+              onChange={setPassword}
+            />
             <Button
               type="submit"
               variant="cta"

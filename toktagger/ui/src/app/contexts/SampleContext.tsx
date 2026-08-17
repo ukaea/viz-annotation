@@ -76,6 +76,9 @@ interface SampleContextType {
   isLoading: boolean;
   isValidated: boolean | null;
   error: string | null;
+  // HTTP status behind `error`, when it came from the API. Lets the page tell
+  // "no access" (403) apart from a genuine failure.
+  errorStatus: number | null;
   setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>;
   setDataParams: React.Dispatch<React.SetStateAction<DataParams>>;
   setViewParams: React.Dispatch<
@@ -202,6 +205,7 @@ export function SampleProvider({
   const [isValidated, setIsValidated] = useState<boolean | null>(null);
 
   const [error, setError] = useState<string | null>(null);
+  const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const [videoFrameBounds, setVideoFrameBounds] = useState<{
     min: number | null;
     max: number | null;
@@ -266,6 +270,7 @@ export function SampleProvider({
     const refreshData = async () => {
       setIsLoading(true);
       setError(null);
+      setErrorStatus(null);
 
       try {
         // Fetch project, sample, and annotations in parallel
@@ -382,6 +387,7 @@ export function SampleProvider({
           }
 
           setError(detail);
+          setErrorStatus(response.status);
           setData(null);
           return;
         }
@@ -445,15 +451,17 @@ export function SampleProvider({
         ) {
           return;
         }
-        if (
-          err instanceof ApiError &&
-          (err.status === 403 || err.status === 404)
-        ) {
-          // Don't distinguish "doesn't exist" from "exists but you can't see it" —
-          // that would leak the project's existence to non-members.
+        if (err instanceof ApiError && err.status === 403) {
+          // Reported as a refusal rather than as a missing project, so a user who
+          // has lost access - or was never given it - can act on the message.
+          setError(err.message || "You are not a member of this project.");
+          setErrorStatus(403);
+        } else if (err instanceof ApiError && err.status === 404) {
           setError("Project not found.");
+          setErrorStatus(404);
         } else {
           setError(err instanceof Error ? err.message : "An error occurred");
+          setErrorStatus(err instanceof ApiError ? err.status : null);
         }
       } finally {
         if (isCurrentRequest()) {
@@ -490,6 +498,7 @@ export function SampleProvider({
     isLoading,
     isValidated,
     error,
+    errorStatus,
     setAnnotations,
     setPlotProps,
     setViewParams,

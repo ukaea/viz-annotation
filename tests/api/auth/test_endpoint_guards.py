@@ -7,9 +7,11 @@ below rather than relying on weaker roles being implied by stronger ones:
   - Unauthenticated       -> 401 on everything (no token at all)
   - Non-member             -> 403 on everything (authenticated, not a project member)
   - Viewer                 -> 200 on reads, 403 on every write and delete
-  - Annotator               -> 200 on reads, writes and deletes (samples, annotations
-                              and the project itself), 403 only on member management
-                              and on deleting a trained model artifact
+  - Annotator               -> 200 on reads, on annotation writes and deletes, on
+                              marking samples validated, and on editing/deleting the
+                              project itself; 403 on adding or deleting samples, on
+                              member management and on deleting a trained model
+                              artifact
   - Project admin (member role="admin") -> 200 on everything
   - Global admin            -> 200 on everything
 """
@@ -78,6 +80,8 @@ ACTIONS: dict[str, Action] = {
             "global_admin": _status(200),
         },
     ),
+    # Which samples a project holds is project configuration, not annotation work, so
+    # the three actions below are project-admin only.
     "add_samples": Action(
         method="POST",
         path="/projects/{project_id}/samples",
@@ -88,7 +92,7 @@ ACTIONS: dict[str, Action] = {
             "unauthenticated": _status(401),
             "non_member": _status(403),
             "viewer": _status(403),
-            "annotator": _status(200),
+            "annotator": _status(403),
             "project_admin": _status(200),
             "global_admin": _status(200),
         },
@@ -100,7 +104,7 @@ ACTIONS: dict[str, Action] = {
             "unauthenticated": _status(401),
             "non_member": _status(403),
             "viewer": _status(403),
-            "annotator": _status(200),
+            "annotator": _status(403),
             "project_admin": _status(200),
             "global_admin": _status(200),
         },
@@ -108,6 +112,23 @@ ACTIONS: dict[str, Action] = {
     "delete_all_samples": Action(
         method="DELETE",
         path="/projects/{project_id}/samples",
+        expected={
+            "unauthenticated": _status(401),
+            "non_member": _status(403),
+            "viewer": _status(403),
+            "annotator": _status(403),
+            "project_admin": _status(200),
+            "global_admin": _status(200),
+        },
+    ),
+    # Annotator-level, unlike the sample actions above: SampleUpdate carries only
+    # validated_annotations, which every annotation save and clear sets.
+    "update_samples": Action(
+        method="PUT",
+        path="/projects/{project_id}/samples",
+        body=lambda _, sample_id: [
+            {"_id": sample_id, "updates": {"validated_annotations": True}}
+        ],
         expected={
             "unauthenticated": _status(401),
             "non_member": _status(403),

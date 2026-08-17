@@ -234,8 +234,6 @@ const PLOT_CONFIG: Partial<Plotly.Config> = {
   displayModeBar: true,
   scrollZoom: true,
   responsive: true,
-  // Disabled so double-click is free for annotation tools to use instead
-  doubleClick: false,
 };
 
 export const Profile2dView = () => {

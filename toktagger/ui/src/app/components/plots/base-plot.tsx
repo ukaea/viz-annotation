@@ -31,8 +31,6 @@ const DEFAULT_PLOTLY_CONFIG: Partial<Config> = {
   displayModeBar: true,
   scrollZoom: true,
   responsive: true,
-  // Disabled so double-click is free for annotation tools to use instead
-  doubleClick: false,
 };
 
 // The typing for plotly's selection relayout is not great - this avoids errors and ensures the correct object is used
@@ -318,12 +316,15 @@ export const BaseTimeSeriesPlot = ({
       return;
     }
 
-    const plot = document.getElementById(plotId);
+    const plot = document.getElementById(plotId) as ExtendedPlotlyHTMLElement;
 
     if (!plot) {
       console.error("Could not locate plot to set drag mode");
       return;
     }
+
+    // Set directly rather than via config, since that would trigger a full replot
+    plot._context.doubleClick = isDrawing ? false : "reset+autosize";
 
     if (isDrawing) {
       relayout(

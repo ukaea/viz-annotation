@@ -1,4 +1,4 @@
-import { PlotlyHTMLElement } from "plotly.js";
+import { Config, PlotlyHTMLElement } from "plotly.js";
 import { z } from "zod/v4";
 
 export const BaseAnnotationSchema = z.object({
@@ -400,6 +400,7 @@ type PlotlyAxisTransforms = {
 };
 export interface ExtendedPlotlyHTMLElement extends PlotlyHTMLElement {
   _fullLayout: Record<string, PlotlyAxisTransforms>;
+  _context: { doubleClick: Config["doubleClick"] };
 }
 
 export interface SelectionRange {

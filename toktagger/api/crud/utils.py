@@ -452,6 +452,8 @@ async def update_annotation_by_id(
 
     The filter is scoped to project and sample, so an annotation ID belonging to
     another project cannot be reached. Returns False if nothing matched.
+
+    Neither the author nor the `validated` flag can be changed through here.
     """
     filters = {
         "_id": convert_to_objectid(annotation_id, "annotations"),
@@ -461,11 +463,15 @@ async def update_annotation_by_id(
 
     # Identity is never taken from the request body: `created_by` keeps whatever the
     # database already holds, and the id/project/sample triple is pinned by the filter.
+    # `validated` is excluded for the same reason - it records that *its author*
+    # signed the annotation off, so another user saving the sample (which stamps
+    # validated=True across the whole payload) must not sign off work that isn't
+    # theirs. Editing geometry or label is still allowed.
     updates = annotation.model_dump(
         mode="python",
         exclude_unset=True,
         exclude_none=True,
-        exclude={"id", "created_by", "project_id", "sample_id"},
+        exclude={"id", "created_by", "project_id", "sample_id", "validated"},
     )
     if not updates:
         return True

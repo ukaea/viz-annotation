@@ -128,8 +128,12 @@ async def create_model(db_client, project: Project, model_type: str) -> Model:
 router = APIRouter(
     prefix="/projects/{project_id}",
     tags=["Models"],
-    # Authenticate first, then check models are enabled, on every endpoint
-    dependencies=[Depends(get_current_user), Depends(check_models_enabled)],
+    # Authenticate every endpoint. The models-enabled gate is deliberately NOT here:
+    # router-level dependencies are solved before any endpoint-parameter dependency,
+    # so it would return 503 to a non-member before their role was ever checked.
+    # Each endpoint declares it after its role dependency instead, so permission
+    # errors take precedence over "ML extras not installed".
+    dependencies=[Depends(get_current_user)],
 )
 
 
@@ -138,6 +142,7 @@ async def get_models(
     request: Request,
     project_id: str = Path(description="The ID of the project to get models for."),
     current_user: UserOut = Depends(require_project_viewer),
+    _models_enabled: None = Depends(check_models_enabled),
     start: int = Query(
         0,
         description="Index of the first model you want returned when sorted by version",
@@ -165,6 +170,7 @@ async def get_model(
     request: Request,
     project_id: str = Path(description="The ID of the project to get models for."),
     current_user: UserOut = Depends(require_project_viewer),
+    _models_enabled: None = Depends(check_models_enabled),
     model_type: str = Path(
         description="The type of model to return information about."
     ),
@@ -185,6 +191,7 @@ async def delete_models(
     request: Request,
     project_id: str = Path(description="The ID of the project to get models for."),
     current_user: UserOut = Depends(require_project_admin_role),
+    _models_enabled: None = Depends(check_models_enabled),
     model_type: str = Path(description="The type of model to delete."),
     version: int = Query(
         None,
@@ -230,6 +237,7 @@ async def get_training_info(
     project_id: str,
     model_type: str,
     current_user: UserOut = Depends(require_project_viewer),
+    _models_enabled: None = Depends(check_models_enabled),
 ) -> Model:
     db_client = request.app.state.db_client
     await utils.get_project(db_client, project_id)
@@ -249,6 +257,7 @@ async def start_model_training(
     project_id: str,
     model_type: str,
     current_user: UserOut = Depends(require_project_annotator),
+    _models_enabled: None = Depends(check_models_enabled),
     use_gpu: bool = Query(False, description="Whether to use GPU to train the model"),
     params: dict = Body(
         {}, description="Optional parameters for training the model", embed=True
@@ -365,6 +374,7 @@ async def stop_model_training(
     project_id: str,
     model_type: str,
     current_user: UserOut = Depends(require_project_annotator),
+    _models_enabled: None = Depends(check_models_enabled),
     version: int | None = Query(
         None, description="Version of model to use, leave blank for latest version"
     ),
@@ -424,6 +434,7 @@ async def load_model_weights_local(
     model_type: str,
     params: LocalLoadParams,
     current_user: UserOut = Depends(require_project_annotator),
+    _models_enabled: None = Depends(check_models_enabled),
 ):
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
@@ -463,6 +474,7 @@ async def load_model_weights_gitlab(
     model_type: str,
     params: GitlabLoadParams,
     current_user: UserOut = Depends(require_project_annotator),
+    _models_enabled: None = Depends(check_models_enabled),
 ):
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
@@ -515,6 +527,7 @@ async def load_model_weights_hugging_face(
     model_type: str,
     params: HuggingfaceLoadParams,
     current_user: UserOut = Depends(require_project_annotator),
+    _models_enabled: None = Depends(check_models_enabled),
 ):
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
@@ -560,6 +573,7 @@ async def get_load_model_status(
     model_type: str = Path(description="The type of model to load."),
     task_id: str = Path(description="The load task to get results from."),
     current_user: UserOut = Depends(require_project_viewer),
+    _models_enabled: None = Depends(check_models_enabled),
 ) -> bool | str:
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
@@ -626,6 +640,7 @@ async def predict(
     request: Request,
     project_id: str = Path(description="The ID of the project to get models for."),
     current_user: UserOut = Depends(require_project_annotator),
+    _models_enabled: None = Depends(check_models_enabled),
     model_type: str = Path(description="The type of model to use for predictions."),
     version: int = Query(
         None, description="Version of model to use, leave blank for latest version"
@@ -725,6 +740,7 @@ async def delete_predictions(
     request: Request,
     project_id: str = Path(description="The ID of the project to get models for."),
     current_user: UserOut = Depends(require_project_annotator),
+    _models_enabled: None = Depends(check_models_enabled),
     model_type: str = Path(description="The type of model to delete predictions from."),
 ):
     db_client = request.app.state.db_client
@@ -763,6 +779,7 @@ async def create_sample_predictions(
         description="The ID of the sample to make model predictions for."
     ),
     current_user: UserOut = Depends(require_project_annotator),
+    _models_enabled: None = Depends(check_models_enabled),
     model_type: str = Path(description="The type of model to make predictions from."),
     use_gpu: bool = Query(
         False, description="Whether to use GPU to create these predictions"
@@ -827,6 +844,7 @@ async def get_sample_predictions(
         description="The ID of the sample to get model predictions for."
     ),
     current_user: UserOut = Depends(require_project_viewer),
+    _models_enabled: None = Depends(check_models_enabled),
     model_type: str = Path(description="The type of model to get predictions from."),
     task_id: str = Path(description="The prediction task to get results from."),
 ) -> list[AnnotationBatchTypes]:
@@ -897,6 +915,7 @@ async def update_model(
         description="The ID of the project to make model predictions for."
     ),
     current_user: UserOut = Depends(require_project_annotator),
+    _models_enabled: None = Depends(check_models_enabled),
     model_id: str = Path(
         description="The ID of the model to update information about."
     ),
@@ -914,6 +933,7 @@ async def evaluate(
     project_id: str,
     model_id: str,
     current_user: UserOut = Depends(require_project_viewer),
+    _models_enabled: None = Depends(check_models_enabled),
 ):
     # Get evaluation of model by comparing model predictions to human evaluations
     # Specify samples to use via filters

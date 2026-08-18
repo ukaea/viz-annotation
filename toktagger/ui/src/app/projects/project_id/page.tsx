@@ -107,6 +107,7 @@ const SamplesTable = ({
               <Cell>{item["timestamp"]}</Cell>
               <Cell>
                 <Checkbox
+                  aria-label="Validated Annotations"
                   isSelected={item["validated_annotations"]}
                   isReadOnly={true}
                 />

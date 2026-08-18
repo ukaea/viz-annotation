@@ -15,7 +15,7 @@ class ModelProgress(Callback):
         super().__init__()
 
     def on_train_begin(self):
-        model_update = ModelUpdate(training_status="started", progress=0)
+        model_update = ModelUpdate(status="training", progress=0)
         send_model_updates(
             project_id=self.project_id, model_id=self.model_id, updates=model_update
         )
@@ -31,7 +31,7 @@ class ModelProgress(Callback):
 
     def on_train_end(self, logs: dict):
         model_update = ModelUpdate(
-            training_status="completed",
+            status="completed",
             progress=100,
             score=logs.get(self.eval_metric),
         )

@@ -83,13 +83,19 @@ RAY_NAMESPACE = "toktagger"
 
 
 def _ray_runtime_env() -> dict:
-    return {
-        "env_vars": {
-            "API_URL": f"http://{config.settings.server.host}:{config.settings.server.port}",
-            "MODEL_STORAGE": str(config.settings.models.cache_dir),
-            "API_TOKEN": get_internal_token(),
-        }
+    env_vars = {
+        "API_URL": f"http://{config.settings.server.host}:{config.settings.server.port}",
+        "MODEL_STORAGE": str(config.settings.models.cache_dir),
+        "API_TOKEN": get_internal_token(),
+        "MODELS_SAFETENSORS_ONLY": str(config.settings.models.load_safetensors_only),
     }
+    # Only forwarded when configured - the Gitlab loader treats absence as
+    # "Gitlab loading not set up" rather than as an empty credential.
+    if gitlab_url := config.settings.models.gitlab_url:
+        env_vars["MODELS_GITLAB_URL"] = gitlab_url
+    if gitlab_token := config.settings.models.gitlab_token:
+        env_vars["MODELS_GITLAB_TOKEN"] = gitlab_token
+    return {"env_vars": env_vars}
 
 
 def start_ray_head() -> None:

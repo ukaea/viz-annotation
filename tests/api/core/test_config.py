@@ -25,6 +25,16 @@ ENV_VARS = [
     "SAL_HOST",
     "MODELS_CACHE_DIR",
     "MODELS_MAX_ACTORS",
+    "MODELS_MAX_GPU_ACTORS",
+    "MODELS_FORCE_NUM_GPUS",
+    "MODELS_LOAD_SAFETENSORS_ONLY",
+    "MODELS_LOCAL_LOAD_ENABLED",
+    "MODELS_GITLAB_LOAD_ENABLED",
+    "MODELS_GITLAB_URL",
+    "MODELS_GITLAB_TOKEN",
+    "MODELS_GITLAB_PROJECT_ID",
+    "MODELS_HUGGINGFACE_LOAD_ENABLED",
+    "MODELS_HUGGINGFACE_USERSPACE",
 ]
 
 
@@ -36,12 +46,14 @@ def setup_test_settings(monkeypatch):
     """
     for name in ENV_VARS:
         monkeypatch.delenv(name, raising=False)
-    with tempfile.NamedTemporaryFile(mode="w", prefix=".toml") as tempf:
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".toml") as tempf:
 
         class TestSettings(Settings):
             model_config = SettingsConfigDict(
                 toml_file=tempf.name,
                 env_nested_delimiter="_",
+                env_nested_max_split=1,
             )
 
         yield TestSettings, tempf
@@ -70,9 +82,25 @@ def test_default_settings(setup_test_settings):
 
     assert isinstance(settings.models.cache_dir, pathlib.Path)
     assert settings.models.max_actors == 5
+    assert settings.models.max_gpu_actors is None
+    assert settings.models.force_num_gpus is False
+    assert settings.models.load_safetensors_only is False
+
+    assert settings.models.local_load_enabled is True
+
+    assert settings.models.gitlab_load_enabled is True
+    assert settings.models.gitlab_url is None
+    assert settings.models.gitlab_token is None
+    assert settings.models.gitlab_project_id is None
+
+    assert settings.models.huggingface_load_enabled is True
+    assert settings.models.huggingface_userspace is None
 
 
-def test_env_overrides_simple_nested_fields(monkeypatch, setup_test_settings):
+def test_env_overrides_simple_nested_fields(
+    monkeypatch,
+    setup_test_settings,
+):
     TestSettings, _ = setup_test_settings
 
     monkeypatch.setenv("SERVER_HOST", "0.0.0.0")
@@ -94,13 +122,21 @@ def test_env_overrides_simple_nested_fields(monkeypatch, setup_test_settings):
     assert settings.sal.host == "https://sal.example.com"
 
 
-def test_env_overrides_fields_with_underscores(monkeypatch, setup_test_settings):
+def test_env_overrides_fields_with_underscores(
+    monkeypatch,
+    setup_test_settings,
+):
     TestSettings, _ = setup_test_settings
 
-    monkeypatch.setenv("DATABASE_MONGO_URL", "mongodb://user:pass@mongo:27017")
+    monkeypatch.setenv(
+        "DATABASE_MONGO_URL",
+        "mongodb://user:pass@mongo:27017",
+    )
     monkeypatch.setenv("UDA_META_PLUGINNAME", "TEST_META")
     monkeypatch.setenv("UDA_METANEW_PLUGINNAME", "TEST_METANEW")
     monkeypatch.setenv("MODELS_MAX_ACTORS", "10")
+    monkeypatch.setenv("MODELS_MAX_GPU_ACTORS", "2")
+    monkeypatch.setenv("MODELS_FORCE_NUM_GPUS", "true")
 
     settings = TestSettings()
 
@@ -108,6 +144,8 @@ def test_env_overrides_fields_with_underscores(monkeypatch, setup_test_settings)
     assert settings.uda.meta_pluginname == "TEST_META"
     assert settings.uda.metanew_pluginname == "TEST_METANEW"
     assert settings.models.max_actors == 10
+    assert settings.models.max_gpu_actors == 2
+    assert settings.models.force_num_gpus is True
 
 
 def test_toml_loading(setup_test_settings):
@@ -135,6 +173,18 @@ def test_toml_loading(setup_test_settings):
         [models]
         cache_dir = "/tmp/toktagger-models"
         max_actors = 3
+        max_gpu_actors = 2
+        force_num_gpus = true
+        load_safetensors_only = true
+        local_load_enabled = false
+
+        gitlab_load_enabled = false
+        gitlab_url = "https://gitlab.example.com"
+        gitlab_token = "toml-token"
+        gitlab_project_id = 456
+
+        huggingface_load_enabled = false
+        huggingface_userspace = "toml-userspace"
         """
     )
     toml_file.flush()
@@ -156,9 +206,24 @@ def test_toml_loading(setup_test_settings):
 
     assert settings.models.cache_dir == pathlib.Path("/tmp/toktagger-models")
     assert settings.models.max_actors == 3
+    assert settings.models.max_gpu_actors == 2
+    assert settings.models.force_num_gpus is True
+    assert settings.models.load_safetensors_only is True
+    assert settings.models.local_load_enabled is False
+
+    assert settings.models.gitlab_load_enabled is False
+    assert settings.models.gitlab_url == "https://gitlab.example.com"
+    assert settings.models.gitlab_token == "toml-token"
+    assert settings.models.gitlab_project_id == 456
+
+    assert settings.models.huggingface_load_enabled is False
+    assert settings.models.huggingface_userspace == "toml-userspace"
 
 
-def test_env_takes_precedence_over_toml(monkeypatch, setup_test_settings):
+def test_env_takes_precedence_over_toml(
+    monkeypatch,
+    setup_test_settings,
+):
     TestSettings, toml_file = setup_test_settings
 
     toml_file.write(
@@ -200,7 +265,8 @@ def test_env_and_toml_applied(monkeypatch, setup_test_settings):
 
 
 def test_init_kwargs_take_precedence_over_env_and_toml(
-    monkeypatch, setup_test_settings
+    monkeypatch,
+    setup_test_settings,
 ):
     TestSettings, toml_file = setup_test_settings
 
@@ -234,6 +300,24 @@ def test_invalid_models_max_actors_rejected(setup_test_settings):
         TestSettings(models={"max_actors": 0})
 
 
+def test_invalid_models_max_gpu_actors_rejected(setup_test_settings):
+    TestSettings, _ = setup_test_settings
+
+    with pytest.raises(pydantic.ValidationError):
+        TestSettings(models={"max_gpu_actors": 0})
+
+
+def test_invalid_gitlab_project_id_rejected(setup_test_settings):
+    TestSettings, _ = setup_test_settings
+
+    with pytest.raises(pydantic.ValidationError):
+        TestSettings(
+            models={
+                "gitlab_project_id": "not-an-integer",
+            }
+        )
+
+
 def test_invalid_server_port_rejected(setup_test_settings):
     TestSettings, _ = setup_test_settings
 
@@ -241,7 +325,10 @@ def test_invalid_server_port_rejected(setup_test_settings):
         TestSettings(server={"port": "not-a-port"})
 
 
-def test_path_env_vars_are_converted_to_paths(monkeypatch, setup_test_settings):
+def test_path_env_vars_are_converted_to_paths(
+    monkeypatch,
+    setup_test_settings,
+):
     TestSettings, _ = setup_test_settings
 
     monkeypatch.setenv("SERVER_CACHE_DIR", "/tmp/server-cache")
@@ -254,12 +341,12 @@ def test_path_env_vars_are_converted_to_paths(monkeypatch, setup_test_settings):
 
 
 def test_create_toml():
-    # Create template with defaults
-    with tempfile.TemporaryDirectory() as file:
-        create_default_toml_file(pathlib.Path(file).joinpath("example.toml"))
+    with tempfile.TemporaryDirectory() as directory:
+        example_path = pathlib.Path(directory).joinpath("example.toml")
 
-        # Check it can be loaded as toml
-        with pathlib.Path(file).joinpath("example.toml").open("rb") as toml_file:
+        create_default_toml_file(example_path)
+
+        with example_path.open("rb") as toml_file:
             example_toml = tomllib.load(toml_file)
 
         assert all(

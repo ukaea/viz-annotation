@@ -36,8 +36,7 @@ from toktagger.api.schemas.samples import (
     TimeSeriesFileData,
 )
 
-# Set up UDA environment variables with defaults if not already set. This is required for
-# the pyuda client to work correctly outside of Freia.
+# Set UDA env var defaults so the pyuda client works correctly outside of Freia.
 os.environ["UDA_HOST"] = os.environ.get("UDA_HOST", config.settings.uda.host)
 os.environ["UDA_META_PLUGINNAME"] = os.environ.get(
     "UDA_META_PLUGINNAME", config.settings.uda.meta_pluginname
@@ -46,8 +45,7 @@ os.environ["UDA_METANEW_PLUGINNAME"] = os.environ.get(
     "UDA_METANEW_PLUGINNAME", config.settings.uda.metanew_pluginname
 )
 
-# Setup SAL environment variables with defaults if not already set. This is required for
-# the SAL client to work correctly.
+# Set SAL env var defaults so the SAL client works correctly.
 os.environ["SAL_HOST"] = os.environ.get("SAL_HOST", config.settings.sal.host)
 
 
@@ -466,10 +464,7 @@ class UDACameraDataLoader(DataLoader):
                 else:
                     image_array = image_array.reshape(-1, 1)  # 1D grayscale strip
 
-            # Convert uint16 to uint8 for Pillow compatibility (Pillow doesn't support u2).
-            # Scale using the camera's declared bit depth (not the per-frame min/max) so
-            # brightness stays consistent across frames, e.g. RCO reports depth=8 even
-            # though UDA returns a uint16 array for shot 54339.
+            # Convert uint16 to uint8, scaled by the camera's declared bit depth.
             if image_array.dtype == np.uint16:
                 bit_depth = signal["data"].attrs.get("depth")
                 if bit_depth:
@@ -561,7 +556,9 @@ def _get_sal_signal(
     min_time_step: float | None = None,
 ) -> Profile2DData | TimeSeriesData:
     full_name = f"pulse/{shot_id}/{name}"
-    ds = xr.open_dataset(f"sal://{full_name}", engine="sal")
+    ds = xr.open_dataset(
+        f"sal://{full_name}", engine="sal", host=os.environ["SAL_HOST"]
+    )
     ds = ds.sel(time=slice(time_min, time_max))
 
     time = ds["time"].values
@@ -629,8 +626,7 @@ def _get_fair_mast_signals(
     min_time_step: float | None = None,
 ) -> MultiVariateTimeSeriesData | MultiProfile2DData:
     kwargs = {"chunks": None}
-    # check if xarray version supports create_default_indexes argument, and if so, set it to False
-    # to avoid unnecessary index creation which can cause performance issues with large datasets
+    # Disable default index creation if supported, to avoid performance issues on large datasets
     sig = inspect.signature(xr.open_dataset)
     if "create_default_indexes" in sig.parameters:
         kwargs["create_default_indexes"] = False

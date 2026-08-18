@@ -15,6 +15,7 @@ import { BoundingBox } from "@/app/components/tools/boundingBox";
 import { Polygon } from "@/app/components/tools/polygon";
 import { AnnotationToolbar } from "@/app/components/tools/annotationToolbar";
 import { AnnotationsTable } from "@/app/components/ui/annotationsTable";
+import "react-contexify/ReactContexify.css";
 import { useSample } from "@/app/contexts/SampleContext";
 import { useElementHeight } from "@/app/hooks/useElementHeight";
 import { useEffect, useMemo, useState } from "react";

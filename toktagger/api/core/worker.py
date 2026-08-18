@@ -5,7 +5,6 @@ import shutil
 
 import pydantic
 import ray
-from platformdirs import user_cache_dir
 from pydantic import ValidationError
 from ray.exceptions import ActorDiedError
 
@@ -14,26 +13,28 @@ from toktagger.api.core.sender import (
     send_batch_samples,
     send_model_updates,
 )
+from toktagger.api.models.loaders import (
+    GitlabLoader,
+    HuggingfaceLoader,
+    LocalLoader,
+)
 from toktagger.api.schemas.annotations import (
     AnnotationBatchTypeAdapter,
     AnnotationOutTypes,
 )
 from toktagger.api.schemas.data import DataParamTypes
-from toktagger.api.schemas.models import Model, ModelUpdate
+from toktagger.api.schemas.models import (
+    GitlabLoadParams,
+    HuggingfaceLoadParams,
+    LocalLoadParams,
+    Model,
+    ModelUpdate,
+)
 from toktagger.api.schemas.projects import Project
 from toktagger.api.schemas.samples import Sample, SampleUpdate, SampleUpdateBatchItem
 
 logger = logging.getLogger("ray")
 logger.setLevel("DEBUG")
-
-models_dir_default = pathlib.Path(user_cache_dir("toktagger", "ukaea")).joinpath(
-    "models"
-)
-models_dir_default.mkdir(parents=True, exist_ok=True)
-
-# Set model storage to default path if not already set
-# Note that we still use env vars here since this is inside a worker node...
-os.environ["MODEL_STORAGE"] = os.environ.get("MODEL_STORAGE", str(models_dir_default))
 
 
 def get_actor(project: Project, model: Model, use_gpu: bool):
@@ -82,55 +83,39 @@ def get_actor(project: Project, model: Model, use_gpu: bool):
 
 
 @ray.remote(num_cpus=0.1)
-def load_model(
-    model: Model, project: Project, weights_path: pathlib.Path
+def load_model_local(
+    model: Model, project: Project, params: LocalLoadParams
 ) -> dict[str : str | None]:
-    # Change status to started
-    send_model_updates(
-        project_id=project.id,
-        model_id=model.id,
-        updates=ModelUpdate(training_status="started"),
-    )
-
-    # Check worker can see weights file
-    if not weights_path.exists():
-        send_model_updates(
-            project_id=project.id,
-            model_id=model.id,
-            updates=ModelUpdate(training_status="failed"),
-        )
-        return {
-            "project_id": project.id,
-            "model_id": model.id,
-            "message": f"Worker node cannot find weights file at location {weights_path}",
-        }
     model_actor = get_actor(project=project, model=model, use_gpu=False)
-    # Try loading actor with weights file, catch and reraise any errors
-    try:
-        load_temp_weights_task = model_actor.wrapped_load.remote(
-            results_dir=weights_path.parent, weights_filename=weights_path.name
-        )
-        ray.get(load_temp_weights_task)
-    except Exception as e:  # noqa: BLE001 -- reported via the return value, not re-raised
-        logger.error(e)
-        send_model_updates(
-            project_id=project.id,
-            model_id=model.id,
-            updates=ModelUpdate(training_status="failed"),
-        )
-        return {
-            "project_id": project.id,
-            "model_id": model.id,
-            "message": f"Failed to load weights - {e!s}",
-        }
+    loader = LocalLoader(
+        project=project,
+        model=model,
+        model_actor=model_actor,
+        params=params,
+    )
+    return loader.load()
 
-    # Save the model with the correct dir path
-    results_dir = pathlib.Path(os.environ["MODEL_STORAGE"]).joinpath(str(model.id))
 
-    save_weights_task = model_actor.wrapped_save.remote(results_dir)
-    ray.get(save_weights_task)
+@ray.remote(num_cpus=0.1)
+def load_model_gitlab(
+    model: Model, project: Project, params: GitlabLoadParams
+) -> tuple[str, str | None]:
+    model_actor = get_actor(project=project, model=model, use_gpu=False)
+    loader = GitlabLoader(
+        project=project, model=model, model_actor=model_actor, params=params
+    )
+    return loader.load()
 
-    return {"project_id": project.id, "model_id": model.id, "message": None}
+
+@ray.remote(num_cpus=0.1)
+def load_model_huggingface(
+    model: Model, project: Project, params: HuggingfaceLoadParams
+) -> tuple[str, str | None]:
+    model_actor = get_actor(project=project, model=model, use_gpu=False)
+    loader = HuggingfaceLoader(
+        project=project, model=model, model_actor=model_actor, params=params
+    )
+    return loader.load()
 
 
 @ray.remote(num_cpus=0.1)
@@ -143,10 +128,15 @@ def train_model(
     use_gpu: bool = False,
 ):  # TODO: do we want to support retraining where we only get annotations not previously put into model?
     model_actor = get_actor(project=project, model=model, use_gpu=use_gpu)
-    results_dir = pathlib.Path(os.environ["MODEL_STORAGE"]).joinpath(str(model.id))
+
+    if not (models_dir := os.environ.get("MODEL_STORAGE")):
+        raise ValueError("Model storage directory not provided to worker node.")
+    results_dir = pathlib.Path(models_dir).joinpath(str(model.id))
+    results_dir.mkdir(parents=True)
+
     try:
         logger.info(f"Running model training for project {project.id}")
-        model_actor.log_progress.remote(training_status="started", progress=0)
+        model_actor.log_progress.remote(status="training", progress=0)
         train_task = model_actor.wrapped_train.remote(
             samples=samples, annotations=annotations, params=params
         )
@@ -160,7 +150,7 @@ def train_model(
         send_model_updates(
             project_id=project.id,
             model_id=model.id,
-            updates=ModelUpdate(training_status="completed", progress=100, score=score),
+            updates=ModelUpdate(status="completed", progress=100, score=score),
         )
 
         return {"project_id": project.id, "model_id": model.id, "score": score}
@@ -173,7 +163,7 @@ def train_model(
         send_model_updates(
             project_id=project.id,
             model_id=model.id,
-            updates=ModelUpdate(training_status="failed"),
+            updates=ModelUpdate(status="failed"),
         )
 
         # Also delete directory of results, if it has already been created

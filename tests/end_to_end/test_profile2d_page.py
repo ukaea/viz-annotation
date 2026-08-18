@@ -43,7 +43,7 @@ def get_dragmode(page: Page) -> str:
     )
 
 
-def add_bounding_box(page: Page, label: str = "NTM", offset: int = 150) -> None:
+def add_bounding_box(page: Page, label: str = "NTM") -> None:
     # Enter edit mode, pick the bounding box tool + a label, then Ctrl-drag a box on the heatmap subplot.
     page.get_by_role("button", name="View Mode").click()
     page.locator("body").click()
@@ -53,17 +53,29 @@ def add_bounding_box(page: Page, label: str = "NTM", offset: int = 150) -> None:
     page.get_by_test_id("popover").get_by_text(label).click()
     expect(page.get_by_test_id("select-annotation-label")).to_contain_text(label)
 
-    box = page.get_by_label("profile-2d").bounding_box()
+    expect(page.get_by_label("profile-2d")).to_be_visible()
+    expect(page.locator(".nsewdrag")).to_have_count(
+        2
+    )  # One for each subplot, indicates ready to draw
+
+    box = page.locator(".nsewdrag").first.bounding_box()
     assert box is not None
+
     # Start in the upper-left of the heatmap
     start_x = box["x"] + box["width"] * 0.35
     start_y = box["y"] + box["height"] * 0.35
+    end_x = box["x"] + box["width"] * 0.5
+    end_y = box["y"] + box["height"] * 0.5
 
     page.mouse.move(start_x, start_y)
     page.keyboard.down("Control")
     page.mouse.down()
-    page.mouse.move(start_x + offset, start_y + offset, steps=20)
+    page.mouse.move(end_x, end_y, steps=20)
     page.mouse.up()
+
+    expect(page.get_by_label("bounding-box")).to_have_count(1)
+    expect(page.get_by_role("gridcell", name=label)).to_be_visible()
+
     page.keyboard.up("Control")
 
     page.get_by_role("button", name="Edit Mode").click()
@@ -74,7 +86,6 @@ def add_time_annotation(
     page: Page,
     annotation_type: Literal["TIME REGION", "TIME POINT"],
     label: str,
-    offset: int = 150,
 ) -> None:
     # Unlike add_bounding_box, Time Region/Time Point aren't restricted to the heatmap subplot.
     page.get_by_role("button", name="View Mode").click()
@@ -85,16 +96,32 @@ def add_time_annotation(
     page.get_by_test_id("popover").get_by_text(label).click()
     expect(page.get_by_test_id("select-annotation-label")).to_contain_text(label)
 
-    box = page.get_by_label("profile-2d").bounding_box()
+    expect(page.get_by_label("profile-2d")).to_be_visible()
+    expect(page.locator(".nsewdrag")).to_have_count(
+        2
+    )  # One for each subplot, indicates ready to draw
+
+    box = page.locator(".nsewdrag").first.bounding_box()
     assert box is not None
-    start_x = box["x"] + box["width"] / 2
-    start_y = box["y"] + box["height"] / 2
+
+    start_x = box["x"] + box["width"] * 0.5
+    start_y = box["y"] + box["height"] * 0.5
+    end_x = box["x"] + box["width"] * 0.7
 
     page.mouse.move(start_x, start_y)
     page.keyboard.down("Control")
     page.mouse.down()
-    page.mouse.move(start_x + offset, start_y, steps=20)
+    if annotation_type == "TIME REGION":
+        page.mouse.move(end_x, start_y, steps=20)
     page.mouse.up()
+    # Time Region / Point renders once per subplot (heatmap + integrated).
+    expect(
+        page.get_by_label(
+            "time-zone" if annotation_type == "TIME REGION" else "time-point"
+        )
+    ).to_have_count(2)
+    expect(page.get_by_role("gridcell", name=label)).to_be_visible()
+
     page.keyboard.up("Control")
 
     page.get_by_role("button", name="Edit Mode").click()
@@ -149,7 +176,9 @@ def test_profile2d_saved_threshold_annotations_persist(server_setup, page: Page)
         page.get_by_role("button", name="Save").click(force=True)
 
     # Toggle the annotator off - the saved annotations must remain on the plot.
-    page.get_by_role("switch", name="Thresholding").click(force=True)
+    page.get_by_role("switch", name="Thresholding").click()
+    print("here")
+    expect(page.get_by_role("switch", name="Thresholding")).not_to_be_checked()
     expect(page.get_by_label("polygon")).to_have_count(enabled_count)
 
     # They should be stored as validated, keeping the annotator as their creator.
@@ -209,14 +238,7 @@ def test_profile2d_save_time_annotations(server_setup, page: Page):
     project_id, sample_id, _reload = setup_project(page)
 
     add_time_annotation(page, "TIME REGION", "NTM")
-    # Time Region/Time Point render once per subplot, and profile2d has two (heatmap + integrated).
-    expect(page.get_by_label("time-zone")).to_have_count(2)
-
-    add_time_annotation(page, "TIME POINT", "Disruption", offset=-150)
-    expect(page.get_by_label("time-point")).to_have_count(2)
-
-    expect(page.get_by_role("gridcell", name="NTM")).to_be_visible()
-    expect(page.get_by_role("gridcell", name="Disruption")).to_be_visible()
+    add_time_annotation(page, "TIME POINT", "Disruption")
 
     # Drawing debounces its sync into the sample's annotation list by 100ms
     # (see TimeSeriesContext's syncTimeoutRef) with no network activity to
@@ -254,8 +276,6 @@ def test_profile2d_annotations_locked_in_view_mode(server_setup, page: Page):
     setup_project(page)
 
     add_time_annotation(page, "TIME REGION", "NTM")
-    # Time Region renders once per subplot (heatmap + integrated).
-    expect(page.get_by_label("time-zone")).to_have_count(2)
     # add_time_annotation leaves us back in View Mode.
 
     bounds_before = (
@@ -288,8 +308,6 @@ def test_profile2d_edit_mode_relabel_and_delete(server_setup, page: Page):
     setup_project(page)
 
     add_time_annotation(page, "TIME REGION", "NTM")
-    expect(page.get_by_label("time-zone")).to_have_count(2)
-    expect(page.get_by_role("gridcell", name="NTM")).to_be_visible()
 
     # add_time_annotation leaves us in View Mode - switch back into Edit Mode.
     page.get_by_role("button", name="View Mode").click()
@@ -297,7 +315,7 @@ def test_profile2d_edit_mode_relabel_and_delete(server_setup, page: Page):
     expect(page.get_by_role("button", name="Edit Mode")).to_be_enabled()
 
     # Move to "Set type" manually - Locator.hover()'s scroll-into-view closes this CSS-hover menu.
-    page.get_by_label("time-zone").first.click(button="right")
+    page.get_by_label("time-zone").first.click(button="right", force=True)
     expect(page.get_by_role("menuitem", name="Delete")).to_be_visible()
     set_type = page.get_by_role("menuitem", name="Set type")
     set_type_box = set_type.bounding_box()
@@ -320,7 +338,7 @@ def test_profile2d_edit_mode_relabel_and_delete(server_setup, page: Page):
     expect(page.get_by_role("gridcell", name="NTM", exact=True)).to_have_count(0)
 
     # Delete it.
-    page.get_by_label("time-zone").first.click(button="right")
+    page.get_by_label("time-zone").first.click(button="right", force=True)
     expect(page.get_by_role("menuitem", name="Delete")).to_be_visible()
     page.get_by_role("menuitem", name="Delete").click(force=True)
 

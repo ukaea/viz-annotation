@@ -238,6 +238,17 @@ async def update_annotations(
             # saving user's identity. Apply a targeted in-place edit instead, which
             # keeps the original author.
             if not is_internal and annotation.created_by != current_user.username:
+                # A machine-authored suggestion (annotators::/model::) is not the
+                # caller's to change. The UI still lets them drag or relabel one
+                # locally, but that is a view-level tweak: persisting it would
+                # silently rewrite the suggestion this run produced, so drop it and
+                # leave the stored row alone. A *human* co-author's annotation is
+                # editable in place - a shared sample is meant to be worked on
+                # together - keeping its original author.
+                if (annotation.created_by or "").startswith(
+                    RESERVED_CREATED_BY_PREFIXES
+                ):
+                    continue
                 await utils.update_annotation_by_id(
                     db_client=db_client,
                     project_id=project_id,

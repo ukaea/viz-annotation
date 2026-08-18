@@ -1,6 +1,7 @@
 import { Project, TaskType } from "@/types";
 import {
   Button,
+  ActionButton,
   ButtonGroup,
   Content,
   Dialog,
@@ -25,7 +26,7 @@ import {
 import AddCircle from "@spectrum-icons/workflow/AddCircle";
 import Edit from "@spectrum-icons/workflow/EditCircle";
 import { useState, useEffect } from "react";
-import { BACKEND_API_URL } from "@/app/core";
+import { BACKEND_API_URL, apiFetch } from "@/app/core";
 import { useAPISchema } from "@/app/contexts/apiSchema";
 import { SchemaParser } from "@/schemaParser";
 
@@ -174,7 +175,7 @@ export function ProjectConfigEditor({
   useEffect(() => {
     async function fetchDataLoaders() {
       try {
-        const response = await fetch(`${BACKEND_API_URL}/meta/dataloader`);
+        const response = await apiFetch(`${BACKEND_API_URL}/meta/dataloader`);
         if (response.ok) {
           const dataLoadersList = await response.json();
           const loaders = dataLoadersList.map((item: string) => ({
@@ -242,7 +243,7 @@ export function ProjectConfigEditor({
       }
 
       // Create project via API
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method: method,
         headers: {
           "Content-Type": "application/json",
@@ -271,13 +272,16 @@ export function ProjectConfigEditor({
 
   return (
     <DialogTrigger>
-      <Button
-        aria-label={isEditing ? "Edit" : buttonText}
-        variant={isEditing ? "accent" : "primary"}
-      >
-        {icon}
-        {!isEditing ? <Text>{buttonText}</Text> : <></>}
-      </Button>
+      {isEditing ? (
+        <Button aria-label="Edit" variant="accent">
+          {icon}
+        </Button>
+      ) : (
+        <ActionButton isQuiet aria-label={buttonText}>
+          {icon}
+          <Text>{buttonText}</Text>
+        </ActionButton>
+      )}
       {(close) => (
         <Dialog>
           <Heading>{titleText}</Heading>

@@ -1,10 +1,11 @@
-from pathlib import Path
-import pymongo
-import pydantic
 import typing
-from bson.objectid import ObjectId
+from pathlib import Path
 
+import pydantic
+import pymongo
+from bson.objectid import ObjectId
 from platformdirs import user_cache_dir
+
 from toktagger.api.crud.mongita_client import AsyncMongitaClient
 
 DATABASE_NAME = "event_db"
@@ -19,17 +20,22 @@ class MongoDBClient:
             # Use mongodb (expects running instance of mongodb at this address)
             self.client = pymongo.AsyncMongoClient(url)
         else:
-            if not cache_dir:
-                cache_dir = user_cache_dir("toktagger", "ukaea")
-            cache_dir = Path(cache_dir)
-            cache_dir.mkdir(parents=True, exist_ok=True)
-            file_name = cache_dir / db_name
-            self.client = AsyncMongitaClient(file_name)
+            # File-path mode (embedded Mongita): store data under cache_dir if given,
+            # otherwise the platform-specific user cache directory.
+            base_dir = (
+                Path(cache_dir)
+                if cache_dir
+                else Path(user_cache_dir("toktagger", "ukaea"))
+            )
+            base_dir.mkdir(parents=True, exist_ok=True)
+            self.client = AsyncMongitaClient(str(base_dir / db_name))
         self.db = self.client[db_name]
 
     async def insert(
         self,
-        collection: typing.Literal["projects", "annotations", "models", "samples"],
+        collection: typing.Literal[
+            "projects", "annotations", "models", "samples", "users", "project_members"
+        ],
         model: T,
         ids: dict[str, ObjectId] | None = None,
     ):
@@ -41,9 +47,11 @@ class MongoDBClient:
 
     async def insert_many(
         self,
-        collection: typing.Literal["projects", "annotations", "models", "samples"],
+        collection: typing.Literal[
+            "projects", "annotations", "models", "samples", "users", "project_members"
+        ],
         models: list[T],
-        ids: typing.Union[dict, list[dict]] | None = None,
+        ids: dict | list[dict] | None = None,
     ):
         ids = ids or {}
         documents = [model.model_dump(mode="python") for model in models]
@@ -62,7 +70,9 @@ class MongoDBClient:
 
     async def update(
         self,
-        collection: typing.Literal["projects", "annotations", "models", "samples"],
+        collection: typing.Literal[
+            "projects", "annotations", "models", "samples", "users", "project_members"
+        ],
         model: T,
         object_id: ObjectId,
     ):
@@ -81,7 +91,9 @@ class MongoDBClient:
 
     async def get_document_by_id(
         self,
-        collection: typing.Literal["projects", "annotations", "models", "samples"],
+        collection: typing.Literal[
+            "projects", "annotations", "models", "samples", "users", "project_members"
+        ],
         object_id: ObjectId,
     ):
         return await self.db[collection].find_one({"_id": object_id})
@@ -94,8 +106,10 @@ class MongoDBClient:
 
     async def get_filtered_documents(
         self,
-        collection: typing.Literal["projects", "annotations", "models", "samples"],
-        filters: dict = {},
+        collection: typing.Literal[
+            "projects", "annotations", "models", "samples", "users", "project_members"
+        ],
+        filters: dict | None = None,
         sort_by: str = "_id",
         sort_direction: typing.Literal["ascending", "descending"] = "descending",
         start=0,
@@ -105,7 +119,7 @@ class MongoDBClient:
             pymongo.ASCENDING if sort_direction == "ascending" else pymongo.DESCENDING
         )
         documents = self.db[collection].find(
-            filters,
+            filters or {},
             sort=[(sort_by, direction)],
             skip=start,
             limit=limit,
@@ -114,10 +128,12 @@ class MongoDBClient:
 
     async def delete_filtered_documents(
         self,
-        collection: typing.Literal["projects", "annotations", "models", "samples"],
-        filters: dict = {},
+        collection: typing.Literal[
+            "projects", "annotations", "models", "samples", "users", "project_members"
+        ],
+        filters: dict | None = None,
     ):
-        return await self.db[collection].delete_many(filters)
+        return await self.db[collection].delete_many(filters or {})
 
 
 # Notes to self

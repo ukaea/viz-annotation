@@ -1,8 +1,9 @@
 from datetime import datetime
-from pydantic import BaseModel, Field, model_validator, ConfigDict
-from bson.objectid import ObjectId
+
 from bson.errors import InvalidId
+from bson.objectid import ObjectId
 from fastapi import HTTPException
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ConfiguredModel(BaseModel):
@@ -13,9 +14,18 @@ class ConfiguredModel(BaseModel):
 
     @model_validator(mode="before")
     def convert_objectid(cls, values):
-        for key in ("_id", "project_id", "sample_id"):
-            if key in values:
-                values[key] = str(values.get(key))
+        # Only runs against a raw dict (e.g. incoming request JSON or a DB
+        # document) - an already-constructed model instance (e.g. during response
+        # serialization) is left untouched, same as before this narrowed from a
+        # bare `key in values` check.
+        if isinstance(values, dict):
+            for key in ("_id", "project_id", "sample_id"):
+                # Only stringify a real value - str(None) is the string "None",
+                # which would corrupt an explicit null into a truthy value on
+                # fields like AnnotationBatch.id, where callers rely on it being
+                # None to mean "no id yet".
+                if values.get(key) is not None:
+                    values[key] = str(values[key])
         return values
 
     model_config = ConfigDict(

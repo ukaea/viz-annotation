@@ -1,4 +1,34 @@
+import warnings
+
 import pytest
+
+from toktagger.api.main import Server
+
+
+def test_openapi_schema_has_no_duplicate_operation_ids():
+    """The SPA catch-all routes must be excluded from the OpenAPI schema.
+
+    They are registered as single multi-method routes, so FastAPI would otherwise
+    reuse one operation ID across every method and warn about duplicates when the
+    schema is generated.
+    """
+    server = Server()
+    server._setup_app()
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        schema = server.app.openapi()
+
+    duplicate_warnings = [
+        str(w.message) for w in caught if "Duplicate Operation ID" in str(w.message)
+    ]
+    assert duplicate_warnings == []
+
+    # Catch-all SPA routes are excluded from the schema; real operations remain.
+    paths = schema["paths"]
+    assert "/" not in paths
+    assert "/{full_path}" not in paths
+    assert "/health" in paths
 
 
 @pytest.mark.asyncio

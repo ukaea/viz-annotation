@@ -31,6 +31,8 @@ export function VideoNavAdapterBridge({
         return { ...annotation };
       });
     },
+    // Frame-scoped, so it ignores includeOthers: Clear here means "clear the frame on
+    // screen", and a frame's annotations are only ever the ones being drawn on it.
     clear: () => {
       session.clearCurrentFrame();
     },

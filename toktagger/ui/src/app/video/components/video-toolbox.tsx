@@ -188,6 +188,7 @@ export function VideoToolbox() {
     class_name?: string;
     track_id?: string;
   }) => {
+    if (!session.canAnnotate) return;
     const cls = (profile.class_name || "").trim();
     const tid = canonicalizeTrackId(profile.track_id || "");
     if (!cls || !tid) return;
@@ -205,7 +206,10 @@ export function VideoToolbox() {
     setPendingDeleteInstance(null);
   };
 
-  const onRequestDeleteAllInstances = () => setConfirmClearAllOpen(true);
+  const onRequestDeleteAllInstances = () => {
+    if (!session.canAnnotate) return;
+    setConfirmClearAllOpen(true);
+  };
 
   const confirmClearAll = () => {
     setConfirmClearAllOpen(false);
@@ -273,6 +277,7 @@ export function VideoToolbox() {
             onRequestDeleteAllInstances={onRequestDeleteAllInstances}
             profileCounts={profileCounts}
             showCreator={false}
+            canAnnotate={session.canAnnotate}
             classItems={classItems}
           />
         </div>

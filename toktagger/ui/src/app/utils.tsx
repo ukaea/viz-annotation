@@ -104,6 +104,7 @@ export function convertRawAnnotationsToTimeSeries(
     const timeRegion = TimeRegionSchema.parse(annotation);
     return {
       id: uuidv4(),
+      db_id: timeRegion._id,
       created_by: timeRegion.created_by,
       label: timeRegion.label,
       signal_name: timeRegion.signal_name,
@@ -120,6 +121,7 @@ export function convertRawAnnotationsToTimeSeries(
     const timePoint = TimePointSchema.parse(annotation);
     return {
       id: uuidv4(),
+      db_id: timePoint._id,
       created_by: timePoint.created_by,
       label: timePoint.label,
       signal_name: timePoint.signal_name,
@@ -133,6 +135,7 @@ export function convertRawAnnotationsToTimeSeries(
     const boundingBox = BoundingBoxSchema.parse(annotation);
     return {
       id: uuidv4(),
+      db_id: boundingBox._id,
       created_by: boundingBox.created_by,
       label: boundingBox.label,
       signal_name: boundingBox.signal_name,
@@ -152,6 +155,7 @@ export function convertRawAnnotationsToTimeSeries(
     const polygon = PolygonSchema.parse(annotation);
     return {
       id: uuidv4(),
+      db_id: polygon._id,
       created_by: polygon.created_by,
       label: polygon.label,
       signal_name: polygon.signal_name,
@@ -183,6 +187,7 @@ export function convertTimeSeriesToRawAnnotations(
 ): Annotation | null {
   if (annotation.type === TimeSeriesAnnotationType.TIME_POINT) {
     const timePoint: TimePoint = {
+      _id: annotation.db_id,
       project_id: null,
       sample_id: null,
       validated: false,
@@ -198,6 +203,7 @@ export function convertTimeSeriesToRawAnnotations(
 
   if (annotation.type === TimeSeriesAnnotationType.TIME_REGION) {
     const timePoint: TimeRegion = {
+      _id: annotation.db_id,
       project_id: null,
       sample_id: null,
       validated: false,
@@ -214,6 +220,7 @@ export function convertTimeSeriesToRawAnnotations(
 
   if (annotation.type === TimeSeriesAnnotationType.BOUNDING_BOX) {
     const boundingBox: BoundingBox = {
+      _id: annotation.db_id,
       project_id: null,
       sample_id: null,
       validated: false,
@@ -232,6 +239,7 @@ export function convertTimeSeriesToRawAnnotations(
 
   if (annotation.type === TimeSeriesAnnotationType.POLYGON) {
     const polygon: Polygon = {
+      _id: annotation.db_id,
       project_id: null,
       sample_id: null,
       validated: false,

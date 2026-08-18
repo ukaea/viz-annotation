@@ -1,23 +1,35 @@
-from fastapi import APIRouter, Request, HTTPException
-from toktagger.api.schemas.projects import Project, Task
-from toktagger.api.schemas.samples import Sample
-from toktagger.api.schemas.data import DataParamTypes
+from fastapi import APIRouter, Depends, HTTPException, Request
+
+from toktagger.api.auth.dependencies import (
+    get_current_user,
+    require_project_annotator,
+    require_project_viewer,
+)
+from toktagger.api.core.annotators import ANNOTATORS, ANNOTATORS_PER_TASK
+from toktagger.api.core.data_loaders import LoaderRegistry
+from toktagger.api.crud.utils import get_project, get_sample
 from toktagger.api.schemas.annotators import (
     AnnotatorParamTypes,
     AnnotatorTypes,
 )
-from toktagger.api.crud.utils import get_project, get_sample
-from toktagger.api.core.annotators import ANNOTATORS, ANNOTATORS_PER_TASK
-from toktagger.api.core.data_loaders import LoaderRegistry
+from toktagger.api.schemas.data import DataParamTypes
+from toktagger.api.schemas.projects import Project, Task
+from toktagger.api.schemas.samples import Sample
+from toktagger.api.schemas.users import UserOut
 
 router = APIRouter(
     prefix="/projects/{project_id}",
     tags=["Annotators"],
+    dependencies=[Depends(get_current_user)],
 )
 
 
 @router.get("/annotator")
-async def get_annotators(request: Request, project_id: str):
+async def get_annotators(
+    request: Request,
+    project_id: str,
+    current_user: UserOut = Depends(require_project_viewer),
+):
     # Dunno if this is of any use
     pass
 
@@ -30,6 +42,7 @@ async def create_annotations(
     annotator_type: AnnotatorTypes,
     annotator_params: AnnotatorParamTypes,
     data_params: DataParamTypes,
+    current_user: UserOut = Depends(require_project_annotator),
 ):
     # Use the specified annotator to label this sample for this project
     # Would use the datapool to load and process the data

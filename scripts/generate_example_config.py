@@ -1,5 +1,6 @@
 import pathlib
 from typing import TextIO
+
 from toktagger.api.config import Settings
 
 

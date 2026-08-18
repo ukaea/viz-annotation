@@ -21,6 +21,7 @@ It currently supports the following features:
 - **Annotation Tools**: Apply consistent labels to signals and images using a customizable tagging system.
 - **ML Models**: Train and infer from ML models within the UI.
 - **Dataset Management**: Organize and manage annotations in a central repository.
+- **Multi-User Support**: Role-based access control with per-project membership, suitable for team annotation workflows.
 - **Extensible API**: A Python API for integrating with existing workflows and tools.
 
 
@@ -56,10 +57,54 @@ uv tool install --python 3.12.6 toktagger[models]
 ```
 
 ## Quick Start
-To get started, run:
+
+To start a local single-user instance:
 
 ```sh
 toktagger
 ```
 
-This will start a local instance of the application running at `http://localhost:8002`.
+This starts a single-process instance at `http://localhost:8002`. On first launch an `admin` account is created automatically and the credentials are printed to the terminal.
+
+### Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--workers N` | `1` | Number of Gunicorn worker processes. If set to 1, runs a single-process uvicorn server instead |
+| `--host HOST` | `localhost` | Host to bind to |
+| `--port PORT` | `8002` | Port to listen on |
+| `--no-browser` | off | Suppress automatic browser launch |
+| `--reload` | off | Auto-reload on code changes (single-worker dev mode only) |
+
+### Development Mode
+
+For local development with automatic reload on code changes, use a single worker:
+
+```sh
+toktagger --workers 1 --reload
+```
+
+### Multi-User / Team Deployment
+
+For server deployments, run with multiple workers and disable the automatic browser launch:
+
+```sh
+toktagger --workers 4 --host 0.0.0.0 --port 8002 --no-browser
+```
+
+Or directly via Gunicorn (use `python -m gunicorn` to ensure the correct virtual environment is used):
+
+```sh
+python -m gunicorn toktagger.api.asgi:app \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --workers 4 \
+    --bind 0.0.0.0:8002
+```
+
+With Docker Compose, the production stack defaults to 4 workers. Override with the `WORKERS` environment variable:
+
+```sh
+WORKERS=8 docker compose up
+```
+
+See the [User Management](docs/user_management.md) guide for creating accounts, assigning roles, and managing project membership.

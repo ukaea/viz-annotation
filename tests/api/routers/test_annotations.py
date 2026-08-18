@@ -106,7 +106,7 @@ async def test_get_annotations_validated(api_client, setup_db):
         setup_db["annotation_id_1"],
         setup_db["annotation_id_2"],
     ]
-    assert all([annotation["validated"] for annotation in returned_annotations])
+    assert all(annotation["validated"] for annotation in returned_annotations)
 
 
 @pytest.mark.asyncio
@@ -232,9 +232,9 @@ async def test_create_annotations(api_client, setup_db, db_client):
     )
     assert response.status_code == 200
 
-    # Check they have been added to database
+    # Check they have been added to database (existing annotations from other users are preserved)
     annotations = await db_client.get_all_documents("annotations")
-    assert len(annotations) == 7
+    assert len(annotations) == 8
     db_annotations = await db_client.get_filtered_documents(
         "annotations", filters={"sample_id": ObjectId(setup_db[sample_id])}
     )
@@ -246,6 +246,8 @@ async def test_create_annotations(api_client, setup_db, db_client):
             if annotation["label"] == in_annotation["label"]
         )
         for key, value in in_annotation.items():
+            if key == "created_by":
+                continue  # server overwrites created_by with authenticated user
             assert db_annotation[key] == value
 
         assert db_annotation.get("timestamp")
@@ -328,12 +330,14 @@ async def test_import_annotations(api_client, setup_db, db_client):
     annotations = await db_client.get_all_documents("annotations")
     assert len(annotations) == 7
 
-    # Verify imported annotations
+    # created_by is overwritten with the authenticated caller (passthrough admin);
+    # the supplied "manual" author is ignored. Only the internal Ray-worker user may
+    # preserve its own created_by.
     db_annotations = await db_client.get_filtered_documents(
         "annotations", filters={"sample_id": ObjectId(setup_db["sample_id_2"])}
     )
     imported_annotations = [
-        ann for ann in db_annotations if ann["created_by"] == "manual"
+        ann for ann in db_annotations if ann["created_by"] == "admin"
     ]
     assert len(imported_annotations) == 2
 

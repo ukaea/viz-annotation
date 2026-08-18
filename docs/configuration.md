@@ -13,6 +13,7 @@ These settings should be defined under the `[server]` heading in the TOML file:
 | host            | SERVER_HOST             | str          | localhost                               | Address of the host to launch TokTagger on.                              |
 | port            | SERVER_PORT             | int          | 8002                                    | The port to use for the TokTagger Rest API.                              |
 | reload          | SERVER_RELOAD           | bool         | False                                   | Whether to hot reload the TokTagger server on changes to files.          |
+| workers         | SERVER_WORKERS          | int          | 1                                        | The number of Gunicorn worker processes to use. If set to 1, runs a single-process uvicorn server instead. |
 | cache_dir       | SERVER_CACHE_DIR        | pathlib.Path | ~/.cache/toktagger                      | The directory to use for storing entries in the Mongita database.        |
 
 ## Database Settings
@@ -21,6 +22,13 @@ These settings should be defined under the `[database]` heading in the TOML file
 | Setting         | Environment Variable    | Type         | Default                                 | Description                                                                                 |
 |-----------------|-------------------------|--------------|-----------------------------------------|---------------------------------------------------------------------------------------------|
 | mongo_url       | DATABASE_MONGO_URL      | str          | ./toktagger_db                          | URL of the MongoDB server to connect to as a backend, by default uses local Mongita client. |
+
+## Auth Settings
+These settings should be defined under the `[auth]` heading in the TOML file:
+
+| Setting         | Environment Variable    | Type         | Default                                 | Description                                                              |
+|-----------------|-------------------------|--------------|-----------------------------------------|--------------------------------------------------------------------------|
+| secret_key      | AUTH_SECRET_KEY         | str          | None                                    | Secret key used to sign auth tokens. If unset, a key is generated and persisted to `secret.key` under the server `cache_dir` on first run. Set this explicitly for multi-worker/multi-process deployments so all processes share the same signing key. |
 
 ## Models Settings
 

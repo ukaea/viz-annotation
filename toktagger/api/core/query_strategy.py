@@ -1,12 +1,10 @@
-from abc import ABC
-from typing import Optional
+import logging
 import random
+from abc import ABC
 
-from toktagger.api.schemas.samples import Sample
 from toktagger.api.schemas.annotations import Annotation
 from toktagger.api.schemas.projects import QueryStrategyType
-
-import logging
+from toktagger.api.schemas.samples import Sample
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +15,7 @@ class QueryStrategy(ABC):
     def __init__(
         self,
         samples: list[Sample],
-        annotations: Optional[list[Annotation]] = None,
+        annotations: list[Annotation] | None = None,
     ):
         self.samples = samples
         self.annotations = annotations if annotations is not None else []
@@ -88,7 +86,7 @@ class RandomQueryStrategy(QueryStrategy):
     def __init__(
         self,
         samples: list[Sample],
-        annotations: Optional[list[Annotation]] = None,
+        annotations: list[Annotation] | None = None,
         seed: int = 42,
     ):
         # Get list of non-validated samples and shuffle
@@ -114,7 +112,7 @@ class UncertaintyQueryStrategy(RandomQueryStrategy):
     def __init__(
         self,
         samples: list[Sample],
-        annotations: Optional[list[Annotation]] = None,
+        annotations: list[Annotation] | None = None,
         seed: int = 42,
     ):
         self.annotations = [ann for ann in annotations if not ann.validated]

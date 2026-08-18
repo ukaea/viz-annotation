@@ -1,8 +1,9 @@
 from argparse import ArgumentParser
 from pathlib import Path
+
+import fsspec
 import pandas as pd
 import xarray as xr
-import fsspec
 from joblib import Parallel, delayed
 
 

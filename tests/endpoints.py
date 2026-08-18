@@ -1,7 +1,61 @@
-import requests
 import pathlib
-import tests.db_definitions as db_definitions
+
+import requests
+
+from tests import db_definitions
 from toktagger.api.schemas.annotations import TimeRegion
+
+# Shared session for all e2e helper requests below, so auth only needs to be
+# configured once (see set_auth_token) rather than threaded through every
+# helper function's signature and every call site across the e2e test files.
+session = requests.Session()
+
+
+def set_auth_token(token: str) -> None:
+    """Authenticate all subsequent tests.endpoints.* requests as this user."""
+    session.headers.update({"Authorization": f"Bearer {token}"})
+
+
+def create_user(
+    username: str,
+    password: str,
+    role: str = "user",
+    must_change_password: bool = False,
+) -> str:
+    response = session.post(
+        "http://localhost:8002/users",
+        json={
+            "username": username,
+            "password": password,
+            "global_role": role,
+            # Test-created accounts should be usable immediately, not stuck behind
+            # the forced-password-change redirect real admin-created accounts get.
+            # Pass must_change_password=True to test that redirect itself.
+            "must_change_password": must_change_password,
+        },
+    )
+    assert response.status_code == 200, response.text
+    return response.json()["_id"]
+
+
+def get_user(user_id: str) -> dict:
+    response = session.get(f"http://localhost:8002/users/{user_id}")
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def add_project_member(project_id: str, username: str, role: str = "annotator"):
+    response = session.post(
+        f"http://localhost:8002/projects/{project_id}/members",
+        json={"username": username, "role": role},
+    )
+    assert response.status_code == 200, response.text
+
+
+def get_project_members(project_id: str) -> list[dict]:
+    response = session.get(f"http://localhost:8002/projects/{project_id}/members")
+    assert response.status_code == 200, response.text
+    return response.json()
 
 
 def create_project(
@@ -14,7 +68,7 @@ def create_project(
         "data_loader": data_loader,
     }
 
-    response = requests.post(
+    response = session.post(
         "http://localhost:8002/projects",
         json=project,
     )
@@ -29,7 +83,7 @@ def create_local_samples(
     shot_ids: list[int],
     base_path: str,
     columns: list[str] | None = None,
-    file_names: list[str] = None,
+    file_names: list[str] | None = None,
 ):
     samples = []
     if not file_names:
@@ -49,7 +103,7 @@ def create_local_samples(
         }
         samples.append(sample)
 
-    response = requests.post(
+    response = session.post(
         f"http://localhost:8002/projects/{project_id}/samples", json=samples
     )
     assert response.status_code == 200
@@ -75,7 +129,7 @@ def create_image_samples(
     }
     samples.append(sample)
 
-    response = requests.post(
+    response = session.post(
         f"http://localhost:8002/projects/{project_id}/samples", json=samples
     )
     assert response.status_code == 200
@@ -85,8 +139,10 @@ def create_image_samples(
 def create_uda_samples(
     project_id: str,
     shot_ids: list[int],
-    signal_names: list[str] = ["ip", "ANE_DENSITY"],
+    signal_names: list[str] | None = None,
 ):
+    if signal_names is None:
+        signal_names = ["ip", "ANE_DENSITY"]
     samples = []
     for shot_id in shot_ids:
         sample = {
@@ -99,7 +155,7 @@ def create_uda_samples(
         }
         samples.append(sample)
 
-    response = requests.post(
+    response = session.post(
         f"http://localhost:8002/projects/{project_id}/samples", json=samples
     )
 
@@ -108,7 +164,7 @@ def create_uda_samples(
 
 
 def create_model_samples(setup_model_samples):
-    response = requests.post(
+    response = session.post(
         "http://localhost:8002/projects",
         json=db_definitions.PROJECT_2.model_dump(mode="json"),
     )
@@ -116,7 +172,7 @@ def create_model_samples(setup_model_samples):
 
     project_id = response.json()["_id"]
 
-    response = requests.post(
+    response = session.post(
         f"http://localhost:8002/projects/{project_id}/samples",
         json=[sample.model_dump(mode="json") for sample in setup_model_samples],
     )
@@ -152,7 +208,7 @@ def create_query_strategy_samples(query_strategy: str):
             validated=True,
             uncertainty=0,
         )
-        response = requests.put(
+        response = session.put(
             f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations",
             json=[flat_top.model_dump(mode="json")],
         )
@@ -167,7 +223,7 @@ def create_query_strategy_samples(query_strategy: str):
         validated=False,
         uncertainty=0.5,
     )
-    response = requests.put(
+    response = session.put(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_ids[2]}/annotations",
         json=[flat_top.model_dump(mode="json")],
     )
@@ -193,7 +249,7 @@ def create_query_strategy_samples(query_strategy: str):
         validated=False,
         uncertainty=0.1,
     )
-    response = requests.put(
+    response = session.put(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_ids[4]}/annotations",
         json=[ramp_up.model_dump(mode="json"), flat_top.model_dump(mode="json")],
     )

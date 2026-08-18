@@ -1,14 +1,15 @@
+import pathlib
+import random
+import typing
+
+import pydantic
+
 from toktagger.api.models.base import Model, ModelRegistry
 from toktagger.api.schemas.annotations import (
     TimePoint,
     TimeRegion,
 )
 from toktagger.api.schemas.models import ModelIn
-
-import pathlib
-import typing
-import random
-import pydantic
 
 
 # Create a mock model for use in our model definitions

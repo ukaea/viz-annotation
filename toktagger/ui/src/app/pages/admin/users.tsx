@@ -1,0 +1,419 @@
+"use client";
+import { useState, useEffect, useCallback } from "react";
+import {
+  TableView,
+  TableHeader,
+  TableBody,
+  Column,
+  Row,
+  Cell,
+  Button,
+  Flex,
+  DialogTrigger,
+  Dialog,
+  Heading,
+  Divider,
+  Content,
+  ButtonGroup,
+  TextField,
+  Picker,
+  Item,
+  InlineAlert,
+  ToastQueue,
+} from "@adobe/react-spectrum";
+import Edit from "@spectrum-icons/workflow/Edit";
+import Delete from "@spectrum-icons/workflow/Delete";
+import { BACKEND_API_URL, apiFetch } from "@/app/core";
+import { useAuth } from "@/app/contexts/AuthContext";
+import { useBreadcrumbs } from "@/app/contexts/BreadcrumbContext";
+import type { CurrentUser } from "@/types";
+
+type UserRow = CurrentUser & { id: string };
+
+export default function AdminUsersPage() {
+  const { user: currentUser } = useAuth();
+  useBreadcrumbs([
+    { key: "projects", label: "Projects", href: "/ui/projects/" },
+    { key: "admin", label: "Admin" },
+    { key: "users", label: "Users" },
+  ]);
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await apiFetch(`${BACKEND_API_URL}/users`);
+      if (!res.ok) throw new Error("Failed to load users");
+      const data: CurrentUser[] = await res.json();
+      setUsers(data.map((u) => ({ ...u, id: u._id })));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const deactivate = async (userId: string, isActive: boolean) => {
+    try {
+      const res = await apiFetch(`${BACKEND_API_URL}/users/${userId}`, {
+        method: "PUT",
+        body: JSON.stringify({ is_active: !isActive }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.detail ?? "Failed to update user");
+      }
+      await refresh();
+      ToastQueue.positive(isActive ? "User deactivated" : "User activated", {
+        timeout: 2000,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    }
+  };
+
+  const deleteUser = async (userId: string, close: () => void) => {
+    try {
+      const res = await apiFetch(`${BACKEND_API_URL}/users/${userId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.detail ?? "Failed to delete user");
+      }
+      close();
+      await refresh();
+      ToastQueue.positive("User deleted", { timeout: 2000 });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    }
+  };
+
+  return (
+    <div className="h-full">
+      <div className="w-full min-h-full flex items-start justify-center bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400 dark:from-gray-700 dark:via-gray-800 dark:to-gray-900 py-6">
+        <div className="w-full md:w-4/5 p-6 bg-white/60 dark:bg-gray-800/60 text-gray-800 dark:text-gray-100 rounded-lg shadow-lg backdrop-blur-sm">
+          <Flex
+            justifyContent="space-between"
+            alignItems="center"
+            marginBottom="size-200"
+          >
+            <Heading level={2}>User Management</Heading>
+          </Flex>
+
+          {error && (
+            <InlineAlert variant="negative" marginBottom="size-200">
+              {error}
+            </InlineAlert>
+          )}
+
+          <Flex marginBottom="size-200">
+            <CreateUserDialog onCreated={refresh} />
+          </Flex>
+
+          <TableView aria-label="Users" selectionMode="none">
+            <TableHeader>
+              <Column key="username">Username</Column>
+              <Column key="global_role" width={120}>
+                Role
+              </Column>
+              <Column key="is_active" width={100}>
+                Active
+              </Column>
+              <Column key="actions" minWidth={380}>
+                Actions
+              </Column>
+            </TableHeader>
+            <TableBody items={users}>
+              {(item) => (
+                <Row key={item.id}>
+                  <Cell>{item.username}</Cell>
+                  <Cell>{item.global_role}</Cell>
+                  <Cell>{item.is_active ? "Yes" : "No"}</Cell>
+                  <Cell>
+                    <Flex gap="size-100">
+                      <ChangeRoleDialog user={item} onChanged={refresh} />
+                      <DialogTrigger>
+                        <Button
+                          aria-label="Delete"
+                          variant="negative"
+                          isDisabled={item.id === currentUser?._id}
+                        >
+                          <Delete />
+                        </Button>
+                        {(close) => (
+                          <Dialog>
+                            <Heading>Delete User</Heading>
+                            <Divider />
+                            <Content>
+                              Delete user <strong>{item.username}</strong>? This
+                              cannot be undone.
+                            </Content>
+                            <ButtonGroup>
+                              <Button variant="secondary" onPress={close}>
+                                Cancel
+                              </Button>
+                              <Button
+                                variant="negative"
+                                onPress={() => deleteUser(item.id, close)}
+                              >
+                                Delete
+                              </Button>
+                            </ButtonGroup>
+                          </Dialog>
+                        )}
+                      </DialogTrigger>
+                      <ResetPasswordDialog user={item} />
+                      <Button
+                        variant="secondary"
+                        isDisabled={item.id === currentUser?._id}
+                        onPress={() => deactivate(item.id, item.is_active)}
+                        UNSAFE_style={{ minInlineSize: 0, flexShrink: 0 }}
+                      >
+                        {item.is_active ? "Deactivate" : "Activate"}
+                      </Button>
+                    </Flex>
+                  </Cell>
+                </Row>
+              )}
+            </TableBody>
+          </TableView>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CreateUserDialog({ onCreated }: { onCreated: () => void }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"admin" | "user">("user");
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (close: () => void) => {
+    setError(null);
+    try {
+      const res = await apiFetch(`${BACKEND_API_URL}/users`, {
+        method: "POST",
+        body: JSON.stringify({ username, password, global_role: role }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.detail ?? "Failed to create user");
+      }
+      setUsername("");
+      setPassword("");
+      setRole("user");
+      close();
+      onCreated();
+      ToastQueue.positive("User created", { timeout: 2000 });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    }
+  };
+
+  return (
+    <DialogTrigger>
+      <Button variant="cta">Add User</Button>
+      {(close) => (
+        <Dialog>
+          <Heading>Create User</Heading>
+          <Divider />
+          <Content>
+            {error && (
+              <InlineAlert variant="negative" marginBottom="size-100">
+                {error}
+              </InlineAlert>
+            )}
+            <Flex direction="column" gap="size-100">
+              <TextField
+                label="Username"
+                value={username}
+                onChange={setUsername}
+                isRequired
+              />
+              <TextField
+                label="Password"
+                type="password"
+                value={password}
+                onChange={setPassword}
+                isRequired
+              />
+              <Picker
+                label="Role"
+                selectedKey={role}
+                onSelectionChange={(k) => setRole(k as "admin" | "user")}
+              >
+                <Item key="user">User</Item>
+                <Item key="admin">Admin</Item>
+              </Picker>
+            </Flex>
+          </Content>
+          <ButtonGroup>
+            <Button variant="secondary" onPress={close}>
+              Cancel
+            </Button>
+            <Button
+              variant="cta"
+              isDisabled={!username || !password}
+              onPress={() => submit(close)}
+            >
+              Create
+            </Button>
+          </ButtonGroup>
+        </Dialog>
+      )}
+    </DialogTrigger>
+  );
+}
+
+function ResetPasswordDialog({ user }: { user: UserRow }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const save = async (close: () => void) => {
+    setError(null);
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await apiFetch(`${BACKEND_API_URL}/users/${user.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ password, must_change_password: true }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.detail ?? "Failed to reset password");
+      }
+      setPassword("");
+      close();
+      ToastQueue.positive(`Password reset for ${user.username}`, {
+        timeout: 2000,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <DialogTrigger onOpenChange={(isOpen) => !isOpen && setPassword("")}>
+      <Button
+        variant="secondary"
+        UNSAFE_style={{ minInlineSize: 0, flexShrink: 0 }}
+      >
+        Reset Password
+      </Button>
+      {(close) => (
+        <Dialog>
+          <Heading>Reset password for {user.username}</Heading>
+          <Divider />
+          <Content>
+            {error && (
+              <InlineAlert variant="negative" marginBottom="size-100">
+                {error}
+              </InlineAlert>
+            )}
+            <TextField
+              label="New password"
+              type="password"
+              value={password}
+              onChange={setPassword}
+              isRequired
+              width="100%"
+            />
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+              {user.username} will be required to change this password on their
+              next login. Communicate it to them securely.
+            </p>
+          </Content>
+          <ButtonGroup>
+            <Button variant="secondary" onPress={close}>
+              Cancel
+            </Button>
+            <Button
+              variant="cta"
+              isDisabled={!password || saving}
+              onPress={() => save(close)}
+            >
+              Reset
+            </Button>
+          </ButtonGroup>
+        </Dialog>
+      )}
+    </DialogTrigger>
+  );
+}
+
+function ChangeRoleDialog({
+  user,
+  onChanged,
+}: {
+  user: UserRow;
+  onChanged: () => void;
+}) {
+  const [role, setRole] = useState<"admin" | "user">(user.global_role);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async (close: () => void) => {
+    setError(null);
+    try {
+      const res = await apiFetch(`${BACKEND_API_URL}/users/${user.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ global_role: role }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.detail ?? "Failed to update role");
+      }
+      close();
+      onChanged();
+      ToastQueue.positive("Role updated", { timeout: 2000 });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    }
+  };
+
+  return (
+    <DialogTrigger>
+      <Button aria-label="Edit" variant="accent">
+        <Edit />
+      </Button>
+      {(close) => (
+        <Dialog>
+          <Heading>Edit {user.username}</Heading>
+          <Divider />
+          <Content>
+            {error && (
+              <InlineAlert variant="negative" marginBottom="size-100">
+                {error}
+              </InlineAlert>
+            )}
+            <Picker
+              label="Global Role"
+              selectedKey={role}
+              onSelectionChange={(k) => setRole(k as "admin" | "user")}
+            >
+              <Item key="user">User</Item>
+              <Item key="admin">Admin</Item>
+            </Picker>
+          </Content>
+          <ButtonGroup>
+            <Button variant="secondary" onPress={close}>
+              Cancel
+            </Button>
+            <Button variant="cta" onPress={() => save(close)}>
+              Save
+            </Button>
+          </ButtonGroup>
+        </Dialog>
+      )}
+    </DialogTrigger>
+  );
+}

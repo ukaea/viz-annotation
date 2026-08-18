@@ -1,43 +1,52 @@
+from importlib.metadata import PackageNotFoundError, version
+
 from fastapi import APIRouter, Request
-from fastapi.responses import FileResponse
-from importlib.metadata import version, PackageNotFoundError
-from toktagger.api.models import models_dependencies_installed
+from fastapi.responses import FileResponse, RedirectResponse
+
 from toktagger.api.crud import utils
+from toktagger.api.models import models_dependencies_installed
+
+if models_dependencies_installed():
+    import ray
 
 router = APIRouter(
     prefix="",
     tags=["Base"],
 )
 
+_ALL_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
 
-@router.get("/")
+
+@router.api_route("/", methods=_ALL_METHODS, include_in_schema=False)
 def get_app(request: Request):
-    """Endpoint to serve the main SPA."""
-    return FileResponse(request.app.state.index_file)
+    """Serve the main SPA."""
+    if request.method in ("GET", "HEAD"):
+        return FileResponse(request.app.state.index_file)
+    return RedirectResponse(url="/", status_code=303)
 
 
 @router.get("/health")
 async def health_check(request: Request) -> dict:
     """Check the server is running correctly."""
-    # Get version
     try:
         vers = version("toktagger")
     except PackageNotFoundError:
         vers = "unknown"
 
-    # Check db connection
     try:
         await utils.get_projects(
             db_client=request.app.state.db_client,
         )
         db_conn = True
-    except Exception:
+    except Exception:  # noqa: BLE001 -- health check reports up/down, not why
         db_conn = False
 
     # If available, check whether GPUs enabled for model tasks
     model_gpu_available = False
-    if hasattr(request.app.state, "task_registry"):
-        model_gpu_available = request.app.state.task_registry.gpu_enabled
+    if models_dependencies_installed() and hasattr(request.app.state, "task_registry"):
+        model_gpu_available = ray.get(
+            request.app.state.task_registry.gpu_enabled.remote()
+        )
 
     # Return info
     return {
@@ -50,9 +59,13 @@ async def health_check(request: Request) -> dict:
     }
 
 
-@router.get("/{full_path:path}")
+@router.api_route("/{full_path:path}", methods=_ALL_METHODS, include_in_schema=False)
 def spa_fallback(request: Request, full_path: str):
-    """Fallback route to serve the SPA's index.html for any unmatched routes.
-    This ensures that refreshing pages on the frontend takes the user to the same place.
+    """Fallback for SPA routing — serves index.html on GET, redirects other methods.
+
+    Without this, a native form POST to any SPA path (e.g. /ui/login) would return
+    405 because Starlette sees the path match but the GET-only method doesn't match.
     """
-    return FileResponse(request.app.state.index_file)
+    if request.method in ("GET", "HEAD"):
+        return FileResponse(request.app.state.index_file)
+    return RedirectResponse(url=f"/{full_path}", status_code=303)

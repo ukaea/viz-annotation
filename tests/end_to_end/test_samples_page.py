@@ -1,23 +1,32 @@
-from playwright.sync_api import Page, expect
-import re
-from datetime import datetime
-import pathlib
-from tests.endpoints import (
-    create_project,
-    create_local_samples,
-    create_uda_samples,
-    create_model_samples,
-    create_query_strategy_samples,
-)
-from tests.end_to_end import form_check
-import time
-import requests
-import tempfile
 import pytest
-import json
+
+pytest.importorskip("playwright")
 import csv
+import json
+import pathlib
+import re
+import tempfile
+import time
+from datetime import datetime
+
+import pytest
+from playwright.sync_api import Page, expect
+
+from tests.end_to_end import form_check
+from tests.end_to_end.conftest import login_as
+from tests.endpoints import (
+    add_project_member,
+    create_local_samples,
+    create_model_samples,
+    create_project,
+    create_query_strategy_samples,
+    create_uda_samples,
+    create_user,
+    session,
+)
+from toktagger.api import config
 from toktagger.api.schemas.annotations import TimePoint, TimeRegion
-import toktagger.api.config as config
+from toktagger.api.schemas.annotators import AnnotatorTypes
 
 
 def check_base_page(page):
@@ -105,7 +114,9 @@ def test_single_sample(server_setup, page: Page):
 
     # Check sample information is shown
     expect(page.get_by_text("10000", exact=True)).to_be_visible()
-    expect(page.get_by_text(re.compile(f"^{datetime.now().date()}*"))).to_be_visible()
+    expect(
+        page.get_by_text(re.compile(f"^{datetime.now().date()}*"))  # noqa: DTZ005 -- matches the browser's locally-rendered date, not UTC
+    ).to_be_visible()
 
     # Expect that I can click on the row in the table and it takes me to a ELM view page
     table_row = page.get_by_role("rowheader", name="10000")
@@ -271,7 +282,7 @@ def test_samples_sorting(server_setup, page: Page):
     sample_ids = create_uda_samples(project_id, shot_ids=[10000])
 
     # Set 10000 sample to be validated
-    requests.put(
+    session.put(
         f"http://localhost:8002/projects/{project_id}/samples",
         json=[{"id": sample_ids[0], "updates": {"validated_annotations": True}}],
     )
@@ -458,7 +469,7 @@ def test_create_samples_shot_data_range(server_setup, page: Page):
     expect(page.get_by_role("row").nth(6)).to_contain_text("12385")
 
     # Check 6 samples added (12380 to 12385 inclusive)
-    response = requests.get(f"http://localhost:8002/projects/{project_id}/samples")
+    response = session.get(f"http://localhost:8002/projects/{project_id}/samples")
     samples = response.json()
     assert len(samples) == 6
     assert all(
@@ -532,7 +543,7 @@ def test_create_samples_shot_data_file(server_setup, page: Page):
     expect(page.get_by_role("row").nth(6)).to_contain_text("12385")
 
     # Check 6 samples added (12380 to 12385 inclusive)
-    response = requests.get(f"http://localhost:8002/projects/{project_id}/samples")
+    response = session.get(f"http://localhost:8002/projects/{project_id}/samples")
     samples = response.json()
     assert len(samples) == 6
     assert all(
@@ -593,7 +604,7 @@ def test_create_samples_file_data(server_setup, page: Page, file_type: str):
         expect(page.get_by_role("row").nth(2)).to_contain_text("10001")
 
         # Check 2 samples added (10000 and 10001)
-        response = requests.get(f"http://localhost:8002/projects/{project_id}/samples")
+        response = session.get(f"http://localhost:8002/projects/{project_id}/samples")
         samples = response.json()
         assert len(samples) == 2
         assert all(
@@ -691,7 +702,7 @@ def test_clear_samples(server_setup, page: Page):
     expect(page.get_by_role("row").nth(1)).to_contain_text("10000")
     expect(page.get_by_role("row").nth(2)).to_contain_text("10001")
 
-    response = requests.get(f"http://localhost:8002/projects/{project_id}/samples")
+    response = session.get(f"http://localhost:8002/projects/{project_id}/samples")
     samples = response.json()
     assert len(samples) == 2
 
@@ -707,9 +718,62 @@ def test_clear_samples(server_setup, page: Page):
 
     expect(page.get_by_role("row").nth(1)).to_be_hidden()
 
-    response = requests.get(f"http://localhost:8002/projects/{project_id}/samples")
+    response = session.get(f"http://localhost:8002/projects/{project_id}/samples")
     samples = response.json()
     assert len(samples) == 0
+
+
+# Managing which samples a project holds is project configuration, so Add Samples,
+# per-row Delete and Clear Samples are project-admin only. Import Annotations is
+# annotation work, so an annotator keeps it.
+@pytest.mark.parametrize(
+    ("role", "add_enabled", "import_enabled", "delete_enabled", "clear_enabled"),
+    [
+        ("viewer", False, False, False, False),
+        ("annotator", False, True, False, False),
+        ("admin", True, True, True, True),
+    ],
+)
+def test_samples_page_buttons_gated_by_role(
+    role,
+    add_enabled,
+    import_enabled,
+    delete_enabled,
+    clear_enabled,
+    server_setup,
+    admin_token,
+    browser,
+):
+    username = f"role_carl_{role}"
+    create_user(username, "carl_pass123")
+    project_id = create_project("Role Gated Project", "time-series", "tabular")
+    create_local_samples(project_id, [10000], pathlib.Path(__file__).parents[1], ["Ip"])
+    add_project_member(project_id, username, role=role)
+
+    carl_page = login_as(browser, username, "carl_pass123")
+    carl_page.goto(f"http://localhost:8002/ui/projects/{project_id}")
+
+    def expect_enabled(locator, enabled):
+        if enabled:
+            expect(locator).to_be_enabled()
+        else:
+            expect(locator).to_be_disabled()
+
+    expect_enabled(
+        carl_page.get_by_role("button", name="Add Samples", exact=True), add_enabled
+    )
+    expect_enabled(
+        carl_page.get_by_role("button", name="Import Annotations"), import_enabled
+    )
+    expect_enabled(
+        carl_page.get_by_role("button", name="Clear Samples", exact=True),
+        clear_enabled,
+    )
+    expect_enabled(
+        carl_page.get_by_role("row").nth(1).get_by_role("button", name="Delete"),
+        delete_enabled,
+    )
+    carl_page.context.close()
 
 
 @pytest.mark.parametrize("sample_id", (True, False))
@@ -775,7 +839,8 @@ def test_samples_page_import_annotations(sample_id: bool, server_setup, page: Pa
             file_chooser = fc_info.value
             file_chooser.set_files(file.name)
 
-        # Wait for import successful message
+        # Wait for the import to finish saving client-side before navigating
+        # away, otherwise the PUT may still be in flight when we navigate.
         alert = page.get_by_role("alert")
         expect(alert).to_be_visible()
         expect(alert).to_contain_text("Annotations imported successfully")
@@ -813,20 +878,34 @@ def test_samples_page_export_annotations(server_setup, page: Page):
 
     # Add annotations
     flat_top = TimeRegion(
-        label="Flat Top", created_by="peak_detection", time_min=50, time_max=70
+        label="Flat Top",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time_min=50,
+        time_max=70,
     )
-    disruption = TimePoint(label="Disruption", created_by="peak_detection", time=71)
-    response = requests.put(
+    disruption = TimePoint(
+        label="Disruption",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time=71,
+    )
+    response = session.put(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_ids[0]}/annotations",
         json=[model.model_dump(mode="json") for model in (flat_top, disruption)],
     )
     assert response.status_code == 200
 
     ramp_up = TimeRegion(
-        label="Ramp Up", created_by="peak_detection", time_min=40, time_max=60
+        label="Ramp Up",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time_min=40,
+        time_max=60,
     )
-    control_loss = TimePoint(label="Control Loss", created_by="peak_detection", time=61)
-    response = requests.put(
+    control_loss = TimePoint(
+        label="Control Loss",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time=61,
+    )
+    response = session.put(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_ids[1]}/annotations",
         json=[model.model_dump(mode="json") for model in (ramp_up, control_loss)],
     )
@@ -890,7 +969,7 @@ def test_samples_page_export_annotations(server_setup, page: Page):
     "model_name", ["mock_timeseries_cnn", "mock_params_timeseries_cnn"]
 )
 def test_model_train_predict(server_setup, setup_model_samples, page: Page, model_name):
-    project_id, sample_ids = create_model_samples(setup_model_samples)
+    project_id, _sample_ids = create_model_samples(setup_model_samples)
 
     # Navigate to projects page
     page.goto(f"http://localhost:8002/ui/projects/{project_id}")
@@ -998,7 +1077,7 @@ def test_model_train_predict(server_setup, setup_model_samples, page: Page, mode
     time.sleep(1)
 
     # Check 10 * 3 non-validated predictions added
-    response = requests.get(
+    response = session.get(
         f"http://localhost:8002/projects/{project_id}/annotations?validated=False",
     )
     assert response.status_code == 200
@@ -1019,7 +1098,7 @@ def test_model_train_predict(server_setup, setup_model_samples, page: Page, mode
 
 @pytest.mark.models_enabled
 def test_model_load_predict(server_setup, setup_model_samples, page: Page):
-    project_id, sample_ids = create_model_samples(setup_model_samples)
+    project_id, _sample_ids = create_model_samples(setup_model_samples)
     with tempfile.NamedTemporaryFile(suffix=".model", mode="w") as tempf:
         tempf.write("Loaded Model Weights")
         tempf.flush()
@@ -1102,7 +1181,7 @@ def test_model_load_predict(server_setup, setup_model_samples, page: Page):
         expect(page.get_by_role("button", name="Submit", exact=True)).to_be_hidden()
 
         # Check model has had a copy of the weights file added to cache
-        response = requests.get(
+        response = session.get(
             f"http://localhost:8002/projects/{project_id}/models/mock_params_timeseries_cnn",
         )
         assert response.status_code == 200
@@ -1180,7 +1259,7 @@ def test_model_load_predict(server_setup, setup_model_samples, page: Page):
         time.sleep(1)
 
         # Check 10 * 3 non-validated predictions added
-        response = requests.get(
+        response = session.get(
             f"http://localhost:8002/projects/{project_id}/annotations?validated=False",
         )
         assert response.status_code == 200

@@ -11,8 +11,8 @@ import {
   RangeSlider,
   Switch,
 } from "@adobe/react-spectrum";
-import { AnnotatorTypes } from "./types";
-import { BACKEND_API_URL } from "@/app/core";
+import { AnnotatorTypes, annotatorCreatedBy } from "./types";
+import { BACKEND_API_URL, apiFetch } from "@/app/core";
 import { useSample } from "@/app/contexts/SampleContext";
 
 type PeakDetectionType = {
@@ -28,7 +28,8 @@ export function PeakDetectionTool({
 
   const [isEnabled, setIsEnabled] = useState<boolean>(() => {
     return annotations.some(
-      (ann) => ann.created_by === AnnotatorTypes.PEAK_DETECTION,
+      (ann) =>
+        ann.created_by === annotatorCreatedBy(AnnotatorTypes.PEAK_DETECTION),
     );
   });
 
@@ -66,7 +67,8 @@ export function PeakDetectionTool({
         setAnnotations((previousAnnotations: Annotation[]) => {
           const otherAnnotations = previousAnnotations.filter(
             (annotation: Annotation) =>
-              annotation.created_by !== AnnotatorTypes.PEAK_DETECTION ||
+              annotation.created_by !==
+                annotatorCreatedBy(AnnotatorTypes.PEAK_DETECTION) ||
               annotation.validated,
           );
           return otherAnnotations;
@@ -76,7 +78,7 @@ export function PeakDetectionTool({
         return;
       }
 
-      const response = await fetch(
+      const response = await apiFetch(
         `${BACKEND_API_URL}/projects/${project_id}/samples/${sample_id}/annotator/peak_detection`,
         {
           method: "POST",
@@ -100,7 +102,8 @@ export function PeakDetectionTool({
       setAnnotations((previousAnnotations: Annotation[]) => {
         const otherAnnotations = previousAnnotations.filter(
           (annotation: Annotation) =>
-            annotation.created_by !== AnnotatorTypes.PEAK_DETECTION ||
+            annotation.created_by !==
+              annotatorCreatedBy(AnnotatorTypes.PEAK_DETECTION) ||
             annotation.validated,
         );
         return otherAnnotations.concat(payload);

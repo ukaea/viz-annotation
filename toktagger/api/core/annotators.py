@@ -1,37 +1,37 @@
+from abc import ABC, abstractmethod
+from collections.abc import Iterable
+from itertools import pairwise
+
 import numpy as np
 import ruptures as rpt
-import hmmlearn.hmm as hmm
-from typing import Iterable, List, Tuple
-from abc import ABC, abstractmethod
-from scipy.signal import find_peaks, peak_widths, stft
-from scipy.ndimage import uniform_filter1d, gaussian_filter, uniform_filter
+from hmmlearn import hmm
 from scipy.interpolate import interp1d
+from scipy.ndimage import gaussian_filter, uniform_filter, uniform_filter1d
+from scipy.signal import find_peaks, peak_widths, stft
+from shapely.geometry import Polygon
 from skimage import measure, morphology
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
-from toktagger.api.schemas.data import (
-    MultiVariateTimeSeriesData,
-    Profile2DData,
-    MultiProfile2DData,
-)
-from toktagger.api.schemas.annotators import (
-    AnnotatorTypes,
-    ChangePointDetectionParams,
-    PeakDetectionParams,
-    JumpDetectionParams,
-    OutlierDetectionParams,
-)
-from shapely.geometry import Polygon
 
-from toktagger.api.schemas.data import TimeSeriesData
-from toktagger.api.schemas.annotations import TimeRegion
 from toktagger.api.schemas.annotations import (
     # Aliased to avoid clashing with shapely's Polygon, used below for geometry.
     Polygon as PolygonAnnotation,
 )
+from toktagger.api.schemas.annotations import TimeRegion
 from toktagger.api.schemas.annotators import (
-    Profile2DThresholdParams,
     AnnotatorParamTypes,
+    AnnotatorTypes,
+    ChangePointDetectionParams,
+    JumpDetectionParams,
+    OutlierDetectionParams,
+    PeakDetectionParams,
+    Profile2DThresholdParams,
+)
+from toktagger.api.schemas.data import (
+    MultiProfile2DData,
+    MultiVariateTimeSeriesData,
+    Profile2DData,
+    TimeSeriesData,
 )
 from toktagger.api.schemas.projects import Task
 
@@ -150,7 +150,7 @@ def downsample_time_series(
     return time_coarse, signal
 
 
-def _coords_to_flat_list(coords: Iterable[Tuple[float, float]]) -> List[float]:
+def _coords_to_flat_list(coords: Iterable[tuple[float, float]]) -> list[float]:
     """
     Convert an iterable of (x,y) coordinates to COCO flattened list [x1,y1,x2,y2,...].
     Drops the closing coordinate if it's equal to the first (Shapely exterior rings often close).
@@ -259,7 +259,7 @@ class PeakDetectionAnnotator(DataAnnotator):
         trend = uniform_filter1d(signal, 1000)
         dalpha_detrend = signal - trend
 
-        peak_idx, params = find_peaks(
+        peak_idx, _params = find_peaks(
             dalpha_detrend,
             prominence=self.params.prominence,
             width=[1, 150],
@@ -278,7 +278,7 @@ class PeakDetectionAnnotator(DataAnnotator):
                     label="Unknown",
                     time_min=max(float(peak_time - width), np.min(time)),
                     time_max=min(float(peak_time + width), np.max(time)),
-                    created_by=AnnotatorTypes.PEAK_DETECTION,
+                    created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
                 )
                 regions.append(region)
 
@@ -350,7 +350,7 @@ class OutlierDetectionAnnotator(DataAnnotator):
                 time_min=time[imin],
                 time_max=time[imax],
                 label="Unknown",
-                created_by=AnnotatorTypes.OUTLIER_DETECTION,
+                created_by=f"annotators::{AnnotatorTypes.OUTLIER_DETECTION.value}",
             )
             for imin, imax in bounds
         ]
@@ -375,7 +375,7 @@ class OutlierDetectionAnnotator(DataAnnotator):
                 time_min=time[imin],
                 time_max=time[imax],
                 label="Unknown",
-                created_by=AnnotatorTypes.OUTLIER_DETECTION,
+                created_by=f"annotators::{AnnotatorTypes.OUTLIER_DETECTION.value}",
             )
             for imin, imax in bounds
         ]
@@ -460,9 +460,9 @@ class ChangePointDetectionAnnotator(DataAnnotator):
                 time_min=time[imin],
                 time_max=time[imax],
                 label="Unknown",
-                created_by=AnnotatorTypes.CHANGE_POINT_DETECTION,
+                created_by=f"annotators::{AnnotatorTypes.CHANGE_POINT_DETECTION.value}",
             )
-            for imin, imax in zip(result, result[1:])
+            for imin, imax in pairwise(result)
         ]
         return bounds
 
@@ -498,7 +498,7 @@ class ChangePointDetectionAnnotator(DataAnnotator):
                 time_min=tmin,
                 time_max=tmax,
                 label="Unknown",
-                created_by=AnnotatorTypes.CHANGE_POINT_DETECTION,
+                created_by=f"annotators::{AnnotatorTypes.CHANGE_POINT_DETECTION.value}",
             )
             for (tmin, tmax) in bounds
         ]
@@ -582,7 +582,7 @@ class JumpDetectionAnnotator(DataAnnotator):
                     time_min=tmin,
                     time_max=tmax,
                     label="Unknown",
-                    created_by=AnnotatorTypes.JUMP_DETECTION,
+                    created_by=f"annotators::{AnnotatorTypes.JUMP_DETECTION.value}",
                 )
             )
 
@@ -631,7 +631,7 @@ class Profile2DThresholdAnnotator:
             time = np.array(signal.time)
             values = np.array(signal.values).T
         else:
-            raise RuntimeError(
+            raise TypeError(
                 f"Profile data for {self.params.signal_name} does not exist."
             )
 
@@ -689,7 +689,7 @@ class Profile2DThresholdAnnotator:
             PolygonAnnotation(
                 segmentation=[_coords_to_flat_list(polygon.exterior.coords)],
                 label="Unknown",
-                created_by=AnnotatorTypes.PROFILE_2D_THRESHOLD,
+                created_by=f"annotators::{AnnotatorTypes.PROFILE_2D_THRESHOLD.value}",
                 signal_name=self.params.signal_name,
             )
             for polygon in polygons

@@ -1,5 +1,6 @@
-from toktagger.api.schemas.annotators import AnnotatorTypes
 import pytest
+
+from toktagger.api.schemas.annotators import AnnotatorTypes
 
 
 @pytest.mark.asyncio
@@ -32,7 +33,10 @@ async def test_annotators(api_client, setup_db):
     assert len(returned_annotations) == 4
     for annotation in returned_annotations:
         assert annotation["label"] == "Unknown"
-        assert annotation["created_by"] == AnnotatorTypes.PEAK_DETECTION
+        assert (
+            annotation["created_by"]
+            == f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}"
+        )
         assert "time_min" in annotation
         assert "time_max" in annotation
 

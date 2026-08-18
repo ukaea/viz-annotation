@@ -1,12 +1,12 @@
-from functools import lru_cache
 import base64
 import inspect
 import io
 import os
 import pathlib
 from abc import ABC, abstractmethod
+from functools import lru_cache
 from pathlib import Path
-from typing import Optional, Type
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -14,27 +14,27 @@ import pydantic
 import xarray as xr
 from PIL import Image
 
+from toktagger.api import config
 from toktagger.api.schemas.data import (
-    DataResponseType,
-    DataParamTypes,
-    ImageParams,
     DataParams,
+    DataParamTypes,
+    DataResponseType,
     ImageData,
-    MultiVariateTimeSeriesData,
-    TimeSeriesData,
-    Profile2DData,
+    ImageParams,
     MultiProfile2DData,
+    MultiVariateTimeSeriesData,
+    Profile2DData,
+    TimeSeriesData,
 )
 from toktagger.api.schemas.samples import (
+    DataTypes,
     FileData,
+    ImageArrayFileData,
+    ImageFileData,
     Sample,
     ShotData,
     TimeSeriesFileData,
-    ImageFileData,
-    ImageArrayFileData,
-    DataTypes,
 )
-import toktagger.api.config as config
 
 # Set UDA env var defaults so the pyuda client works correctly outside of Freia.
 os.environ["UDA_HOST"] = os.environ.get("UDA_HOST", config.settings.uda.host)
@@ -58,7 +58,7 @@ class DataLoader(ABC):
     @abstractmethod
     def sample_data_type(
         cls,
-    ) -> Type[DataTypes]:
+    ) -> type[DataTypes]:
         # Return whatever type the data loader expects to be passed in as sample_data when getting the sample
         pass
 
@@ -73,13 +73,13 @@ class DataLoader(ABC):
 
 
 class LoaderRegistry:
-    _registry: dict[str, DataLoader] = {}
+    _registry: ClassVar[dict[str, DataLoader]] = {}
 
     @classmethod
     def register(cls, name: str):
         def decorator(loader_class: DataLoader):
             if not issubclass(loader_class, DataLoader):
-                raise ValueError(
+                raise TypeError(
                     f"Loader '{name}' does not inherit from DataLoader base class."
                 )
             if (sample_data_type := loader_class.sample_data_type()) not in (
@@ -121,7 +121,7 @@ class ImageDataLoader(DataLoader):
     """DataLoader for retrieving data using a folder of image files"""
 
     @classmethod
-    def sample_data_type(cls) -> Type[ImageFileData]:
+    def sample_data_type(cls) -> type[ImageFileData]:
         return ImageFileData
 
     @pydantic.validate_call
@@ -177,7 +177,7 @@ class ArrayDataLoader(DataLoader):
     """DataLoader for retrieving data using Numpy array files."""
 
     @classmethod
-    def sample_data_type(cls) -> Type[ImageArrayFileData]:
+    def sample_data_type(cls) -> type[ImageArrayFileData]:
         return ImageArrayFileData
 
     @pydantic.validate_call
@@ -262,7 +262,7 @@ class TabularDataLoader(DataLoader):
     """DataLoader for retrieving data from a tabular file format (e.g., CSV, Parquet)"""
 
     @classmethod
-    def sample_data_type(cls) -> Type[TimeSeriesFileData]:
+    def sample_data_type(cls) -> type[TimeSeriesFileData]:
         return TimeSeriesFileData
 
     @pydantic.validate_call
@@ -270,9 +270,9 @@ class TabularDataLoader(DataLoader):
         self,
         sample: Sample,
         params: DataParams,
-        time_min: Optional[float] = None,
-        time_max: Optional[float] = None,
-        min_time_step: Optional[float] = None,
+        time_min: float | None = None,
+        time_max: float | None = None,
+        min_time_step: float | None = None,
         **kwargs,
     ) -> MultiVariateTimeSeriesData:
         if not isinstance(sample.data, TimeSeriesFileData):
@@ -300,7 +300,7 @@ class TabularDataLoader(DataLoader):
         elif file_path.suffix == ".feather":
             df = pd.read_feather(file_path, columns=item.signal_names)
         else:
-            raise ValueError("Unsupported file format {}".format(file_path.suffix))
+            raise ValueError(f"Unsupported file format {file_path.suffix}")
 
         df = df.fillna(0)
 
@@ -331,16 +331,16 @@ class UDADataLoader(DataLoader):
     """DataLoader for retrieving data using the UDA access layer"""
 
     @classmethod
-    def sample_data_type(self) -> Type[ShotData]:
+    def sample_data_type(self) -> type[ShotData]:
         return ShotData
 
     def get_sample(
         self,
         sample: Sample,
         params: DataParams,
-        time_min: Optional[float] = None,
-        time_max: Optional[float] = None,
-        min_time_step: Optional[float] = None,
+        time_min: float | None = None,
+        time_max: float | None = None,
+        min_time_step: float | None = None,
         **kwargs,
     ) -> MultiVariateTimeSeriesData | MultiProfile2DData:
         if not isinstance(sample.data, ShotData):
@@ -359,7 +359,7 @@ class UDADataLoader(DataLoader):
                     name, sample.shot_id, time_min, time_max, min_time_step
                 )
                 results[name] = item
-            except Exception:
+            except Exception:  # noqa: BLE001 -- one bad signal should not fail the whole multi-signal load
                 results[name] = None
 
         if all(values is None for values in results.values()):
@@ -381,9 +381,9 @@ class UDADataLoader(DataLoader):
 def _get_uda_signal(
     name: str,
     shot_id: int,
-    time_min: Optional[float] = None,
-    time_max: Optional[float] = None,
-    min_time_step: Optional[float] = None,
+    time_min: float | None = None,
+    time_max: float | None = None,
+    min_time_step: float | None = None,
 ) -> Profile2DData | TimeSeriesData:
     ds = xr.open_dataset(f"uda://{name}:{shot_id}", engine="uda")
     ds = ds.sel(time=slice(time_min, time_max))
@@ -422,7 +422,7 @@ class UDACameraDataLoader(DataLoader):
     """DataLoader for retrieving camera image data using the UDA access layer"""
 
     @classmethod
-    def sample_data_type(self) -> Type[ShotData]:
+    def sample_data_type(self) -> type[ShotData]:
         return ShotData
 
     def get_sample(
@@ -494,16 +494,16 @@ class SALDataLoader(DataLoader):
     """DataLoader for retrieving data using the SAL access layer"""
 
     @classmethod
-    def sample_data_type(self) -> Type[ShotData]:
+    def sample_data_type(self) -> type[ShotData]:
         return ShotData
 
     def get_sample(
         self,
         sample: Sample,
         params: DataParams,
-        time_min: Optional[float] = None,
-        time_max: Optional[float] = None,
-        min_time_step: Optional[float] = None,
+        time_min: float | None = None,
+        time_max: float | None = None,
+        min_time_step: float | None = None,
         **kwargs,
     ) -> MultiVariateTimeSeriesData | MultiProfile2DData:
         assert isinstance(sample.data, ShotData), "Sample data must be of type ShotData"
@@ -529,7 +529,7 @@ class SALDataLoader(DataLoader):
                     min_time_step=min_time_step,
                 )
                 results[name] = item
-            except Exception:
+            except Exception:  # noqa: BLE001 -- one bad signal should not fail the whole multi-signal load
                 results[name] = None
 
         if all(values is None for values in results.values()):
@@ -551,9 +551,9 @@ class SALDataLoader(DataLoader):
 def _get_sal_signal(
     name: str,
     shot_id: int,
-    time_min: Optional[float] = None,
-    time_max: Optional[float] = None,
-    min_time_step: Optional[float] = None,
+    time_min: float | None = None,
+    time_max: float | None = None,
+    min_time_step: float | None = None,
 ) -> Profile2DData | TimeSeriesData:
     full_name = f"pulse/{shot_id}/{name}"
     ds = xr.open_dataset(
@@ -592,16 +592,16 @@ def _get_sal_signal(
 @LoaderRegistry.register("fair_mast")
 class FAIRMASTDataLoader(DataLoader):
     @classmethod
-    def sample_data_type(self) -> Type[ShotData]:
+    def sample_data_type(self) -> type[ShotData]:
         return ShotData
 
     def get_sample(
         self,
         sample: Sample,
         params: DataParams,
-        time_min: Optional[float] = None,
-        time_max: Optional[float] = None,
-        min_time_step: Optional[float] = None,
+        time_min: float | None = None,
+        time_max: float | None = None,
+        min_time_step: float | None = None,
         **kwargs,
     ) -> MultiVariateTimeSeriesData | MultiProfile2DData:
         assert isinstance(sample.data, ShotData), "Sample data must be of type ShotData"
@@ -621,9 +621,9 @@ class FAIRMASTDataLoader(DataLoader):
 def _get_fair_mast_signals(
     file_path: str,
     signal_names: tuple[str],
-    time_min: Optional[float] = None,
-    time_max: Optional[float] = None,
-    min_time_step: Optional[float] = None,
+    time_min: float | None = None,
+    time_max: float | None = None,
+    min_time_step: float | None = None,
 ) -> MultiVariateTimeSeriesData | MultiProfile2DData:
     kwargs = {"chunks": None}
     # Disable default index creation if supported, to avoid performance issues on large datasets

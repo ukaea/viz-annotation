@@ -1,15 +1,15 @@
-from toktagger.api.schemas.samples import Sample
-from toktagger.api.schemas.annotations import Annotation, VideoBoundingBox
-import pydantic
-from toktagger.api.models.base import Model, ModelRegistry
-from toktagger.api.schemas.data import ImageParams
+import base64
 import pathlib
+from io import BytesIO
 
+import pydantic
+from PIL import Image
 from ultralytics import YOLO
 
-import base64
-from io import BytesIO
-from PIL import Image
+from toktagger.api.models.base import Model, ModelRegistry
+from toktagger.api.schemas.annotations import Annotation, VideoBoundingBox
+from toktagger.api.schemas.data import ImageParams
+from toktagger.api.schemas.samples import Sample
 
 
 class VideoCNNTrainParams(pydantic.BaseModel):
@@ -52,7 +52,7 @@ class VideoCNN(Model):
                             x_min=0,
                             y_min=0,
                             frame=data.frame,
-                            created_by="video-cnn",
+                            created_by=f"model::{self.type}",
                             track_id="test",
                         )
                     ]
@@ -70,7 +70,7 @@ class VideoCNN(Model):
                         x_min=0,
                         y_min=0,
                         frame=data.frame,
-                        created_by="video-cnn",
+                        created_by=f"model::{self.type}",
                         track_id="test",
                     )
                 ]
@@ -88,7 +88,7 @@ class VideoCNN(Model):
                                 x_min=0,
                                 y_min=0,
                                 frame=data.frame,
-                                created_by="video-cnn",
+                                created_by=f"model::{self.type}",
                                 track_id="test",
                             )
                         )

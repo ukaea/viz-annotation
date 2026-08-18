@@ -14,6 +14,7 @@ import {
   Key,
   Heading,
   InlineAlert,
+  ToastContainer,
 } from "@adobe/react-spectrum";
 import { MultiVariateTimeSeriesDataSchema, PlotProps, TaskType } from "@/types";
 import { getAnnotationsForSample } from "@/app/core";
@@ -31,6 +32,7 @@ import Profile2DThresholdTool from "../annotators/thresholding";
 import { Profile2DViewParamsWidget } from "@/app/profile2d/components/profile2dViewParamsWidget";
 import { VideoToolbox } from "@/app/video/components/video-toolbox";
 import { useServerHealth } from "@/app/contexts/healthContext";
+import { useProjectRole } from "@/app/hooks/useProjectRole";
 
 type ColorMapPickerInfo = {
   plotProps: PlotProps;
@@ -98,6 +100,7 @@ export default function ToolBar() {
   } = useSample();
 
   const { modelsEnabled } = useServerHealth();
+  const { canAnnotate } = useProjectRole(project?._id);
 
   if (!project || !sample) {
     console.warn("Project or sample not found in ToolBar");
@@ -130,58 +133,68 @@ export default function ToolBar() {
     const labels = project.shot_labels || ["Valid Shot", "Invalid Shot"];
     tools.push({
       name: "Shot Labels",
-      component: <ShotLabels labels={labels}></ShotLabels>,
-    });
-
-    tools.push({
-      name: "Peak Detection",
       component: (
-        <PeakDetectionTool
-          project_id={project_id}
-          sample_id={sample_id}
-          data={tsData}
-        ></PeakDetectionTool>
+        <ShotLabels labels={labels} canAnnotate={canAnnotate}></ShotLabels>
       ),
     });
 
-    tools.push({
-      name: "Outlier Detection",
-      component: (
-        <OutlierDetectionTool
-          project_id={project_id}
-          sample_id={sample_id}
-          data={tsData}
-        ></OutlierDetectionTool>
-      ),
-    });
+    // The automatic annotators exist only to write annotations, and each POSTs to
+    // /annotator/* from an effect as soon as it is enabled -- which for a sample that
+    // already holds its suggestions happens on mount. Disabling the controls would
+    // not stop that, so they are left out entirely for a viewer.
+    if (canAnnotate) {
+      tools.push({
+        name: "Peak Detection",
+        component: (
+          <PeakDetectionTool
+            project_id={project_id}
+            sample_id={sample_id}
+            data={tsData}
+          ></PeakDetectionTool>
+        ),
+      });
 
-    tools.push({
-      name: "Change Point Detection",
-      component: (
-        <ChangePointDetectionTool
-          project_id={project_id}
-          sample_id={sample_id}
-          data={tsData}
-        ></ChangePointDetectionTool>
-      ),
-    });
+      tools.push({
+        name: "Outlier Detection",
+        component: (
+          <OutlierDetectionTool
+            project_id={project_id}
+            sample_id={sample_id}
+            data={tsData}
+          ></OutlierDetectionTool>
+        ),
+      });
 
-    tools.push({
-      name: "Jump Detection",
-      component: (
-        <JumpDetectionTool
-          project_id={project_id}
-          sample_id={sample_id}
-          data={tsData}
-        ></JumpDetectionTool>
-      ),
-    });
+      tools.push({
+        name: "Change Point Detection",
+        component: (
+          <ChangePointDetectionTool
+            project_id={project_id}
+            sample_id={sample_id}
+            data={tsData}
+          ></ChangePointDetectionTool>
+        ),
+      });
+
+      tools.push({
+        name: "Jump Detection",
+        component: (
+          <JumpDetectionTool
+            project_id={project_id}
+            sample_id={sample_id}
+            data={tsData}
+          ></JumpDetectionTool>
+        ),
+      });
+    }
   } else if (project.task == TaskType.Profile2D) {
     // Not gated on data so the signal picker below still lets the user recover.
     const labels = project.shot_labels || ["Valid Shot", "Invalid Shot"];
     tools.push({
       name: "Shot Labels",
-      component: <ShotLabels labels={labels}></ShotLabels>,
+      component: (
+        <ShotLabels labels={labels} canAnnotate={canAnnotate}></ShotLabels>
+      ),
     });
 
     tools.push({
@@ -196,18 +209,23 @@ export default function ToolBar() {
       ),
     });
 
-    tools.push({
-      name: "Threshold",
-      component: (
-        <Profile2DThresholdTool project_id={project_id} sample_id={sample_id} />
-      ),
-    });
+    if (canAnnotate) {
+      tools.push({
+        name: "Threshold",
+        component: (
+          <Profile2DThresholdTool
+            project_id={project_id}
+            sample_id={sample_id}
+          />
+        ),
+      });
+    }
   } else if (data && project.task === TaskType.Video) {
     const labels = project.shot_labels || ["Valid Shot", "Invalid Shot"];
 
     tools.push({
       name: "Shot Labels",
-      component: <ShotLabels labels={labels} />,
+      component: <ShotLabels labels={labels} canAnnotate={canAnnotate} />,
     });
 
     tools.push({
@@ -216,7 +234,8 @@ export default function ToolBar() {
       defaultExpanded: true,
     });
   }
-  if (modelsEnabled) {
+  // Predicting writes annotations, so it needs the annotator role.
+  if (modelsEnabled && canAnnotate) {
     tools.push({
       name: "Model Prediction",
       component: (
@@ -234,8 +253,11 @@ export default function ToolBar() {
   };
 
   return (
-    <Provider theme={defaultTheme} height="100vh">
-      <View overflow="auto" height="100vh" width="18vw">
+    // 100% (not 100vh) so the toolbar stops at the bottom of the window rather
+    // than running on below it by the height of the top bar.
+    <Provider theme={defaultTheme} height="100%">
+      <ToastContainer placement="top" />
+      <View overflow="auto" height="100%" width="18vw" flexShrink={0}>
         <Flex
           direction="column"
           alignItems="center"
@@ -251,6 +273,7 @@ export default function ToolBar() {
             alignItems="center"
             justifyContent="center"
             gap="size-100"
+            width="100%"
           >
             <Header height="size-300" marginBottom="size-100">
               <span style={{ fontSize: "1.2rem" }}>Controls</span>
@@ -274,6 +297,7 @@ export default function ToolBar() {
                     project={project}
                     sample={sample}
                     refreshAnnotations={refreshAnnotations}
+                    canAnnotate={canAnnotate}
                   />
                 </DisclosurePanel>
               </Disclosure>

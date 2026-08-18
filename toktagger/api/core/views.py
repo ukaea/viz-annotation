@@ -1,11 +1,12 @@
 import numpy as np
 import xarray as xr
+
 from toktagger.api.core.annotators import compute_stft
 from toktagger.api.schemas.data import (
-    Profile2DData,
-    MultiVariateTimeSeriesData,
-    MultiProfile2DData,
     Data,
+    MultiProfile2DData,
+    MultiVariateTimeSeriesData,
+    Profile2DData,
     TimeSeriesData,
 )
 from toktagger.api.schemas.views import Profile2DViewParams, ViewParams, ViewType
@@ -33,7 +34,7 @@ class Profile2DView:
             dim_1 = np.array(data.dim_1)
             values = np.array(data.values).T  # (time, dim_1) -> (dim_1, time)
         else:
-            raise RuntimeError(f"Unsupported data type for Profile2DView: {type(data)}")
+            raise TypeError(f"Unsupported data type for Profile2DView: {type(data)}")
 
         # Clip to time/frequency range
         time_min = (
@@ -69,7 +70,7 @@ class Profile2DView:
         )
 
         ds = xr.DataArray(
-            values, coords=dict(dim_1=dim_1, time=time), dims=["dim_1", "time"]
+            values, coords={"dim_1": dim_1, "time": time}, dims=["dim_1", "time"]
         )
         ds = ds.sel(time=slice(time_min, time_max))
         ds = ds.sel(dim_1=slice(dim_1_min, dim_1_max))

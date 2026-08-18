@@ -1,13 +1,15 @@
+import os
+import tempfile
+from pathlib import Path
+
 import pytest
 from bson.objectid import ObjectId
-from tests.db_definitions import PROJECT_1, SAMPLE_1, ANNOTATION_1, ANNOTATION_2
-from toktagger.api.schemas.samples import SampleUpdate
-from toktagger.api.schemas.models import ModelUpdate, ModelIn
-import toktagger.api.crud.utils as utils
 from fastapi import HTTPException
-import tempfile
-import os
-from pathlib import Path
+
+from tests.db_definitions import ANNOTATION_1, ANNOTATION_2, PROJECT_1, SAMPLE_1
+from toktagger.api.crud import utils
+from toktagger.api.schemas.models import ModelIn, ModelUpdate
+from toktagger.api.schemas.samples import SampleUpdate
 
 
 @pytest.mark.asyncio

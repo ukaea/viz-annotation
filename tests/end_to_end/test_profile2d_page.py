@@ -1,16 +1,17 @@
 import pathlib
-from typing import Callable, Literal, Tuple
+from collections.abc import Callable
+from typing import Literal
 
-import requests
 from playwright.sync_api import Page, expect
 
-from tests.endpoints import create_local_samples, create_project
+from tests.endpoints import create_local_samples, create_project, session
+from toktagger.api.schemas.annotators import AnnotatorTypes
 
 # The id of the div the Profile2D plot renders into (see base-plot.tsx).
 PLOT_ID = "Profile2DView"
 
 
-def setup_project(page: Page) -> Tuple[str, str, Callable]:
+def setup_project(page: Page) -> tuple[str, str, Callable]:
     project_id = create_project("Test Profile2D Project", "profile-2d", "tabular")
     ids = create_local_samples(
         project_id,
@@ -181,13 +182,16 @@ def test_profile2d_saved_threshold_annotations_persist(server_setup, page: Page)
     expect(page.get_by_label("polygon")).to_have_count(enabled_count)
 
     # They should be stored as validated, keeping the annotator as their creator.
-    annotations = requests.get(
+    annotations = session.get(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations"
     ).json()
     assert len(annotations) >= 1
     for annotation in annotations:
         assert annotation["validated"]
-        assert annotation["created_by"] == "profile_2d_threshold"
+        assert (
+            annotation["created_by"]
+            == f"annotators::{AnnotatorTypes.PROFILE_2D_THRESHOLD.value}"
+        )
 
 
 def test_profile2d_tools_disabled_in_view_mode(server_setup, page: Page):
@@ -236,6 +240,12 @@ def test_profile2d_save_time_annotations(server_setup, page: Page):
     add_time_annotation(page, "TIME REGION", "NTM")
     add_time_annotation(page, "TIME POINT", "Disruption")
 
+    # Drawing debounces its sync into the sample's annotation list by 100ms
+    # (see TimeSeriesContext's syncTimeoutRef) with no network activity to
+    # await, so give it time to flush before Save reads that list - otherwise
+    # the most recently drawn annotation can be missing from the saved batch.
+    page.wait_for_timeout(500)
+
     # Save, waiting for the PUT to the backend to complete.
     with page.expect_response(
         lambda r: (
@@ -244,12 +254,14 @@ def test_profile2d_save_time_annotations(server_setup, page: Page):
     ):
         page.get_by_role("button", name="Save").click(force=True)
 
-    annotations = requests.get(
+    annotations = session.get(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations"
     ).json()
     assert len(annotations) == 2
     for annotation in annotations:
-        assert annotation["created_by"] == "manual"
+        # Manually drawn annotations are stamped with the saving user's identity -
+        # the e2e page fixture is pre-authenticated as the bootstrap admin.
+        assert annotation["created_by"] == "admin"
         assert annotation["validated"]
 
     time_region = next(a for a in annotations if a["type"] == "time_region")

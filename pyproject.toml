@@ -43,8 +43,11 @@ dependencies = [
 ]
 [project.optional-dependencies]
 models = [
+  "ray>=2.53.0",
   "torch",
-  "ray>=2.49.1",
+  "dtaidistance",
+  "stumpy",
+  "sktime",
   "mlflow>=3.1.4",
   "safetensors>=0.7.0",
   "huggingface-hub>=1.22.0",

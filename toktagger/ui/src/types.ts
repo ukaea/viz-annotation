@@ -267,6 +267,7 @@ export const ModelSchema = z.object({
   timestamp: z.string(),
   project_id: z.string(),
   type: z.string(),
+  name: z.string().nullable().optional(),
   version: z.int(),
   status: z.string(),
   progress: z.number(),

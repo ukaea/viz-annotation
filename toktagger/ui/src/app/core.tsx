@@ -330,6 +330,7 @@ export const startTraining = async (
   selected_model: string,
   useGPU: boolean,
   params: Record<string, unknown>,
+  name: string,
 ): Promise<Response> => {
   const response = await fetch(
     `${BACKEND_API_URL}/projects/${project_id}/models/${selected_model}/train?use_gpu=${useGPU}`,
@@ -338,7 +339,7 @@ export const startTraining = async (
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ params: params }),
+      body: JSON.stringify({ params: params, name: name }),
     },
   );
   return response;
@@ -386,12 +387,13 @@ export const startSamplePredictions = async (
   project_id: string,
   sample_id: string,
   selected_model: string,
+  version: number,
   use_gpu: boolean,
   params: Record<string, unknown>,
   data_params: DataParams,
 ): Promise<Response> => {
   const response = await fetch(
-    `${BACKEND_API_URL}/projects/${project_id}/samples/${sample_id}/models/${selected_model}/predict?use_gpu=${use_gpu}`,
+    `${BACKEND_API_URL}/projects/${project_id}/samples/${sample_id}/models/${selected_model}/predict?version=${version}&use_gpu=${use_gpu}`,
     {
       method: "POST",
       headers: {
@@ -431,10 +433,12 @@ export const getModels = async (project_id: string): Promise<Response> => {
 export const getModelSchema = async (
   modelName: string,
   schemaType: string,
+  projectId?: string,
 ): Promise<RJSFSchema | null> => {
-  const response = await fetch(
-    `${BACKEND_API_URL}/meta/models/${modelName}/${schemaType}`,
-  );
+  const url =
+    `${BACKEND_API_URL}/meta/models/${modelName}/${schemaType}` +
+    (projectId ? `?project_id=${projectId}` : "");
+  const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch model schema!`);
   }
@@ -446,10 +450,21 @@ export const getModelSchema = async (
   return schema;
 };
 
+export const getModelMeta = async (
+  modelName: string,
+): Promise<{ name: string; description: string | null; tasks: string[] }> => {
+  const response = await fetch(`${BACKEND_API_URL}/meta/models/${modelName}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch model metadata!`);
+  }
+  return response.json();
+};
+
 export const getModelTrainSchema = async (
   modelName: string,
+  projectId?: string,
 ): Promise<RJSFSchema | null> => {
-  return getModelSchema(modelName, "train");
+  return getModelSchema(modelName, "train", projectId);
 };
 
 export const getModelPredictSchema = async (

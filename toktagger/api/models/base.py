@@ -5,16 +5,18 @@ from toktagger.api.schemas.data import DataParamTypes
 from toktagger.api.core.data_loaders import DataLoader
 from sklearn.model_selection import train_test_split
 from abc import ABC, abstractmethod
+import inspect
 import typing
 import math
 from toktagger.api.core.sender import send_model_updates
 from toktagger.api.schemas.models import ModelUpdate
-from toktagger.api.models import models_dependencies_installed
 import pydantic
 import uuid
 from collections import OrderedDict
 import logging
 import pathlib
+
+from toktagger.api.models import models_dependencies_installed
 
 logger = logging.getLogger("ray")
 
@@ -397,6 +399,11 @@ class ModelRegistry:
         return params
 
     @classmethod
+    def get_description(cls, name: str) -> str | None:
+        model_class = cls._registry.get(name)
+        return inspect.getdoc(model_class) if model_class else None
+
+    @classmethod
     def get_params_schema(
         cls,
         name: str,
@@ -435,113 +442,116 @@ class ModelRegistry:
         return walk_schema(schema)
 
 
-@ray.remote(num_cpus=0.1)
-class WorkerRegistry:
-    def __init__(self, registry):
-        self._registry: dict[str, Model | DataLoader] = registry
+if models_dependencies_installed():
 
-    def get(self, name):
-        registered: Model | DataLoader | None = self._registry.get(name)
-        if not registered:
-            raise ValueError(f"No class called '{name}' found in registry!")
-        return registered
+    @ray.remote(num_cpus=0.1)
+    class WorkerRegistry:
+        def __init__(self, registry):
+            self._registry = registry
 
+        def get(self, name):
+            registered = self._registry.get(name)
+            if not registered:
+                raise ValueError(f"No class called '{name}' found in registry!")
+            return registered
 
-class ActorRegistry:
-    """Registry to keep track of Ray actors, and the task they are associated with."""
+    class ActorRegistry:
+        """Registry to keep track of Ray actors, and the task they are associated with."""
 
-    def __init__(self, max_actors: int, max_gpu_actors: int):
-        """Create task registry
+        def __init__(self, max_actors: int, max_gpu_actors: int):
+            """Create task registry
 
-        Parameters
-        ----------
-        max_actors : int
-            Maximum number of actors to keep alive simultaneously
-        max_gpu_actors : int
-            Maximum number of GPU actors to keep alive simultaneously
-        """
+            Parameters
+            ----------
+            max_actors : int
+                Maximum number of actors to keep alive simultaneously
+            max_gpu_actors : int
+                Maximum number of GPU actors to keep alive simultaneously
+            """
 
-        if max_actors < 1:
-            raise ValueError(
-                "Insufficient CPU cores available for ML model functionality"
-            )
+            if max_actors < 1:
+                raise ValueError(
+                    "Insufficient CPU cores available for ML model functionality"
+                )
 
-        self.gpu_enabled = True if max_gpu_actors > 0 else False
-        self.max_actors = max_actors
-        self.max_gpu_actors = max_gpu_actors
-        self.tasks = {}
-        self.actors = OrderedDict()
+            self.gpu_enabled = True if max_gpu_actors > 0 else False
+            self.max_actors = max_actors
+            self.max_gpu_actors = max_gpu_actors
+            self.tasks = {}
+            self.actors = OrderedDict()
 
-    def register(self, task_ref: ray.ObjectRef) -> str:
-        """Store a Ray task reference in the registry and associate with a UUID.
+        def register(self, task_ref: ray.ObjectRef) -> str:
+            """Store a Ray task reference in the registry and associate with a UUID.
 
-        Parameters
-        ----------
-        task_ref : ray.ObjectRef
-            The reference to the Ray task
+            Parameters
+            ----------
+            task_ref : ray.ObjectRef
+                The reference to the Ray task
 
-        Returns
-        -------
-        str
-            A unique identifier for this task
-        """
-        task_id = str(uuid.uuid4())
-        self.tasks[task_id] = task_ref
-        return task_id
+            Returns
+            -------
+            str
+                A unique identifier for this task
+            """
+            task_id = str(uuid.uuid4())
+            self.tasks[task_id] = task_ref
+            return task_id
 
-    def get(self, task_id: str) -> ray.ObjectRef | None:
-        """Convert a task ID back into the Ray task reference
+        def get(self, task_id: str) -> ray.ObjectRef | None:
+            """Convert a task ID back into the Ray task reference
 
-        Parameters
-        ----------
-        task_id : str
-            The unique identifier for this task
+            Parameters
+            ----------
+            task_id : str
+                The unique identifier for this task
 
-        Returns
-        -------
-        ray.ObjectRef | None
-            The Ray task reference, if it exists in the Registry
-        """
-        return self.tasks.get(task_id)
+            Returns
+            -------
+            ray.ObjectRef | None
+                The Ray task reference, if it exists in the Registry
+            """
+            return self.tasks.get(task_id)
 
-    def update_actors(self, actor_name: str, use_gpu: bool) -> None:
-        """Record that a Ray Actor has been accessed, and kill any stale Actors.
+        def update_actors(self, actor_name: str, use_gpu: bool) -> None:
+            """Record that a Ray Actor has been accessed, and kill any stale Actors.
 
-        Parameters
-        ----------
-        actor_name : str
-            The name of the Ray Actor
-        """
-        # Set this actor to be the most recently used
-        if actor_name in self.actors:
-            self.actors.move_to_end(actor_name)
-        else:
-            self.actors[actor_name] = use_gpu
+            Parameters
+            ----------
+            actor_name : str
+                The name of the Ray Actor
+            """
+            # Set this actor to be the most recently used
+            if actor_name in self.actors:
+                self.actors.move_to_end(actor_name)
+            else:
+                self.actors[actor_name] = use_gpu
 
-        if not self.actors[actor_name] and use_gpu:
-            # CPU actor may be upgraded to GPU (but not other way round)
-            self.actors[actor_name] = use_gpu
+            if not self.actors[actor_name] and use_gpu:
+                # CPU actor may be upgraded to GPU (but not other way round)
+                self.actors[actor_name] = use_gpu
 
-        stale_actor = None
-        # Check GPU limit first
-        gpu_count = sum(1 for gpu in self.actors.values() if gpu)
-        if self.gpu_enabled and gpu_count > self.max_gpu_actors:
-            # Find first actor which requires GPU
-            stale_actor = next(
-                (actor for actor, gpu in self.actors.items() if gpu), None
-            )
-            if not stale_actor:
-                raise ValueError("GPU count exceeds maximum, but no GPU actor found!")
-            self.actors.pop(stale_actor)
+            stale_actor = None
+            # Check GPU limit first
+            gpu_count = sum(1 for gpu in self.actors.values() if gpu)
+            if self.gpu_enabled and gpu_count > self.max_gpu_actors:
+                # Find first actor which requires GPU
+                stale_actor = next(
+                    (actor for actor, gpu in self.actors.items() if gpu), None
+                )
+                if not stale_actor:
+                    raise ValueError(
+                        "GPU count exceeds maximum, but no GPU actor found!"
+                    )
+                self.actors.pop(stale_actor)
 
-        # Then check overall tasks limit
-        elif len(self.actors) > self.max_actors:
-            stale_actor, _ = self.actors.popitem(last=False)
+            # Then check overall tasks limit
+            elif len(self.actors) > self.max_actors:
+                stale_actor, _ = self.actors.popitem(last=False)
 
-        if stale_actor:
-            try:
-                actor = ray.get_actor(stale_actor)
-                # Queue a kill job, letting any other in progress tasks finish first
-                actor.__ray_terminate__.remote()
-            except ValueError:
-                return
+            if stale_actor:
+                try:
+                    actor = ray.get_actor(stale_actor)
+                    # Queue a kill job, letting any other in progress tasks finish first
+                    actor.__ray_terminate__.remote()
+                except ValueError:
+                    return

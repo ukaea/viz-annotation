@@ -234,6 +234,11 @@ async def start_model_training(
     params: dict = Body(
         {}, description="Optional parameters for training the model", embed=True
     ),
+    name: str | None = Body(
+        None,
+        description="User-facing display name for the trained model",
+        embed=True,
+    ),
 ):
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
@@ -301,6 +306,7 @@ async def start_model_training(
 
     model_in = ModelIn(
         type=model_type,
+        name=name,
         version=version,
         status="queued",
         progress=0,
@@ -708,9 +714,14 @@ async def delete_predictions(
             detail=f"This model type is not valid for your current project! Valid types are: {project.model_types}",
         )
 
+    # Annotations record the model name, so collect the names of every model of
+    # this type before deleting.
+    models = await utils.get_models(db_client, project_id, model_type=model_type)
+    names = list({model.annotator_name for model in models})
+
     result = await request.app.state.db_client.delete_filtered_documents(
         collection="annotations",
-        filters={"project_id": ObjectId(project.id), "created_by": model_type},
+        filters={"project_id": ObjectId(project.id), "created_by": {"$in": names}},
     )
 
     if result.deleted_count == 0:
@@ -730,6 +741,9 @@ async def create_sample_predictions(
         description="The ID of the sample to make model predictions for."
     ),
     model_type: str = Path(description="The type of model to make predictions from."),
+    version: int = Query(
+        None, description="Version of model to use, leave blank for latest version"
+    ),
     use_gpu: bool = Query(
         False, description="Whether to use GPU to create these predictions"
     ),
@@ -758,15 +772,29 @@ async def create_sample_predictions(
             detail=f"This model type is not valid for your current project! Valid types are: {project.model_types}",
         )
 
-    # Find the latest created model for this project
+    # Find the requested model version, or the latest one for this project
     model = await utils.get_model(
-        db_client, project_id=project.id, model_type=model_type, status="completed"
+        db_client,
+        project_id=project.id,
+        model_type=model_type,
+        status="completed",
+        version=version,
     )
 
     # Get model params model from registry and validate
     params_validated = validate_model_params(model_type, "prediction", params)
 
     sample = await utils.get_sample(db_client, project_id, sample_id)
+
+    # Remove any unvalidated predictions from a previous run of this model so
+    # that stale annotations don't accumulate in the DB across prediction runs.
+    await utils.delete_annotations(
+        db_client,
+        project_id=project_id,
+        sample_id=sample_id,
+        created_by=model.annotator_name,
+        validated=False,
+    )
 
     task_registry.update_actors(model.id, use_gpu)
 
@@ -825,6 +853,7 @@ async def get_sample_predictions(
         try:
             result = ray.get(task)
         except Exception as e:
+            logger.error(f"Prediction task failed: {e}")
             raise HTTPException(
                 detail="Predict task failed - no predictions available",
                 status_code=500,

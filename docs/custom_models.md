@@ -524,6 +524,11 @@ TimeInterval(
 )
 ```
 
+!!! note
+    The server replaces `created_by` with the name given to the trained model when
+    it saves the predictions. Models loaded from pretrained weights have no name, so
+    they keep their model type.
+
 ## Best Practices
 
 1. **Use `log_progress()` frequently** to keep the UI updated on training progress

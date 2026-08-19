@@ -136,8 +136,8 @@ async def get_models(
     models = await db_client.get_filtered_documents(
         collection="models",
         filters=filters,
-        sort_by="version",
-        sort_direction=-1,
+        sort_by="_id",
+        sort_direction="descending",
         start=start,
         limit=end - start + 1 if end is not None else 0,
     )
@@ -367,6 +367,8 @@ async def delete_annotations(
     project_id: str,
     sample_id: Optional[str] = None,
     annotation_id: Optional[str] = None,
+    created_by: Optional[str] = None,
+    validated: Optional[bool] = None,
 ) -> None:
     project_obj_id = convert_to_objectid(project_id, "projects")
     filters = {"project_id": project_obj_id}
@@ -378,6 +380,12 @@ async def delete_annotations(
     if annotation_id:
         annotation_obj_id = convert_to_objectid(annotation_id, "annotations")
         filters["_id"] = annotation_obj_id
+
+    if created_by is not None:
+        filters["created_by"] = created_by
+
+    if validated is not None:
+        filters["validated"] = validated
 
     result = await db_client.delete_filtered_documents(
         collection="annotations", filters=filters
@@ -413,7 +421,7 @@ async def update_annotations(
 
 
 async def get_files(dir_path: str, file_type: str) -> list[str]:
-    file_names = Path(dir_path).glob(f"*.{file_type}")
+    file_names = Path(dir_path).glob(f"**/*.{file_type}")
     file_names = map(str, file_names)
     file_names = list(sorted(file_names))
     return file_names

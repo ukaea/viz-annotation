@@ -53,6 +53,9 @@ export const AddSamplesEditor = ({
   const [shotInputMethod, setShotInputMethod] = useState<string>("range"); // "range" or "file"
   const [shotRange, setShotRange] = useState<NumericalRangeType>();
   const [shotIds, setShotIds] = useState<number[]>([]);
+  const [shotFileMap, setShotFileMap] = useState<Map<number, string>>(
+    new Map(),
+  );
 
   // Shot Data fields
   const [signalNames, setSignalNames] = useState<string>("");
@@ -64,6 +67,12 @@ export const AddSamplesEditor = ({
 
   // Determine if we should use directories (for image data)
   const useDirectories = dataSchema?.title === "ImageFileData";
+
+  // Only file-based schemas discover their shot IDs from a directory listing.
+  const isFileData =
+    dataSchema?.title === "ImageFileData" ||
+    dataSchema?.title === "ImageArrayFileData" ||
+    dataSchema?.title === "TimeSeriesFileData";
 
   // Fetch the data schema type from the load registry
   useEffect(() => {
@@ -166,6 +175,10 @@ export const AddSamplesEditor = ({
   };
 
   useEffect(() => {
+    // ShotData projects never show the directory fields, so a listing of the
+    // server's working directory must not overwrite the range-derived shot IDs.
+    if (!isFileData) return;
+
     async function fetchFileSamples() {
       let apiUrl = `${BACKEND_API_URL}/paths/files?dir_path=${dirPath}&file_type=${fileType}`;
       if (useDirectories) {
@@ -177,19 +190,50 @@ export const AddSamplesEditor = ({
         const result = await response.json();
         const fileNames: string[] = result;
 
-        // Extract shot IDs from file names using regex (assuming shot ID is a number in the file name)
-        const extractedShotIds = fileNames
-          .map((fileName) => {
-            const regex = useDirectories
-              ? /^\d+$/
-              : new RegExp(`^\\d+\\.${fileType}$`);
+        if (useDirectories) {
+          // Directories: extract shot ID from the directory name (unchanged)
+          const extractedShotIds = fileNames
+            .map((fileName) => {
+              const match = fileName.split("/").pop()?.match(/^\d+$/);
+              return match ? parseInt(match[0], 10) : null;
+            })
+            .filter((id): id is number => id !== null);
+          setShotIds(extractedShotIds);
+          setShotFileMap(new Map());
+        } else {
+          // Files: build a shot-ID → file-path map.
+          // Priority 1: filename is exactly <shotId>.<fileType>  → use the full path directly.
+          // Priority 2: parent directory is exactly <shotId>     → use a per-directory glob
+          //             e.g. data/10000/signal.parquet  →  data/10000/*.parquet
+          const fileNameRegex = new RegExp(`^(\\d+)\\.${fileType}$`);
+          const map = new Map<number, string>();
 
-            const match = fileName.split("/").pop()?.match(regex);
-            return match ? parseInt(match[0], 10) : null;
-          })
-          .filter((id): id is number => id !== null);
+          for (const filePath of fileNames) {
+            const parts = filePath.replace(/\\/g, "/").split("/");
+            const base = parts[parts.length - 1];
+            const parentDir = parts[parts.length - 2];
 
-        setShotIds(extractedShotIds);
+            const fileMatch = base.match(fileNameRegex);
+            if (fileMatch) {
+              const id = parseInt(fileMatch[1], 10);
+              if (!map.has(id)) map.set(id, filePath);
+              continue;
+            }
+
+            const dirMatch = parentDir?.match(/^(\d+)$/);
+            if (dirMatch) {
+              const id = parseInt(dirMatch[1], 10);
+              if (!map.has(id)) {
+                // Store a glob covering all matching files in that directory
+                const dirPath2 = parts.slice(0, -1).join("/");
+                map.set(id, `${dirPath2}/*.${fileType}`);
+              }
+            }
+          }
+
+          setShotIds(Array.from(map.keys()).sort((a, b) => a - b));
+          setShotFileMap(map);
+        }
       } else {
         ToastQueue.negative(`Error fetching files for ${dirPath}.`, {
           timeout: 3000,
@@ -197,7 +241,7 @@ export const AddSamplesEditor = ({
       }
     }
     fetchFileSamples();
-  }, [dirPath, fileType, useDirectories]);
+  }, [dirPath, fileType, useDirectories, isFileData]);
 
   const onFormSubmit = async (close: () => void) => {
     try {
@@ -234,10 +278,15 @@ export const AddSamplesEditor = ({
           dataSchema?.title === "TimeSeriesFileData"
         ) {
           // File Data or Time Series File Data
-          let fileName: string =
-            dirPath + "/" + (shotId.toString() + "." + fileType); // Default file name format
+          let fileName: string;
           if (useDirectories) {
-            fileName = dirPath + "/" + shotId.toString(); // For directories, the "file name" is just the directory path with shot ID
+            fileName = dirPath + "/" + shotId.toString();
+          } else {
+            // Use the resolved path from the file map; fall back to the
+            // flat convention for manually-entered shot ranges.
+            fileName =
+              shotFileMap.get(shotId) ??
+              dirPath + "/" + shotId.toString() + "." + fileType;
           }
 
           const fileData: Record<string, string | string[]> = {
@@ -324,6 +373,7 @@ export const AddSamplesEditor = ({
 
   useEffect(() => {
     setShotIds([]);
+    setShotFileMap(new Map());
   }, [dataSchema, shotInputMethod]);
 
   return (

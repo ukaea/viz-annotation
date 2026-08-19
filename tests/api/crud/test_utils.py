@@ -389,8 +389,8 @@ async def test_get_models(db_client, setup_model_db):
     models = await utils.get_models(db_client, project_id=setup_model_db["project_id"])
     # Check three models returned
     assert len(models) == 4
-    # Check returned in correct order - reverse order of version
-    assert [model.version for model in models] == [3, 2, 1, 1]
+    # Check returned in creation order, newest first (sorted by _id descending)
+    assert [model.version for model in models] == [1, 3, 2, 1]
 
 
 @pytest.mark.asyncio

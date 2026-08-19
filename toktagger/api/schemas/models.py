@@ -7,11 +7,18 @@ import pydantic
 
 class ModelIn(ConfiguredModel):
     type: str
+    name: Optional[str] = None
     version: int
     status: Literal["queued", "training", "loading", "failed", "completed", "aborted"]
     progress: Annotated[float, Field(strict=True, ge=0, le=100)]
     score: float
     task_id: Optional[str] | None = None
+
+    @property
+    def annotator_name(self) -> str:
+        """Name recorded against the annotations this model produces. Models loaded
+        from pretrained weights have no name, so fall back to their type."""
+        return self.name or self.type
 
     @field_validator("type")
     def check_model_type(cls, value):

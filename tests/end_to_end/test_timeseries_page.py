@@ -567,15 +567,17 @@ def test_timeseries_model_predict(
     # Navigate to samples table page
     page.goto(f"http://localhost:8002/ui/projects/{project_id}")
 
-    # Click on model train modal
-    page.get_by_role("button", name="Train ML Model").click()
+    # Click on model train modal, and wait for available model types to load
+    with page.expect_response(
+        lambda r: "/meta/models?task=" in r.url and r.request.method == "GET"
+    ):
+        page.get_by_role("button", name="Train ML Model").click()
 
     # Check modal has opened
-    expect(page.get_by_role("heading", name="Train ML Model")).to_be_visible()
+    expect(page.get_by_role("heading", name="Model Training")).to_be_visible()
     expect(page.get_by_role("combobox", name="Select Model Type")).to_be_visible()
     expect(page.get_by_role("button", name="Close")).to_be_visible()
     expect(page.get_by_role("button", name="Train", exact=True)).to_be_visible()
-    expect(page.get_by_role("switch", name="Allocate GPU")).to_be_visible()
 
     # Click on dropdown box, check 'disruption_cnn' is shown
     page.get_by_role("button", name="Select Model Type").click()
@@ -591,6 +593,15 @@ def test_timeseries_model_predict(
 
     page.get_by_role("option", name=model_name, exact=True).click()
 
+    # Model-specific form (including GPU switch) only renders once a model
+    # type is selected and its training schema has loaded
+    expect(page.get_by_role("switch", name="Allocate GPU")).to_be_visible()
+
+    # Model Name is required before the Train button becomes enabled - fill it
+    # in before form_check so its Train click below is only blocked by the
+    # custom-param validation it's testing, not a missing Model Name too
+    page.get_by_role("textbox", name="Model Name").fill(model_name)
+
     # If params model chosen, new form should open
     if model_name == "mock_params_timeseries_cnn":
         form_check(page, "Train")
@@ -604,7 +615,7 @@ def test_timeseries_model_predict(
     # Close modal, check it disappears
     page.get_by_role("button", name="Close", exact=True).click()
 
-    expect(page.get_by_role("heading", name="Train ML Model")).to_be_hidden()
+    expect(page.get_by_role("heading", name="Model Training")).to_be_hidden()
     expect(page.get_by_role("combobox", name="Select Model Type")).to_be_hidden()
     expect(page.get_by_role("button", name="Close")).to_be_hidden()
     expect(page.get_by_role("button", name="Train", exact=True)).to_be_hidden()
@@ -644,16 +655,18 @@ def test_timeseries_model_predict(
     page.get_by_role("button", name="Model Prediction").click()
     model_predict = page.get_by_role("group", name="Model Prediction")
     expect(model_predict).to_be_visible()
-    model_predict.get_by_role("switch", name="Enable Tool").click()
+    # The list of trained models is refetched when the tool is switched on
+    with page.expect_response(
+        lambda r: r.url.endswith("/models") and r.request.method == "GET"
+    ):
+        model_predict.get_by_role("switch", name="Enable Tool").click()
     expect(page.get_by_role("switch", name="Allocate GPU")).to_be_visible()
 
-    # Choose model type
+    # Choose the trained model by the name it was given
     model_predict.get_by_role(
-        "combobox", name="Select Model Type"
+        "combobox", name="Select Model"
     ).scroll_into_view_if_needed()
-    model_predict.get_by_role(
-        "button", name="Show suggestions Select Model Type"
-    ).click()
+    model_predict.get_by_role("button", name="Show suggestions Select Model").click()
     page.get_by_role("option", name=model_name, exact=True).click()
 
     # If params model chosen, new form should open

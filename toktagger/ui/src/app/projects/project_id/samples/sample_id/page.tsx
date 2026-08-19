@@ -8,6 +8,7 @@ import {
   Item,
   ToastContainer,
   Flex,
+  View,
 } from "@adobe/react-spectrum";
 import { Project, Sample, TaskType } from "@/types";
 import { TimeSeriesView } from "@/app/time_series/components/time-series";
@@ -19,6 +20,8 @@ import LoadingView from "@/app/views/loading";
 import { SampleProvider, useSample } from "@/app/contexts/SampleContext";
 import { VideoProviders, VideoView } from "@/app/video/components/video-view";
 import { SampleHistoryProvider } from "@/app/contexts/SampleHistoryContext";
+import { ModelTrainModal } from "@/app/components/tools/modelTrain";
+import { useServerHealth } from "@/app/contexts/healthContext";
 
 type SampleDataBreadCrumbsInfo = {
   project: Project;
@@ -71,6 +74,7 @@ function SampleTaskProviders({ children }: { children: React.ReactNode }) {
 
 function SamplePageContent(props: { sampleId: string }) {
   const { project, sample, isLoading, error } = useSample();
+  const { modelsEnabled } = useServerHealth();
 
   // Early returns AFTER all hooks
   if (error) return <ErrorView message={error} />;
@@ -101,6 +105,9 @@ function SamplePageContent(props: { sampleId: string }) {
       <Provider theme={defaultTheme}>
         <ToastContainer placement="top" />
         <SampleDataBreadCrumbs project={project} sample={sample} />
+        <View position="fixed" top="size-100" right="size-100" zIndex={9999}>
+          <ModelTrainModal project={project} isEnabled={modelsEnabled} />
+        </View>
         <Flex>
           <SampleTaskProviders>
             <ToolBar />

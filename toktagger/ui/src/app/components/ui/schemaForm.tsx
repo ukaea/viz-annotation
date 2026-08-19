@@ -30,7 +30,10 @@ import {
   Footer,
   Link,
   ContextualHelp,
+  ActionButton,
 } from "@adobe/react-spectrum";
+import AddCircle from "@spectrum-icons/workflow/AddCircle";
+import Delete from "@spectrum-icons/workflow/Delete";
 import {
   WidgetProps,
   FieldTemplateProps,
@@ -179,7 +182,8 @@ export function SpectrumSelectWidget(props: WidgetProps) {
       id={id}
       label={label}
       description={schema.description}
-      selectedKey={value}
+      // Array rows start out empty; undefined would make the ComboBox uncontrolled.
+      selectedKey={value ?? null}
       isRequired={required}
       isDisabled={disabled || readonly}
       validationState={isInvalid ? "invalid" : "valid"}
@@ -378,6 +382,10 @@ const SpectrumArrayFieldTemplate = ({
   title,
   items,
   schema,
+  canAdd,
+  disabled,
+  readonly,
+  onAddClick,
 }: ArrayFieldTemplateProps) => {
   return (
     <View
@@ -402,14 +410,41 @@ const SpectrumArrayFieldTemplate = ({
           </span>
         </Flex>
       )}
+      {canAdd && (
+        <ActionButton
+          height="size-300"
+          marginTop="size-100"
+          isDisabled={disabled || readonly}
+          onPress={() => onAddClick()}
+        >
+          <AddCircle />
+          <Text>Add item</Text>
+        </ActionButton>
+      )}
     </View>
   );
 };
 
 const SpectrumArrayFieldItemTemplate = ({
   children,
+  buttonsProps,
 }: ArrayFieldItemTemplateProps) => {
-  return <View marginX={"size-400"}>{children}</View>;
+  return (
+    <Flex marginX="size-400" gap="size-100" alignItems="end">
+      <View flexGrow={1}>{children}</View>
+      {buttonsProps.hasRemove && (
+        <ActionButton
+          width="size-300"
+          height="size-300"
+          aria-label={`Remove item ${buttonsProps.index + 1}`}
+          isDisabled={buttonsProps.disabled || buttonsProps.readonly}
+          onPress={() => buttonsProps.onRemoveItem()}
+        >
+          <Delete />
+        </ActionButton>
+      )}
+    </Flex>
+  );
 };
 
 type SchemaFormProps = {

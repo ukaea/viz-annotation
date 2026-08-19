@@ -170,8 +170,8 @@ export function ModelTrainModal({
       if (trainingModelId) {
         const m = data.find((x) => x._id === trainingModelId);
         if (m) {
-          setTrainingStatus(m.training_status);
-          if (m.training_status === "completed") {
+          setTrainingStatus(m.status);
+          if (m.status === "completed") {
             setMessage(`Training complete! Score: ${Math.round(m.score)}%`);
             setMessageIcon(
               <CheckmarkCircle
@@ -180,7 +180,7 @@ export function ModelTrainModal({
                 size="S"
               />,
             );
-          } else if (m.training_status === "failed") {
+          } else if (m.status === "failed") {
             setMessage("Training failed.");
             setMessageIcon(
               <Alert aria-label="Failed" color="negative" size="S" />,
@@ -271,7 +271,7 @@ export function ModelTrainModal({
   };
 
   const isTrainingActive =
-    trainingStatus === "queued" || trainingStatus === "started";
+    trainingStatus === "queued" || trainingStatus === "training";
 
   return (
     <DialogTrigger onOpenChange={handleOpenChange}>
@@ -363,7 +363,7 @@ export function ModelTrainModal({
                           <Column key="timestamp" allowsSorting>
                             Created
                           </Column>
-                          <Column key="training_status" allowsSorting>
+                          <Column key="status" allowsSorting>
                             Status
                           </Column>
                           <Column key="score" allowsSorting>
@@ -379,18 +379,18 @@ export function ModelTrainModal({
                               <Cell>{item.version}</Cell>
                               <Cell>{formatTimestamp(item.timestamp)}</Cell>
                               <Cell>
-                                {item.training_status === "started"
+                                {item.status === "training"
                                   ? "Training…"
-                                  : item.training_status}
+                                  : item.status}
                               </Cell>
                               <Cell>
-                                {item.training_status === "completed"
+                                {item.status === "completed"
                                   ? Math.round(item.score)
                                   : "—"}
                               </Cell>
                               <Cell>
-                                {["queued", "started"].includes(
-                                  item.training_status,
+                                {["queued", "training"].includes(
+                                  item.status,
                                 ) ? (
                                   <Button
                                     variant="negative"

@@ -412,7 +412,7 @@ async def test_get_models_by_type(db_client, setup_model_db):
 @pytest.mark.models_enabled
 async def test_get_models_by_status(db_client, setup_model_db):
     models = await utils.get_models(
-        db_client, project_id=setup_model_db["project_id"], status="started"
+        db_client, project_id=setup_model_db["project_id"], status="training"
     )
     # Check one model returned
     assert len(models) == 1
@@ -451,7 +451,7 @@ async def test_get_model_doesnt_exist(db_client, setup_model_db):
 @pytest.mark.asyncio
 @pytest.mark.models_enabled
 async def test_update_model(db_client, setup_model_db):
-    model_updates = ModelUpdate(training_status="completed", progress=100, score=80)
+    model_updates = ModelUpdate(status="completed", progress=100, score=80)
     await utils.update_model(
         db_client, model_id=setup_model_db["model_id_3"], updates=model_updates
     )
@@ -459,7 +459,7 @@ async def test_update_model(db_client, setup_model_db):
     model_updated = await db_client.get_document_by_id(
         "models", ObjectId(setup_model_db["model_id_3"])
     )
-    assert model_updated["training_status"] == "completed"
+    assert model_updated["status"] == "completed"
     assert model_updated["progress"] == 100
     assert model_updated["score"] == 80
 
@@ -470,7 +470,7 @@ async def test_add_model(db_client, setup_model_db):
     model = ModelIn(
         type="mock_disruption_cnn",
         version=3,
-        training_status="queued",
+        status="queued",
         progress=0,
         score=0,
     )

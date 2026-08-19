@@ -76,7 +76,7 @@ export function SpectrumBaseWidget(props: WidgetProps) {
         isDisabled={disabled || readonly}
         minValue={schema.minimum || schema.exclusiveMinimum}
         maxValue={schema.maximum || schema.exclusiveMaximum}
-        step={type === "integer" ? 1 : 0.1}
+        step={type === "integer" ? 1 : undefined}
         formatOptions={type === "integer" ? { maximumFractionDigits: 0 } : {}}
         validationState={rawErrors?.length ? "invalid" : "valid"}
         errorMessage={rawErrors?.[0]}

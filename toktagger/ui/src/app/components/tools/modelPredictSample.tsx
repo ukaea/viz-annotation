@@ -71,9 +71,7 @@ export function ModelPredictTool({ project_id, sample_id }: ModelPredictInfo) {
       }
 
       // Only a model which finished training can make predictions.
-      setModels(
-        result.data.filter((model) => model.training_status === "completed"),
-      );
+      setModels(result.data.filter((model) => model.status === "completed"));
     })();
   }, [project_id, isEnabled]);
 

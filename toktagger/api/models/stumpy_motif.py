@@ -77,7 +77,7 @@ class StumpyMotifModel(Model):
         annotations: list[list[Annotation]],
         params: StumpyMotifTrainParams,
     ) -> float:
-        self.log_progress(training_status="started", progress=0)
+        self.log_progress(status="training", progress=0)
 
         paired = [(s, a) for s, a in zip(samples, annotations) if a]
         if not paired:
@@ -151,7 +151,7 @@ class StumpyMotifModel(Model):
         }
 
         score = 100.0
-        self.log_progress(training_status="completed", progress=100, score=score)
+        self.log_progress(status="completed", progress=100, score=score)
         return score
 
     def predict(

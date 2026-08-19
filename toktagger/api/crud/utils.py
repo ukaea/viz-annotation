@@ -118,7 +118,7 @@ async def get_models(
     project_id: str,
     model_type: Optional[str] = None,
     status: Optional[
-        Literal["queued", "started", "failed", "completed", "aborted"]
+        Literal["queued", "training", "loading", "failed", "completed", "aborted"]
     ] = None,
     start: int = 0,
     end: Optional[int] = None,
@@ -128,7 +128,7 @@ async def get_models(
     if model_type:
         filters["type"] = model_type
     if status:
-        filters["training_status"] = status
+        filters["status"] = status
 
     if not await db_client.get_document_by_id("projects", project_obj_id):
         raise HTTPException(status_code=404, detail="Project not found with that ID.")
@@ -149,7 +149,7 @@ async def get_model(
     project_id: str,
     model_type: str,
     version: int | None = None,
-    status: Literal["queued", "started", "failed", "completed", "aborted"]
+    status: Literal["queued", "training", "loading", "failed", "completed", "aborted"]
     | None = None,
     model_id: str | None = None,
     task_id: str | None = None,
@@ -159,7 +159,7 @@ async def get_model(
     if version:
         filters["version"] = version
     if status:
-        filters["training_status"] = status
+        filters["status"] = status
     if model_id:
         filters["_id"] = convert_to_objectid(model_id, "models")
     if task_id:

@@ -5,7 +5,15 @@ from bson.objectid import ObjectId
 from toktagger.api.crud import utils
 from toktagger.api.schemas.annotations import AnnotationBatchTypes
 from toktagger.api.schemas.data import DataParamTypes, DataParams
-from toktagger.api.schemas.models import Model, ModelIn, ModelUpdate, LoadTypes
+from toktagger.api.schemas.models import (
+    Model,
+    ModelIn,
+    ModelUpdate,
+    LocalLoadParams,
+    GitlabLoadParams,
+    HuggingfaceLoadParams,
+)
+from toktagger.api.schemas.projects import Project
 from toktagger.api.models import models_dependencies_installed, check_models_enabled
 from pydantic import ValidationError
 from collections import defaultdict
@@ -15,7 +23,13 @@ import shutil
 
 # Only import large packages if models dependencies installed
 if models_dependencies_installed():
-    from toktagger.api.worker import load_model, train_model, get_predictions
+    from toktagger.api.core.worker import (
+        load_model_local,
+        load_model_gitlab,
+        load_model_huggingface,
+        train_model,
+        get_predictions,
+    )
     from toktagger.api.models.base import ModelRegistry
     import ray
 
@@ -45,6 +59,58 @@ def validate_model_params(model_type: str, schema_type: str, params: dict):
             detail=error_str,
         )
     return params_validated
+
+
+async def create_model(db_client, project: Project, model_type: str) -> Model:
+    # Check that this model type is valid for this project
+    if model_type not in project.model_types:
+        raise HTTPException(
+            status_code=422,
+            detail=f"This model type is not valid for your current project! Valid types are: {project.model_types}",
+        )
+
+    # Try to get model for this project from database if it exists
+    db_models = await utils.get_models(db_client, project.id, model_type)
+
+    if (
+        len(
+            [
+                db_model
+                for db_model in db_models
+                if db_model.status in ["queued", "training", "loading"]
+            ]
+        )
+        > 0
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Training or loading of {model_type} model already in progress!",
+        )
+
+    if len(db_models) == 0:
+        # This is the first time a model has been saved for this project, so version = 1
+        version = 1
+    else:
+        version = db_models[0].version + 1
+
+    model_in = ModelIn(
+        type=model_type,
+        version=version,
+        status="queued",
+        progress=0,
+        score=0,
+    )
+
+    model_id = await utils.add_model(
+        db_client=db_client, project_id=project.id, model=model_in
+    )
+
+    # Find the latest queued model for this project
+    model = await utils.get_model(
+        db_client, project.id, model_type=model_type, model_id=model_id
+    )
+
+    return model
 
 
 router = APIRouter(
@@ -152,7 +218,7 @@ async def get_training_info(
     latest_model = await utils.get_model(
         db_client, project_id=project_id, model_type=model_type
     )
-    if latest_model.training_status not in ("queued", "started"):
+    if latest_model.status not in ("queued", "training", "loading"):
         raise HTTPException(
             status_code=404, detail=f"No training in progress for {model_type}"
         )
@@ -222,7 +288,7 @@ async def start_model_training(
             [
                 db_model
                 for db_model in db_models
-                if db_model.training_status in ["queued", "started"]
+                if db_model.status in ["queued", "training", "loading"]
             ]
         )
         > 0
@@ -242,7 +308,7 @@ async def start_model_training(
         type=model_type,
         name=name,
         version=version,
-        training_status="queued",
+        status="queued",
         progress=0,
         score=0,
     )
@@ -297,7 +363,7 @@ async def stop_model_training(
         model = await utils.get_model(
             db_client, project_id, model_type=model_type, version=version
         )
-        if model.training_status not in ("started", "queued"):
+        if model.status not in ("queued", "training", "loading"):
             raise HTTPException(
                 status_code=409,
                 detail="Model training is not in progress for this model!",
@@ -315,7 +381,7 @@ async def stop_model_training(
             db_client=db_client,
             project_id=project_id,
             model_type=model_type,
-            status="started",
+            status="training",
         )
 
     # Get the task IDs and stop them
@@ -332,107 +398,135 @@ async def stop_model_training(
         await utils.update_model(
             db_client=db_client,
             model_id=model.id,
-            updates=ModelUpdate(training_status="aborted"),
+            updates=ModelUpdate(status="aborted"),
         )
 
     # Return list of model IDs which were stopped
     return [model.id for model in models]
 
 
-@router.post("/models/{model_type}/load")
-async def load_model_weights(
-    request: Request,
-    project_id: str,
-    model_type: str,
-    method: LoadTypes,
-    weights_path: str,
+@router.post("/models/{model_type}/load/local")
+async def load_model_weights_local(
+    request: Request, project_id: str, model_type: str, params: LocalLoadParams
 ):
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
     # Check file available at weights path
-    weights_path: pathlib.Path = pathlib.Path(weights_path)
+    weights_path: pathlib.Path = pathlib.Path(params.weights_path)
     if not weights_path.exists():
         raise HTTPException(
             status_code=422, detail="Weights file not found at specified path!"
         )
 
     # Check if that load method is enabled
-    if method == LoadTypes.LOCAL and not config.settings.models.local_load_enabled:
+    if not config.settings.models.local_load_enabled:
         raise HTTPException(
             status_code=403, detail="Loading from local weights is disabled."
         )
 
-    # If local load, create a model db instance and return the model ID
-    elif method == LoadTypes.LOCAL:
-        project = await utils.get_project(db_client, project_id)
-        # Check that this model type is valid for this project
-        if model_type not in project.model_types:
-            raise HTTPException(
-                status_code=422,
-                detail=f"This model type is not valid for your current project! Valid types are: {project.model_types}",
-            )
+    project = await utils.get_project(db_client, project_id)
+    model = await create_model(db_client, project, model_type)
 
-        # Try to get model for this project from database if it exists
-        db_models = await utils.get_models(db_client, project_id, model_type)
+    task = load_model_local.remote(project=project, model=model, params=params)
+    task_id = task_registry.register(task)
+    task_registry.update_actors(model.id, use_gpu=False)
 
-        if (
-            len(
-                [
-                    db_model
-                    for db_model in db_models
-                    if db_model.training_status in ["queued", "started"]
-                ]
-            )
-            > 0
-        ):
-            raise HTTPException(
-                status_code=409,
-                detail=f"Training of {model_type} model already in progress!",
-            )
+    # Associate the task ID with the model in the database
+    await utils.update_model(
+        db_client=db_client, model_id=model.id, updates=ModelUpdate(task_id=task_id)
+    )
 
-        if len(db_models) == 0:
-            # This is the first time a model has been saved for this project, so version = 1
-            version = 1
-        else:
-            version = db_models[0].version + 1
+    return {"task_id": task_id, "model_id": model.id}
 
-        model_in = ModelIn(
-            type=model_type,
-            version=version,
-            training_status="queued",
-            progress=0,
-            score=0,
-        )
 
-        model_id = await utils.add_model(
-            db_client=db_client, project_id=project.id, model=model_in
-        )
+@router.post("/models/{model_type}/load/gitlab")
+async def load_model_weights_gitlab(
+    request: Request, project_id: str, model_type: str, params: GitlabLoadParams
+):
+    db_client = request.app.state.db_client
+    task_registry = request.app.state.task_registry
 
-        # Find the latest queued model for this project
-        model = await utils.get_model(
-            db_client, project.id, model_type=model_type, model_id=model_id
-        )
-
-        task_registry.update_actors(model.id, False)
-
-        task = load_model.remote(
-            project=project,
-            model=model,
-            weights_path=weights_path,
-        )
-        task_id = task_registry.register(task)
-
-        # Associate the task ID with the model in the database
-        await utils.update_model(
-            db_client=db_client, model_id=model_id, updates=ModelUpdate(task_id=task_id)
-        )
-
-        return {"task_id": task_id, "model_id": model.id}
-    else:
+    # Check if Gitlab load method is enabled
+    if not config.settings.models.gitlab_load_enabled:
         raise HTTPException(
-            status_code=501, detail=f"Loading method {method} not implemented!"
+            status_code=403, detail="Loading model weights from Gitlab is disabled."
         )
+
+    # Check if required env vars have been set
+    if not all(
+        (config.settings.models.gitlab_url, config.settings.models.gitlab_token)
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Gitlab URL and Token env vars must be set for ML Model loading from Gitlab.",
+        )
+    if (
+        not params.gitlab_project_id
+        and config.settings.models.gitlab_project_id is None
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="Must set a Gitlab Project ID either via UI or config setting.",
+        )
+    elif config.settings.models.gitlab_project_id:
+        params.gitlab_project_id = config.settings.models.gitlab_project_id
+
+    project = await utils.get_project(db_client, project_id)
+    model = await create_model(db_client, project, model_type)
+
+    task = load_model_gitlab.remote(project=project, model=model, params=params)
+
+    task_id = task_registry.register(task)
+    task_registry.update_actors(model.id, use_gpu=False)
+
+    # Associate the task ID with the model in the database
+    await utils.update_model(
+        db_client=db_client, model_id=model.id, updates=ModelUpdate(task_id=task_id)
+    )
+
+    return {"task_id": task_id, "model_id": model.id}
+
+
+@router.post("/models/{model_type}/load/hugging_face")
+async def load_model_weights_hugging_face(
+    request: Request, project_id: str, model_type: str, params: HuggingfaceLoadParams
+):
+    db_client = request.app.state.db_client
+    task_registry = request.app.state.task_registry
+
+    # Check if HF load method is enabled
+    if not config.settings.models.huggingface_load_enabled:
+        raise HTTPException(
+            status_code=403,
+            detail="Loading model weights from Hugging Face is disabled.",
+        )
+    # Check if config setting limits userspace to load from
+    if (
+        not params.huggingface_userspace
+        and config.settings.models.huggingface_userspace is None
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="Must set a Hugging Face userspace / organisation to load from, either via UI or config setting.",
+        )
+    elif config.settings.models.huggingface_userspace:
+        params.huggingface_userspace = config.settings.models.huggingface_userspace
+
+    project = await utils.get_project(db_client, project_id)
+    model = await create_model(db_client, project, model_type)
+
+    task = load_model_huggingface.remote(project=project, model=model, params=params)
+
+    task_id = task_registry.register(task)
+    task_registry.update_actors(model.id, use_gpu=False)
+
+    # Associate the task ID with the model in the database
+    await utils.update_model(
+        db_client=db_client, model_id=model.id, updates=ModelUpdate(task_id=task_id)
+    )
+
+    return {"task_id": task_id, "model_id": model.id}
 
 
 @router.get("/models/{model_type}/load/{task_id}")
@@ -476,15 +570,15 @@ async def get_load_model_status(
             result: dict[str, str | None] = ray.get(task)
 
         except Exception as e:
-            # Find model ID of latest in progress model
-
+            err_lines = str(e).strip().splitlines()
+            err_msg = err_lines[-1] if err_lines else repr(e)
             await utils.update_model(
                 db_client=db_client,
                 model_id=model.id,
-                updates=ModelUpdate(training_status="failed", progress=0),
+                updates=ModelUpdate(status="failed", progress=0),
             )
             raise HTTPException(
-                detail=f"Load task failed unexpectedly - {e}.",
+                detail=f"Load task failed unexpectedly - {err_msg}",
                 status_code=500,
             )
 
@@ -492,19 +586,12 @@ async def get_load_model_status(
             await utils.update_model(
                 db_client=db_client,
                 model_id=result["model_id"],
-                updates=ModelUpdate(training_status="failed", progress=0),
+                updates=ModelUpdate(status="failed", progress=0),
             )
             raise HTTPException(
-                detail=f"Load task failed - {result['message']}.",
+                detail=f"Failed to load weights - {result['message']}",
                 status_code=500,
             )
-
-        # Update model to be completed and ready for predictions
-        await utils.update_model(
-            db_client=db_client,
-            model_id=result["model_id"],
-            updates=ModelUpdate(training_status="completed", progress=100),
-        )
 
         return True
 
@@ -561,7 +648,7 @@ async def predict(
         status="completed",
         version=version,
     )
-    if model.training_status != "completed":
+    if model.status != "completed":
         raise HTTPException(
             status_code=409,
             detail="Cannot make predictions using a model version which has not successfully finished training.",

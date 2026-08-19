@@ -50,6 +50,9 @@ Home = "index.md"
 Annotators = "annotators.md"
 
 [[project.nav]]
+"Machine Learning Models" = "ml_models.md"
+
+[[project.nav]]
 "Event Detection Models" = "event_detection_models.md"
 
 [[project.nav]]

@@ -7,6 +7,8 @@ import type {
   SampleUpdate,
   Annotation,
   DataParams,
+  GitlabLoadForm,
+  LocalLoadForm,
 } from "@/types";
 import { RJSFSchema } from "@rjsf/utils";
 
@@ -487,19 +489,33 @@ export const getModelLoadTypes = async (): Promise<Response> => {
   return response;
 };
 
-export const startLoadModelWeights = async (
-  project_id: string,
-  selected_model: string,
+export const getModelLoadAllowedIds = async (
   load_method: string,
-  weights_path: string,
 ): Promise<Response> => {
   const response = await fetch(
-    `${BACKEND_API_URL}/projects/${project_id}/models/${selected_model}/load?method=${load_method}&weights_path=${weights_path}`,
+    `${BACKEND_API_URL}/meta/models/load/${load_method}`,
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to fetch model load metadata!`);
+  }
+  return response;
+};
+
+export const startLoadModelWeights = async (
+  project_id: string,
+  load_type: string,
+  selected_model: string,
+  params: LocalLoadForm | GitlabLoadForm,
+): Promise<Response> => {
+  const response = await fetch(
+    `${BACKEND_API_URL}/projects/${project_id}/models/${selected_model}/load/${load_type}`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
+
+      body: JSON.stringify(params),
     },
   );
   return response;

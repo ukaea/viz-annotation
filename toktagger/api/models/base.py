@@ -127,8 +127,8 @@ class Model(ABC):
 
     def log_progress(
         self,
-        training_status: typing.Literal[
-            "queued", "started", "failed", "completed", "aborted"
+        status: typing.Literal[
+            "queued", "training", "loading", "failed", "completed", "aborted"
         ]
         | None = None,
         progress: float | None = None,
@@ -138,16 +138,14 @@ class Model(ABC):
 
         Parameters
         ----------
-        training_status : typing.Literal[ "queued", "started", "failed", "completed", "aborted" ] | None, optional
+        status : typing.Literal[ "queued", "training", "loading", "failed", "completed", "aborted" ] | None, optional
             The current stage of model training, by default None
         progress : float | None, optional
             How far through training the model currently is (percentage, 0-100), by default None
         score : float | None, optional
             A metric of how well the model is performing (such as accuracy or loss), by default None
         """
-        model_update = ModelUpdate(
-            training_status=training_status, progress=progress, score=score
-        )
+        model_update = ModelUpdate(status=status, progress=progress, score=score)
         send_model_updates(self.project.id, self.id, model_update)
 
     def split_data(

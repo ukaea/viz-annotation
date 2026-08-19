@@ -68,6 +68,12 @@ export const AddSamplesEditor = ({
   // Determine if we should use directories (for image data)
   const useDirectories = dataSchema?.title === "ImageFileData";
 
+  // Only file-based schemas discover their shot IDs from a directory listing.
+  const isFileData =
+    dataSchema?.title === "ImageFileData" ||
+    dataSchema?.title === "ImageArrayFileData" ||
+    dataSchema?.title === "TimeSeriesFileData";
+
   // Fetch the data schema type from the load registry
   useEffect(() => {
     async function fetchDataSchema() {
@@ -169,6 +175,10 @@ export const AddSamplesEditor = ({
   };
 
   useEffect(() => {
+    // ShotData projects never show the directory fields, so a listing of the
+    // server's working directory must not overwrite the range-derived shot IDs.
+    if (!isFileData) return;
+
     async function fetchFileSamples() {
       let apiUrl = `${BACKEND_API_URL}/paths/files?dir_path=${dirPath}&file_type=${fileType}`;
       if (useDirectories) {
@@ -231,7 +241,7 @@ export const AddSamplesEditor = ({
       }
     }
     fetchFileSamples();
-  }, [dirPath, fileType, useDirectories]);
+  }, [dirPath, fileType, useDirectories, isFileData]);
 
   const onFormSubmit = async (close: () => void) => {
     try {

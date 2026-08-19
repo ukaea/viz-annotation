@@ -55,8 +55,7 @@ type TimeSeriesPlotProps = {
   // Hides the hover tooltip while drawing (Ctrl held) so it doesn't obscure the shape.
   muteHoverWhileDrawing?: boolean;
   children:
-    | React.ReactElement<InjectedProps>
-    | React.ReactElement<InjectedProps>[];
+    React.ReactElement<InjectedProps> | React.ReactElement<InjectedProps>[];
 };
 
 export const BaseTimeSeriesPlot = ({

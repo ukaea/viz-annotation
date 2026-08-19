@@ -655,16 +655,18 @@ def test_timeseries_model_predict(
     page.get_by_role("button", name="Model Prediction").click()
     model_predict = page.get_by_role("group", name="Model Prediction")
     expect(model_predict).to_be_visible()
-    model_predict.get_by_role("switch", name="Enable Tool").click()
+    # The list of trained models is refetched when the tool is switched on
+    with page.expect_response(
+        lambda r: r.url.endswith("/models") and r.request.method == "GET"
+    ):
+        model_predict.get_by_role("switch", name="Enable Tool").click()
     expect(page.get_by_role("switch", name="Allocate GPU")).to_be_visible()
 
-    # Choose model type
+    # Choose the trained model by the name it was given
     model_predict.get_by_role(
-        "combobox", name="Select Model Type"
+        "combobox", name="Select Model"
     ).scroll_into_view_if_needed()
-    model_predict.get_by_role(
-        "button", name="Show suggestions Select Model Type"
-    ).click()
+    model_predict.get_by_role("button", name="Show suggestions Select Model").click()
     page.get_by_role("option", name=model_name, exact=True).click()
 
     # If params model chosen, new form should open

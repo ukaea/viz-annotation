@@ -182,7 +182,8 @@ export function SpectrumSelectWidget(props: WidgetProps) {
       id={id}
       label={label}
       description={schema.description}
-      selectedKey={value}
+      // Array rows start out empty; undefined would make the ComboBox uncontrolled.
+      selectedKey={value ?? null}
       isRequired={required}
       isDisabled={disabled || readonly}
       validationState={isInvalid ? "invalid" : "valid"}

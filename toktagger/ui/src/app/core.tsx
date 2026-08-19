@@ -385,12 +385,13 @@ export const startSamplePredictions = async (
   project_id: string,
   sample_id: string,
   selected_model: string,
+  version: number,
   use_gpu: boolean,
   params: Record<string, unknown>,
   data_params: DataParams,
 ): Promise<Response> => {
   const response = await fetch(
-    `${BACKEND_API_URL}/projects/${project_id}/samples/${sample_id}/models/${selected_model}/predict?use_gpu=${use_gpu}`,
+    `${BACKEND_API_URL}/projects/${project_id}/samples/${sample_id}/models/${selected_model}/predict?version=${version}&use_gpu=${use_gpu}`,
     {
       method: "POST",
       headers: {

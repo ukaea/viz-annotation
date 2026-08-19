@@ -218,7 +218,7 @@ def get_predictions(
             annotation["sample_id"] = sample.id
             annotation["project_id"] = project.id
             annotation["shot_id"] = sample.shot_id
-            annotation["created_by"] = model.type
+            annotation["created_by"] = model.annotator_name
             try:
                 annotation = AnnotationBatchTypeAdapter.validate_python(annotation)
             except ValidationError as e:

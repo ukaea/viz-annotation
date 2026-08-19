@@ -627,9 +627,14 @@ async def delete_predictions(
             detail=f"This model type is not valid for your current project! Valid types are: {project.model_types}",
         )
 
+    # Annotations record the model name, so collect the names of every model of
+    # this type before deleting.
+    models = await utils.get_models(db_client, project_id, model_type=model_type)
+    names = list({model.annotator_name for model in models})
+
     result = await request.app.state.db_client.delete_filtered_documents(
         collection="annotations",
-        filters={"project_id": ObjectId(project.id), "created_by": model_type},
+        filters={"project_id": ObjectId(project.id), "created_by": {"$in": names}},
     )
 
     if result.deleted_count == 0:
@@ -649,6 +654,9 @@ async def create_sample_predictions(
         description="The ID of the sample to make model predictions for."
     ),
     model_type: str = Path(description="The type of model to make predictions from."),
+    version: int = Query(
+        None, description="Version of model to use, leave blank for latest version"
+    ),
     use_gpu: bool = Query(
         False, description="Whether to use GPU to create these predictions"
     ),
@@ -677,9 +685,13 @@ async def create_sample_predictions(
             detail=f"This model type is not valid for your current project! Valid types are: {project.model_types}",
         )
 
-    # Find the latest created model for this project
+    # Find the requested model version, or the latest one for this project
     model = await utils.get_model(
-        db_client, project_id=project.id, model_type=model_type, status="completed"
+        db_client,
+        project_id=project.id,
+        model_type=model_type,
+        status="completed",
+        version=version,
     )
 
     # Get model params model from registry and validate
@@ -693,7 +705,7 @@ async def create_sample_predictions(
         db_client,
         project_id=project_id,
         sample_id=sample_id,
-        created_by=model_type,
+        created_by=model.annotator_name,
         validated=False,
     )
 

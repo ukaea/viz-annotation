@@ -17,6 +17,7 @@ import tempfile
 import asyncio
 import toktagger.api.config as config
 import tests.db_definitions as db_definitions
+import tests.models_definitions as models_definitions
 
 
 def wait_for_results(task_registry: ActorRegistry, task_id: str):
@@ -229,6 +230,32 @@ async def test_model_sample_predict(models_api_client, db_client, setup_model_db
 
     # Check it corresponds to sample ID we asked for predictions on
     assert str(annotations[0]["sample_id"]) == setup_model_db["sample_ids"][-1]
+
+    # Predictions are attributed to the model name, not its type
+    assert annotations[0]["created_by"] == models_definitions.MODEL_2.name
+
+
+@pytest.mark.asyncio
+@pytest.mark.models_enabled
+async def test_model_sample_predict_version(
+    models_api_client, db_client, setup_model_db
+):
+    response = await models_api_client.post(
+        f"/projects/{setup_model_db['project_id']}/samples/{setup_model_db['sample_ids'][-1]}/models/mock_disruption_cnn/predict?version=1"
+    )
+
+    await collect_predict_results(models_api_client, response.json()["task_id"])
+
+    annotations = await db_client.get_filtered_documents(
+        collection="annotations", filters={"validated": False}
+    )
+    assert len(annotations) == 1
+
+    # Check version 1 of model has been used (annotation label set to model ID in Mock)
+    assert annotations[0]["label"] == setup_model_db["model_id_1"]
+
+    # This version has no name of its own, so it falls back to the model type
+    assert annotations[0]["created_by"] == models_definitions.MODEL_1.type
 
 
 @pytest.mark.asyncio

@@ -13,6 +13,12 @@ class ModelIn(ConfiguredModel):
     score: float
     task_id: Optional[str] | None = None
 
+    @property
+    def annotator_name(self) -> str:
+        """Name recorded against the annotations this model produces. Models loaded
+        from pretrained weights have no name, so fall back to their type."""
+        return self.name or self.type
+
     @field_validator("type")
     def check_model_type(cls, value):
         from toktagger.api.models.base import ModelRegistry

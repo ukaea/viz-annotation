@@ -9,9 +9,10 @@ import {
   Switch,
   Button,
 } from "@adobe/react-spectrum";
-import { Annotations, Annotation } from "@/types";
+import { z } from "zod/v4";
+import { Annotations, Annotation, Model, ModelSchema } from "@/types";
 import {
-  getModelTypes,
+  getModels,
   getModelPredictSchema,
   startSamplePredictions,
   getSamplePredictions,
@@ -28,64 +29,89 @@ type ModelPredictInfo = {
 
 export function ModelPredictTool({ project_id, sample_id }: ModelPredictInfo) {
   const { annotations, project, dataParams, setAnnotations } = useSample();
-  const [isEnabled, setIsEnabled] = useState<boolean>(() => {
-    return annotations.some(
-      (ann) => project?.model_types.includes(ann.created_by) || false,
-    );
-  });
+  const [isEnabled, setIsEnabled] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [modelNames, setModelNames] = useState<string[] | null>(null);
-  const [selectedModelName, setSelectedModelName] = useState<string | null>(
-    null,
-  );
+  const [models, setModels] = useState<Model[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [useGPU, setUseGPU] = useState<boolean>(false);
   const [schema, setSchema] = useState<RJSFSchema | null>(null);
   const [unvalidatedFormData, setUnvalidatedFormData] = useState<
     Record<string, unknown>
   >({});
   const formRef = useRef<Form>(null);
+  const didAutoEnable = useRef<boolean>(false);
 
+  const selectedModel =
+    models.find((model) => model._id === selectedModelId) ?? null;
+  const selectedModelType = selectedModel?.type ?? null;
+  // Predictions are recorded against the model name, so match annotations on the
+  // same value the backend stamps them with.
+  const annotatorName = selectedModel
+    ? (selectedModel.name ?? selectedModel.type)
+    : null;
+
+  // Refetch when the tool is switched on, so a model trained from this page
+  // without a reload still shows up in the list.
   useEffect(() => {
-    if (!isEnabled || !project) {
-      return;
-    }
     (async () => {
-      const response = await getModelTypes(project.task);
+      const response = await getModels(project_id);
 
-      if (response.ok) {
-        const data = await response.json();
-        const modelTypes = data as string[];
-        setModelNames(modelTypes);
-      } else {
+      if (!response.ok) {
         const errorMessage = await response.json();
         setMessage(errorMessage.detail);
+        return;
       }
+
+      const result = z.array(ModelSchema).safeParse(await response.json());
+      if (!result.success) {
+        setMessage("Could not read the models for this project!");
+        return;
+      }
+
+      // Only a model which finished training can make predictions.
+      setModels(
+        result.data.filter((model) => model.training_status === "completed"),
+      );
     })();
-  }, [isEnabled, project]);
+  }, [project_id, isEnabled]);
+
+  // Start out enabled if this sample already has predictions from one of the
+  // project's models, but only take over the switch before the user touches it.
+  useEffect(() => {
+    if (didAutoEnable.current || models.length === 0) {
+      return;
+    }
+    const names = new Set(models.map((model) => model.name ?? model.type));
+    if (annotations.some((annotation) => names.has(annotation.created_by))) {
+      didAutoEnable.current = true;
+      setIsEnabled(true);
+    }
+  }, [models, annotations]);
 
   useEffect(() => {
     const updateSchema = async () => {
-      if (!selectedModelName) {
+      if (!selectedModelType) {
         setSchema(null);
         return;
       }
       const newSchema: RJSFSchema | null =
-        await getModelPredictSchema(selectedModelName);
+        await getModelPredictSchema(selectedModelType);
       setSchema(newSchema);
     };
     updateSchema();
-  }, [selectedModelName]);
+  }, [selectedModelType]);
 
   const onEnable = (newIsEnabled: boolean) => {
+    didAutoEnable.current = true;
     setIsEnabled(newIsEnabled);
     if (!newIsEnabled) {
       // Remove previous annotations from this model
       setAnnotations((previousAnnotations: Annotations) => {
         const otherAnnotations = previousAnnotations.filter(
           (annotation: Annotation) =>
-            annotation.created_by !== selectedModelName || annotation.validated,
+            annotation.created_by !== annotatorName || annotation.validated,
         );
         return otherAnnotations;
       });
@@ -102,14 +128,15 @@ export function ModelPredictTool({ project_id, sample_id }: ModelPredictInfo) {
   };
 
   const submitPredictJob = async (params: Record<string, unknown>) => {
-    if (!selectedModelName || !project) {
+    if (!selectedModel || !project) {
       return;
     }
 
     const response = await startSamplePredictions(
       project_id,
       sample_id,
-      selectedModelName,
+      selectedModel.type,
+      selectedModel.version,
       useGPU,
       params,
       dataParams,
@@ -126,21 +153,16 @@ export function ModelPredictTool({ project_id, sample_id }: ModelPredictInfo) {
   };
 
   useEffect(() => {
-    if (!taskId || !selectedModelName || !isEnabled) return;
+    if (!taskId || !selectedModelType || !isEnabled) return;
 
     let pollCounter = 0;
     // Poll for result from GET predictions endpoint every 3 seconds.
     // DTW inference can take several seconds so polling faster just spams the server.
     const interval = setInterval(async () => {
-      if (selectedModelName == null) {
-        clearInterval(interval);
-        setIsLoading(false);
-        return;
-      }
       const response = await getSamplePredictions(
         project_id,
         sample_id,
-        selectedModelName,
+        selectedModelType,
         taskId,
       );
       const payload = await response.json();
@@ -159,7 +181,7 @@ export function ModelPredictTool({ project_id, sample_id }: ModelPredictInfo) {
           // results rather than appending, so repeated runs don't stack up.
           const withoutStale = previousAnnotations.filter(
             (ann: Annotation) =>
-              ann.created_by !== selectedModelName || ann.validated,
+              ann.created_by !== annotatorName || ann.validated,
           );
           return [...withoutStale, ...payload];
         });
@@ -176,7 +198,8 @@ export function ModelPredictTool({ project_id, sample_id }: ModelPredictInfo) {
   }, [
     project_id,
     sample_id,
-    selectedModelName,
+    selectedModelType,
+    annotatorName,
     taskId,
     setAnnotations,
     isEnabled,
@@ -194,23 +217,26 @@ export function ModelPredictTool({ project_id, sample_id }: ModelPredictInfo) {
             Enable Tool
           </Switch>
           <ComboBox
-            label="Select Model Type"
+            label="Select Model"
             validationState={message ? "invalid" : undefined}
             errorMessage={message}
-            isDisabled={!isEnabled}
-            selectedKey={selectedModelName}
+            description={
+              models.length === 0
+                ? "No trained models yet - train one for this project first."
+                : undefined
+            }
+            isDisabled={!isEnabled || models.length === 0}
+            selectedKey={selectedModelId}
             onSelectionChange={(key) => {
-              setSelectedModelName(key !== null ? String(key) : null);
+              setSelectedModelId(key !== null ? String(key) : null);
               setTaskId(null);
               setMessage(null);
               setIsLoading(false);
             }}
           >
-            {modelNames
-              ? modelNames.map((model_name) => (
-                  <Item key={model_name}>{model_name}</Item>
-                ))
-              : null}
+            {models.map((model) => (
+              <Item key={model._id}>{model.name ?? model.type}</Item>
+            ))}
           </ComboBox>
           <ModelForm
             ref={formRef}
@@ -226,7 +252,7 @@ export function ModelPredictTool({ project_id, sample_id }: ModelPredictInfo) {
             <Button
               marginEnd="size-400"
               variant="accent"
-              isDisabled={!isEnabled || !selectedModelName}
+              isDisabled={!isEnabled || !selectedModel}
               onPress={pressSubmit}
             >
               Predict

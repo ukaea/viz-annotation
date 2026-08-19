@@ -187,6 +187,7 @@ MODEL_1 = ModelIn(
 
 MODEL_2 = ModelIn(
     type="mock_disruption_cnn",
+    name="Latest Disruption Detector",
     version=2,
     training_status="completed",
     progress=100,

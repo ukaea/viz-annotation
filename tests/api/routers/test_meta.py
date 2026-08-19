@@ -1,5 +1,9 @@
+import pathlib
+
 import pytest
-from toktagger.api.schemas.samples import ShotData
+from bson import ObjectId
+
+from toktagger.api.schemas.samples import ShotData, SampleIn, TimeSeriesFileData
 import tests.db_definitions as db_definitions
 import toktagger.api.config as config
 
@@ -134,6 +138,99 @@ async def test_get_model_train_schema_injects_class_label_enum_with_blank_option
         data["properties"]["class_label"]["enum"]
         == [""] + db_definitions.PROJECT_2.time_region_labels
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.models_enabled
+@pytest.mark.parametrize(
+    "model_name", ["dtw_motif", "stumpy_motif", "minirocket", "shapelet_transform"]
+)
+async def test_get_model_train_schema_injects_signal_names_enum(
+    api_client, setup_db, model_name
+):
+    """Signal names come from the project's samples, so the user picks from the
+    signals which are really there instead of typing them out."""
+    response = await api_client.get(
+        f"/meta/models/{model_name}/train?project_id={setup_db['project_id_2']}"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert (
+        data["properties"]["signal_names"]["items"]["enum"]
+        == db_definitions.SAMPLE_3.data.signal_names
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.models_enabled
+@pytest.mark.parametrize(
+    "model_name", ["dtw_motif", "stumpy_motif", "minirocket", "shapelet_transform"]
+)
+async def test_get_model_train_schema_without_project_id_has_no_signal_enum(
+    api_client, setup_db, model_name
+):
+    response = await api_client.get(f"/meta/models/{model_name}/train")
+    assert response.status_code == 200
+    data = response.json()
+    assert "enum" not in data["properties"]["signal_names"]["items"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.models_enabled
+@pytest.mark.parametrize("model_name", ["dtw_motif", "minirocket"])
+async def test_get_model_train_schema_reads_signal_names_from_data(
+    api_client, db_client, setup_db, model_name
+):
+    """File-based loaders treat signal names as an optional column filter, so a
+    sample often does not name them. Read them from the data itself instead.
+
+    The loader makes every column a signal and takes the time from the index, so
+    a file with its own time column offers that column too, exactly as the plots
+    for that sample do."""
+    sample = SampleIn(
+        shot_id=5,
+        data=TimeSeriesFileData(
+            file_name=str(
+                pathlib.Path(__file__).parents[2].joinpath("10000.parquet").absolute()
+            ),
+            type="parquet",
+            protocol="file",
+            signal_names=None,
+        ),
+        annotations=None,
+    )
+    await db_client.insert(
+        "samples",
+        sample,
+        ids={"project_id": ObjectId(setup_db["project_id_2"])},
+    )
+
+    response = await api_client.get(
+        f"/meta/models/{model_name}/train?project_id={setup_db['project_id_2']}"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["properties"]["signal_names"]["items"]["enum"] == [
+        "time",
+        "Ip",
+        "dalpha",
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.models_enabled
+@pytest.mark.parametrize("model_name", ["dtw_motif", "minirocket"])
+async def test_get_model_train_schema_no_samples_has_no_signal_enum(
+    api_client, setup_db, model_name
+):
+    """A project with no samples has no signals to offer, and an empty enum would
+    leave the field impossible to fill, so it stays a free-text input."""
+    response = await api_client.get(
+        f"/meta/models/{model_name}/train?project_id={setup_db['project_id_3']}"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "enum" not in data["properties"]["signal_names"]["items"]
 
 
 @pytest.mark.asyncio

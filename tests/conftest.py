@@ -125,15 +125,7 @@ async def db_client(settings):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def api_client(monkeypatch, db_client):
-    # Have hit various issues getting this setup
-    # Using fastAPI TestClient() doesn't play well with async pymongo as it tries to do stuff in different event loops
-    # So have to use this AsyncClient from httpx, but this no longer just accepts an app
-    # So have to wrap it in this Transport thing, but that for some reason doesnt run the lifespan in the app
-    # So have to run this manually, however trying to run the close after the yield to close the db connection gives errors
-    # So am just going to leave it open, since the db container will be deleted after anyway
-    # Any alternative solution ideas are welcome.....
-    os.environ["API_URL"] = "http://test"
+async def unauthenticated_api_client(monkeypatch, db_client):
     server = Server()
     server.testing_mode = True
     monkeypatch.setenv("API_URL", "http://test")
@@ -142,19 +134,21 @@ async def api_client(monkeypatch, db_client):
     app.state.db_client = db_client
     app.state.project = None
 
-    # Auth is always required now — seed the admin user and authenticate as them
-    # by default, so existing tests (which don't pass their own Authorization
-    # header) keep behaving as an implicit admin, just via a real token now.
-    await db_client.insert("users", db_definitions.USER_ADMIN)
-    admin_token = create_access_token({"sub": "admin"})
-
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
-        headers={"Authorization": f"Bearer {admin_token}"},
     ) as client:
         client.app = app
         yield client
+
+
+@pytest_asyncio.fixture(scope="function")
+async def api_client(unauthenticated_api_client):
+    # Auth is always required now — seed the admin user and authenticate as them
+    await db_client.insert("users", db_definitions.USER_ADMIN)
+    admin_token = create_access_token({"sub": "admin"})
+    unauthenticated_api_client.headers["Authorization"] = f"Bearer {admin_token}"
+    yield unauthenticated_api_client
 
 
 @pytest_asyncio.fixture(scope="function")

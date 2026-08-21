@@ -61,9 +61,9 @@ def _is_models_route(path: str) -> bool:
 
 
 @pytest_asyncio.fixture
-async def unauthenticated_client(api_client, auth_db_client):
+async def unauthenticated_client(api_client, db_client):
     """api_client wired to an (empty) db — no users needed, auth is always required."""
-    api_client.app.state.db_client = auth_db_client
+    api_client.app.state.db_client = db_client
     return api_client
 
 

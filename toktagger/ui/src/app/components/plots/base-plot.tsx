@@ -316,12 +316,15 @@ export const BaseTimeSeriesPlot = ({
       return;
     }
 
-    const plot = document.getElementById(plotId);
+    const plot = document.getElementById(plotId) as ExtendedPlotlyHTMLElement;
 
     if (!plot) {
       console.error("Could not locate plot to set drag mode");
       return;
     }
+
+    // Set directly rather than via config, since that would trigger a full replot
+    plot._context.doubleClick = isDrawing ? false : "reset+autosize";
 
     if (isDrawing) {
       relayout(
@@ -353,7 +356,7 @@ export const BaseTimeSeriesPlot = ({
     }
 
     function getClickData(
-      event: PointerEvent,
+      event: MouseEvent,
       _plot: PlotlyHTMLElement,
       resolveAgainst?: HTMLElement | null, // This is used to ensure the annotation is resolved against the starting subplot
     ): TimeSeriesAnnotationPoint & { axisSize: { x: number; y: number } } {
@@ -475,7 +478,7 @@ export const BaseTimeSeriesPlot = ({
       );
       toolingCallbacks
         .get(activeAnnotationTool.type)
-        ?.hover?.(clickLocation.x, clickLocation.y);
+        ?.hover?.(clickLocation.x, clickLocation.y, clickLocation.axisSize);
     };
 
     const finishAnnotationCreation = (event: PointerEvent) => {
@@ -501,11 +504,25 @@ export const BaseTimeSeriesPlot = ({
       setOngoingAction(false); // Ensure this is always called even if the tool callback isn't found
     };
 
+    // Double-click to finish a shape (e.g. close a polygon), same gating as starting one
+    const doubleClickAnnotation = (event: MouseEvent) => {
+      if (!event.ctrlKey || !editMode || !activeAnnotationTool) return;
+      const clickLocation = getClickData(
+        event,
+        plot,
+        lockedSubplotElementRef.current,
+      );
+      toolingCallbacks
+        .get(activeAnnotationTool.type)
+        ?.doubleClick?.(clickLocation.x, clickLocation.y);
+    };
+
     draggableElements.forEach((element) => {
       element.addEventListener("contextmenu", handleContextMenu);
       element.addEventListener("pointerdown", handleCancelSelection);
       element.addEventListener("pointerdown", startAnnotationCreation);
       element.addEventListener("pointermove", hoverAnnotation);
+      element.addEventListener("dblclick", doubleClickAnnotation);
 
       if (editMode) {
         element.addEventListener("pointermove", updateAnnotation);
@@ -519,6 +536,7 @@ export const BaseTimeSeriesPlot = ({
         element.removeEventListener("pointerdown", handleCancelSelection);
         element.removeEventListener("pointerdown", startAnnotationCreation);
         element.removeEventListener("pointermove", hoverAnnotation);
+        element.removeEventListener("dblclick", doubleClickAnnotation);
         element.removeEventListener("pointermove", updateAnnotation);
         element.removeEventListener("pointerup", finishAnnotationCreation);
       });

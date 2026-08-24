@@ -503,11 +503,6 @@ async def test_delete_model(db_client, setup_model_db):
     assert setup_model_db["model_id_1"] not in [model["_id"] for model in models]
 
 
-# ---------------------------------------------------------------------------
-# User helpers
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 async def test_get_user_by_username_not_found(db_client):
     user = await utils.get_user_by_username(db_client, "nonexistent")
@@ -771,7 +766,7 @@ async def test_get_user_projects_as_member_empty(db_client, setup_db_auth):
 
 
 @pytest.mark.asyncio
-async def test_get_user_projects_as_admin(db_client, setup_db_auth):
+async def test_get_user_projects_as_admin(db_client, setup_db_auth, setup_db):
     # Admin role ignores memberships and returns all projects in the db
     projects = await utils.get_user_projects(
         db_client, setup_db_auth["admin_id"], global_role="admin"

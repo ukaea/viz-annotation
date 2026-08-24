@@ -296,10 +296,12 @@ async def test_admin_can_delete_own_user_when_another_admin_remains(
 
 
 @pytest.mark.asyncio
-async def test_add_and_list_project_members(project_setup, unauthenticated_api_client):
+async def test_add_and_list_project_members(setup_db_auth, unauthenticated_api_client):
     client = unauthenticated_api_client
-    admin_token = project_setup["admin_token"]
-    project_id = project_setup["project_id"]
+    admin_token = await get_auth_token(
+        unauthenticated_api_client, "admin", "admin_pass"
+    )
+    project_id = setup_db_auth["project_id"]
 
     # Add alice as annotator (uses username, not user_id)
     resp = await client.post(
@@ -322,10 +324,10 @@ async def test_add_and_list_project_members(project_setup, unauthenticated_api_c
 
 @pytest.mark.asyncio
 async def test_add_member_non_admin_forbidden(
-    project_setup, unauthenticated_api_client
+    setup_db_auth, unauthenticated_api_client
 ):
     client = unauthenticated_api_client
-    project_id = project_setup["project_id"]
+    project_id = setup_db_auth["project_id"]
     alice_token = await get_auth_token(client, "alice", "alice_pass")
 
     resp = await client.post(
@@ -338,11 +340,13 @@ async def test_add_member_non_admin_forbidden(
 
 @pytest.mark.asyncio
 async def test_update_member_show_others_annotations(
-    project_setup, unauthenticated_api_client
+    setup_db_auth, unauthenticated_api_client
 ):
     client = unauthenticated_api_client
-    admin_token = project_setup["admin_token"]
-    project_id = project_setup["project_id"]
+    admin_token = await get_auth_token(
+        unauthenticated_api_client, "admin", "admin_pass"
+    )
+    project_id = setup_db_auth["project_id"]
     alice_token = await get_auth_token(client, "alice", "alice_pass")
 
     # Add alice as annotator (uses username, not user_id)
@@ -354,7 +358,7 @@ async def test_update_member_show_others_annotations(
 
     # Alice updates her own show_others_annotations preference
     resp = await client.put(
-        f"/projects/{project_id}/members/{project_setup['alice_id']}",
+        f"/projects/{project_id}/members/{setup_db_auth['alice_id']}",
         json={"show_others_annotations": False},
         headers={"Authorization": f"Bearer {alice_token}"},
     )
@@ -370,10 +374,12 @@ async def test_update_member_show_others_annotations(
 
 
 @pytest.mark.asyncio
-async def test_remove_project_member(project_setup, unauthenticated_api_client):
+async def test_remove_project_member(setup_db_auth, unauthenticated_api_client):
     client = unauthenticated_api_client
-    admin_token = project_setup["admin_token"]
-    project_id = project_setup["project_id"]
+    admin_token = await get_auth_token(
+        unauthenticated_api_client, "admin", "admin_pass"
+    )
+    project_id = setup_db_auth["project_id"]
 
     await client.post(
         f"/projects/{project_id}/members",
@@ -382,7 +388,7 @@ async def test_remove_project_member(project_setup, unauthenticated_api_client):
     )
 
     del_resp = await client.delete(
-        f"/projects/{project_id}/members/{project_setup['alice_id']}",
+        f"/projects/{project_id}/members/{setup_db_auth['alice_id']}",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert del_resp.status_code == 200
@@ -398,7 +404,7 @@ async def test_remove_project_member(project_setup, unauthenticated_api_client):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("role", ["viewer", "annotator"])
 async def test_member_cannot_self_promote_project_role(
-    project_setup, unauthenticated_api_client, role
+    setup_db_auth, unauthenticated_api_client, role
 ):
     """A member must not be able to promote themselves by editing their own membership.
 
@@ -407,9 +413,11 @@ async def test_member_cannot_self_promote_project_role(
     own membership and becomes a project admin.
     """
     client = unauthenticated_api_client
-    admin_token = project_setup["admin_token"]
-    project_id = project_setup["project_id"]
-    alice_id = project_setup["alice_id"]
+    admin_token = await get_auth_token(
+        unauthenticated_api_client, "admin", "admin_pass"
+    )
+    project_id = setup_db_auth["project_id"]
+    alice_id = setup_db_auth["alice_id"]
 
     await add_member(client, admin_token, project_id, "alice", role)
     alice_token = await get_auth_token(client, "alice", "alice_pass")
@@ -432,12 +440,14 @@ async def test_member_cannot_self_promote_project_role(
 
 @pytest.mark.asyncio
 async def test_project_admin_can_manage_members_without_global_admin(
-    project_setup, unauthenticated_api_client
+    setup_db_auth, unauthenticated_api_client
 ):
     """A project admin whose global_role is only "user" can still manage members."""
     client = unauthenticated_api_client
-    admin_token = project_setup["admin_token"]
-    project_id = project_setup["project_id"]
+    admin_token = await get_auth_token(
+        unauthenticated_api_client, "admin", "admin_pass"
+    )
+    project_id = setup_db_auth["project_id"]
 
     await add_member(client, admin_token, project_id, "alice", "admin")
     alice_token = await get_auth_token(client, "alice", "alice_pass")
@@ -458,14 +468,14 @@ async def test_project_admin_can_manage_members_without_global_admin(
     # ...including changing another member's role, which the self-edit guard must
     # not have broken.
     role_resp = await client.put(
-        f"/projects/{project_id}/members/{project_setup['bob_id']}",
+        f"/projects/{project_id}/members/{setup_db_auth['bob_id']}",
         json={"role": "annotator"},
         headers={"Authorization": f"Bearer {alice_token}"},
     )
     assert role_resp.status_code == 200, role_resp.text
 
     del_resp = await client.delete(
-        f"/projects/{project_id}/members/{project_setup['bob_id']}",
+        f"/projects/{project_id}/members/{setup_db_auth['bob_id']}",
         headers={"Authorization": f"Bearer {alice_token}"},
     )
     assert del_resp.status_code == 200, del_resp.text
@@ -473,12 +483,14 @@ async def test_project_admin_can_manage_members_without_global_admin(
 
 @pytest.mark.asyncio
 async def test_list_my_memberships_is_self_scoped(
-    project_setup, unauthenticated_api_client
+    setup_db_auth, unauthenticated_api_client
 ):
     """/users/me/memberships reports only the caller's own memberships."""
     client = unauthenticated_api_client
-    admin_token = project_setup["admin_token"]
-    project_id = project_setup["project_id"]
+    admin_token = await get_auth_token(
+        unauthenticated_api_client, "admin", "admin_pass"
+    )
+    project_id = setup_db_auth["project_id"]
 
     await add_member(client, admin_token, project_id, "alice", "viewer")
     alice_token = await get_auth_token(client, "alice", "alice_pass")
@@ -492,7 +504,7 @@ async def test_list_my_memberships_is_self_scoped(
     assert len(alice_memberships) == 1
     assert alice_memberships[0]["project_id"] == project_id
     assert alice_memberships[0]["role"] == "viewer"
-    assert alice_memberships[0]["user_id"] == project_setup["alice_id"]
+    assert alice_memberships[0]["user_id"] == setup_db_auth["alice_id"]
 
     # bob is in no projects
     bob_resp = await client.get(

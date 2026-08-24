@@ -40,8 +40,6 @@ class UserUpdate(BaseModel):
 
 
 class ProjectMember(ConfiguredModel):
-    project_id: str
-    user_id: str
     role: Literal["admin", "annotator", "viewer"] = "annotator"
     show_others_annotations: bool = True
 

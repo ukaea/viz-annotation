@@ -257,12 +257,35 @@ async def setup_db_auth(db_client):
     alice_id = await db_client.insert("users", db_definitions.USER_ALICE)
     bob_id = await db_client.insert("users", db_definitions.USER_BOB)
 
+    # Create two projects and add admin as user
+    project_ids = []
+    sample_ids = []
+    for i in (0, 1):
+        project_ids.append(await db_client.insert("projects", db_definitions.PROJECT_2))
+        await db_client.insert(
+            "project_members",
+            db_definitions.PROJECT_ADMIN,
+            ids={"project_id": ObjectId(project_ids[i]), "user_id": ObjectId(admin_id)},
+        )
+
+        # Create sample
+        sample_ids.append(
+            await db_client.insert(
+                "samples",
+                db_definitions.SAMPLE_1,
+                ids={"project_id": ObjectId(project_ids[i])},
+            )
+        )
+
     yield {
         "admin_id": admin_id,
         "alice_id": alice_id,
         "bob_id": bob_id,
+        "project_id": project_ids[0],
+        "sample_id": sample_ids[0],
+        "other_project_id": project_ids[1],
+        "other_sample_id": sample_ids[1],
     }
-    await db_client.delete_filtered_documents("users")
 
 
 def run_server():

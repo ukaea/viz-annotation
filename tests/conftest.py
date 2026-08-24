@@ -261,7 +261,7 @@ async def setup_db_auth(db_client):
     project_ids = []
     sample_ids = []
     for i in (0, 1):
-        project_ids.append(await db_client.insert("projects", db_definitions.PROJECT_2))
+        project_ids.append(await db_client.insert("projects", db_definitions.PROJECT_1))
         await db_client.insert(
             "project_members",
             db_definitions.PROJECT_ADMIN,

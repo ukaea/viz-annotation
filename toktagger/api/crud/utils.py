@@ -689,7 +689,7 @@ async def _get_user_membership_docs(
 
 async def get_user_memberships(
     db_client: MongoDBClient, user_id: str
-) -> list[ProjectMember]:
+) -> list[ProjectMemberOut]:
     """Every project membership held by one user.
 
     Lets a client learn its own role in all its projects with a single request,
@@ -698,21 +698,28 @@ async def get_user_memberships(
     docs = await _get_user_membership_docs(
         db_client, convert_to_objectid(user_id, "users")
     )
+    result = []
     for doc in docs:
         doc["user_id"] = str(doc["user_id"])
-    return [ProjectMember.model_validate(doc) for doc in docs]
+        doc["project_id"] = str(doc["project_id"])
+        user = await get_user_by_id(db_client, doc["user_id"])
+        doc["username"] = user.username if user else "unknown"
+        result.append(ProjectMemberOut.model_validate(doc))
+    return result
 
 
 async def get_project_membership(
     db_client: MongoDBClient, project_id: str, user_id: str
-) -> ProjectMember | None:
+) -> ProjectMemberOut | None:
     project_oid = convert_to_objectid(project_id, "projects")
     user_oid = convert_to_objectid(user_id, "users")
     doc = await _get_project_membership_doc(db_client, project_oid, user_oid)
     if doc is None:
         return None
     doc["user_id"] = str(doc["user_id"])
-    return ProjectMember.model_validate(doc)
+    user = await get_user_by_id(db_client, doc["user_id"])
+    doc["username"] = user.username if user else "unknown"
+    return ProjectMemberOut.model_validate(doc)
 
 
 async def add_project_member(

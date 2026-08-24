@@ -8,7 +8,6 @@ from toktagger.api.auth.dependencies import (
 )
 from toktagger.api.crud import utils
 from toktagger.api.schemas.users import (
-    ProjectMember,
     ProjectMemberCreate,
     ProjectMemberOut,
     ProjectMemberUpdate,
@@ -59,7 +58,7 @@ async def create_user(
     return {"_id": user_id}
 
 
-@router.get("/users/me/memberships", response_model=list[ProjectMember])
+@router.get("/users/me/memberships", response_model=list[ProjectMemberOut])
 async def list_my_memberships(
     request: Request,
     current_user: UserOut = Depends(get_current_user),

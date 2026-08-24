@@ -17,6 +17,7 @@ from toktagger.api import config
 from toktagger.api.auth.core import create_access_token
 from toktagger.api.crud.db import MongoDBClient
 from toktagger.api.main import Server
+import toktagger.api.auth.core as auth_core
 
 MODELS_ENABLED = importlib.util.find_spec("ray") is not None
 
@@ -125,7 +126,10 @@ async def db_client(settings):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def unauthenticated_api_client(monkeypatch, db_client):
+async def unauthenticated_api_client(tmp_path, monkeypatch, db_client):
+    monkeypatch.setattr(config.settings.server, "cache_dir", tmp_path)
+    monkeypatch.setattr(auth_core, "_serializer", None)
+
     server = Server()
     server.testing_mode = True
     monkeypatch.setenv("API_URL", "http://test")
@@ -143,7 +147,7 @@ async def unauthenticated_api_client(monkeypatch, db_client):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def api_client(unauthenticated_api_client):
+async def api_client(unauthenticated_api_client, db_client):
     # Auth is always required now — seed the admin user and authenticate as them
     await db_client.insert("users", db_definitions.USER_ADMIN)
     admin_token = create_access_token({"sub": "admin"})
@@ -245,6 +249,20 @@ async def setup_db_small(db_client):
     await db_client.delete_filtered_documents("projects")
     await db_client.delete_filtered_documents("samples")
     await db_client.delete_filtered_documents("annotations")
+
+
+@pytest_asyncio.fixture(scope="function")
+async def setup_db_auth(db_client):
+    admin_id = await db_client.insert("users", db_definitions.USER_ADMIN)
+    alice_id = await db_client.insert("users", db_definitions.USER_ALICE)
+    bob_id = await db_client.insert("users", db_definitions.USER_BOB)
+
+    yield {
+        "admin_id": admin_id,
+        "alice_id": alice_id,
+        "bob_id": bob_id,
+    }
+    await db_client.delete_filtered_documents("users")
 
 
 def run_server():

@@ -6,8 +6,8 @@ from tests.api.auth.conftest import get_auth_token
 
 
 @pytest.mark.asyncio
-async def test_login_success(auth_setup):
-    client = auth_setup["client"]
+async def test_login_success(unauthenticated_api_client, setup_db_auth):
+    client = unauthenticated_api_client
     response = await client.post(
         "/auth/token",
         data={"username": "admin", "password": "admin_pass"},
@@ -21,8 +21,8 @@ async def test_login_success(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_login_wrong_password(auth_setup):
-    client = auth_setup["client"]
+async def test_login_wrong_password(unauthenticated_api_client, setup_db_auth):
+    client = unauthenticated_api_client
     response = await client.post(
         "/auth/token",
         data={"username": "admin", "password": "wrong_password"},
@@ -32,8 +32,8 @@ async def test_login_wrong_password(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_login_unknown_user(auth_setup):
-    client = auth_setup["client"]
+async def test_login_unknown_user(unauthenticated_api_client, setup_db_auth):
+    client = unauthenticated_api_client
     response = await client.post(
         "/auth/token",
         data={"username": "ghost", "password": "doesnt_matter"},
@@ -43,14 +43,14 @@ async def test_login_unknown_user(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_login_inactive_user(auth_setup):
+async def test_login_inactive_user(unauthenticated_api_client, setup_db_auth):
     """Deactivated users cannot log in."""
-    client = auth_setup["client"]
+    client = unauthenticated_api_client
     admin_token = await get_auth_token(client, "admin", "admin_pass")
 
     # Deactivate alice via the admin API
     await client.put(
-        f"/users/{auth_setup['alice_id']}",
+        f"/users/{setup_db_auth['alice_id']}",
         json={"is_active": False},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -64,8 +64,8 @@ async def test_login_inactive_user(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_get_me_returns_current_user(auth_setup):
-    client = auth_setup["client"]
+async def test_get_me_returns_current_user(unauthenticated_api_client, setup_db_auth):
+    client = unauthenticated_api_client
     token = await get_auth_token(client, "alice", "alice_pass")
     response = await client.get(
         "/auth/me",
@@ -80,8 +80,8 @@ async def test_get_me_returns_current_user(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_get_me_admin_role(auth_setup):
-    client = auth_setup["client"]
+async def test_get_me_admin_role(unauthenticated_api_client, setup_db_auth):
+    client = unauthenticated_api_client
     token = await get_auth_token(client, "admin", "admin_pass")
     response = await client.get(
         "/auth/me",
@@ -92,15 +92,15 @@ async def test_get_me_admin_role(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_get_me_no_token(auth_setup):
-    client = auth_setup["client"]
+async def test_get_me_no_token(unauthenticated_api_client, setup_db_auth):
+    client = unauthenticated_api_client
     response = await client.get("/auth/me")
     assert response.status_code == 401
 
 
 @pytest.mark.asyncio
-async def test_get_me_invalid_token(auth_setup):
-    client = auth_setup["client"]
+async def test_get_me_invalid_token(unauthenticated_api_client, setup_db_auth):
+    client = unauthenticated_api_client
     response = await client.get(
         "/auth/me",
         headers={"Authorization": "Bearer not.a.real.token"},

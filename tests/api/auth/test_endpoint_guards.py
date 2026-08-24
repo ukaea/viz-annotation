@@ -315,8 +315,10 @@ ACTIONS: dict[str, Action] = {
 @pytest.mark.asyncio
 @pytest.mark.parametrize("role", ROLES)
 @pytest.mark.parametrize("action_name", list(ACTIONS))
-async def test_permission_matrix(project_setup, action_name, role):
-    client = project_setup["client"]
+async def test_permission_matrix(
+    project_setup, unauthenticated_api_client, action_name, role
+):
+    client = unauthenticated_api_client
     admin_token = project_setup["admin_token"]
     project_id = project_setup["project_id"]
     sample_id = project_setup["sample_id"]

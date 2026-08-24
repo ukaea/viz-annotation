@@ -15,14 +15,12 @@ from toktagger.api.schemas.annotations import (
     AnnotationOutTypes,
 )
 from toktagger.api.schemas.models import Model, ModelIn, ModelUpdate
-from toktagger.api.schemas.projects import (
-    Project,
+from toktagger.api.schemas.projects import Project
+from toktagger.api.schemas.samples import FileData, Sample, SampleSummary, SampleUpdate
+from toktagger.api.schemas.users import (
     ProjectMember,
     ProjectMemberOut,
     ProjectMemberUpdate,
-)
-from toktagger.api.schemas.samples import FileData, Sample, SampleSummary, SampleUpdate
-from toktagger.api.schemas.users import (
     UserIn,
     UserOut,
     UserUpdate,
@@ -583,11 +581,6 @@ async def import_annotations(
             )
 
 
-# ---------------------------------------------------------------------------
-# User helpers
-# ---------------------------------------------------------------------------
-
-
 async def get_user_by_username(
     db_client: MongoDBClient, username: str
 ) -> UserOut | None:
@@ -647,11 +640,6 @@ async def delete_user(db_client: MongoDBClient, user_id: str) -> None:
         raise HTTPException(status_code=404, detail="User not found")
     # Also remove their project memberships
     await db_client.delete_filtered_documents("project_members", {"user_id": obj_id})
-
-
-# ---------------------------------------------------------------------------
-# Project membership helpers
-# ---------------------------------------------------------------------------
 
 
 async def get_project_members(

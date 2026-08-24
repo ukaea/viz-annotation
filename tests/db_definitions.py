@@ -13,7 +13,8 @@ from toktagger.api.schemas.samples import (
     ShotData,
     TimeSeriesFileData,
 )
-from toktagger.api.schemas.users import UserIn, ProjectMember
+from toktagger.api.schemas.projects import ProjectMember
+from toktagger.api.schemas.users import UserIn
 
 if importlib.util.find_spec("ray") is not None:
     from tests.models_definitions import (

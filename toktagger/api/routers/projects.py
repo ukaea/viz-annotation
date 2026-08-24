@@ -12,13 +12,14 @@ from toktagger.api.auth.dependencies import (
 from toktagger.api.core.data_loaders import LoaderRegistry
 from toktagger.api.crud import utils
 from toktagger.api.crud.db import MongoDBClient
-from toktagger.api.schemas.projects import Project, ProjectIn
-from toktagger.api.schemas.users import (
-    UserOut,
+from toktagger.api.schemas.projects import (
+    Project,
+    ProjectIn,
     ProjectMemberOut,
     ProjectMemberCreate,
     ProjectMemberUpdate,
 )
+from toktagger.api.schemas.users import UserOut
 
 router = APIRouter(
     prefix="/projects",

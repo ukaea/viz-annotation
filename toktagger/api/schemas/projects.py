@@ -1,6 +1,7 @@
 from enum import Enum
+from typing import Literal
 
-from pydantic import Field, computed_field, field_validator
+from pydantic import BaseModel, Field, computed_field, field_validator
 
 from toktagger.api.core.data_loaders import LoaderRegistry
 from toktagger.api.schemas import ConfiguredModel
@@ -133,3 +134,27 @@ class ProjectIn(ConfiguredModel):
 
 class Project(ProjectIn):
     id: str = Field(..., alias="_id", description="The ID of this project.")
+
+
+class ProjectMember(ConfiguredModel):
+    role: Literal["admin", "annotator", "viewer"] = "annotator"
+    show_others_annotations: bool = True
+
+
+class ProjectMemberOut(ConfiguredModel):
+    id: str = Field(..., alias="_id")
+    project_id: str
+    user_id: str
+    username: str
+    role: Literal["admin", "annotator", "viewer"]
+    show_others_annotations: bool
+
+
+class ProjectMemberCreate(BaseModel):
+    username: str
+    role: Literal["admin", "annotator", "viewer"] = "annotator"
+
+
+class ProjectMemberUpdate(BaseModel):
+    role: Literal["admin", "annotator", "viewer"] | None = None
+    show_others_annotations: bool | None = None

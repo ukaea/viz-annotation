@@ -6,8 +6,8 @@ from toktagger.api.auth.dependencies import (
     require_global_admin,
 )
 from toktagger.api.crud import utils
+from toktagger.api.schemas.projects import ProjectMemberOut
 from toktagger.api.schemas.users import (
-    ProjectMemberOut,
     UserCreate,
     UserIn,
     UserOut,

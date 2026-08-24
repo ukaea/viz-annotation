@@ -15,12 +15,14 @@ from toktagger.api.schemas.annotations import (
     AnnotationOutTypes,
 )
 from toktagger.api.schemas.models import Model, ModelIn, ModelUpdate
-from toktagger.api.schemas.projects import Project
-from toktagger.api.schemas.samples import FileData, Sample, SampleSummary, SampleUpdate
-from toktagger.api.schemas.users import (
+from toktagger.api.schemas.projects import (
+    Project,
     ProjectMember,
     ProjectMemberOut,
     ProjectMemberUpdate,
+)
+from toktagger.api.schemas.samples import FileData, Sample, SampleSummary, SampleUpdate
+from toktagger.api.schemas.users import (
     UserIn,
     UserOut,
     UserUpdate,

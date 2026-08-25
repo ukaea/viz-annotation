@@ -470,7 +470,6 @@ If you are using the docker compose option to run the server, you can provide a 
 # custom_toktagger.py
 from toktagger.api.main import Server
 from my_models import MyCustomModel  # Import to register
-import toktagger.api.config as config
 
 server = Server()
 server.run()

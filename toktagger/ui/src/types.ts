@@ -96,6 +96,13 @@ export const VideoPointSchema = BaseAnnotationSchema.extend({
 
 export type VideoPoint = z.infer<typeof VideoPointSchema>;
 
+export const VideoFrameLabelSchema = BaseAnnotationSchema.extend({
+  type: z.literal("video_frame_label"),
+  frame: z.number().int(),
+});
+
+export type VideoFrameLabel = z.infer<typeof VideoFrameLabelSchema>;
+
 export const AnnotationSchema = z.union([
   TimePointSchema,
   TimeRegionSchema,
@@ -105,6 +112,7 @@ export const AnnotationSchema = z.union([
   VideoBoundingBoxSchema,
   VideoPolygonSchema,
   VideoPointSchema,
+  VideoFrameLabelSchema,
 ]);
 export type Annotation = z.infer<typeof AnnotationSchema>;
 

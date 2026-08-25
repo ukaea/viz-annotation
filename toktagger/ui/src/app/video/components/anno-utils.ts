@@ -14,6 +14,7 @@ import {
 import type { Ellipse, EllipseGeometry } from "@annotorious/annotorious";
 import type {
   AnnotoriousDrawingTool,
+  DrawingTool,
   VideoAnnotationShape,
   VideoBoundingBox,
   VideoPoint,
@@ -41,9 +42,9 @@ const CREATOR_PURPOSE = "creator";
 export type PointGeometry = { x: number; y: number };
 
 export function toAnnotoriousDrawingTool(
-  tool: "rectangle" | "polygon" | "point",
+  tool: DrawingTool,
 ): AnnotoriousDrawingTool {
-  return tool === "point" ? "rectangle" : tool;
+  return tool === "point" || tool === "frame" ? "rectangle" : tool;
 }
 
 // Our app stores a frame key on target.source (not present in upstream Annotorious types).

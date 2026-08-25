@@ -1,8 +1,9 @@
-import toktagger.api.core.query_strategy as query_strategy
 import pytest
-from toktagger.api.schemas.samples import Sample
+
+from tests import db_definitions
+from toktagger.api.core import query_strategy
 from toktagger.api.schemas.annotations import TimePointOut
-import tests.db_definitions as db_definitions
+from toktagger.api.schemas.samples import Sample
 
 
 @pytest.fixture
@@ -35,8 +36,10 @@ def annotations():
     ]
     annotations = [
         TimePointOut(
-            **annotation_in.model_dump(),
+            **annotation_in.model_dump(exclude={"project_id", "sample_id"}),
             _id="test",
+            project_id="test",
+            sample_id="test",
         )
         for annotation_in in annotation_ins
     ]

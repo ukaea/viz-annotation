@@ -1,26 +1,123 @@
 import "./src/app/globals.css";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { Provider, defaultTheme, ToastContainer } from "@adobe/react-spectrum";
+import { useNavigate, useHref } from "react-router-dom";
 import { APISchemaProvider } from "./src/app/contexts/apiSchema";
-import { ServerHealthProvider } from "@/app/contexts/healthContext";
+import { AuthProvider, useAuth } from "./src/app/contexts/AuthContext";
+import { ServerHealthProvider } from "./src/app/contexts/healthContext";
 import Projects from "./src/app/projects/page";
 import ProjectView from "./src/app/projects/project_id/page";
 import SampleView from "./src/app/projects/project_id/samples/sample_id/page";
+import LoginPage from "./src/app/pages/login";
+import AdminUsersPage from "./src/app/pages/admin/users";
+import ProfilePage from "./src/app/pages/profile";
+import TopBar from "./src/app/components/layout/TopBar";
+import { BreadcrumbProvider } from "./src/app/contexts/BreadcrumbContext";
+
+function SpectrumProvider({ children }) {
+  const navigate = useNavigate();
+  return (
+    <Provider theme={defaultTheme} router={{ navigate, useHref }}>
+      <ToastContainer placement="top" />
+      {children}
+    </Provider>
+  );
+}
+
+function AuthenticatedLayout({ children }) {
+  return (
+    <BreadcrumbProvider>
+      <div className="flex flex-col h-screen">
+        <TopBar />
+        <div className="flex-1 min-h-0 overflow-auto">{children}</div>
+      </div>
+    </BreadcrumbProvider>
+  );
+}
+
+function RequireAuth({ children }) {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return null;
+  if (!user) return <Navigate to="/ui/login" replace />;
+  return <AuthenticatedLayout>{children}</AuthenticatedLayout>;
+}
+
+function RequireAdmin({ children }) {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return null;
+  if (!user) return <Navigate to="/ui/login" replace />;
+  if (user.global_role !== "admin")
+    return <Navigate to="/ui/projects/" replace />;
+  return <AuthenticatedLayout>{children}</AuthenticatedLayout>;
+}
+
 function App() {
   return (
     <APISchemaProvider>
-      <ServerHealthProvider>
-        <Router>
-          <Routes>
-            <Route path="/" element={<Projects />} />
-            <Route path="/ui/projects/" element={<Projects />} />
-            <Route path="/ui/projects/:project_id" element={<ProjectView />} />
-            <Route
-              path="/ui/projects/:project_id/samples/:sample_id"
-              element={<SampleView />}
-            />
-          </Routes>
-        </Router>
-      </ServerHealthProvider>
+      <Router>
+        <SpectrumProvider>
+          <ServerHealthProvider>
+            <AuthProvider>
+              <Routes>
+                <Route path="/ui/login" element={<LoginPage />} />
+                <Route
+                  path="/"
+                  element={
+                    <RequireAuth>
+                      <Projects />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/ui/projects/"
+                  element={
+                    <RequireAuth>
+                      <Projects />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/ui/projects/:project_id"
+                  element={
+                    <RequireAuth>
+                      <ProjectView />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/ui/projects/:project_id/samples/:sample_id"
+                  element={
+                    <RequireAuth>
+                      <SampleView />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/ui/admin/users"
+                  element={
+                    <RequireAdmin>
+                      <AdminUsersPage />
+                    </RequireAdmin>
+                  }
+                />
+                <Route
+                  path="/ui/profile"
+                  element={
+                    <RequireAuth>
+                      <ProfilePage />
+                    </RequireAuth>
+                  }
+                />
+              </Routes>
+            </AuthProvider>
+          </ServerHealthProvider>
+        </SpectrumProvider>
+      </Router>
     </APISchemaProvider>
   );
 }

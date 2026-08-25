@@ -1,8 +1,12 @@
-from pathlib import Path
-import numpy
+import getpass
+import os
 import random
-from setup import create_project, create_local_samples
+from argparse import ArgumentParser
+from pathlib import Path
+
+import numpy
 import pandas as pd
+from setup import BASE_URL, create_local_samples, create_project, get_token
 
 
 def create_mock_data(base_path: Path, shot_ids: list):
@@ -57,6 +61,23 @@ def create_mock_data(base_path: Path, shot_ids: list):
 
 
 def main():
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--url",
+        default=BASE_URL,
+        help="Base URL of the TokTagger API",
+    )
+    parser.add_argument(
+        "--username",
+        default=os.environ.get("TOKTAGGER_USERNAME", "admin"),
+        help="Username for authentication",
+    )
+    args = parser.parse_args()
+
+    password = os.environ.get("TOKTAGGER_PASSWORD") or getpass.getpass("Password: ")
+
+    token = get_token(args.url, args.username, password)
+
     num_samples = 200
     base_path = Path(__file__).parents[1].joinpath("data", "test", "mock_disruptions")
     base_path.mkdir(parents=True, exist_ok=True)
@@ -67,9 +88,13 @@ def main():
         "time-series",
         "tabular",
         "uncertainty",
+        token=token,
+        base_url=args.url,
         time_max=time[-1],
     )
-    # Make annotations to add at same time as sample
+    # Make annotations to add at same time as sample. created_by is left out: the
+    # server records the account this script authenticates as, so the annotations
+    # belong to a real user in the UI.
     annotations = {
         shot_id: [
             {
@@ -77,7 +102,6 @@ def main():
                 "validated": True,
                 "label": "Disruption",
                 "time": item["annotations"]["disruption"],
-                "created_by": "manual",
             }
         ]
         for shot_id, item in data.items()
@@ -85,6 +109,8 @@ def main():
     create_local_samples(
         project_id,
         list(range(1, num_samples + 1)),
+        token=token,
+        base_url=args.url,
         base_path="data/test/mock_disruptions",
         file_type="parquet",
         annotations=annotations,
@@ -95,6 +121,8 @@ def main():
     create_local_samples(
         project_id,
         list(range(num_samples + 1, num_samples + 100)),
+        token=token,
+        base_url=args.url,
         base_path="data/test/mock_disruptions",
         file_type="parquet",
         signals=["ip"],

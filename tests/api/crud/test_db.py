@@ -1,10 +1,12 @@
-import pytest
 import asyncio
+
+import pytest
+import pytest_asyncio
 from bson.objectid import ObjectId
+
+from tests.db_definitions import PROJECT_1, PROJECT_2, SAMPLE_1, SAMPLE_2
 from toktagger.api.crud import utils
 from toktagger.api.crud.db import MongoDBClient
-from tests.db_definitions import PROJECT_1, PROJECT_2, SAMPLE_1, SAMPLE_2
-import pytest_asyncio
 
 
 @pytest_asyncio.fixture(scope="function")

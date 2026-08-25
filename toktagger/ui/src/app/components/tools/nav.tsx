@@ -2,7 +2,6 @@
 import { Project, type NavAdapter } from "@/types";
 import {
   Flex,
-  Button,
   ActionButton,
   ButtonGroup,
   ToastQueue,
@@ -12,13 +11,24 @@ import {
   Tooltip,
   TooltipTrigger,
   SearchField,
+  AlertDialog,
+  DialogContainer,
 } from "@adobe/react-spectrum";
 import { useCallback, useEffect, useState } from "react";
 import StepForward from "@spectrum-icons/workflow/StepForward";
 import StepBackward from "@spectrum-icons/workflow/StepBackward";
 import SaveFloppy from "@spectrum-icons/workflow/SaveFloppy";
 import Delete from "@spectrum-icons/workflow/Delete";
-import { getShotSample, saveSampleAnnotations, updateSample } from "@/app/core";
+import {
+  getShotSample,
+  saveSampleAnnotations,
+  updateSample,
+  BACKEND_API_URL,
+  apiFetch,
+  getAnnotationsForSample,
+  ApiError,
+} from "@/app/core";
+import { useAuth } from "@/app/contexts/AuthContext";
 import {
   useNavigate,
   NavigateFunction,
@@ -29,6 +39,7 @@ import { useSampleHistory } from "@/app/contexts/SampleHistoryContext";
 import { getNextSample } from "@/app/core";
 import type { SortDescriptor, SortDirection, Key } from "@react-types/shared";
 import { useNavAdapter } from "@/app/contexts/NavAdapterContext";
+import { useProjectRole } from "@/app/hooks/useProjectRole";
 
 const TOAST_TIMEOUT = 5000;
 
@@ -82,16 +93,24 @@ type ButtonInfo = {
   sample_id: string;
   setIsValidated: (validated: boolean) => void;
   navAdapter: NavAdapter;
+  onPermissionError: () => void;
 };
 
 type SaveButtonInfo = ButtonInfo & {
   saveOnNavigate?: boolean;
+  canAnnotate: boolean;
 };
 
 type NextButtonInfo = ButtonInfo & {
   saveOnNavigate?: boolean;
   visitedSampleIds: string[];
   sortDescriptor: SortDescriptor | null;
+};
+
+type ClearButtonInfo = ButtonInfo & {
+  canAnnotate: boolean;
+  // The "Show Others' Annotations" state, which decides how much Clear discards.
+  showOthers: boolean;
 };
 
 type PreviousButtonInfo = ButtonInfo & {
@@ -109,20 +128,30 @@ function NextButton({
   sortDescriptor,
   saveOnNavigate,
   navAdapter,
+  onPermissionError,
 }: NextButtonInfo) {
   const navigate = useNavigate();
 
   const moveNextShot = useCallback(async () => {
     const annotationsToSave = navAdapter.getAnnotations();
-    await saveSampleAnnotations(
-      project_id,
-      sample_id,
-      annotationsToSave,
-      saveOnNavigate,
-    );
-    if (saveOnNavigate) {
-      navAdapter.afterSave?.();
-      setIsValidated(true);
+    try {
+      await saveSampleAnnotations(
+        project_id,
+        sample_id,
+        annotationsToSave,
+        saveOnNavigate,
+      );
+      if (saveOnNavigate) {
+        navAdapter.afterSave?.();
+        setIsValidated(true);
+      }
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        onPermissionError();
+      } else {
+        const message = err instanceof Error ? err.message : String(err);
+        ToastQueue.negative(message, { timeout: TOAST_TIMEOUT });
+      }
     }
     await navigateToNextSample(
       project_id,
@@ -139,6 +168,7 @@ function NextButton({
     visitedSampleIds,
     sortDescriptor,
     navAdapter,
+    onPermissionError,
   ]);
 
   useEffect(() => {
@@ -180,13 +210,13 @@ export function JumpToNextButton({
 
   return (
     <View marginStart="size-100">
-      <Button
-        variant="primary"
+      <ActionButton
+        isQuiet
         aria-label="Jump to Next Sample"
         onPress={moveNextShot}
       >
         <Text>Jump to Next Sample</Text> <StepForward />
-      </Button>
+      </ActionButton>
     </View>
   );
 }
@@ -200,20 +230,30 @@ function PreviousButton({
   saveOnNavigate,
   sortDescriptor,
   navAdapter,
+  onPermissionError,
 }: PreviousButtonInfo) {
   const navigate = useNavigate();
 
   const movePreviousShot = useCallback(async () => {
     const annotationsToSave = navAdapter.getAnnotations();
-    await saveSampleAnnotations(
-      project_id,
-      sample_id,
-      annotationsToSave,
-      saveOnNavigate,
-    );
-    if (saveOnNavigate) {
-      navAdapter.afterSave?.();
-      setIsValidated(true);
+    try {
+      await saveSampleAnnotations(
+        project_id,
+        sample_id,
+        annotationsToSave,
+        saveOnNavigate,
+      );
+      if (saveOnNavigate) {
+        navAdapter.afterSave?.();
+        setIsValidated(true);
+      }
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        onPermissionError();
+      } else {
+        const message = err instanceof Error ? err.message : String(err);
+        ToastQueue.negative(message, { timeout: TOAST_TIMEOUT });
+      }
     }
 
     const previous_sample_id: string | null = popVisitedSampleId();
@@ -234,6 +274,7 @@ function PreviousButton({
     sortDescriptor,
     setIsValidated,
     navAdapter,
+    onPermissionError,
   ]);
 
   useEffect(() => {
@@ -268,6 +309,8 @@ function SaveButton({
   setIsValidated,
   saveOnNavigate: _saveOnNavigate,
   navAdapter,
+  onPermissionError,
+  canAnnotate,
 }: SaveButtonInfo) {
   const handleClick = async () => {
     try {
@@ -284,19 +327,34 @@ function SaveButton({
       });
       setIsValidated(true);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      ToastQueue.negative(`Failed to save annotations: ${message}`, {
-        timeout: TOAST_TIMEOUT,
-      });
+      if (err instanceof ApiError && err.status === 403) {
+        onPermissionError();
+      } else {
+        const message = err instanceof Error ? err.message : String(err);
+        ToastQueue.negative(`Failed to save annotations: ${message}`, {
+          timeout: TOAST_TIMEOUT,
+        });
+      }
     }
   };
 
   return (
     <View marginStart="size-100">
-      <ActionButton aria-label="Save" onPress={handleClick}>
-        <SaveFloppy />
-        <Text>Save</Text>
-      </ActionButton>
+      <TooltipTrigger delay={1000} placement="bottom">
+        <ActionButton
+          aria-label="Save"
+          onPress={handleClick}
+          isDisabled={!canAnnotate}
+        >
+          <SaveFloppy />
+          <Text>Save</Text>
+        </ActionButton>
+        <Tooltip>
+          {canAnnotate
+            ? "Save annotations for this sample."
+            : "You have view-only access to this project — annotations cannot be saved."}
+        </Tooltip>
+      </TooltipTrigger>
     </View>
   );
 }
@@ -306,9 +364,26 @@ function ClearButton({
   sample_id,
   setIsValidated,
   navAdapter,
-}: ButtonInfo) {
-  const handleClick = () => {
-    navAdapter.clear();
+  onPermissionError,
+  canAnnotate,
+  showOthers,
+}: ClearButtonInfo) {
+  const handleClick = async () => {
+    try {
+      // Clear whatever the user can see: everything when others' annotations are on
+      // display, only their own when they are not.
+      await navAdapter.clear(showOthers);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        onPermissionError();
+      } else {
+        const message = err instanceof Error ? err.message : String(err);
+        ToastQueue.negative(`Failed to clear annotations: ${message}`, {
+          timeout: TOAST_TIMEOUT,
+        });
+      }
+      return;
+    }
     // Mark as unvalidated annotations
     updateSample(project_id, sample_id, { validated_annotations: false });
     setIsValidated(false);
@@ -316,10 +391,23 @@ function ClearButton({
 
   return (
     <View marginStart="size-100">
-      <ActionButton aria-label="Clear" onPress={handleClick}>
-        <Delete />
-        <Text>Clear</Text>
-      </ActionButton>
+      <TooltipTrigger delay={1000} placement="bottom">
+        <ActionButton
+          aria-label="Clear"
+          onPress={handleClick}
+          isDisabled={!canAnnotate}
+        >
+          <Delete />
+          <Text>Clear</Text>
+        </ActionButton>
+        <Tooltip>
+          {!canAnnotate
+            ? "You have view-only access to this project — annotations cannot be cleared."
+            : showOthers
+              ? "Discard all annotations for this sample, including other users'."
+              : "Discard your own annotations for this sample."}
+        </Tooltip>
+      </TooltipTrigger>
     </View>
   );
 }
@@ -391,8 +479,11 @@ type NavigationBarInfo = {
   sample_id: string;
 };
 export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
-  const { setIsValidated } = useSample();
+  const { setIsValidated, setAnnotations } = useSample();
+  const { user } = useAuth();
   const navAdapter = useNavAdapter();
+  const [permissionDenied, setPermissionDenied] = useState(false);
+  const { canAnnotate } = useProjectRole(project_id);
 
   const {
     visitedSampleIds,
@@ -413,14 +504,82 @@ export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
     return { column, direction };
   });
 
+  const [showOthers, setShowOthers] = useState(true);
+
+  // The preference lives on the membership record, so read it back rather than
+  // assuming the default - the checkbox has to agree with the filter the server is
+  // applying, and the Clear button now acts on what it says. A user with no
+  // membership row (a global admin who is not a member) gets no filter server-side,
+  // which is the same as having it on.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    apiFetch(`${BACKEND_API_URL}/users/me/memberships`)
+      .then((response) => (response.ok ? response.json() : []))
+      .then(
+        (
+          memberships: Array<{
+            project_id: string;
+            show_others_annotations: boolean;
+          }>,
+        ) => {
+          if (cancelled) return;
+          const membership = memberships.find(
+            (candidate) => candidate.project_id === project_id,
+          );
+          setShowOthers(membership?.show_others_annotations ?? true);
+        },
+      )
+      .catch(() => {
+        // Leave the default in place - the server is the authority on the filter.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [project_id, user]);
+
+  const toggleShowOthers = useCallback(
+    async (next: boolean) => {
+      setShowOthers(next);
+      if (user) {
+        await apiFetch(
+          `${BACKEND_API_URL}/projects/${project_id}/members/${user._id}`,
+          {
+            method: "PUT",
+            body: JSON.stringify({ show_others_annotations: next }),
+          },
+        );
+      }
+      // Re-fetch annotations with updated visibility
+      const fresh = await getAnnotationsForSample(project_id, sample_id);
+      setAnnotations(() => fresh);
+    },
+    [project_id, sample_id, user, setAnnotations],
+  );
+
   return (
     <Flex alignItems="center" direction="column" gap="size-100">
+      <DialogContainer onDismiss={() => setPermissionDenied(false)}>
+        {permissionDenied && (
+          <AlertDialog
+            title="Permission denied"
+            variant="error"
+            primaryActionLabel="OK"
+            onPrimaryAction={() => setPermissionDenied(false)}
+          >
+            You don't have permission to save annotations for this project. Your
+            changes have not been saved.
+          </AlertDialog>
+        )}
+      </DialogContainer>
       <ButtonGroup>
         <SaveButton
           project_id={project_id}
           sample_id={sample_id}
           setIsValidated={setIsValidated}
           navAdapter={navAdapter}
+          onPermissionError={() => setPermissionDenied(true)}
+          canAnnotate={canAnnotate}
         />
         <PreviousButton
           project_id={project_id}
@@ -428,40 +587,58 @@ export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
           setIsValidated={setIsValidated}
           isDisabled={visitedSampleIds.length == 1}
           popVisitedSampleId={popVisitedSampleId}
-          saveOnNavigate={SaveOnNavigate}
+          saveOnNavigate={SaveOnNavigate && canAnnotate}
           sortDescriptor={sortDescriptor}
           navAdapter={navAdapter}
+          onPermissionError={() => setPermissionDenied(true)}
         />
         <NextButton
           project_id={project_id}
           sample_id={sample_id}
           setIsValidated={setIsValidated}
           visitedSampleIds={visitedSampleIds}
-          saveOnNavigate={SaveOnNavigate}
+          saveOnNavigate={SaveOnNavigate && canAnnotate}
           sortDescriptor={sortDescriptor}
           navAdapter={navAdapter}
+          onPermissionError={() => setPermissionDenied(true)}
         />
         <ClearButton
           project_id={project_id}
           sample_id={sample_id}
           setIsValidated={setIsValidated}
           navAdapter={navAdapter}
+          onPermissionError={() => setPermissionDenied(true)}
+          canAnnotate={canAnnotate}
+          showOthers={showOthers}
         />
       </ButtonGroup>
       <TooltipTrigger delay={1000} placement="bottom">
-        <Checkbox isSelected={SaveOnNavigate} onChange={setSaveOnNavigate}>
+        <Checkbox
+          isSelected={SaveOnNavigate && canAnnotate}
+          onChange={setSaveOnNavigate}
+          isDisabled={!canAnnotate}
+        >
           Save on Navigate
         </Checkbox>
         <Tooltip>
-          When enabled, annotations will be saved when navigating to another
-          sample.
+          {canAnnotate
+            ? "When enabled, annotations will be saved when navigating to another sample."
+            : "You have view-only access to this project — annotations are not saved on navigation."}
+        </Tooltip>
+      </TooltipTrigger>
+      <TooltipTrigger delay={1000} placement="bottom">
+        <Checkbox isSelected={showOthers} onChange={toggleShowOthers}>
+          Show Others&apos; Annotations
+        </Checkbox>
+        <Tooltip>
+          When enabled, annotations from other users are also displayed.
         </Tooltip>
       </TooltipTrigger>
       <ShotSearch
         project_id={project_id}
         sample_id={sample_id}
         sortDescriptor={sortDescriptor}
-        saveOnNavigate={SaveOnNavigate}
+        saveOnNavigate={SaveOnNavigate && canAnnotate}
         setIsValidated={setIsValidated}
         navAdapter={navAdapter}
       />

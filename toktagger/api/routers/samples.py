@@ -1,20 +1,36 @@
-from fastapi import APIRouter, Request, HTTPException, Query, Path, Body
+import logging
+from typing import Literal
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request
+
+from toktagger.api.auth.dependencies import (
+    get_current_user,
+    require_project_admin_role,
+    require_project_annotator,
+    require_project_viewer,
+)
 from toktagger.api.core.query_strategy import QUERY_STRATEGIES
 from toktagger.api.crud import utils
+from toktagger.api.schemas import convert_to_objectid
+from toktagger.api.schemas.annotations import (
+    RESERVED_CREATED_BY_PREFIXES,
+    Annotation,
+)
 from toktagger.api.schemas.samples import (
-    SampleIn,
     Sample,
+    SampleIn,
     SampleSummary,
     SampleUpdateBatchItem,
 )
-from toktagger.api.schemas.annotations import Annotation
-from toktagger.api.schemas import convert_to_objectid
-from typing import Literal
-import logging
+from toktagger.api.schemas.users import UserOut
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/projects/{project_id}/samples", tags=["Samples"])
+router = APIRouter(
+    prefix="/projects/{project_id}/samples",
+    tags=["Samples"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get(
@@ -28,6 +44,7 @@ router = APIRouter(prefix="/projects/{project_id}/samples", tags=["Samples"])
 async def get_samples(
     request: Request,
     project_id: str = Path(description="The ID of the project to get samples for."),
+    current_user: UserOut = Depends(require_project_viewer),
     sort_by: str = Query(
         "_id",
         description="Field to sort responses by, by default '_id' (equivalent to timestamp)",
@@ -80,16 +97,16 @@ async def add_samples(
     project_id: str = Path(
         description="The project ID to associate these samples with."
     ),
+    current_user: UserOut = Depends(require_project_admin_role),
 ):
     """
     Add a list of samples (with optional annotations) to this project.
     ------------------------------------------------------------------
+
+    Which samples a project contains is part of its configuration, so this is
+    project-admin only. Annotators annotate the samples they are given; they do not
+    choose them.
     """
-    # Add samples from the range specified to the project
-    # I'm assuming these will be shot/pulse numbers, hence int, but could be unique ID strings instead
-    # Depends if for us a 'sample' will always be a shot/pulse, or if it could be a subset eg a single frame of video
-    # Do we also want to allow a single value, or list of specific value?
-    print(samples)
     project_obj_id = convert_to_objectid(project_id, "projects")
     if not await request.app.state.db_client.get_document_by_id(
         "projects", project_obj_id
@@ -98,6 +115,20 @@ async def add_samples(
 
     # Remove annotations (if they exist), these will be added later
     all_annotations = [sample.annotations for sample in samples]
+
+    # Annotations that arrive with a sample are attributed to the caller, exactly as
+    # they are on the import and save routes in routers/annotations.py: the created_by
+    # in the request body is a client-side placeholder ("manual"), and storing it would
+    # leave the annotations table naming a user who does not exist. Synthetic authorship
+    # is preserved, so a project can still be seeded with model predictions, and the
+    # internal Ray-worker user keeps whatever it supplies.
+    is_internal = current_user.username == "__internal__"
+    for annotation_list in all_annotations:
+        for annotation in annotation_list or []:
+            if not is_internal and not (annotation.created_by or "").startswith(
+                RESERVED_CREATED_BY_PREFIXES
+            ):
+                annotation.created_by = current_user.username
 
     # Insert new samples
     ids = await request.app.state.db_client.insert_many(
@@ -184,10 +215,15 @@ async def update_samples(
     project_id: str = Path(
         description="The project ID to associate these samples with."
     ),
+    current_user: UserOut = Depends(require_project_annotator),
 ):
     """
     Update a list of samples (provided with their IDs) for this project.
     ---------------------------------------------------------------------
+
+    Annotator-level, unlike the add/delete endpoints: SampleUpdate carries only
+    `validated_annotations`, which is annotation progress rather than sample
+    configuration, and the save/clear flow sets it on every annotation round-trip.
     """
     db_client = request.app.state.db_client
     await utils.get_project(db_client, project_id)
@@ -216,6 +252,7 @@ async def update_samples(
 async def get_next_sample(
     request: Request,
     project_id: str = Path(description="The project to return the next sample from."),
+    current_user: UserOut = Depends(require_project_viewer),
     visited_sample_ids: list[str] = Body(
         ..., description="The IDs of the samples already seen in this session."
     ),
@@ -261,6 +298,7 @@ async def get_sample_summary(
     project_id: str = Path(
         description="The ID of the project to get a summary of samples from."
     ),
+    current_user: UserOut = Depends(require_project_viewer),
 ) -> SampleSummary:
     """Get a summary of samples for this project.
 
@@ -285,6 +323,7 @@ async def get_sample(
         description="The ID of the project to retrieve a sample from."
     ),
     sample_id: str = Path(description="The ID of the sample to retrieve."),
+    current_user: UserOut = Depends(require_project_viewer),
 ) -> Sample:
     """
     Get the specified sample from this project.
@@ -313,10 +352,14 @@ async def remove_sample(
         description="The ID of the project to delete a sample from."
     ),
     sample_id: str = Path(description="The ID of the sample to delete."),
+    current_user: UserOut = Depends(require_project_admin_role),
 ):
     """
-    Get the specified sample from this project.
-    --------------------------------------------
+    Remove the specified sample, and its annotations, from this project.
+    -------------------------------------------------------------------
+
+    Project-admin only: this discards every user's annotations for the sample, not
+    just the caller's.
     """
     # Remove samples from the project
     # Dont envisage this actually deleting the data stored about these samples
@@ -340,10 +383,13 @@ async def remove_all_samples(
     project_id: str = Path(
         description="The ID of the project to delete all samples from."
     ),
+    current_user: UserOut = Depends(require_project_admin_role),
 ):
     """
     Remove all samples from this project.
     --------------------------------------------
+
+    Project-admin only, as with the single-sample delete above.
     """
     db_client = request.app.state.db_client
     # Check project exists

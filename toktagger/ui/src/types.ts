@@ -2,6 +2,7 @@ import { Config, PlotlyHTMLElement } from "plotly.js";
 import { z } from "zod/v4";
 
 export const BaseAnnotationSchema = z.object({
+  _id: z.string().nullable().default(null),
   project_id: z.string().nullable().default(null),
   sample_id: z.string().nullable().default(null),
   shot_id: z.number().optional(),
@@ -110,7 +111,10 @@ export type Annotation = z.infer<typeof AnnotationSchema>;
 
 export type NavAdapter = {
   getAnnotations: () => Annotation[];
-  clear: () => void;
+  // includeOthers clears every annotation on the sample rather than only the
+  // caller's own. The Clear button passes the "Show Others' Annotations" state, so
+  // what the button discards is always what the user can see.
+  clear: (includeOthers?: boolean) => void | Promise<void>;
   afterSave?: () => void;
 };
 
@@ -382,6 +386,11 @@ export type TimeSeriesAnnotationPoint = {
 
 export type TimeSeriesAnnotation = {
   id: string;
+  // The backend's own _id, when this annotation already exists in the DB (e.g. loaded
+  // via GET, possibly another user's). null for annotations drawn locally and not yet
+  // saved. Must round-trip back out on save so the server can tell "existing" from
+  // "new" and avoid re-stamping someone else's annotation under the saving user.
+  db_id: string | null;
   created_by: string;
   label: string;
   type: TimeSeriesAnnotationType;
@@ -390,6 +399,29 @@ export type TimeSeriesAnnotation = {
   // Binds the annotation to a specific signal; null for single-signal views.
   signal_name?: string | null;
 };
+
+// ---------------------------------------------------------------------------
+// Auth / User types
+// ---------------------------------------------------------------------------
+
+export const CurrentUserSchema = z.object({
+  _id: z.string(),
+  username: z.string(),
+  global_role: z.enum(["admin", "user"]),
+  is_active: z.boolean(),
+  must_change_password: z.boolean(),
+});
+export type CurrentUser = z.infer<typeof CurrentUserSchema>;
+
+export const ProjectMemberSchema = z.object({
+  _id: z.string(),
+  project_id: z.string(),
+  user_id: z.string(),
+  username: z.string(),
+  role: z.enum(["admin", "annotator", "viewer"]),
+  show_others_annotations: z.boolean(),
+});
+export type ProjectMember = z.infer<typeof ProjectMemberSchema>;
 
 export type ToolingCallbacks = {
   start: (

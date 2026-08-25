@@ -263,6 +263,51 @@ async def test_create_samples(api_client, setup_db, db_client):
 
 
 @pytest.mark.asyncio
+async def test_create_samples_attributes_annotations_to_caller(
+    api_client, setup_db, db_client
+):
+    """Annotations posted with a sample are authored by the caller.
+
+    A client's created_by is a placeholder, so storing it verbatim would attribute the
+    annotation to a user who does not exist ("manual") and show that in the annotations
+    table. Synthetic authorship is left alone, so a project can be seeded with model
+    predictions.
+    """
+    in_samples = [
+        {
+            "shot_id": 6,
+            "data": {"protocol": "uda", "signal_names": ["Ip"]},
+            "annotations": [
+                {
+                    "type": "time_point",
+                    "label": "Disruption",
+                    "time": 1.0,
+                    "created_by": "manual",
+                },
+                {
+                    "type": "time_point",
+                    "label": "Disruption",
+                    "time": 2.0,
+                    "created_by": "model::mock_disruption_cnn",
+                },
+            ],
+        },
+    ]
+    response = await api_client.post(
+        f"/projects/{setup_db['project_id_1']}/samples", json=in_samples
+    )
+    assert response.status_code == 200
+
+    annotations = await db_client.get_filtered_documents(
+        "annotations", filters={"label": "Disruption"}
+    )
+    by_time = {
+        annotation["time"]: annotation["created_by"] for annotation in annotations
+    }
+    assert by_time == {1.0: "admin", 2.0: "model::mock_disruption_cnn"}
+
+
+@pytest.mark.asyncio
 async def test_create_sample_invalid(api_client, setup_db, db_client):
     in_samples = [
         {

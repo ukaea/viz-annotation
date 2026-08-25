@@ -178,6 +178,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
     panMode,
     setPanMode,
     hideAnnotations,
+    canAnnotate,
     createPointAnnotation,
     deleteAnnotation,
   } = useVideoSession();
@@ -340,7 +341,8 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
       stopEvent(event);
       api.cancelDrawing?.();
 
-      if (!annotation?.id && classItems.length > 0) {
+      // The canvas menu exists to create a new instance, so a viewer gets no menu.
+      if (!annotation?.id && classItems.length > 0 && canAnnotate) {
         showCanvasMenu({ event });
       }
     };
@@ -373,9 +375,10 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
         target.removeEventListener("auxclick", blockSecondaryMouse, true);
       }
     };
-  }, [api, classItems.length, hideAnnotations, showCanvasMenu]);
+  }, [api, classItems.length, hideAnnotations, showCanvasMenu, canAnnotate]);
 
-  const drawingEnabled = !!selection.className && !panMode && !hideAnnotations;
+  const drawingEnabled =
+    canAnnotate && !!selection.className && !panMode && !hideAnnotations;
   const annotoriousDrawingTool = toAnnotoriousDrawingTool(drawingTool);
   const annotoriousDrawingEnabled = drawingEnabled && drawingTool !== "point";
 
@@ -400,6 +403,9 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
       if (shiftDrawActiveRef.current) return;
       if (isEditableEventTarget(event.target)) return;
       if (hideAnnotations) return;
+      // A viewer never leaves pan mode. setPanMode already refuses this, but bailing
+      // here keeps the shift-draw ref from latching on a hold that cannot take effect.
+      if (!canAnnotate) return;
       if (!panMode) return;
 
       shiftDrawActiveRef.current = true;
@@ -427,7 +433,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
       window.removeEventListener("blur", releaseShiftDraw);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [hideAnnotations, panMode, setPanMode]);
+  }, [hideAnnotations, panMode, setPanMode, canAnnotate]);
 
   useEffect(() => {
     if (!api) return;
@@ -615,6 +621,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
           panMode={panMode}
           drawingTool={drawingTool}
           hideAnnotations={hideAnnotations}
+          canAnnotate={canAnnotate}
           onTogglePanMode={() => setPanMode(!panMode)}
           onSelectRectangle={() => setDrawingTool("rectangle")}
           onSelectPolygon={() => setDrawingTool("polygon")}

@@ -46,12 +46,11 @@ services:
       - ${CUSTOM_SCRIPT:-./toktagger/api/run.py}:/app/run.py
       - ~/.sal/:/root/.sal
     environment:
-      DATABASE_MONGO_URL: "mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017"
-      MODELS_CACHE_DIR: "/app/data/models"
-      SERVER_HOST: api_app
-      SERVER_PORT: 8002
+      MONGO_URL: "mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017"
+      MODEL_STORAGE: "/app/data/models"
+      API_URL: "http://api_app:8002"
+      SERVER_HOST: "0.0.0.0"
       SERVER_RELOAD: "true"
-      CUSTOM_SCRIPT: ${CUSTOM_SCRIPT}
     working_dir: /app
     command: ["python", "run.py"]
     networks:

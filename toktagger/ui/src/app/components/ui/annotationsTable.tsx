@@ -13,6 +13,11 @@ import {
 } from "@adobe/react-spectrum";
 import { useTimeSeriesState } from "@/app/contexts/TimeSeriesContext";
 
+// Strip the internal "model::" / "annotators::" namespacing for display only;
+// the raw created_by value is kept everywhere else (filtering, exports, etc).
+const displayCreatedBy = (createdBy: string) =>
+  createdBy.replace(/^(model|annotators)::/, "");
+
 interface MarkerProps {
   color: string;
 }
@@ -75,6 +80,7 @@ interface TableEntry {
   id: string;
   category: TimeSeriesCategory;
   data: string;
+  created_by: string;
   marker: ComponentType<MarkerProps>;
 }
 
@@ -129,6 +135,7 @@ export const AnnotationsTable = () => {
         id: annotation.id,
         category,
         data,
+        created_by: annotation.created_by,
         marker: MARKER_ICONS[annotation.type],
       });
     });
@@ -137,7 +144,9 @@ export const AnnotationsTable = () => {
   }, [annotations, categories]);
 
   return (
-    <div className="relative w-[70%] overflow-x-auto shadow-md sm:rounded-lg ml-auto mr-auto p-4">
+    // shrink-0 so the table keeps its full height and the plot above it gives up
+    // the space instead - otherwise the last rows are pushed off the window.
+    <div className="relative ml-auto mr-auto w-[70%] shrink-0 overflow-x-auto px-4 pb-4 shadow-md sm:rounded-lg">
       {/* <ToolingControls /> */}
       <Flex justifyContent="center" marginBottom="size-200">
         <h1 className="text-xl font-bold">Annotations</h1>
@@ -147,14 +156,17 @@ export const AnnotationsTable = () => {
           <Column key="marker" width="2%">
             <></>
           </Column>
-          <Column key="category" width="28%">
+          <Column key="category" width="23%">
             Category
           </Column>
-          <Column key="type" width="20%">
+          <Column key="type" width="17%">
             Type
           </Column>
-          <Column key="data" width="50%">
+          <Column key="data" width="38%">
             Data
+          </Column>
+          <Column key="created_by" width="20%">
+            Created by
           </Column>
         </TableHeader>
         <TableBody items={entries}>
@@ -170,6 +182,7 @@ export const AnnotationsTable = () => {
               </Cell>
               <Cell>{item.category.type}</Cell>
               <Cell>{item.data}</Cell>
+              <Cell>{displayCreatedBy(item.created_by)}</Cell>
             </Row>
           )}
         </TableBody>

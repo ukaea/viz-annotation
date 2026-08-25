@@ -1,17 +1,26 @@
-from playwright.sync_api import Page, expect
-import pathlib
-from tests.endpoints import (
-    create_project,
-    create_local_samples,
-    create_uda_samples,
-    create_query_strategy_samples,
-)
 import pytest
-import tempfile
+
+pytest.importorskip("playwright")
 import json
-from toktagger.api.schemas.annotations import TimePoint, TimeRegion
-import requests
+import pathlib
+import tempfile
 import time
+
+import pytest
+from playwright.sync_api import Page, expect
+
+from tests.end_to_end.conftest import login_as
+from tests.endpoints import (
+    add_project_member,
+    create_local_samples,
+    create_project,
+    create_query_strategy_samples,
+    create_uda_samples,
+    create_user,
+    session,
+)
+from toktagger.api.schemas.annotations import TimePoint, TimeRegion
+from toktagger.api.schemas.annotators import AnnotatorTypes
 
 
 def setup_annotations(page: Page, num_annotations: int, go_to_next: bool = False):
@@ -28,17 +37,17 @@ def setup_annotations(page: Page, num_annotations: int, go_to_next: bool = False
     if num_annotations > 0:
         flat_top = TimeRegion(
             label="Flat Top",
-            created_by="peak_detection",
+            created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
             time_min=10,
             time_max=20,
             validated=False,
             uncertainty=0.9,
         )
-        response = requests.put(
+        response = session.put(
             f"http://localhost:8002/projects/{project_id}/samples/{sample_ids[0]}/annotations",
             json=[flat_top.model_dump(mode="json")],
         )
-        response = requests.put(
+        response = session.put(
             f"http://localhost:8002/projects/{project_id}/samples/{sample_ids[1]}/annotations",
             json=[flat_top.model_dump(mode="json")],
         )
@@ -340,20 +349,34 @@ def test_export_annotations(server_setup, page: Page, all_samples: bool):
 
     # Add annotations
     flat_top = TimeRegion(
-        label="Flat Top", created_by="peak_detection", time_min=50, time_max=70
+        label="Flat Top",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time_min=50,
+        time_max=70,
     )
-    disruption = TimePoint(label="Disruption", created_by="peak_detection", time=71)
-    response = requests.put(
+    disruption = TimePoint(
+        label="Disruption",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time=71,
+    )
+    response = session.put(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_ids[0]}/annotations",
         json=[model.model_dump(mode="json") for model in (flat_top, disruption)],
     )
     assert response.status_code == 200
 
     ramp_up = TimeRegion(
-        label="Ramp Up", created_by="peak_detection", time_min=40, time_max=60
+        label="Ramp Up",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time_min=40,
+        time_max=60,
     )
-    control_loss = TimePoint(label="Control Loss", created_by="peak_detection", time=61)
-    response = requests.put(
+    control_loss = TimePoint(
+        label="Control Loss",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time=61,
+    )
+    response = session.put(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_ids[1]}/annotations",
         json=[model.model_dump(mode="json") for model in (ramp_up, control_loss)],
     )
@@ -449,7 +472,7 @@ def test_save_button(server_setup, page: Page, num_annotations: int):
     expect(page.get_by_text(f"Saved {num_annotations} annotations!")).to_be_visible()
 
     # Pull from backend, check correct number of annotations saved
-    response = requests.get(
+    response = session.get(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations"
     )
     assert response.status_code == 200
@@ -457,12 +480,17 @@ def test_save_button(server_setup, page: Page, num_annotations: int):
 
     assert len(annotations) == num_annotations
 
-    # Check all marked as validated:
+    # Only the saving user's own annotations get validated - a pre-existing
+    # annotators::peak_detection annotation (num_annotations >= 1) isn't the
+    # admin's to touch, so saving must leave it as it was.
     for annotation in annotations:
-        assert annotation["validated"]
+        if annotation["created_by"] == "admin":
+            assert annotation["validated"]
+        else:
+            assert not annotation["validated"]
 
     # Check sample is now marked as validated
-    response = requests.get(
+    response = session.get(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}"
     )
     assert response.status_code == 200
@@ -484,7 +512,7 @@ def test_save_on_navigate(
     page, project_id, sample_ids = setup_annotations(
         page,
         num_annotations,
-        go_to_next=True if navigate_direction == "Previous" else False,
+        go_to_next=navigate_direction == "Previous",
     )
     sample_id = sample_ids[0] if navigate_direction == "Next" else sample_ids[1]
 
@@ -509,7 +537,7 @@ def test_save_on_navigate(
         page.get_by_role("button", name=f"{navigate_direction}").click()
 
     # Check if annotations saved
-    response = requests.get(
+    response = session.get(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations"
     )
     assert response.status_code == 200
@@ -521,55 +549,296 @@ def test_save_on_navigate(
             0 if num_annotations == 0 else 1
         )  # Because it shouldnt have saved the human annotation if num_annotations=2
 
-    # Check all marked as validated if saved
+    # Only the saving user's own annotations get validated - a pre-existing
+    # annotators::peak_detection annotation (num_annotations >= 1) isn't the
+    # admin's to touch, so it's never validated regardless of save_on_navigate.
     for annotation in annotations:
-        assert annotation["validated"] == (True if save_on_navigate else False)
+        if annotation["created_by"] == "admin":
+            assert annotation["validated"] == bool(save_on_navigate)
+        else:
+            assert not annotation["validated"]
 
     time.sleep(1)
 
     # Check sample is now marked as validated if saved
-    response = requests.get(
+    response = session.get(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}"
     )
     assert response.status_code == 200
     sample = response.json()
-    assert sample["validated_annotations"] == (True if save_on_navigate else False)
+    assert sample["validated_annotations"] == bool(save_on_navigate)
 
 
-def test_clear_button(server_setup, page: Page):
+def test_new_annotation_is_attributed_to_signed_in_user(server_setup, page: Page):
+    """A just-drawn annotation names its author in the table before it is saved.
+
+    The server stamps created_by on save, but the table must not show the internal
+    "manual" placeholder while the annotation is still local.
+    """
+    # num_annotations=2 draws a TIME POINT through the UI and leaves it unsaved,
+    # alongside a seeded annotators::peak_detection annotation.
+    page, _project_id, _sample_ids = setup_annotations(page, 2)
+
+    annotations_table = page.get_by_role("grid", name="Annotations table")
+    expect(annotations_table.get_by_role("gridcell", name="admin")).to_have_count(1)
+    expect(annotations_table.get_by_role("gridcell", name="manual")).to_have_count(0)
+
+
+def test_clear_button_showing_others_clears_everything(server_setup, page: Page):
+    """With "Show Others' Annotations" on, Clear discards every annotation shown.
+
+    Other users' annotations and tool output cannot be removed by a save - its
+    replace step only covers the caller's own - so Clear deletes them outright.
+    """
+    # num_annotations=2 seeds one pre-existing annotators::peak_detection annotation
+    # (renders as time-zone) plus one admin-drawn TIME POINT (renders as time-point).
     page, project_id, sample_ids = setup_annotations(page, 2)
     sample_id = sample_ids[0]
     # Click save to commit annotations to db
     page.get_by_role("button", name="Save").click()
 
-    # Check both annotations visible
+    # Check both annotations visible, and the checkbox that decides Clear's scope is on
     expect(page.get_by_label("time-point").first).to_be_visible()
     expect(page.get_by_label("time-zone").first).to_be_visible()
+    expect(
+        page.get_by_role("checkbox", name="Show Others' Annotations")
+    ).to_be_checked()
 
     # Check sample shows as validated
     expect(page.get_by_text("Annotations Validated")).to_be_visible()
 
-    # Press Clear
+    # Press Clear - everything on display goes, whoever created it
     page.get_by_role("button", name="Clear").click()
 
-    # Check no annotations visible
-    expect(page.get_by_label("time-point").first).to_be_hidden()
-    expect(page.get_by_label("time-zone").first).to_be_hidden()
+    expect(page.get_by_label("time-point")).to_have_count(0)
+    expect(page.get_by_label("time-zone")).to_have_count(0)
 
     # Check sample now shows as not validated
     expect(page.get_by_text("Annotations Not Validated")).to_be_visible()
 
-    # Press save, check no annotations in db
+    # No save needed - the delete already reached the backend
+    response = session.get(
+        f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations"
+    )
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_clear_button_hiding_others_clears_own_only(server_setup, page: Page):
+    """With "Show Others' Annotations" off, Clear discards only the user's own."""
+    page, project_id, sample_ids = setup_annotations(page, 2)
+    sample_id = sample_ids[0]
+    page.get_by_role("button", name="Save").click()
+    expect(page.get_by_label("time-point").first).to_be_visible()
+
+    # Hide others' annotations - the peak_detection time-zone is filtered out
+    # server-side, leaving only the admin's own time-point on display.
+    page.get_by_role("checkbox", name="Show Others' Annotations").click()
+    expect(page.get_by_label("time-zone")).to_have_count(0)
+    expect(page.get_by_label("time-point").first).to_be_visible()
+
+    page.get_by_role("button", name="Clear").click()
+    expect(page.get_by_label("time-point")).to_have_count(0)
+    expect(page.get_by_text("Annotations Not Validated")).to_be_visible()
+
+    # Press save - only admin's own (now empty) selection is replaced; the
+    # peak_detection annotation was never admin's to delete, so it survives.
     page.get_by_role("button", name="Save").click()
 
+    # Show others' annotations again: the peak_detection annotation is still there,
+    # and the backend stops filtering it out of admin's requests - including the
+    # helper session's GET below, which shares admin's membership preference.
+    page.get_by_role("checkbox", name="Show Others' Annotations").click()
+    expect(page.get_by_label("time-zone").first).to_be_visible()
+
     # Pull from backend, check correct number of annotations saved
-    response = requests.get(
+    response = session.get(
         f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations"
     )
     assert response.status_code == 200
     annotations = response.json()
 
-    assert len(annotations) == 0
+    # Only the peak_detection annotation is left: admin's own went with the clear,
+    # and the one they never owned was untouched.
+    assert len(annotations) == 1
+    assert (
+        annotations[0]["created_by"]
+        == f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}"
+    )
+
+
+def setup_role_gated_sample(browser, username: str, role: str):
+    """A one-sample project holding one seeded annotation, seen as a project member
+    with the given role.
+
+    The annotation is authored by annotators::peak_detection, so it belongs to no real
+    user and stays visible whichever member is looking at it.
+    """
+    create_user(username, f"{username}_pass123")
+    project_id = create_project("Role Gated Sample Project", "time-series", "tabular")
+    sample_ids = create_local_samples(
+        project_id, [10000], pathlib.Path(__file__).parents[1], ["Ip"]
+    )
+    sample_id = sample_ids[0]
+    flat_top = TimeRegion(
+        label="Flat Top",
+        created_by=f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}",
+        time_min=10,
+        time_max=20,
+        validated=False,
+        uncertainty=0.9,
+    )
+    response = session.put(
+        f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations",
+        json=[flat_top.model_dump(mode="json")],
+    )
+    assert response.status_code == 200
+    add_project_member(project_id, username, role=role)
+
+    user_page = login_as(browser, username, f"{username}_pass123")
+    user_page.goto(
+        f"http://localhost:8002/ui/projects/{project_id}/samples/{sample_id}"
+    )
+    expect(user_page.get_by_label("time-series")).to_be_visible()
+    return user_page, project_id, sample_id
+
+
+# A viewer may look at a project but never change its annotations, so every control
+# that writes them is disabled. The "Show Others' Annotations" checkbox is a display
+# preference rather than annotation work, so it stays available to a viewer.
+@pytest.mark.parametrize("role", ["viewer", "annotator", "admin"])
+def test_sample_view_controls_gated_by_role(role, server_setup, admin_token, browser):
+    can_annotate = role != "viewer"
+    user_page, _project_id, _sample_id = setup_role_gated_sample(
+        browser, f"navrole_{role}", role
+    )
+
+    def expect_enabled(locator, enabled):
+        if enabled:
+            expect(locator).to_be_enabled()
+        else:
+            expect(locator).to_be_disabled()
+
+    expect_enabled(user_page.get_by_role("button", name="Save"), can_annotate)
+    expect_enabled(
+        user_page.get_by_role("button", name="Clear", exact=True), can_annotate
+    )
+    expect_enabled(
+        user_page.get_by_role("checkbox", name="Save on Navigate"), can_annotate
+    )
+    # Navigation itself is a read, so it is never gated.
+    expect(user_page.get_by_role("button", name="Next")).to_be_enabled()
+    expect(
+        user_page.get_by_role("checkbox", name="Show Others' Annotations")
+    ).to_be_enabled()
+
+    # Save on Navigate must also read as off for a viewer, not merely be unclickable -
+    # navigating away from a sample must not try to save it.
+    if can_annotate:
+        expect(
+            user_page.get_by_role("checkbox", name="Save on Navigate")
+        ).to_be_checked()
+    else:
+        expect(
+            user_page.get_by_role("checkbox", name="Save on Navigate")
+        ).not_to_be_checked()
+
+    user_page.context.close()
+
+
+def test_viewer_cannot_clear_annotations(server_setup, admin_token, browser):
+    """A viewer's Clear does nothing, and reaches no further than the button.
+
+    Clear now issues a DELETE for every annotation on the sample when others' are on
+    display, so a viewer getting through would destroy other users' work rather than
+    only their own local view.
+    """
+    user_page, project_id, sample_id = setup_role_gated_sample(
+        browser, "clearviewer", "viewer"
+    )
+    expect(user_page.get_by_label("time-zone").first).to_be_visible()
+
+    # force=True bypasses Playwright's actionability check, so the click is genuinely
+    # attempted rather than skipped.
+    user_page.get_by_role("button", name="Clear", exact=True).click(force=True)
+
+    expect(user_page.get_by_label("time-zone").first).to_be_visible()
+    expect(user_page.get_by_text("Annotations Not Validated")).to_be_visible()
+
+    response = session.get(
+        f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations"
+    )
+    assert response.status_code == 200
+    annotations = response.json()
+    assert len(annotations) == 1
+    assert (
+        annotations[0]["created_by"]
+        == f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}"
+    )
+    user_page.context.close()
+
+
+def test_clear_tooltip_describes_what_it_discards(server_setup, page: Page):
+    """Clear's tooltip names its scope, which the "Show Others' Annotations" state
+    decides. The tooltip is the only warning that Clear can take other users' work.
+    """
+    page, _project_id, _sample_ids = setup_annotations(page, 1)
+
+    clear_button = page.get_by_role("button", name="Clear", exact=True)
+    clear_button.hover()
+    expect(
+        page.get_by_text("Discard all annotations for this sample, including other")
+    ).to_be_visible(timeout=5000)
+
+    # Hiding others' annotations narrows both what Clear removes and what it says.
+    page.get_by_role("checkbox", name="Show Others' Annotations").click()
+    clear_button.hover()
+    expect(
+        page.get_by_text("Discard your own annotations for this sample.")
+    ).to_be_visible(timeout=5000)
+
+
+def test_show_others_preference_survives_reload(server_setup, admin_token, browser):
+    """The checkbox is restored from the membership record, not reset to its default.
+
+    The server filters annotations by the stored preference, so a checkbox that came
+    back checked after a reload would claim others' annotations were on display when
+    they were filtered out - and would send Clear after annotations it cannot see.
+    """
+    user_page, project_id, _sample_id = setup_role_gated_sample(
+        browser, "prefannotator", "annotator"
+    )
+    checkbox = user_page.get_by_role("checkbox", name="Show Others' Annotations")
+    expect(checkbox).to_be_checked()
+    expect(user_page.get_by_label("time-zone").first).to_be_visible()
+
+    # Wait for the preference to reach the membership record before reloading.
+    with user_page.expect_response(
+        lambda r: (
+            f"/projects/{project_id}/members/" in r.url and r.request.method == "PUT"
+        )
+    ):
+        checkbox.click()
+    expect(user_page.get_by_label("time-zone")).to_have_count(0)
+
+    user_page.reload()
+    expect(user_page.get_by_label("time-series")).to_be_visible()
+    expect(checkbox).not_to_be_checked()
+    expect(user_page.get_by_label("time-zone")).to_have_count(0)
+
+    # And back again, so the restore follows the record rather than sticking off.
+    with user_page.expect_response(
+        lambda r: (
+            f"/projects/{project_id}/members/" in r.url and r.request.method == "PUT"
+        )
+    ):
+        checkbox.click()
+    user_page.reload()
+    expect(user_page.get_by_label("time-series")).to_be_visible()
+    expect(checkbox).to_be_checked()
+    expect(user_page.get_by_label("time-zone").first).to_be_visible()
+
+    user_page.context.close()
 
 
 @pytest.mark.parametrize(

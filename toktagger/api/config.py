@@ -1,13 +1,14 @@
+import pathlib
+import typing
+
+import pydantic
+from platformdirs import user_cache_dir
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
     SettingsConfigDict,
     TomlConfigSettingsSource,
 )
-import pydantic
-import typing
-import pathlib
-from platformdirs import user_cache_dir
 
 
 class UDA(pydantic.BaseModel):
@@ -39,6 +40,13 @@ class Database(pydantic.BaseModel):
     )
 
 
+class Auth(pydantic.BaseModel):
+    secret_key: str | None = pydantic.Field(
+        None,
+        description="Secret key used to sign auth tokens. If unset, a key is generated and persisted to secret.key under the server cache_dir on first run. Set this explicitly for multi-worker/multi-process deployments so all processes share the same signing key.",
+    )
+
+
 class Server(pydantic.BaseModel):
     host: str = pydantic.Field(
         "localhost",
@@ -51,6 +59,11 @@ class Server(pydantic.BaseModel):
     reload: bool = pydantic.Field(
         False,
         description="Whether to hot reload the TokTagger server on changes to files.",
+    )
+    workers: int = pydantic.Field(
+        1,
+        description="The number of Gunicorn worker processes to use. If set to 1, runs a single-process uvicorn server instead.",
+        gt=0,
     )
     cache_dir: pathlib.Path = pydantic.Field(
         user_cache_dir("toktagger", "ukaea"),
@@ -126,6 +139,7 @@ class Settings(BaseSettings):
     # As they would not be able to just use single underscores (since different levels of nesting requires a different delimiter)
     server: Server = pydantic.Field(default_factory=Server)
     database: Database = pydantic.Field(default_factory=Database)
+    auth: Auth = pydantic.Field(default_factory=Auth)
     uda: UDA = pydantic.Field(default_factory=UDA)
     sal: SAL = pydantic.Field(default_factory=SAL)
     models: Models = pydantic.Field(default_factory=Models)

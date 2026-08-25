@@ -1,11 +1,21 @@
 import uvicorn
-import toktagger.api.config as config
+
+from toktagger.api.config import settings
+from toktagger.api.main import run_with_gunicorn
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "toktagger.api.cli:create_app",
-        factory=True,
-        host=config.settings.server.host,
-        port=config.settings.server.port,
-        reload=config.settings.server.reload,
-    )
+    host = settings.server.host
+    port = settings.server.port
+    workers = settings.server.workers
+    reload = settings.server.reload
+
+    if workers > 1:
+        run_with_gunicorn(host, port, workers)
+    else:
+        uvicorn.run(
+            "toktagger.api.cli:create_app",
+            factory=True,
+            host=host,
+            port=port,
+            reload=reload,
+        )

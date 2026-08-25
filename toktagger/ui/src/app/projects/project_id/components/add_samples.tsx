@@ -2,6 +2,7 @@
 import {
   Form,
   Button,
+  ActionButton,
   DialogTrigger,
   Dialog,
   Divider,
@@ -27,7 +28,7 @@ import {
 } from "@/types";
 import AddCircle from "@spectrum-icons/workflow/AddCircle";
 import { useState, useEffect } from "react";
-import { BACKEND_API_URL } from "@/app/core";
+import { BACKEND_API_URL, apiFetch } from "@/app/core";
 import NumericalRange, {
   NumericalRangeType,
 } from "@/app/components/ui/numerical_range";
@@ -35,9 +36,13 @@ import NumericalRange, {
 export const AddSamplesEditor = ({
   project,
   onModify,
+  // Which samples a project holds is project configuration, so only a project
+  // admin may add them - mirrors require_project_admin_role on POST /samples.
+  canManageSamples = true,
 }: {
   project: Project;
   onModify?: () => void;
+  canManageSamples?: boolean;
 }) => {
   const dataLoader = project.data_loader;
 
@@ -69,7 +74,7 @@ export const AddSamplesEditor = ({
   useEffect(() => {
     async function fetchDataSchema() {
       try {
-        const response = await fetch(
+        const response = await apiFetch(
           `${BACKEND_API_URL}/meta/dataloader/${dataLoader}`,
         );
         if (response.ok) {
@@ -171,7 +176,7 @@ export const AddSamplesEditor = ({
       if (useDirectories) {
         apiUrl = `${BACKEND_API_URL}/paths/directories?dir_path=${dirPath}&file_type=${fileType}`;
       }
-      const response = await fetch(apiUrl);
+      const response = await apiFetch(apiUrl);
 
       if (response.ok) {
         const result = await response.json();
@@ -290,7 +295,7 @@ export const AddSamplesEditor = ({
       });
 
       // POST to API
-      const response = await fetch(
+      const response = await apiFetch(
         `${BACKEND_API_URL}/projects/${project._id}/samples`,
         {
           method: "POST",
@@ -328,10 +333,10 @@ export const AddSamplesEditor = ({
 
   return (
     <DialogTrigger>
-      <Button variant="primary">
+      <ActionButton isQuiet isDisabled={!canManageSamples}>
         <AddCircle />
         <Text>Add Samples</Text>
-      </Button>
+      </ActionButton>
       {(close) => (
         <Dialog>
           <Heading>Add Samples to Project</Heading>

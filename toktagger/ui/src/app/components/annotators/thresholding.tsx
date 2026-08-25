@@ -1,5 +1,5 @@
 import { useSample } from "@/app/contexts/SampleContext";
-import { BACKEND_API_URL } from "@/app/core";
+import { BACKEND_API_URL, apiFetch } from "@/app/core";
 import { Annotation, Profile2DDataSchema, Profile2DViewParams } from "@/types";
 import {
   ActionButton,
@@ -9,7 +9,7 @@ import {
   Switch,
 } from "@adobe/react-spectrum";
 import { useEffect, useState } from "react";
-import { AnnotatorTypes } from "./types";
+import { AnnotatorTypes, annotatorCreatedBy } from "./types";
 import { getSignalNames } from "@/app/utils";
 
 // Defaults for the thresholding parameters. The range of interest is replaced
@@ -60,7 +60,9 @@ export default function Profile2DThresholdTool({
 
   const [isEnabled, setIsEnabled] = useState<boolean>(() => {
     return annotations.some(
-      (ann) => ann.created_by === AnnotatorTypes.PROFILE_2D_THRESHOLD,
+      (ann) =>
+        ann.created_by ===
+        annotatorCreatedBy(AnnotatorTypes.PROFILE_2D_THRESHOLD),
     );
   });
 
@@ -100,7 +102,8 @@ export default function Profile2DThresholdTool({
       setAnnotations((previousAnnotations: Annotation[]) =>
         previousAnnotations.filter(
           (annotation: Annotation) =>
-            annotation.created_by !== AnnotatorTypes.PROFILE_2D_THRESHOLD ||
+            annotation.created_by !==
+              annotatorCreatedBy(AnnotatorTypes.PROFILE_2D_THRESHOLD) ||
             annotation.validated,
         ),
       );
@@ -110,7 +113,7 @@ export default function Profile2DThresholdTool({
     const fetchData = async () => {
       if (!signalName || !range) return;
 
-      const response = await fetch(
+      const response = await apiFetch(
         `${BACKEND_API_URL}/projects/${project_id}/samples/${sample_id}/annotator/profile_2d_threshold`,
         {
           method: "POST",
@@ -138,7 +141,8 @@ export default function Profile2DThresholdTool({
         const otherAnnotations = previousAnnotations.filter(
           (annotation: Annotation) =>
             !(
-              annotation.created_by === AnnotatorTypes.PROFILE_2D_THRESHOLD &&
+              annotation.created_by ===
+                annotatorCreatedBy(AnnotatorTypes.PROFILE_2D_THRESHOLD) &&
               !annotation.validated &&
               annotation.signal_name === signalName
             ),

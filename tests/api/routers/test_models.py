@@ -2,30 +2,38 @@ import pytest
 
 pytest.importorskip("ray")
 
+import asyncio
 import pathlib
-from toktagger.api.schemas.models import (
-    ModelUpdate,
-    GitlabLoadParams,
-    HuggingfaceLoadParams,
-)
-from toktagger.api.models.base import ActorRegistry
+import tempfile
+import time
+from unittest.mock import patch
+
+import ray
+from bson import ObjectId
+
+from tests.api.auth.conftest import get_auth_token
+from toktagger.api import config
 from toktagger.api.core.sender import (
-    send_batch_samples,
     send_batch_annotations,
+    send_batch_samples,
     send_model_updates,
 )
-import ray
-from unittest.mock import patch
-from bson import ObjectId
-import tempfile
-import asyncio
-import toktagger.api.config as config
+from toktagger.api.schemas.models import (
+    GitlabLoadParams,
+    HuggingfaceLoadParams,
+    ModelUpdate,
+)
 
 
-def wait_for_results(task_registry: ActorRegistry, task_id: str):
-    task = task_registry.get(task_id)
-    results = ray.get(task, timeout=30)
-    return results
+def wait_for_results(
+    task_registry: ray.actor.ActorHandle, task_id: str, timeout: float = 30
+):
+    deadline = time.monotonic() + timeout
+    while not ray.get(task_registry.is_ready.remote(task_id)):
+        if time.monotonic() > deadline:
+            raise TimeoutError(f"Task {task_id} did not complete within {timeout}s")
+        time.sleep(0.1)
+    return ray.get(task_registry.get_result.remote(task_id))
 
 
 async def collect_predict_results(models_api_client, task_id):
@@ -76,6 +84,14 @@ async def test_model_batch_predict_num_predictions(
 
     # Check latest version of model has been used by default (annotation label set to model ID in Mock)
     assert all(ann["label"] == setup_model_db["model_id_2"] for ann in annotations)
+
+    # Predictions from the real worker pipeline (get_predictions in worker.py) must be
+    # stamped "model::<type>", not the raw type — this is what lets a human user with
+    # the same name as a model type import annotations without corrupting predictions
+    # (see test_user_save_does_not_corrupt_model_prefixed_predictions in test_model_auth.py,
+    # which only exercises the import-endpoint side of that guarantee via a hand-crafted
+    # payload; this is the counterpart that proves the worker actually produces it).
+    assert all(ann["created_by"] == "model::mock_disruption_cnn" for ann in annotations)
 
 
 @pytest.mark.asyncio
@@ -230,6 +246,90 @@ async def test_model_sample_predict(models_api_client, db_client, setup_model_db
 
     # Check it corresponds to sample ID we asked for predictions on
     assert str(annotations[0]["sample_id"]) == setup_model_db["sample_ids"][-1]
+
+
+@pytest.mark.asyncio
+@pytest.mark.models_enabled
+async def test_predict_endpoint_survives_same_named_human_save(
+    models_api_client, db_client, setup_model_db
+):
+    """A real prediction from the /predict endpoint (created_by="model::mock_disruption_cnn")
+    must survive a human user named "mock_disruption_cnn" saving their own
+    annotation for the same sample — the "model::" prefix is the namespace
+    separator that prevents the collision from corrupting either author's data.
+
+    Unlike test_user_save_does_not_corrupt_model_prefixed_predictions in
+    test_model_auth.py (which hand-crafts the "model::" annotation via a direct
+    PUT with the internal token), this exercises the actual /predict endpoint and
+    Ray worker pipeline end to end, with real per-user JWT auth.
+    """
+    client = models_api_client
+    project_id = setup_model_db["project_id"]
+    sample_id = setup_model_db["sample_ids"][-1]
+
+    admin_token = await get_auth_token(client, "admin", "admin_pass")
+
+    # Create a human user whose name matches the model type (the collision scenario).
+    create_resp = await client.post(
+        "/users",
+        json={
+            "username": "mock_disruption_cnn",
+            "password": "pass123",
+            "global_role": "user",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert create_resp.status_code == 200, create_resp.text
+
+    await client.post(
+        f"/projects/{project_id}/members",
+        json={"username": "mock_disruption_cnn", "role": "annotator"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+
+    # Run a REAL prediction through the actual /predict endpoint.
+    predict_resp = await client.post(
+        f"/projects/{project_id}/samples/{sample_id}/models/mock_disruption_cnn/predict",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert predict_resp.status_code == 200, predict_resp.text
+    await collect_predict_results(client, predict_resp.json()["task_id"])
+
+    model_annotations = await db_client.get_filtered_documents(
+        collection="annotations",
+        filters={
+            "created_by": "model::mock_disruption_cnn",
+            "sample_id": ObjectId(sample_id),
+        },
+    )
+    assert len(model_annotations) == 1
+
+    # The human user (same name as the model) saves their own annotation for the
+    # same sample. update_annotations only replaces the CALLER's own annotations.
+    human_token = await get_auth_token(client, "mock_disruption_cnn", "pass123")
+    save_resp = await client.put(
+        f"/projects/{project_id}/samples/{sample_id}/annotations",
+        json=[
+            {
+                "label": "human_ann",
+                "time_min": 0.0,
+                "time_max": 1.0,
+                "type": "time_region",
+                "validated": True,
+                "created_by": "placeholder",  # server overwrites from JWT
+            }
+        ],
+        headers={"Authorization": f"Bearer {human_token}"},
+    )
+    assert save_resp.status_code == 200, save_resp.text
+
+    # Both the real model prediction and the human's own annotation must survive.
+    annotations = await db_client.get_filtered_documents(
+        collection="annotations", filters={"sample_id": ObjectId(sample_id)}
+    )
+    labels_by_author = {a["created_by"]: a["label"] for a in annotations}
+    assert labels_by_author.get("model::mock_disruption_cnn") is not None
+    assert labels_by_author.get("mock_disruption_cnn") == "human_ann"
 
 
 @pytest.mark.asyncio
@@ -503,7 +603,7 @@ async def test_model_delete_type(models_api_client, db_client, setup_model_db):
     assert not config.settings.models.cache_dir.joinpath(
         f"{setup_model_db['model_id_2']}"
     ).exists()
-    # And for model 3 it does still exist
+    # And for model 3 and 4 it does still exist
     assert config.settings.models.cache_dir.joinpath(
         f"{setup_model_db['model_id_3']}"
     ).exists()
@@ -548,10 +648,7 @@ async def test_model_delete_type_version(models_api_client, db_client, setup_mod
 
 @pytest.mark.asyncio
 @pytest.mark.models_enabled
-@patch("ray.cancel")
-async def test_model_stop_training(
-    mock_func, models_api_client, db_client, setup_model_db
-):
+async def test_model_stop_training(models_api_client, db_client, setup_model_db):
     response = await models_api_client.delete(
         f"/projects/{setup_model_db['project_id']}/models/disruption_cnn/train"
     )
@@ -566,8 +663,6 @@ async def test_model_stop_training(
     )
     model = models[0]
     assert model["status"] == "aborted"
-
-    assert mock_func.call_count > 0
 
 
 @pytest.mark.asyncio
@@ -595,7 +690,7 @@ async def test_model_stop_training_not_in_progress(
 @pytest.mark.models_enabled
 async def test_model_delete_predictions(models_api_client, db_client, setup_model_db):
     await models_api_client.delete(
-        f"/projects/{setup_model_db['project_id']}/models/disruption_cnn/predict"
+        f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/predict"
     )
 
     # Should be 5 annotations remaining since half were created by 'manual'
@@ -610,14 +705,14 @@ async def test_model_delete_no_predictions(
     models_api_client, db_client, setup_model_db
 ):
     response = await models_api_client.delete(
-        f"/projects/{setup_model_db['project_id']}/models/mock_disruption_cnn/predict"
+        f"/projects/{setup_model_db['project_id']}/models/mock_timeseries_cnn/predict"
     )
 
     # Nothing created by this model, so should return 404 and not delete anything
     assert response.status_code == 404
     assert (
         response.json()["detail"]
-        == "No annotations produced by mock_disruption_cnn could be found for this Project."
+        == "No annotations produced by mock_timeseries_cnn could be found for this Project."
     )
     annotations = await db_client.get_all_documents(collection="annotations")
     assert len(annotations) == 10

@@ -1,17 +1,18 @@
+import logging
+import pathlib
+import typing
+
+import pydantic
+import torch
+from sklearn.metrics import mean_absolute_error, root_mean_squared_error
+from torch import nn
+from torch.utils.data import DataLoader, Dataset
+
+from toktagger.api.models.base import Model, ModelRegistry
+from toktagger.api.schemas.annotations import Annotation, TimePoint
+from toktagger.api.schemas.data import DataParams, TimeSeriesData
 from toktagger.api.schemas.projects import Project
 from toktagger.api.schemas.samples import Sample
-from toktagger.api.schemas.annotations import TimePoint
-from toktagger.api.schemas.data import TimeSeriesData, DataParams
-from sklearn.metrics import mean_absolute_error, root_mean_squared_error
-import torch.nn as nn
-import torch
-from torch.utils.data import DataLoader, Dataset
-from toktagger.api.schemas.annotations import Annotation
-import typing
-from toktagger.api.models.base import Model, ModelRegistry
-import logging
-import pydantic
-import pathlib
 
 logger = logging.getLogger("ray")
 
@@ -359,7 +360,7 @@ class DisruptionCNN(Model):
                     uncertainty=stds[i].item(),
                     label="Disruption",
                     time=means[i].item(),
-                    created_by=self.type,
+                    created_by=f"model::{self.type}",
                 )
             ]
             for i in range(len(samples))

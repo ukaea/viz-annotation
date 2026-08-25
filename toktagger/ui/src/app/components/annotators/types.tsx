@@ -5,3 +5,14 @@ export enum AnnotatorTypes {
   OUTLIER_DETECTION = "outlier_detection",
   PROFILE_2D_THRESHOLD = "profile_2d_threshold",
 }
+
+// Mirrors the "annotators::<type>" prefix the backend stamps on annotator
+// suggestions (toktagger/api/core/annotators.py), so a real user can never
+// collide with it (see the reserved-prefix check in the users router).
+export const annotatorCreatedBy = (type: AnnotatorTypes) =>
+  `annotators::${type}`;
+
+// Mirrors the "model::<type>" prefix the backend stamps on ML-model
+// predictions (toktagger/api/worker.py), so a real user can never collide
+// with it (see the reserved-prefix check in the users router).
+export const modelCreatedBy = (modelType: string) => `model::${modelType}`;

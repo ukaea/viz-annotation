@@ -28,7 +28,7 @@ import {
   TaskType,
   DataParams,
 } from "@/types";
-import { BACKEND_API_URL } from "@/app/core";
+import { ApiError, BACKEND_API_URL, apiFetch, ensureOk } from "@/app/core";
 import { getSignalNames } from "@/app/utils";
 
 const viewParamsKey = (projectId: string) => `view-params-${projectId}`;
@@ -76,6 +76,9 @@ interface SampleContextType {
   isLoading: boolean;
   isValidated: boolean | null;
   error: string | null;
+  // HTTP status behind `error`, when it came from the API. Lets the page tell
+  // "no access" (403) apart from a genuine failure.
+  errorStatus: number | null;
   setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>;
   setDataParams: React.Dispatch<React.SetStateAction<DataParams>>;
   setViewParams: React.Dispatch<
@@ -94,7 +97,7 @@ interface SampleProviderProps {
 }
 
 async function getData<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(url, { signal });
+  const response = await ensureOk(await apiFetch(url, { signal }));
   const payload = await response.json();
   return payload as T;
 }
@@ -202,6 +205,7 @@ export function SampleProvider({
   const [isValidated, setIsValidated] = useState<boolean | null>(null);
 
   const [error, setError] = useState<string | null>(null);
+  const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const [videoFrameBounds, setVideoFrameBounds] = useState<{
     min: number | null;
     max: number | null;
@@ -266,6 +270,7 @@ export function SampleProvider({
     const refreshData = async () => {
       setIsLoading(true);
       setError(null);
+      setErrorStatus(null);
 
       try {
         // Fetch project, sample, and annotations in parallel
@@ -315,7 +320,7 @@ export function SampleProvider({
           };
         }
 
-        const response = await fetch(
+        const response = await apiFetch(
           `${BACKEND_API_URL}/projects/${projectId}/samples/${sampleId}/data`,
           {
             method: "POST",
@@ -382,6 +387,7 @@ export function SampleProvider({
           }
 
           setError(detail);
+          setErrorStatus(response.status);
           setData(null);
           return;
         }
@@ -445,7 +451,18 @@ export function SampleProvider({
         ) {
           return;
         }
-        setError(err instanceof Error ? err.message : "An error occurred");
+        if (err instanceof ApiError && err.status === 403) {
+          // Reported as a refusal rather than as a missing project, so a user who
+          // has lost access - or was never given it - can act on the message.
+          setError(err.message || "You are not a member of this project.");
+          setErrorStatus(403);
+        } else if (err instanceof ApiError && err.status === 404) {
+          setError("Project not found.");
+          setErrorStatus(404);
+        } else {
+          setError(err instanceof Error ? err.message : "An error occurred");
+          setErrorStatus(err instanceof ApiError ? err.status : null);
+        }
       } finally {
         if (isCurrentRequest()) {
           setIsLoading(false);
@@ -481,6 +498,7 @@ export function SampleProvider({
     isLoading,
     isValidated,
     error,
+    errorStatus,
     setAnnotations,
     setPlotProps,
     setViewParams,

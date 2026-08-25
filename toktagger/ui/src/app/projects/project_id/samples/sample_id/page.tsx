@@ -1,54 +1,28 @@
 "use client";
 
 import React from "react";
-import {
-  Provider,
-  defaultTheme,
-  Breadcrumbs,
-  Item,
-  ToastContainer,
-  Flex,
-} from "@adobe/react-spectrum";
-import { Project, Sample, TaskType } from "@/types";
+import { TaskType } from "@/types";
 import { TimeSeriesView } from "@/app/time_series/components/time-series";
 import { Profile2dView } from "@/app/profile2d/components/profile2d";
 import ToolBar from "@/app/components/tools/toolbar";
-import { useHref, useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import ErrorView from "@/app/views/error";
+import ForbiddenView from "@/app/views/forbidden";
 import LoadingView from "@/app/views/loading";
 import { SampleProvider, useSample } from "@/app/contexts/SampleContext";
 import { VideoProviders, VideoView } from "@/app/video/components/video-view";
 import { SampleHistoryProvider } from "@/app/contexts/SampleHistoryContext";
-
-type SampleDataBreadCrumbsInfo = {
-  project: Project;
-  sample: Sample;
-};
-
-const SampleDataBreadCrumbs = ({
-  project,
-  sample,
-}: SampleDataBreadCrumbsInfo) => {
-  const navigate = useNavigate();
-  return (
-    <Provider theme={defaultTheme} router={{ navigate, useHref }}>
-      <Breadcrumbs>
-        <Item key="projects" href={`/ui/projects`}>
-          Projects
-        </Item>
-        <Item key="project" href={`/ui/projects/${project._id}`}>
-          Project: {project.name}
-        </Item>
-        <Item key="samples">Shot: {sample.shot_id}</Item>
-      </Breadcrumbs>
-    </Provider>
-  );
-};
+import { useBreadcrumbs } from "@/app/contexts/BreadcrumbContext";
 
 const SampleView = () => {
-  const { project, error, isLoading, data } = useSample();
+  const { project, error, errorStatus, isLoading, data } = useSample();
   if (!project) return null;
-  if (error) return <ErrorView message={error} />;
+  if (error)
+    return errorStatus === 403 ? (
+      <ForbiddenView message={error} />
+    ) : (
+      <ErrorView message={error} />
+    );
 
   if (project.task === TaskType.TimeSeries)
     return isLoading ? <LoadingView /> : <TimeSeriesView />;
@@ -70,10 +44,28 @@ function SampleTaskProviders({ children }: { children: React.ReactNode }) {
 }
 
 function SamplePageContent(props: { sampleId: string }) {
-  const { project, sample, isLoading, error } = useSample();
+  const { project, sample, isLoading, error, errorStatus } = useSample();
+  useBreadcrumbs(
+    project && sample
+      ? [
+          { key: "projects", label: "Projects", href: "/ui/projects" },
+          {
+            key: "project",
+            label: `Project: ${project.name}`,
+            href: `/ui/projects/${project._id}`,
+          },
+          { key: "samples", label: `Shot: ${sample.shot_id}` },
+        ]
+      : [{ key: "projects", label: "Projects", href: "/ui/projects" }],
+  );
 
   // Early returns AFTER all hooks
-  if (error) return <ErrorView message={error} />;
+  if (error)
+    return errorStatus === 403 ? (
+      <ForbiddenView message={error} />
+    ) : (
+      <ErrorView message={error} />
+    );
 
   if (!project) {
     return isLoading ? (
@@ -96,18 +88,15 @@ function SamplePageContent(props: { sampleId: string }) {
     return <LoadingView />;
   }
 
+  // h-full/min-h-0 hand the height of the area below the top bar down to the
+  // toolbar and the view, so each can scroll internally instead of the whole
+  // page growing past the bottom of the window.
   return (
-    <div>
-      <Provider theme={defaultTheme}>
-        <ToastContainer placement="top" />
-        <SampleDataBreadCrumbs project={project} sample={sample} />
-        <Flex>
-          <SampleTaskProviders>
-            <ToolBar />
-            <SampleView />
-          </SampleTaskProviders>
-        </Flex>
-      </Provider>
+    <div className="flex h-full min-h-0">
+      <SampleTaskProviders>
+        <ToolBar />
+        <SampleView />
+      </SampleTaskProviders>
     </div>
   );
 }

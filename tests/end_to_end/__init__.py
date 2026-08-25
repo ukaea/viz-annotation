@@ -1,4 +1,8 @@
-from playwright.sync_api import Page, expect
+try:
+    from playwright.sync_api import Page, expect
+except ImportError:
+    Page = None  # type: ignore[assignment,misc]
+    expect = None  # type: ignore[assignment]
 
 
 def form_check(page: Page, submit_button_name):

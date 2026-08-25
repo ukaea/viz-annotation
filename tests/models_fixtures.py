@@ -1,14 +1,23 @@
-from toktagger.api.schemas.annotations import TimePointBatch
-from toktagger.api.schemas.samples import SampleIn, TimeSeriesFileData
-import tests.db_definitions as db_definitions
-from toktagger.api.main import Server
-from httpx import AsyncClient, ASGITransport
-from bson.objectid import ObjectId
-import ray
 import random
+import time
+
 import pytest
 import pytest_asyncio
-import toktagger.api.config as config
+import ray
+from bson.objectid import ObjectId
+from httpx import ASGITransport, AsyncClient
+
+from tests import db_definitions
+from toktagger.api import config
+from toktagger.api.auth.core import create_access_token, get_internal_token
+from toktagger.api.main import RAY_NAMESPACE, Server
+from toktagger.api.schemas.annotations import TimePointBatch
+from toktagger.api.schemas.samples import SampleIn, TimeSeriesFileData
+
+
+@ray.remote(num_cpus=0.1)
+def _pending_task():
+    time.sleep(3600)
 
 
 @pytest.fixture(scope="module")
@@ -24,6 +33,7 @@ def ray_session(settings):
         _env_vars["MODELS_GITLAB_TOKEN"] = _gitlab_token
     ray.init(
         num_gpus=1,  # Due to env vars set in models_api_client
+        namespace=RAY_NAMESPACE,
         ignore_reinit_error=True,
         include_dashboard=False,
         runtime_env={"env_vars": _env_vars},
@@ -40,30 +50,57 @@ async def models_api_client(monkeypatch, settings, db_client, ray_session):
     monkeypatch.setenv("API_URL", "http://test")
     monkeypatch.setenv("MAX_GPU_ACTORS", 1)
     monkeypatch.setenv("FORCE_NUM_GPUS", True)
+    # So send_batch_annotations/send_batch_samples (replayed from the test process
+    # in collect_predict_results) authenticate as the internal worker user, matching
+    # what main.py._setup_ray does for real Ray workers in production.
+    monkeypatch.setenv("API_TOKEN", get_internal_token())
 
     server._setup_app()
     server._setup_ray()
     app = server.app
     app.state.db_client = db_client
     app.state.project = None
-    # This task ID is associated with a model in the db, so that cancelling training test works
-    app.state.task_registry.tasks["abc123"] = "Ray Task Object"
+    # This task ID is associated with a model in the db, so that cancelling training test works.
+    # Registered as a real (long-running) task ref, since ray.cancel() runs for
+    # real inside the TaskRegistry actor - it can't be mocked from this process.
+    ray.get(
+        app.state.task_registry.register.remote(
+            [_pending_task.remote()], task_id="abc123"
+        )
+    )
+
+    # Auth is always required now — seed the admin user and authenticate as them
+    # by default, so existing tests keep behaving as an implicit admin.
+    await db_client.insert("users", db_definitions.USER_ADMIN)
+    admin_token = create_access_token({"sub": "admin"})
 
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {admin_token}"},
     ) as client:
         client.app = app
         yield client
 
+    # Cancel the "abc123" pending task, in case this test didn't (e.g. it wasn't
+    # the cancel-training test), so it doesn't linger for the rest of the module.
+    ray.get(app.state.task_registry.cancel.remote("abc123"))
+
     # Kill any outstanding actors, since the task registry is recreated on a by test basis
     # But they ray cluster is only spun up on a per module basis to save time
-    for actor_id in app.state.task_registry.actors.keys():
+    for actor_id in ray.get(app.state.task_registry.list_actors.remote()):
         try:
             actor = ray.get_actor(actor_id)
             # Queue a kill job, letting any other in progress tasks finish first
             ray.kill(actor)
         except ValueError:
             continue
+
+    # TaskRegistry is a detached, named actor shared across the whole Ray
+    # cluster (production behaviour: shared by all Gunicorn workers). Kill it
+    # too, so the next test's _setup_ray() creates a fresh one instead of
+    # inheriting this test's tasks/actors/limits from the shared ray_session.
+    ray.kill(app.state.task_registry)
 
 
 @pytest.fixture(scope="package")
@@ -78,7 +115,7 @@ def setup_model_samples():
             validated=True,
             label="Disruption",
             time=disruption_time,
-            created_by="manual" if i < 9985 else "disruption_cnn",
+            created_by="manual" if i < 9985 else "model::mock_disruption_cnn",
         )
 
         samples.append(

@@ -17,11 +17,12 @@ import {
   type ImageAnnotation,
 } from "@annotorious/react";
 
-import type { Annotation } from "@/types";
+import type { Annotation, VideoFrameLabel } from "@/types";
 import { useSample } from "@/app/contexts/SampleContext";
 import { useVideoUiState } from "@/app/contexts/VideoContext";
 import {
   VideoBoundingBoxSchema,
+  VideoFrameLabelSchema,
   VideoPointSchema,
   VideoPolygonSchema,
 } from "@/types";
@@ -92,6 +93,12 @@ type VideoSessionCtx = {
   /** Derived instance summary across all frames (used by sidebar UI). */
   instances: InstanceProfile[];
 
+  /** Whole-frame class labels applied to the current frame. */
+  frameLabels: VideoFrameLabel[];
+  /** Apply the class label to the current frame, or remove it if already applied. */
+  toggleFrameLabel: (className: string) => void;
+  removeFrameLabel: (className: string) => void;
+
   drawingTool: ActiveDrawingTool;
   setDrawingTool: (tool: ActiveDrawingTool) => void;
   editMode: boolean;
@@ -99,6 +106,7 @@ type VideoSessionCtx = {
   drawIntent: boolean;
   canDrawShape: boolean;
   canDrawPoint: boolean;
+  canTagFrame: boolean;
   propagate: boolean;
   setPropagate: (v: boolean) => void;
   hideAnnotations: boolean;
@@ -324,12 +332,31 @@ function videoAnnotationsToByFrame(args: {
   return byFrame;
 }
 
+// Excludes video_frame_label on purpose: it lives in context annotations, not byFrame, and must survive overlay commits.
 function isVideoAnnotationType(annotation: Annotation): boolean {
   return (
     annotation.type === "video_bounding_box" ||
     annotation.type === "video_polygon" ||
     annotation.type === "video_point"
   );
+}
+
+function parseFrameLabel(annotation: Annotation): VideoFrameLabel | null {
+  if (annotation.type !== "video_frame_label") return null;
+
+  const parsed = VideoFrameLabelSchema.safeParse(annotation);
+  return parsed.success ? parsed.data : null;
+}
+
+function isFrameLabelFor(
+  annotation: Annotation,
+  frame: FrameIndex,
+  label: string,
+): boolean {
+  const parsed = parseFrameLabel(annotation);
+  if (!parsed) return false;
+
+  return parsed.frame === frame && parsed.label === label;
 }
 
 function videoAnnotationsFromByFrame(byFrame: ByFrameMap): Annotation[] {
@@ -493,8 +520,10 @@ export function VideoSessionProvider(props: {
     drawingTool !== null &&
     Boolean(selection.className) &&
     !isFramePending;
-  const canDrawShape = canCreate && drawingTool !== "point";
+  const canDrawShape =
+    canCreate && (drawingTool === "rectangle" || drawingTool === "polygon");
   const canDrawPoint = canCreate && drawingTool === "point";
+  const canTagFrame = canCreate && drawingTool === "frame";
   const drawIntentRef = useRef(drawIntent);
   drawIntentRef.current = drawIntent;
 
@@ -525,6 +554,57 @@ export function VideoSessionProvider(props: {
   const instances = useMemo(
     () => deriveInstances(byFrame, getLabelTrack),
     [byFrame],
+  );
+
+  // Frame labels are plain context annotations, so they are derived straight from there.
+  const frameLabels = useMemo(() => {
+    const out: VideoFrameLabel[] = [];
+
+    for (const annotation of annotations ?? []) {
+      const parsed = parseFrameLabel(annotation);
+      if (parsed?.frame === frame) out.push(parsed);
+    }
+
+    return out;
+  }, [annotations, frame]);
+
+  const toggleFrameLabel = useCallback(
+    (className: string) => {
+      const label = (className || "").trim();
+      if (!label) return;
+
+      const created = VideoFrameLabelSchema.safeParse({
+        type: "video_frame_label",
+        frame,
+        label,
+        created_by: "manual",
+      });
+      if (!created.success) return;
+
+      setSampleAnnotations((prev) => {
+        const remaining = prev.filter(
+          (annotation) => !isFrameLabelFor(annotation, frame, label),
+        );
+        return remaining.length === prev.length
+          ? [...prev, created.data]
+          : remaining;
+      });
+      setDirty(true);
+    },
+    [frame, setSampleAnnotations],
+  );
+
+  const removeFrameLabel = useCallback(
+    (className: string) => {
+      const label = (className || "").trim();
+      if (!label) return;
+
+      setSampleAnnotations((prev) =>
+        prev.filter((annotation) => !isFrameLabelFor(annotation, frame, label)),
+      );
+      setDirty(true);
+    },
+    [frame, setSampleAnnotations],
   );
 
   const getFrameList = useCallback(
@@ -697,6 +777,9 @@ export function VideoSessionProvider(props: {
     pendingFocusRef.current = null;
 
     updateByFrame((prev) => mapClearFrame(prev, frame), { markDirty: true });
+    setSampleAnnotations((prev) =>
+      prev.filter((annotation) => parseFrameLabel(annotation)?.frame !== frame),
+    );
 
     isProgrammaticAnnoSyncRef.current = true;
     try {
@@ -711,6 +794,7 @@ export function VideoSessionProvider(props: {
     finishProgrammaticAnnotationSync,
     flushPendingOverlay,
     frame,
+    setSampleAnnotations,
     updateByFrame,
   ]);
 
@@ -720,6 +804,9 @@ export function VideoSessionProvider(props: {
     pendingFocusRef.current = null;
 
     updateByFrame((prev) => mapClearAll(prev), { markDirty: true });
+    setSampleAnnotations((prev) =>
+      prev.filter((annotation) => !parseFrameLabel(annotation)),
+    );
 
     isProgrammaticAnnoSyncRef.current = true;
     try {
@@ -733,6 +820,7 @@ export function VideoSessionProvider(props: {
     api,
     finishProgrammaticAnnotationSync,
     flushPendingOverlay,
+    setSampleAnnotations,
     updateByFrame,
   ]);
 
@@ -761,7 +849,7 @@ export function VideoSessionProvider(props: {
       api.cancelDrawing?.();
     }
 
-    if (api.viewer && canDrawPoint) {
+    if (api.viewer && (canDrawPoint || canTagFrame)) {
       api.viewer.setMouseNavEnabled(false);
     } else if (api.viewer && !canDrawShape) {
       api.viewer.setMouseNavEnabled(true);
@@ -770,6 +858,7 @@ export function VideoSessionProvider(props: {
     api,
     canDrawPoint,
     canDrawShape,
+    canTagFrame,
     drawIntent,
     drawingTool,
     editMode,
@@ -1442,6 +1531,9 @@ export function VideoSessionProvider(props: {
       selection,
       setSelection,
       instances,
+      frameLabels,
+      toggleFrameLabel,
+      removeFrameLabel,
       drawingTool,
       setDrawingTool,
       editMode,
@@ -1449,6 +1541,7 @@ export function VideoSessionProvider(props: {
       drawIntent,
       canDrawShape,
       canDrawPoint,
+      canTagFrame,
       propagate,
       setPropagate,
       hideAnnotations,
@@ -1480,6 +1573,9 @@ export function VideoSessionProvider(props: {
       selection,
       setSelection,
       instances,
+      frameLabels,
+      toggleFrameLabel,
+      removeFrameLabel,
       drawingTool,
       setDrawingTool,
       editMode,
@@ -1487,6 +1583,7 @@ export function VideoSessionProvider(props: {
       drawIntent,
       canDrawShape,
       canDrawPoint,
+      canTagFrame,
       propagate,
       setPropagate,
       hideAnnotations,

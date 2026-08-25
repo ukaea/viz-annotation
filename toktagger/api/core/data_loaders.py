@@ -53,6 +53,10 @@ class DataLoaderError(Exception):
     """Custom exception for data loader errors."""
 
 
+class FrameNotFoundError(DataLoaderError):
+    """The requested video frame does not exist."""
+
+
 class DataLoader(ABC):
     @classmethod
     @abstractmethod
@@ -145,12 +149,12 @@ class ImageDataLoader(DataLoader):
         elif params.frame is None:
             files = sorted(dir_path.iterdir())
             if len(files) == 0:
-                raise FileNotFoundError("No files exist in specified directory!")
+                raise FrameNotFoundError("No files exist in specified directory!")
             file_path = files[0]
         else:
             file_path = dir_path.joinpath(f"{params.frame}.{sample_data.type}")
         if not file_path.exists():
-            raise FileNotFoundError(
+            raise FrameNotFoundError(
                 f"Could not find image file at '{file_path}', relative to {pathlib.Path().cwd()}"
             )
         # return raw encoded file bytes if return_raw is True

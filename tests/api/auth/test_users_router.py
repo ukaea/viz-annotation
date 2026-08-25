@@ -47,6 +47,30 @@ async def test_create_user_as_admin(auth_setup):
 
 
 @pytest.mark.asyncio
+async def test_created_user_must_change_password(auth_setup):
+    """A new account always has to replace the password the admin chose for it."""
+    client = auth_setup["client"]
+    token = await get_auth_token(client, "admin", "admin_pass")
+    response = await client.post(
+        "/users",
+        json={
+            "username": "newuser",
+            "password": "newpass123",
+            "must_change_password": False,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200, response.text
+
+    response = await client.get(
+        f"/users/{response.json()['_id']}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["must_change_password"] is True
+
+
+@pytest.mark.asyncio
 async def test_create_user_non_admin_forbidden(auth_setup):
     client = auth_setup["client"]
     token = await get_auth_token(client, "alice", "alice_pass")

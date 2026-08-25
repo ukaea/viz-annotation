@@ -28,14 +28,22 @@ def create_user(
             "username": username,
             "password": password,
             "global_role": role,
-            # Test-created accounts should be usable immediately, not stuck behind
-            # the forced-password-change redirect real admin-created accounts get.
-            # Pass must_change_password=True to test that redirect itself.
-            "must_change_password": must_change_password,
         },
     )
     assert response.status_code == 200, response.text
-    return response.json()["_id"]
+    user_id = response.json()["_id"]
+
+    # POST /users always forces a password change. Test-created accounts should be
+    # usable immediately rather than stuck behind that redirect, so clear it here;
+    # pass must_change_password=True to test the redirect itself.
+    if not must_change_password:
+        response = session.put(
+            f"http://localhost:8002/users/{user_id}",
+            json={"must_change_password": False},
+        )
+        assert response.status_code == 200, response.text
+
+    return user_id
 
 
 def get_user(user_id: str) -> dict:

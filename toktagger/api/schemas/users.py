@@ -27,9 +27,6 @@ class UserCreate(BaseModel):
     username: str
     password: str
     global_role: Literal["admin", "user"] = "user"
-    # Admin-created accounts are forced to change their password on first login by
-    # default, since the admin knows the initial password they just typed in.
-    must_change_password: bool = True
 
 
 class UserUpdate(BaseModel):

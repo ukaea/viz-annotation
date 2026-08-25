@@ -49,11 +49,13 @@ async def create_user(
         or body.username.startswith("__")
     ):
         raise HTTPException(status_code=422, detail="Username uses a reserved prefix")
+    # The creating admin knows the password they just typed in, so the new owner
+    # always has to replace it on first login.
     user = UserIn(
         username=body.username,
         hashed_password=hash_password(body.password),
         global_role=body.global_role,
-        must_change_password=body.must_change_password,
+        must_change_password=True,
     )
     user_id = await utils.create_user(request.app.state.db_client, user)
     return {"_id": user_id}

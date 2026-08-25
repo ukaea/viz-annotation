@@ -244,7 +244,7 @@ class ArrayDataLoader(DataLoader):
         frame = params.frame if params.frame is not None else 0
 
         if frame < 0 or frame >= arr.shape[0]:
-            raise DataLoaderError(
+            raise FrameNotFoundError(
                 f"Frame {frame} unavailable! Available frame range is 0 to {arr.shape[0] - 1}."
             )
 
@@ -254,10 +254,15 @@ class ArrayDataLoader(DataLoader):
         buffer = io.BytesIO()
         im.save(buffer, format="PNG")
         buffer.seek(0)
+        png_bytes = buffer.getvalue()
 
         return ImageData(
             frame=frame,
-            values=base64.b64encode(buffer.getvalue()).decode(),
+            values=(
+                list(png_bytes)
+                if params.return_raw
+                else base64.b64encode(png_bytes).decode()
+            ),
         )
 
 

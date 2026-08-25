@@ -12,6 +12,7 @@ import { Button } from "@adobe/react-spectrum";
 export function AnnotationPopup(props: {
   className: string | null;
   trackId: string | null;
+  heading?: string;
   geometry?: { x: number; y: number; w: number; h: number } | null;
   details?: string | null;
   deleteDisabled?: boolean;
@@ -21,7 +22,6 @@ export function AnnotationPopup(props: {
   const { className, trackId, geometry, details } = props;
 
   const label = className ?? "—";
-  const tid = trackId ?? "—";
   const detailText =
     details ??
     (geometry
@@ -39,9 +39,17 @@ export function AnnotationPopup(props: {
       <div className="rounded-lg border border-white/10 bg-black/80 backdrop-blur px-3 py-2 shadow-lg min-w-[220px]">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-[11px] text-white/70">Selected</div>
+            <div className="text-[11px] text-white/70">
+              {props.heading ?? "Selected"}
+            </div>
             <div className="text-sm font-semibold text-white truncate">
-              {label} <span className="text-white/70">/</span> {tid}
+              {label}
+              {trackId && (
+                <>
+                  {" "}
+                  <span className="text-white/70">/</span> {trackId}
+                </>
+              )}
             </div>
 
             {detailText && (

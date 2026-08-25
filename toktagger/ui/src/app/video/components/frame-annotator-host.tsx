@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import OpenSeadragon from "openseadragon";
 import {
   OpenSeadragonAnnotator,
@@ -37,6 +37,8 @@ import { AnnotationPopup } from "./annotation-popup";
 import { annotationContainsPoint, setViewerCursor } from "./overlay-sync-utils";
 
 const VIDEO_CANVAS_MENU_ID = "video-canvas-menu";
+const FRAME_LABEL_POPUP_SIZE = { w: 240, h: 120 };
+const CLICK_DRAG_TOLERANCE = 3;
 
 function setGestureNavigation(
   viewer: OpenSeadragon.Viewer,
@@ -135,6 +137,19 @@ function findAnnotationAtPointer(
   );
 }
 
+function clampPopupPoint(bounds: DOMRect, clientX: number, clientY: number) {
+  return {
+    x: Math.min(
+      Math.max(0, clientX - bounds.left),
+      Math.max(0, bounds.width - FRAME_LABEL_POPUP_SIZE.w),
+    ),
+    y: Math.min(
+      Math.max(0, clientY - bounds.top),
+      Math.max(0, bounds.height - FRAME_LABEL_POPUP_SIZE.h),
+    ),
+  };
+}
+
 /**
  * Top-level host that provides the Annotorious context and renders the annotator.
  */
@@ -158,13 +173,18 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
   const {
     frame,
     setImageNatural,
+    selection,
     setSelection,
     drawingTool,
     editMode,
     drawIntent,
     canDrawShape,
     canDrawPoint,
+    canTagFrame,
     hideAnnotations,
+    frameLabels,
+    toggleFrameLabel,
+    removeFrameLabel,
     createPointAnnotation,
     deleteAnnotation,
   } = useVideoSession();
@@ -177,6 +197,11 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
   >(null);
   const [isPointAnnotationSelected, setIsPointAnnotationSelected] =
     useState(false);
+  const [frameLabelPopupPoint, setFrameLabelPopupPoint] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const classItems = useMemo(
     () => annotationLabels.map((label) => ({ name: label.name })),
     [annotationLabels],
@@ -221,6 +246,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
 
   useEffect(() => {
     setDismissedPopupAnnotationId(null);
+    setFrameLabelPopupPoint(null);
   }, [frame]);
 
   useEffect(() => {
@@ -384,6 +410,24 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
     : "rectangle";
   const annotoriousDrawingEnabled = canDrawShape;
 
+  const frameLabelNames = frameLabels
+    .map((frameLabel) => frameLabel.label)
+    .join(", ");
+
+  const showFrameLabelPopup = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const badge = event.currentTarget.getBoundingClientRect();
+    setFrameLabelPopupPoint(
+      clampPopupPoint(
+        container.getBoundingClientRect(),
+        badge.left,
+        badge.bottom + 8,
+      ),
+    );
+  };
+
   const selectClassName = (name: string) => {
     const cls = (name ?? "").trim();
     if (!cls) return;
@@ -432,7 +476,89 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
   }, [api, canDrawPoint, createPointAnnotation]);
 
   useEffect(() => {
-    if (!api?.viewer || hideAnnotations || (drawIntent && !canDrawPoint)) {
+    if (!api?.viewer || !canTagFrame) return;
+
+    const viewerElement = api.viewer.element as HTMLElement;
+    const overlay = findAnnotationOverlay(viewerElement);
+    const targets = [viewerElement, overlay].filter(
+      (target, index, list): target is HTMLElement =>
+        !!target && list.indexOf(target) === index,
+    );
+
+    const handleFrameTagClick = (event: MouseEvent) => {
+      if (isSecondaryMouseEvent(event)) return;
+      if (isAnnotationPopupEventTarget(event.target)) return;
+
+      const cls = (selection.className ?? "").trim();
+      if (!cls) return;
+
+      stopEvent(event);
+      api.cancelDrawing?.();
+      setFrameLabelPopupPoint(null);
+      toggleFrameLabel(cls);
+    };
+
+    for (const target of targets) {
+      target.addEventListener("click", handleFrameTagClick, true);
+    }
+
+    return () => {
+      for (const target of targets) {
+        target.removeEventListener("click", handleFrameTagClick, true);
+      }
+    };
+  }, [api, canTagFrame, selection.className, toggleFrameLabel]);
+
+  // A labelled frame has no shape to select, so a plain click on the image opens its popup.
+  useEffect(() => {
+    if (!api?.viewer || hideAnnotations || drawIntent) return;
+    if (frameLabels.length === 0) return;
+
+    const viewerElement = api.viewer.element as HTMLElement;
+    let pressPoint: { x: number; y: number } | null = null;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      pressPoint = isSecondaryMouseEvent(event)
+        ? null
+        : { x: event.clientX, y: event.clientY };
+    };
+
+    const handleClick = (event: MouseEvent) => {
+      const press = pressPoint;
+      pressPoint = null;
+
+      const container = containerRef.current;
+      if (!press || !container) return;
+      if (isAnnotationPopupEventTarget(event.target)) return;
+      if (
+        Math.abs(event.clientX - press.x) > CLICK_DRAG_TOLERANCE ||
+        Math.abs(event.clientY - press.y) > CLICK_DRAG_TOLERANCE
+      ) {
+        return;
+      }
+      if (findAnnotationAtPointer(api, event)) return;
+
+      const bounds = container.getBoundingClientRect();
+      setFrameLabelPopupPoint(
+        clampPopupPoint(bounds, event.clientX, event.clientY),
+      );
+    };
+
+    viewerElement.addEventListener("pointerdown", handlePointerDown);
+    viewerElement.addEventListener("click", handleClick);
+
+    return () => {
+      viewerElement.removeEventListener("pointerdown", handlePointerDown);
+      viewerElement.removeEventListener("click", handleClick);
+    };
+  }, [api, drawIntent, frameLabels.length, hideAnnotations]);
+
+  useEffect(() => {
+    if (
+      !api?.viewer ||
+      hideAnnotations ||
+      (drawIntent && !canDrawPoint && !canTagFrame)
+    ) {
       return;
     }
 
@@ -454,13 +580,14 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
           annotationContainsPoint(annotation, imagePoint),
         );
 
-      const cursor = canDrawPoint
-        ? "crosshair"
-        : isOverAnnotation
-          ? editMode
-            ? "pointer"
-            : "default"
-          : "";
+      const cursor =
+        canDrawPoint || canTagFrame
+          ? "crosshair"
+          : isOverAnnotation
+            ? editMode
+              ? "pointer"
+              : "default"
+            : "";
 
       setViewerCursor(viewerElement, cursor);
     };
@@ -477,7 +604,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
       viewerElement.removeEventListener("mouseleave", clearCursor);
       clearCursor();
     };
-  }, [api, canDrawPoint, drawIntent, editMode, hideAnnotations]);
+  }, [api, canDrawPoint, canTagFrame, drawIntent, editMode, hideAnnotations]);
 
   const viewerOptions = useMemo<OpenSeadragon.Options>(
     () => ({
@@ -527,6 +654,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
   return (
     <div className="w-full flex justify-center">
       <div
+        ref={containerRef}
         className={`relative w-full max-w-[1100px] h-[calc(100dvh-240px)] min-h-[360px] ${
           isPointAnnotationSelected ? "video-point-selected" : ""
         }`}
@@ -592,6 +720,47 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
             }}
           />
         </OpenSeadragonAnnotator>
+
+        {!hideAnnotations && frameLabels.length > 0 && (
+          <>
+            <button
+              type="button"
+              className="absolute left-3 top-3 z-[55] rounded-md border border-white/10 bg-black/70 px-2 py-1 text-xs font-semibold text-white backdrop-blur"
+              aria-label={`Frame labels: ${frameLabelNames}`}
+              onClick={showFrameLabelPopup}
+            >
+              {frameLabelNames}
+            </button>
+
+            {frameLabelPopupPoint && (
+              <div
+                className="absolute z-[60] flex flex-col gap-2"
+                style={{
+                  left: frameLabelPopupPoint.x,
+                  top: frameLabelPopupPoint.y,
+                }}
+              >
+                {frameLabels.map((frameLabel) => (
+                  <AnnotationPopup
+                    key={frameLabel.label}
+                    className={frameLabel.label}
+                    trackId={null}
+                    heading="Frame label"
+                    details={`Frame ${frame} · ${frameLabel.created_by}`}
+                    deleteDisabled={!editMode}
+                    onDeleteBox={() => {
+                      if (frameLabels.length <= 1) {
+                        setFrameLabelPopupPoint(null);
+                      }
+                      removeFrameLabel(frameLabel.label);
+                    }}
+                    onClose={() => setFrameLabelPopupPoint(null)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
         <style>{`
           .video-point-selected .a9s-corner-top,

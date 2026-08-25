@@ -115,6 +115,8 @@ export type NavAdapter = {
   // caller's own. The Clear button passes the "Show Others' Annotations" state, so
   // what the button discards is always what the user can see.
   clear: (includeOthers?: boolean) => void | Promise<void>;
+  // Deletes the annotations the user removed that a save cannot remove for them.
+  syncRemovals?: () => Promise<void>;
   afterSave?: () => void;
 };
 

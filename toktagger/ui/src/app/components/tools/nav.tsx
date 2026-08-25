@@ -1,5 +1,5 @@
 "use client";
-import { Project, type NavAdapter } from "@/types";
+import { Project, type Annotation, type NavAdapter } from "@/types";
 import {
   Flex,
   ActionButton,
@@ -94,6 +94,7 @@ type ButtonInfo = {
   setIsValidated: (validated: boolean) => void;
   navAdapter: NavAdapter;
   onPermissionError: () => void;
+  username?: string;
 };
 
 type SaveButtonInfo = ButtonInfo & {
@@ -120,6 +121,29 @@ type PreviousButtonInfo = ButtonInfo & {
   popVisitedSampleId: () => string | null;
 };
 
+// Every save goes through here so a removal the batch PUT cannot express - deleting
+// another author's annotation - is persisted alongside it, matching Clear.
+async function persistAnnotations(
+  project_id: string,
+  sample_id: string,
+  navAdapter: NavAdapter,
+  saveOnNavigate: boolean,
+  username?: string,
+): Promise<Annotation[]> {
+  const annotationsToSave = navAdapter.getAnnotations();
+  await saveSampleAnnotations(
+    project_id,
+    sample_id,
+    annotationsToSave,
+    saveOnNavigate,
+    username,
+  );
+  if (saveOnNavigate) {
+    await navAdapter.syncRemovals?.();
+  }
+  return annotationsToSave;
+}
+
 function NextButton({
   project_id,
   sample_id,
@@ -129,17 +153,18 @@ function NextButton({
   saveOnNavigate,
   navAdapter,
   onPermissionError,
+  username,
 }: NextButtonInfo) {
   const navigate = useNavigate();
 
   const moveNextShot = useCallback(async () => {
-    const annotationsToSave = navAdapter.getAnnotations();
     try {
-      await saveSampleAnnotations(
+      await persistAnnotations(
         project_id,
         sample_id,
-        annotationsToSave,
-        saveOnNavigate,
+        navAdapter,
+        saveOnNavigate ?? false,
+        username,
       );
       if (saveOnNavigate) {
         navAdapter.afterSave?.();
@@ -169,6 +194,7 @@ function NextButton({
     sortDescriptor,
     navAdapter,
     onPermissionError,
+    username,
   ]);
 
   useEffect(() => {
@@ -231,17 +257,18 @@ function PreviousButton({
   sortDescriptor,
   navAdapter,
   onPermissionError,
+  username,
 }: PreviousButtonInfo) {
   const navigate = useNavigate();
 
   const movePreviousShot = useCallback(async () => {
-    const annotationsToSave = navAdapter.getAnnotations();
     try {
-      await saveSampleAnnotations(
+      await persistAnnotations(
         project_id,
         sample_id,
-        annotationsToSave,
-        saveOnNavigate,
+        navAdapter,
+        saveOnNavigate ?? false,
+        username,
       );
       if (saveOnNavigate) {
         navAdapter.afterSave?.();
@@ -275,6 +302,7 @@ function PreviousButton({
     setIsValidated,
     navAdapter,
     onPermissionError,
+    username,
   ]);
 
   useEffect(() => {
@@ -311,15 +339,16 @@ function SaveButton({
   navAdapter,
   onPermissionError,
   canAnnotate,
+  username,
 }: SaveButtonInfo) {
   const handleClick = async () => {
     try {
-      const annotationsToSave = navAdapter.getAnnotations();
-      await saveSampleAnnotations(
+      const annotationsToSave = await persistAnnotations(
         project_id,
         sample_id,
-        annotationsToSave,
+        navAdapter,
         true,
+        username,
       );
       navAdapter.afterSave?.();
       ToastQueue.positive(`Saved ${annotationsToSave.length} annotations!`, {
@@ -417,6 +446,7 @@ type SaveInfo = {
   sample_id: string;
   sortDescriptor: SortDescriptor | null;
   saveOnNavigate?: boolean;
+  username?: string;
   setIsValidated: (validated: boolean) => void;
   navAdapter: NavAdapter;
 };
@@ -428,6 +458,7 @@ export function ShotSearch({
   saveOnNavigate,
   setIsValidated,
   navAdapter,
+  username,
 }: SaveInfo) {
   const navigate = useNavigate();
   const [errorMessage, setErrorMessage] = useState<string>("");
@@ -441,12 +472,12 @@ export function ShotSearch({
       try {
         const sample = await getShotSample(project_id, shot_id);
         if (sample !== null) {
-          const annotationsToSave = navAdapter.getAnnotations();
-          await saveSampleAnnotations(
+          await persistAnnotations(
             project_id,
             sample_id,
-            annotationsToSave,
-            saveOnNavigate,
+            navAdapter,
+            saveOnNavigate ?? false,
+            username,
           );
           if (saveOnNavigate) {
             navAdapter.afterSave?.();
@@ -479,7 +510,7 @@ type NavigationBarInfo = {
   sample_id: string;
 };
 export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
-  const { setIsValidated, setAnnotations } = useSample();
+  const { setIsValidated, syncAnnotationsFromServer } = useSample();
   const { user } = useAuth();
   const navAdapter = useNavAdapter();
   const [permissionDenied, setPermissionDenied] = useState(false);
@@ -551,10 +582,11 @@ export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
         );
       }
       // Re-fetch annotations with updated visibility
-      const fresh = await getAnnotationsForSample(project_id, sample_id);
-      setAnnotations(() => fresh);
+      syncAnnotationsFromServer(
+        await getAnnotationsForSample(project_id, sample_id),
+      );
     },
-    [project_id, sample_id, user, setAnnotations],
+    [project_id, sample_id, user, syncAnnotationsFromServer],
   );
 
   return (
@@ -580,6 +612,7 @@ export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
           navAdapter={navAdapter}
           onPermissionError={() => setPermissionDenied(true)}
           canAnnotate={canAnnotate}
+          username={user?.username}
         />
         <PreviousButton
           project_id={project_id}
@@ -591,6 +624,7 @@ export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
           sortDescriptor={sortDescriptor}
           navAdapter={navAdapter}
           onPermissionError={() => setPermissionDenied(true)}
+          username={user?.username}
         />
         <NextButton
           project_id={project_id}
@@ -601,6 +635,7 @@ export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
           sortDescriptor={sortDescriptor}
           navAdapter={navAdapter}
           onPermissionError={() => setPermissionDenied(true)}
+          username={user?.username}
         />
         <ClearButton
           project_id={project_id}
@@ -641,6 +676,7 @@ export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
         saveOnNavigate={SaveOnNavigate && canAnnotate}
         setIsValidated={setIsValidated}
         navAdapter={navAdapter}
+        username={user?.username}
       />
     </Flex>
   );

@@ -584,6 +584,41 @@ def test_new_annotation_is_attributed_to_signed_in_user(server_setup, page: Page
     expect(annotations_table.get_by_role("gridcell", name="manual")).to_have_count(0)
 
 
+def test_deleting_another_authors_annotation_is_saved(server_setup, page: Page):
+    """Deleting an annotation the user does not own survives a save and a reload.
+
+    The batch save replaces only the caller's own annotations, so the removal has to
+    be sent as an explicit delete - otherwise the annotation reappears on refresh.
+    """
+    page, project_id, sample_ids = setup_annotations(page, 1)
+    sample_id = sample_ids[0]
+
+    # Plotly's drag layer sits over the annotation until the view is in edit mode.
+    page.get_by_role("button", name="View Mode").click()
+    page.locator("body").click()
+    annotation = page.get_by_label("time-zone").first
+    expect(annotation).to_be_visible()
+    annotation.click(button="right")
+    page.get_by_role("menuitem", name="Delete").click()
+    expect(page.get_by_label("time-zone")).to_have_count(0)
+
+    with page.expect_response(
+        lambda response: (
+            response.request.method == "DELETE" and "/annotations/" in response.url
+        )
+    ):
+        page.get_by_role("button", name="Save").click()
+
+    page.reload()
+    expect(page.get_by_label("time-zone")).to_have_count(0)
+
+    response = session.get(
+        f"http://localhost:8002/projects/{project_id}/samples/{sample_id}/annotations"
+    )
+    assert response.status_code == 200
+    assert response.json() == []
+
+
 def test_clear_button_showing_others_clears_everything(server_setup, page: Page):
     """With "Show Others' Annotations" on, Clear discards every annotation shown.
 

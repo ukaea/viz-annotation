@@ -590,12 +590,24 @@ export const TimeSeriesProvider = ({
     [annotations, mergeTimeSeriesAnnotations, setRawAnnotations],
   );
 
-  const batchDeleteAnnotations = useCallback(() => {
-    const updatedState = annotations.filter(
-      (annotation) => !annotation.selected,
-    );
-    setRawAnnotations((prev) => mergeTimeSeriesAnnotations(prev, updatedState));
-  }, [annotations, mergeTimeSeriesAnnotations, setRawAnnotations]);
+  // Writes straight through to the sample's annotations, unlike removeAnnotation,
+  // which only drops a half-drawn shape from this view's own working copy.
+  const deleteAnnotations = useCallback(
+    (shouldDelete: (annotation: TimeSeriesAnnotation) => boolean) => {
+      setRawAnnotations((prev) =>
+        mergeTimeSeriesAnnotations(
+          prev,
+          annotations.filter((annotation) => !shouldDelete(annotation)),
+        ),
+      );
+    },
+    [annotations, mergeTimeSeriesAnnotations, setRawAnnotations],
+  );
+
+  const batchDeleteAnnotations = useCallback(
+    () => deleteAnnotations((annotation) => annotation.selected ?? false),
+    [deleteAnnotations],
+  );
 
   const actionsValue: TimeSeriesActions = useMemo(
     () => ({
@@ -757,7 +769,9 @@ export const TimeSeriesProvider = ({
               }
 
               // If the annotation is not selected, only delete this one
-              removeAnnotation(props.annotation.id);
+              deleteAnnotations(
+                (candidate) => candidate.id === props.annotation.id,
+              );
             }}
           >
             Delete

@@ -1,6 +1,7 @@
 "use client";
 import React, {
   createContext,
+  useCallback,
   useContext,
   useState,
   useEffect,
@@ -68,6 +69,9 @@ interface SampleContextType {
   sample: Sample | null;
   data: Data | null;
   annotations: Annotation[];
+  // The annotations as the server last returned them, so a save can tell which of
+  // them the user removed locally.
+  serverAnnotations: Annotation[];
   dataParams: DataParams;
   viewParams: ViewParams | Profile2DViewParams;
   plotProps: PlotProps;
@@ -80,6 +84,9 @@ interface SampleContextType {
   // "no access" (403) apart from a genuine failure.
   errorStatus: number | null;
   setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>;
+  // Replaces the working set with a freshly fetched one, so `serverAnnotations`
+  // stays the baseline a save diffs against.
+  syncAnnotationsFromServer: (annotations: Annotation[]) => void;
   setDataParams: React.Dispatch<React.SetStateAction<DataParams>>;
   setViewParams: React.Dispatch<
     React.SetStateAction<ViewParams | Profile2DViewParams>
@@ -171,6 +178,7 @@ export function SampleProvider({
   const [sample, setSample] = useState<Sample | null>(null);
   const [data, setData] = useState<Data | null>(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [serverAnnotations, setServerAnnotations] = useState<Annotation[]>([]);
 
   const [viewParams, setViewParams] = useState<
     ViewParams | Profile2DViewParams
@@ -287,6 +295,7 @@ export function SampleProvider({
         const sampleKey = `${projectId}:${sampleId}`;
         if (loadedAnnotationsSampleKeyRef.current !== sampleKey) {
           setAnnotations(dbAnnotations);
+          setServerAnnotations(dbAnnotations);
           loadedAnnotationsSampleKeyRef.current = sampleKey;
         }
         setIsValidated(sampleData.validated_annotations);
@@ -477,6 +486,11 @@ export function SampleProvider({
     };
   }, [projectId, sampleId, dataParams, viewParams, plotProps]);
 
+  const syncAnnotationsFromServer = useCallback((fetched: Annotation[]) => {
+    setAnnotations(fetched);
+    setServerAnnotations(fetched);
+  }, []);
+
   const annotationLabels =
     project?.task === TaskType.Video
       ? (project.video_bounding_box_labels || []).map((name, i) => ({
@@ -490,6 +504,7 @@ export function SampleProvider({
     sample,
     data,
     annotations,
+    serverAnnotations,
     dataParams,
     viewParams,
     plotProps,
@@ -500,6 +515,7 @@ export function SampleProvider({
     error,
     errorStatus,
     setAnnotations,
+    syncAnnotationsFromServer,
     setPlotProps,
     setViewParams,
     setDataParams,

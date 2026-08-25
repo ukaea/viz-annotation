@@ -229,14 +229,20 @@ export async function saveSampleAnnotations(
   sample_id: string,
   annotations: Annotation[],
   saveOnNavigate: boolean = true,
+  username?: string,
 ) {
   if (!saveOnNavigate) {
     return;
   }
-  // Backend sets created_by from the JWT; just mark as validated
+  // A save validates only the caller's own work - "manual" is the placeholder a
+  // just-drawn annotation carries. Another author's is sent back as it was loaded,
+  // so an edit to it persists without the save claiming they validated it.
   const updatedAnnotations = annotations.map((annotation: Annotation) => ({
     ...annotation,
-    validated: true,
+    validated:
+      annotation.created_by === username || annotation.created_by === "manual"
+        ? true
+        : annotation.validated,
   }));
 
   const ANNOTATIONS_URL = `${BACKEND_API_URL}/projects/${project_id}/samples/${sample_id}/annotations?validated=True`;
@@ -267,6 +273,51 @@ export async function deleteSampleAnnotations(
       `${BACKEND_API_URL}/projects/${project_id}/samples/${sample_id}/annotations`,
       { method: "DELETE" },
     ),
+  );
+}
+
+// IDs the user removed locally that the batch save cannot remove for them: the PUT
+// replaces only their own annotations, so another author's - or a model's - survives.
+export function removedAnnotationIds(
+  serverAnnotations: Annotation[],
+  keptAnnotations: Annotation[],
+  username: string | undefined,
+): string[] {
+  const keptIds = new Set(
+    keptAnnotations.map((annotation) => annotation._id).filter(Boolean),
+  );
+  return serverAnnotations
+    .filter(
+      (annotation) =>
+        annotation._id !== null &&
+        !keptIds.has(annotation._id) &&
+        annotation.created_by !== username,
+    )
+    .map((annotation) => annotation._id as string);
+}
+
+// A removed annotation the caller does not own outlives the batch save: the PUT's
+// replace step is scoped to the caller's own created_by. Delete those explicitly so
+// removing a colleague's annotation persists, as Clear already does. A 404 means it
+// is already gone, which is the state being asked for.
+export async function deleteAnnotationsByIds(
+  project_id: string,
+  sample_id: string,
+  annotation_ids: string[],
+): Promise<void> {
+  await Promise.all(
+    annotation_ids.map(async (annotation_id) => {
+      const response = await apiFetch(
+        `${BACKEND_API_URL}/projects/${project_id}/samples/${sample_id}/annotations/${annotation_id}`,
+        { method: "DELETE" },
+      );
+      if (!response.ok && response.status !== 404) {
+        throw new ApiError(
+          response.status,
+          `Failed to delete annotation: ${response.statusText}`,
+        );
+      }
+    }),
   );
 }
 

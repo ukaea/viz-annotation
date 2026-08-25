@@ -93,7 +93,7 @@ export default function ToolBar() {
     project,
     sample,
     data,
-    setAnnotations,
+    syncAnnotationsFromServer,
     plotProps,
     setPlotProps,
     isValidated,
@@ -248,8 +248,9 @@ export default function ToolBar() {
   }
 
   const refreshAnnotations = async () => {
-    const dbAnnotations = await getAnnotationsForSample(project_id, sample_id);
-    setAnnotations(() => dbAnnotations);
+    syncAnnotationsFromServer(
+      await getAnnotationsForSample(project_id, sample_id),
+    );
   };
 
   return (

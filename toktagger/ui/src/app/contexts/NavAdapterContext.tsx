@@ -3,7 +3,11 @@
 import React, { createContext, useContext } from "react";
 import { useSample } from "@/app/contexts/SampleContext";
 import { useAuth } from "@/app/contexts/AuthContext";
-import { deleteSampleAnnotations } from "@/app/core";
+import {
+  deleteAnnotationsByIds,
+  deleteSampleAnnotations,
+  removedAnnotationIds,
+} from "@/app/core";
 import { type Annotation, type NavAdapter } from "@/types";
 
 const NavAdapterContext = createContext<NavAdapter | null>(null);
@@ -26,10 +30,30 @@ export function useNavAdapterOptional(): NavAdapter | null {
   return useContext(NavAdapterContext);
 }
 
+// Deletes what the user removed but a save cannot: the batch save replaces only the
+// caller's own annotations, so another author's stays until deleted outright. Shared
+// with the video adapter, which works from the same sample-wide annotation set.
+export function useSyncRemovals(): () => Promise<void> {
+  const { annotations, serverAnnotations, project, sample } = useSample();
+  const { user } = useAuth();
+
+  return async () => {
+    if (!project?._id || !sample?._id) return;
+    const removed = removedAnnotationIds(
+      serverAnnotations,
+      annotations,
+      user?.username,
+    );
+    if (removed.length === 0) return;
+    await deleteAnnotationsByIds(project._id, sample._id, removed);
+  };
+}
+
 export function useNavAdapter(): NavAdapter {
   const navAdapter = useNavAdapterOptional();
   const { annotations, setAnnotations, project, sample } = useSample();
   const { user } = useAuth();
+  const syncRemovals = useSyncRemovals();
 
   if (navAdapter) {
     return navAdapter;
@@ -37,6 +61,7 @@ export function useNavAdapter(): NavAdapter {
 
   return {
     getAnnotations: () => annotations,
+    syncRemovals,
     afterSave: () => {
       // Mirrors the server-side validation so saved annotator output isn't discarded.
       setAnnotations((previousAnnotations: Annotation[]) =>

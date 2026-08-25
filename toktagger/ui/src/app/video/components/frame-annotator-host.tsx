@@ -473,11 +473,11 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
 
       const cursor = canDrawPoint
         ? "crosshair"
-        : editMode && isOverAnnotation
-          ? "pointer"
-          : isOverAnnotation
-            ? "default"
-            : "";
+        : isOverAnnotation
+          ? editMode
+            ? "pointer"
+            : "default"
+          : "";
 
       setViewerCursor(viewerElement, cursor);
     };

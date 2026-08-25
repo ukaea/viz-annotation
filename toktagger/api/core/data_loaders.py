@@ -487,10 +487,15 @@ class UDACameraDataLoader(DataLoader):
             buffer = io.BytesIO()
             im.save(buffer, format="PNG")
             buffer.seek(0)
+            png_bytes = buffer.getvalue()
 
             return ImageData(
                 frame=str(params.frame),
-                values=base64.b64encode(buffer.getvalue()).decode(),
+                values=(
+                    list(png_bytes)
+                    if params.return_raw
+                    else base64.b64encode(png_bytes).decode()
+                ),
             )
         except Exception as e:
             raise DataLoaderError(

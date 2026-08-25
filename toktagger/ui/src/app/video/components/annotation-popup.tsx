@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Button } from "@adobe/react-spectrum";
 
 /**
  * Lightweight floating UI for the currently selected annotation.
@@ -59,14 +60,13 @@ export function AnnotationPopup(props: {
         </div>
 
         <div className="mt-2 flex gap-2">
-          <button
-            onClick={props.onDeleteBox}
-            disabled={props.deleteDisabled}
-            className="rounded-md bg-red-500/20 enabled:hover:bg-red-500/30 text-red-200 px-2.5 py-1.5 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Delete this annotation"
+          <Button
+            variant="negative"
+            isDisabled={props.deleteDisabled}
+            onPress={props.onDeleteBox}
           >
             Delete
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -81,9 +81,33 @@ def test_non_member_sees_access_denied_on_sample_view(
     outsider_page.context.close()
 
 
+def test_forbidden_page_projects_breadcrumb_is_clickable(
+    server_setup, admin_token, browser
+):
+    """The lone "Projects" crumb on a 403 page must stay a real link.
+
+    Spectrum renders a breadcrumb trail's last item as the current, unclickable
+    page, so a trail with only "Projects" in it silently stopped navigating.
+    """
+    create_user("outsider3", "outsider3_pass")
+    project_id = create_project(
+        "Breadcrumb Forbidden Project", "time-series", "tabular"
+    )
+
+    outsider_page = login_as(browser, "outsider3", "outsider3_pass")
+    outsider_page.goto(f"http://localhost:8002/ui/projects/{project_id}")
+
+    expect(outsider_page.get_by_text("403 - Forbidden")).to_be_visible()
+    outsider_page.get_by_role("link", name="Projects").click()
+    expect(outsider_page).to_have_url("http://localhost:8002/ui/projects")
+    outsider_page.context.close()
+
+
 def test_nonexistent_project_shows_not_found_not_blank_page(server_setup, page):
     page.goto("http://localhost:8002/ui/projects/000000000000000000000000")
-    expect(page.get_by_text("Error")).to_be_visible()
+    # The "Error" breadcrumb crumb (added so "Projects" stays a clickable link
+    # here too) duplicates this text, so scope to the page's own heading.
+    expect(page.get_by_role("banner").get_by_text("Error")).to_be_visible()
     expect(page.get_by_text("Project not found.")).to_be_visible()
 
 

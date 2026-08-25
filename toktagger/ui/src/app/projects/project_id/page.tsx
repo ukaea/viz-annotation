@@ -193,7 +193,17 @@ export default function ProjectView() {
             href: `/ui/projects/${project._id}`,
           },
         ]
-      : [{ key: "projects", label: "Projects", href: "/ui/projects" }],
+      : loadError
+        ? [
+            { key: "projects", label: "Projects", href: "/ui/projects" },
+            {
+              key: "denied",
+              label: loadError.forbidden ? "Access Denied" : "Error",
+            },
+          ]
+        : // Spectrum renders the last breadcrumb as the (unclickable) current
+          // page, so a single "Projects" crumb here can't act as a link.
+          [{ key: "projects", label: "Projects", href: "/ui/projects" }],
   );
 
   const refreshSamples = useCallback(async () => {

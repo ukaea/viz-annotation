@@ -58,7 +58,17 @@ function SamplePageContent(props: { sampleId: string }) {
           },
           { key: "samples", label: `Shot: ${sample.shot_id}` },
         ]
-      : [{ key: "projects", label: "Projects", href: "/ui/projects" }],
+      : error
+        ? [
+            { key: "projects", label: "Projects", href: "/ui/projects" },
+            {
+              key: "denied",
+              label: errorStatus === 403 ? "Access Denied" : "Error",
+            },
+          ]
+        : // Spectrum renders the last breadcrumb as the (unclickable) current
+          // page, so a single "Projects" crumb here can't act as a link.
+          [{ key: "projects", label: "Projects", href: "/ui/projects" }],
   );
 
   // Early returns AFTER all hooks

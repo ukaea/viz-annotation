@@ -30,7 +30,7 @@ router = APIRouter(tags=["Users"], dependencies=[Depends(get_current_user)])
 async def list_users(
     request: Request,
     _: UserOut = Depends(require_global_admin),
-):
+) -> list[UserOut]:
     return await utils.get_all_users(request.app.state.db_client)
 
 
@@ -39,7 +39,7 @@ async def create_user(
     request: Request,
     body: UserCreate,
     _: UserOut = Depends(require_global_admin),
-):
+) -> dict[str, str]:
     # Reserved prefixes protect the internal worker namespace and the synthetic
     # created_by values stamped on ML-model predictions (worker.py) and built-in
     # annotator suggestions (core/annotators.py), so a real user can't collide with them.
@@ -63,7 +63,7 @@ async def create_user(
 async def list_my_memberships(
     request: Request,
     current_user: UserOut = Depends(get_current_user),
-):
+) -> list[ProjectMember]:
     """Every project membership held by the caller.
 
     Self-scoped, so it needs no role check. The projects list uses it to gate each
@@ -80,7 +80,7 @@ async def get_user(
     request: Request,
     user_id: str = Path(...),
     current_user: UserOut = Depends(get_current_user),
-):
+) -> UserOut:
     if current_user.global_role != "admin" and current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Access denied")
     user = await utils.get_user_by_id(request.app.state.db_client, user_id)
@@ -95,7 +95,7 @@ async def update_user(
     body: UserUpdate,
     user_id: str = Path(...),
     current_user: UserOut = Depends(get_current_user),
-):
+) -> None:
     if current_user.global_role != "admin" and current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
@@ -135,7 +135,7 @@ async def delete_user(
     request: Request,
     user_id: str = Path(...),
     _: UserOut = Depends(require_global_admin),
-):
+) -> None:
     db_client = request.app.state.db_client
 
     # Prevent deleting the last active admin (mirrors the demote/deactivate guard
@@ -170,7 +170,7 @@ async def list_project_members(
     request: Request,
     project_id: str = Path(...),
     current_user: UserOut = Depends(get_current_user),
-):
+) -> list[ProjectMemberOut]:
     db_client = request.app.state.db_client
     if current_user.global_role != "admin":
         membership = await utils.get_project_membership(
@@ -187,7 +187,7 @@ async def add_project_member(
     body: ProjectMemberCreate,
     project_id: str = Path(...),
     current_user: UserOut = Depends(require_project_admin_role),
-):
+) -> dict[str, str]:
     db_client = request.app.state.db_client
     user = await utils.get_user_by_username(db_client, body.username)
     if not user:
@@ -205,7 +205,7 @@ async def update_project_member(
     project_id: str = Path(...),
     user_id: str = Path(...),
     current_user: UserOut = Depends(get_current_user),
-):
+) -> None:
     db_client = request.app.state.db_client
 
     # Project admins can change any member. A non-admin may edit only their own
@@ -229,5 +229,5 @@ async def remove_project_member(
     project_id: str = Path(...),
     user_id: str = Path(...),
     current_user: UserOut = Depends(require_project_admin_role),
-):
+) -> None:
     await utils.remove_project_member(request.app.state.db_client, project_id, user_id)

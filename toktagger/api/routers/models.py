@@ -16,6 +16,7 @@ from toktagger.api.auth.dependencies import (
     require_project_viewer,
 )
 from toktagger.api.crud import utils
+from toktagger.api.crud.db import MongoDBClient
 from toktagger.api.models import check_models_enabled, models_dependencies_installed
 from toktagger.api.schemas.annotations import AnnotationBatchTypes
 from toktagger.api.schemas.data import DataParams, DataParamTypes
@@ -154,7 +155,7 @@ async def get_models(
 ) -> list[Model]:
     # Return details about models being used by this project
     # Could be eg the ID, type of model, the accuracy, the version. link to mlflow / simvue instance, etc...
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     models = await utils.get_models(
         db_client=db_client,
         project_id=project_id,
@@ -179,7 +180,7 @@ async def get_model(
         description="The version of the model to return, leave blank to return the latest model.",
     ),
 ) -> Model:
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     model = await utils.get_model(
         db_client, project_id=project_id, model_type=model_type, version=version
     )
@@ -198,7 +199,7 @@ async def delete_models(
         description="The version of the model to delete, leave blank to delete all models",
     ),
 ):
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
 
     await utils.get_project(db_client, project_id)
 
@@ -239,7 +240,7 @@ async def get_training_info(
     current_user: UserOut = Depends(require_project_viewer),
     _models_enabled: None = Depends(check_models_enabled),
 ) -> Model:
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     await utils.get_project(db_client, project_id)
     latest_model = await utils.get_model(
         db_client, project_id=project_id, model_type=model_type
@@ -263,7 +264,7 @@ async def start_model_training(
         {}, description="Optional parameters for training the model", embed=True
     ),
 ):
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
     # If GPU requested but not available, return error
@@ -379,7 +380,7 @@ async def stop_model_training(
         None, description="Version of model to use, leave blank for latest version"
     ),
 ):
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
     # If version provided, get only that model
@@ -436,7 +437,7 @@ async def load_model_weights_local(
     current_user: UserOut = Depends(require_project_annotator),
     _models_enabled: None = Depends(check_models_enabled),
 ):
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
     # Check file available at weights path
@@ -476,7 +477,7 @@ async def load_model_weights_gitlab(
     current_user: UserOut = Depends(require_project_annotator),
     _models_enabled: None = Depends(check_models_enabled),
 ):
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
     # Check if Gitlab load method is enabled
@@ -529,7 +530,7 @@ async def load_model_weights_hugging_face(
     current_user: UserOut = Depends(require_project_annotator),
     _models_enabled: None = Depends(check_models_enabled),
 ):
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
     # Check if HF load method is enabled
@@ -575,7 +576,7 @@ async def get_load_model_status(
     current_user: UserOut = Depends(require_project_viewer),
     _models_enabled: None = Depends(check_models_enabled),
 ) -> bool | str:
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
     project = await utils.get_project(db_client, project_id)
@@ -660,7 +661,7 @@ async def predict(
         {}, description="Optional parameters for training the model", embed=True
     ),
 ):
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
     # If GPU requested but not available, return error
@@ -743,7 +744,7 @@ async def delete_predictions(
     _models_enabled: None = Depends(check_models_enabled),
     model_type: str = Path(description="The type of model to delete predictions from."),
 ):
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     # Delete predictions using the given model for this project
     # Predict on samples as specified by filters
     project = await utils.get_project(db_client, project_id)
@@ -791,7 +792,7 @@ async def create_sample_predictions(
         DataParams(), description="Data parameters fort this sample", embed=True
     ),
 ) -> dict[str, str]:
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
     # If GPU requested but not available, return error
@@ -848,7 +849,7 @@ async def get_sample_predictions(
     model_type: str = Path(description="The type of model to get predictions from."),
     task_id: str = Path(description="The prediction task to get results from."),
 ) -> list[AnnotationBatchTypes]:
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
     project = await utils.get_project(db_client, project_id)
@@ -921,7 +922,7 @@ async def update_model(
     ),
 ) -> None:
     # Update model status
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     await utils.get_project(db_client, project_id)
     await utils.update_model(
         db_client=db_client, model_id=model_id, updates=model_updates

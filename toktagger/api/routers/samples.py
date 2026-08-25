@@ -11,6 +11,7 @@ from toktagger.api.auth.dependencies import (
 )
 from toktagger.api.core.query_strategy import QUERY_STRATEGIES
 from toktagger.api.crud import utils
+from toktagger.api.crud.db import MongoDBClient
 from toktagger.api.schemas import convert_to_objectid
 from toktagger.api.schemas.annotations import (
     RESERVED_CREATED_BY_PREFIXES,
@@ -69,7 +70,7 @@ async def get_samples(
     Get the full list of samples available for this project.
     --------------------------------------------------------
     """
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     samples = await utils.get_samples(
         db_client=db_client,
         project_id=project_id,
@@ -225,7 +226,7 @@ async def update_samples(
     `validated_annotations`, which is annotation progress rather than sample
     configuration, and the save/clear flow sets it on every annotation round-trip.
     """
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     await utils.get_project(db_client, project_id)
 
     for sample_batch_item in sample_batch:
@@ -273,7 +274,7 @@ async def get_next_sample(
     # Should use the query strategy, which access the database to determine the next sample to annotate
     # This should then be passed in to the /data endpoint to get required data for visualisation
     # And the /annotation endpoint to get initial prediction (if available)
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     project = await utils.get_project(db_client, project_id)
     samples = await utils.get_samples(
         db_client,
@@ -304,7 +305,7 @@ async def get_sample_summary(
 
     This includes total number of samples, min and max shot IDs, and sample data type.
     """
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     summary = await utils.get_sample_summary(db_client, project_id)
     return summary
 
@@ -329,7 +330,7 @@ async def get_sample(
     Get the specified sample from this project.
     --------------------------------------------
     """
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     # Check project exists
     project = await utils.get_project(db_client, project_id)
     # Get specified sample
@@ -364,7 +365,7 @@ async def remove_sample(
     # Remove samples from the project
     # Dont envisage this actually deleting the data stored about these samples
     # But do we need a separate method for that?
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     # Check project exists
     await utils.get_project(db_client, project_id=project_id)
 
@@ -391,7 +392,7 @@ async def remove_all_samples(
 
     Project-admin only, as with the single-sample delete above.
     """
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     # Check project exists
     await utils.get_project(db_client, project_id=project_id)
 

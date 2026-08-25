@@ -7,6 +7,7 @@ from toktagger.api.auth.dependencies import (
     require_project_admin_role,
 )
 from toktagger.api.crud import utils
+from toktagger.api.crud.db import MongoDBClient
 from toktagger.api.schemas.users import (
     ProjectMember,
     ProjectMemberCreate,
@@ -113,7 +114,7 @@ async def update_user(
             detail="Only an admin can change global_role or is_active",
         )
 
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
 
     # Prevent demoting or deactivating the last active admin
     if body.global_role == "user" or body.is_active is False:
@@ -138,7 +139,7 @@ async def delete_user(
     user_id: str = Path(...),
     _: UserOut = Depends(require_global_admin),
 ) -> None:
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
 
     # Prevent deleting the last active admin (mirrors the demote/deactivate guard
     # in update_user — otherwise the account list becomes unmanageable).
@@ -173,7 +174,7 @@ async def list_project_members(
     project_id: str = Path(...),
     current_user: UserOut = Depends(get_current_user),
 ) -> list[ProjectMemberOut]:
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     if current_user.global_role != "admin":
         membership = await utils.get_project_membership(
             db_client, project_id, current_user.id
@@ -190,7 +191,7 @@ async def add_project_member(
     project_id: str = Path(...),
     current_user: UserOut = Depends(require_project_admin_role),
 ) -> dict[str, str]:
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     user = await utils.get_user_by_username(db_client, body.username)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -208,7 +209,7 @@ async def update_project_member(
     user_id: str = Path(...),
     current_user: UserOut = Depends(get_current_user),
 ) -> None:
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
 
     # Project admins can change any member. A non-admin may edit only their own
     # membership, and then only its preferences -- `role` always needs project admin.

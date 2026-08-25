@@ -8,6 +8,7 @@ from toktagger.api.auth.dependencies import (
     require_project_viewer,
 )
 from toktagger.api.crud import utils
+from toktagger.api.crud.db import MongoDBClient
 from toktagger.api.schemas.annotations import (
     RESERVED_CREATED_BY_PREFIXES,
     AnnotationBatchTypes,
@@ -59,7 +60,7 @@ async def get_all_annotations(
     current_user: UserOut = Depends(require_project_viewer),
 ) -> list[AnnotationOutTypes]:
     """Retrieve all annotations for this project."""
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     await utils.get_project(db_client=db_client, project_id=project_id)
 
     annotations = await utils.get_annotations(
@@ -91,7 +92,7 @@ async def import_annotations(
     current_user: UserOut = Depends(require_project_annotator),
 ) -> None:
     """Update or add annotations for this project."""
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     # Every human caller — admins included — is recorded as the author of the
     # annotations they import, so authorship is always auditable. Only the internal
     # Ray-worker user may supply its own created_by (e.g. "model::<type>" predictions).
@@ -116,7 +117,7 @@ async def delete_all_annotations(
     current_user: UserOut = Depends(require_project_annotator),
 ):
     """Delete ALL annotations for the given project."""
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     await utils.get_project(db_client=db_client, project_id=project_id)
     await utils.delete_annotations(db_client=db_client, project_id=project_id)
 
@@ -159,7 +160,7 @@ async def get_annotations(
     ),
     current_user: UserOut = Depends(require_project_viewer),
 ) -> list[AnnotationOutTypes]:
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     await utils.get_project(db_client=db_client, project_id=project_id)
     await utils.get_sample(
         db_client=db_client, project_id=project_id, sample_id=sample_id
@@ -221,7 +222,7 @@ async def update_annotations(
     another user or to a model are edited in place instead, keeping their author, so
     a client that cannot see them (show_others_annotations=false) can never delete them.
     """
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
 
     await utils.get_project(db_client=db_client, project_id=project_id)
     sample = await utils.get_sample(
@@ -297,7 +298,7 @@ async def remove_annotations(
     current_user: UserOut = Depends(require_project_annotator),
 ):
     """Delete ALL annotations for a given sample from a given project."""
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     await utils.get_project(db_client=db_client, project_id=project_id)
     await utils.get_sample(
         db_client=db_client, project_id=project_id, sample_id=sample_id
@@ -329,7 +330,7 @@ async def remove_annotation(
     scoped to the caller's own annotations, so removing someone else's annotation --
     or a model's prediction -- has to be an explicit call.
     """
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     await utils.get_project(db_client=db_client, project_id=project_id)
     await utils.get_sample(
         db_client=db_client, project_id=project_id, sample_id=sample_id

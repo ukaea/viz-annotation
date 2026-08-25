@@ -125,7 +125,7 @@ async def delete_project(
     current_user: UserOut = Depends(require_project_annotator),
 ):
     """Permanently delete a project."""
-    db_client = request.app.state.db_client
+    db_client: MongoDBClient = request.app.state.db_client
     await utils.delete_projects(db_client=db_client, project_id=project_id)
 
 

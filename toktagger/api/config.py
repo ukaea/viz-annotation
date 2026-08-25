@@ -85,13 +85,45 @@ class Models(pydantic.BaseModel):
         False,
         description="Force the set number of GPU actors available, even if insufficient available GPU cores detected on hardware.",
     )
+    load_safetensors_only: bool = pydantic.Field(
+        False,
+        description="Whether to only allow loading of SafeTensors files for added security.",
+    )
     local_load_enabled: bool = pydantic.Field(
         True,
         description="Whether to enable the loading of model weights files from local disk. Should be disabled for production servers.",
     )
+    gitlab_load_enabled: bool = pydantic.Field(
+        True,
+        description="Whether to enable the loading of model weights files from Gitlab.",
+    )
+    gitlab_url: str | None = pydantic.Field(
+        None, description="The URL of the Gitlab server to load ML model weights from."
+    )
+    gitlab_token: str | None = pydantic.Field(
+        None,
+        description="The PAT Token to use when connecting to Gitlab to load model weights.",
+    )
+    gitlab_project_id: int | None = pydantic.Field(
+        None,
+        description="Limit the user to load ML model weights from a specific Gitlab project. Leave blank to allow the user to choose.",
+    )
+    huggingface_load_enabled: bool = pydantic.Field(
+        True,
+        description="Whether to enable the loading of model weights files from Hugging Face.",
+    )
+    huggingface_userspace: str | None = pydantic.Field(
+        None,
+        description="Limit the user to load ML model weights from a specific Hugging Face userspace / organisation. Leave blank to allow the user to choose.",
+    )
 
 
 class Settings(BaseSettings):
+    # Note if adding extra settings to this object, all sections should have one level of nesting only
+    # Ie, everything inside Settings should point to a BaseModel as a default factory
+    # And everything inside that BaseModel should be a flat field, not another BaseModel
+    # This is because more indentation would make the environment variables unintuitive,
+    # As they would not be able to just use single underscores (since different levels of nesting requires a different delimiter)
     server: Server = pydantic.Field(default_factory=Server)
     database: Database = pydantic.Field(default_factory=Database)
     uda: UDA = pydantic.Field(default_factory=UDA)

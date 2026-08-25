@@ -18,4 +18,3 @@ def check_models_enabled():
 
 if models_dependencies_installed():
     from toktagger.api.models.disruption import DisruptionCNN as DisruptionCNN
-    from toktagger.api.models.temp import VideoCNN as VideoCNN

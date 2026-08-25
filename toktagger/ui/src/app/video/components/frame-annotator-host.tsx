@@ -495,7 +495,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
       stopEvent(event);
       api.cancelDrawing?.();
       setFrameLabelPopupPoint(null);
-      toggleFrameLabel(cls);
+      toggleFrameLabel();
     };
 
     for (const target of targets) {
@@ -742,9 +742,9 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
               >
                 {frameLabels.map((frameLabel) => (
                   <AnnotationPopup
-                    key={frameLabel.label}
+                    key={`${frameLabel.label}::${frameLabel.track_id}`}
                     className={frameLabel.label}
-                    trackId={null}
+                    trackId={frameLabel.track_id}
                     heading="Frame label"
                     details={`Frame ${frame} · ${frameLabel.created_by}`}
                     deleteDisabled={!editMode}
@@ -752,7 +752,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
                       if (frameLabels.length <= 1) {
                         setFrameLabelPopupPoint(null);
                       }
-                      removeFrameLabel(frameLabel.label);
+                      removeFrameLabel(frameLabel.label, frameLabel.track_id);
                     }}
                     onClose={() => setFrameLabelPopupPoint(null)}
                   />

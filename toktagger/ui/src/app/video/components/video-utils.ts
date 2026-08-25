@@ -192,6 +192,24 @@ export function existingTrackIdsForClass(
   return out;
 }
 
+// Track ids already used by whole-frame labels of a class - shares the pool with shapes.
+export function existingFrameLabelTrackIdsForClass(
+  annotations: Annotation[],
+  className: string,
+): string[] {
+  const cls = className.trim();
+  if (!cls) return [];
+
+  const out: string[] = [];
+  for (const annotation of annotations) {
+    if (annotation.type !== "video_frame_label") continue;
+    if ((annotation.label || "").trim() !== cls) continue;
+    const tid = canonicalizeTrackId(annotation.track_id || "");
+    if (tid) out.push(tid);
+  }
+  return out;
+}
+
 /**
  * Build the current per-class numeric track-id counters from seeded annotations.
  * The returned map stores the highest numeric id seen for each class.
@@ -388,4 +406,94 @@ export function forwardPropagateIfEmpty(
   const next = new Map(byFrame);
   next.set(nextFrame, seeded);
   return next;
+}
+
+// Derive instance profiles from whole-frame labels, grouped like deriveInstances groups shapes.
+export function deriveFrameLabelInstances(
+  annotations: Annotation[],
+): InstanceProfile[] {
+  const framesByKey = new Map<
+    TrackKey,
+    { className: string; trackId: string; frames: Set<number> }
+  >();
+
+  for (const annotation of annotations) {
+    if (annotation.type !== "video_frame_label") continue;
+
+    const className = (annotation.label || "").trim();
+    const trackId = canonicalizeTrackId(annotation.track_id || "");
+    if (!className || !trackId) continue;
+
+    const key = makeTrackKey(className, trackId);
+    const entry = framesByKey.get(key) ?? {
+      className,
+      trackId,
+      frames: new Set<number>(),
+    };
+    entry.frames.add(annotation.frame);
+    framesByKey.set(key, entry);
+  }
+
+  return Array.from(framesByKey.entries()).map(([key, entry]) => {
+    const frames = Array.from(entry.frames).sort((a, b) => a - b);
+    return {
+      key,
+      className: entry.className,
+      classId: classIdForName(entry.className),
+      trackId: entry.trackId,
+      frames,
+      count: frames.length,
+    };
+  });
+}
+
+// Merge shape and frame-label instance profiles that share a (className, trackId) key.
+export function mergeInstanceProfiles(
+  primary: InstanceProfile[],
+  extra: InstanceProfile[],
+): InstanceProfile[] {
+  const byKey = new Map<TrackKey, InstanceProfile>();
+  for (const profile of primary) byKey.set(profile.key, profile);
+
+  for (const profile of extra) {
+    const existing = byKey.get(profile.key);
+    if (!existing) {
+      byKey.set(profile.key, profile);
+      continue;
+    }
+
+    const frames = Array.from(
+      new Set([...existing.frames, ...profile.frames]),
+    ).sort((a, b) => a - b);
+    byKey.set(profile.key, { ...existing, frames, count: frames.length });
+  }
+
+  const out = Array.from(byKey.values());
+  out.sort(
+    (a, b) =>
+      (a.frames[0] ?? Number.POSITIVE_INFINITY) -
+        (b.frames[0] ?? Number.POSITIVE_INFINITY) ||
+      a.trackId.localeCompare(b.trackId),
+  );
+  return out;
+}
+
+// Seed nextFrame with frame's whole-frame labels, only if nextFrame has none yet.
+export function propagateFrameLabelsIfEmpty(
+  annotations: Annotation[],
+  frame: FrameIndex,
+  nextFrame: FrameIndex,
+): Annotation[] {
+  const current = annotations.filter(
+    (a) => a.type === "video_frame_label" && a.frame === frame,
+  );
+  if (current.length === 0) return annotations;
+
+  const nextHasLabels = annotations.some(
+    (a) => a.type === "video_frame_label" && a.frame === nextFrame,
+  );
+  if (nextHasLabels) return annotations;
+
+  const seeded = current.map((a) => ({ ...a, frame: nextFrame }));
+  return [...annotations, ...seeded];
 }

@@ -44,10 +44,17 @@ export const BoundingBoxSchema = BaseAnnotationSchema.extend({
 
 export type BoundingBox = z.infer<typeof BoundingBoxSchema>;
 
-export const VideoBoundingBoxSchema = BaseAnnotationSchema.extend({
-  type: z.literal("video_bounding_box"),
+// A label tied to one frame and one tracked instance. The base schema for other video annotation types.
+export const VideoFrameSchema = BaseAnnotationSchema.extend({
+  type: z.literal("video_frame_label"),
   frame: z.number().int(),
   track_id: z.string(), // force string
+});
+
+export type VideoFrame = z.infer<typeof VideoFrameSchema>;
+
+export const VideoBoundingBoxSchema = VideoFrameSchema.extend({
+  type: z.literal("video_bounding_box"),
   height: z.number().int(),
   width: z.number().int(),
   x_min: z.number().int(),
@@ -77,31 +84,20 @@ export const PolygonSchema = BaseAnnotationSchema.extend({
 
 export type Polygon = z.infer<typeof PolygonSchema>;
 
-export const VideoPolygonSchema = BaseAnnotationSchema.extend({
+export const VideoPolygonSchema = VideoFrameSchema.extend({
   type: z.literal("video_polygon"),
-  frame: z.number().int(),
-  track_id: z.string(),
   segmentation: z.array(VideoPolygonCoordinatesSchema).length(1),
 });
 
 export type VideoPolygon = z.infer<typeof VideoPolygonSchema>;
 
-export const VideoPointSchema = BaseAnnotationSchema.extend({
+export const VideoPointSchema = VideoFrameSchema.extend({
   type: z.literal("video_point"),
-  frame: z.number().int(),
-  track_id: z.string(),
   x: z.number().int(),
   y: z.number().int(),
 });
 
 export type VideoPoint = z.infer<typeof VideoPointSchema>;
-
-export const VideoFrameLabelSchema = BaseAnnotationSchema.extend({
-  type: z.literal("video_frame_label"),
-  frame: z.number().int(),
-});
-
-export type VideoFrameLabel = z.infer<typeof VideoFrameLabelSchema>;
 
 export const AnnotationSchema = z.union([
   TimePointSchema,
@@ -112,7 +108,7 @@ export const AnnotationSchema = z.union([
   VideoBoundingBoxSchema,
   VideoPolygonSchema,
   VideoPointSchema,
-  VideoFrameLabelSchema,
+  VideoFrameSchema,
 ]);
 export type Annotation = z.infer<typeof AnnotationSchema>;
 

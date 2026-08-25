@@ -393,23 +393,6 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
   };
 
   useEffect(() => {
-    if (!api) return;
-
-    api.setDrawingTool(annotoriousDrawingTool);
-    api.setDrawingEnabled(annotoriousDrawingEnabled);
-
-    if (!annotoriousDrawingEnabled) {
-      api.cancelDrawing?.();
-    }
-
-    if (api.viewer && canDrawPoint) {
-      api.viewer.setMouseNavEnabled(false);
-    } else if (api.viewer && !annotoriousDrawingEnabled) {
-      api.viewer.setMouseNavEnabled(true);
-    }
-  }, [api, annotoriousDrawingEnabled, annotoriousDrawingTool, canDrawPoint]);
-
-  useEffect(() => {
     if (!api?.viewer || !canDrawPoint) return;
 
     const viewer = api.viewer;

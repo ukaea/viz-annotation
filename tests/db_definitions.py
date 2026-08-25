@@ -13,6 +13,7 @@ from toktagger.api.schemas.samples import (
     ShotData,
     TimeSeriesFileData,
 )
+from toktagger.api.schemas.projects import ProjectMember
 from toktagger.api.schemas.users import UserIn
 
 if importlib.util.find_spec("ray") is not None:
@@ -153,3 +154,5 @@ USER_BOB = UserIn(
     global_role="user",
     is_active=True,
 )
+
+PROJECT_ADMIN = ProjectMember(role="admin")

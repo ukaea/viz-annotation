@@ -3,7 +3,8 @@ from fastapi.security import OAuth2PasswordBearer
 
 from toktagger.api.auth.core import decode_token, get_internal_token
 from toktagger.api.crud import utils
-from toktagger.api.schemas.users import ProjectMember, UserOut
+from toktagger.api.schemas.projects import ProjectMember
+from toktagger.api.schemas.users import UserOut
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 

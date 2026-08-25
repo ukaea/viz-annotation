@@ -11,7 +11,6 @@ not just the handful of endpoints covered individually elsewhere.
 import re
 
 import pytest
-import pytest_asyncio
 
 from toktagger.api.main import Server
 
@@ -60,19 +59,12 @@ def _is_models_route(path: str) -> bool:
     return "models" in path.strip("/").split("/")
 
 
-@pytest_asyncio.fixture
-async def unauthenticated_client(api_client, auth_db_client):
-    """api_client wired to an (empty) db — no users needed, auth is always required."""
-    api_client.app.state.db_client = auth_db_client
-    return api_client
-
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method,path", _protected_routes())
 async def test_unauthenticated_request_is_rejected(
-    unauthenticated_client, method, path
+    unauthenticated_api_client, method, path
 ):
-    resp = await unauthenticated_client.request(method, _fill_path(path))
+    resp = await unauthenticated_api_client.request(method, _fill_path(path))
 
     if _is_models_route(path):
         assert resp.status_code in (401, 503), f"{method} {path} -> {resp.status_code}"

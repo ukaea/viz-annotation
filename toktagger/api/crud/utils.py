@@ -15,12 +15,14 @@ from toktagger.api.schemas.annotations import (
     AnnotationOutTypes,
 )
 from toktagger.api.schemas.models import Model, ModelIn, ModelUpdate
-from toktagger.api.schemas.projects import Project
-from toktagger.api.schemas.samples import FileData, Sample, SampleSummary, SampleUpdate
-from toktagger.api.schemas.users import (
+from toktagger.api.schemas.projects import (
+    Project,
     ProjectMember,
     ProjectMemberOut,
     ProjectMemberUpdate,
+)
+from toktagger.api.schemas.samples import FileData, Sample, SampleSummary, SampleUpdate
+from toktagger.api.schemas.users import (
     UserIn,
     UserOut,
     UserUpdate,
@@ -581,11 +583,6 @@ async def import_annotations(
             )
 
 
-# ---------------------------------------------------------------------------
-# User helpers
-# ---------------------------------------------------------------------------
-
-
 async def get_user_by_username(
     db_client: MongoDBClient, username: str
 ) -> UserOut | None:
@@ -647,11 +644,6 @@ async def delete_user(db_client: MongoDBClient, user_id: str) -> None:
     await db_client.delete_filtered_documents("project_members", {"user_id": obj_id})
 
 
-# ---------------------------------------------------------------------------
-# Project membership helpers
-# ---------------------------------------------------------------------------
-
-
 async def get_project_members(
     db_client: MongoDBClient, project_id: str
 ) -> list[ProjectMemberOut]:
@@ -689,7 +681,7 @@ async def _get_user_membership_docs(
 
 async def get_user_memberships(
     db_client: MongoDBClient, user_id: str
-) -> list[ProjectMember]:
+) -> list[ProjectMemberOut]:
     """Every project membership held by one user.
 
     Lets a client learn its own role in all its projects with a single request,
@@ -698,21 +690,28 @@ async def get_user_memberships(
     docs = await _get_user_membership_docs(
         db_client, convert_to_objectid(user_id, "users")
     )
+    result = []
     for doc in docs:
         doc["user_id"] = str(doc["user_id"])
-    return [ProjectMember.model_validate(doc) for doc in docs]
+        doc["project_id"] = str(doc["project_id"])
+        user = await get_user_by_id(db_client, doc["user_id"])
+        doc["username"] = user.username if user else "unknown"
+        result.append(ProjectMemberOut.model_validate(doc))
+    return result
 
 
 async def get_project_membership(
     db_client: MongoDBClient, project_id: str, user_id: str
-) -> ProjectMember | None:
+) -> ProjectMemberOut | None:
     project_oid = convert_to_objectid(project_id, "projects")
     user_oid = convert_to_objectid(user_id, "users")
     doc = await _get_project_membership_doc(db_client, project_oid, user_oid)
     if doc is None:
         return None
     doc["user_id"] = str(doc["user_id"])
-    return ProjectMember.model_validate(doc)
+    user = await get_user_by_id(db_client, doc["user_id"])
+    doc["username"] = user.username if user else "unknown"
+    return ProjectMemberOut.model_validate(doc)
 
 
 async def add_project_member(

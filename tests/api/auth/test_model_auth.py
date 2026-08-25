@@ -20,7 +20,7 @@ def annotation_payload(
 ):
     """Payload suitable for bulk import (PUT /projects/{id}/annotations).
     shot_id must match an existing sample — the default matches the sample
-    created by create_project_and_sample (shot_id=1).
+    created by setup (shot_id=1).
     """
     return [
         {
@@ -36,10 +36,12 @@ def annotation_payload(
 
 
 @pytest.mark.asyncio
-async def test_internal_token_accepted_for_import(project_setup):
+async def test_internal_token_accepted_for_import(
+    setup_db_auth, unauthenticated_api_client
+):
     """PUT /annotations with the server-internal token should be accepted as admin."""
-    client = project_setup["client"]
-    project_id = project_setup["project_id"]
+    client = unauthenticated_api_client
+    project_id = setup_db_auth["project_id"]
 
     internal_token = get_internal_token()
     resp = await client.put(
@@ -51,10 +53,12 @@ async def test_internal_token_accepted_for_import(project_setup):
 
 
 @pytest.mark.asyncio
-async def test_no_token_rejected_for_import_in_auth_mode(project_setup):
+async def test_no_token_rejected_for_import_in_auth_mode(
+    setup_db_auth, unauthenticated_api_client
+):
     """PUT /annotations with no token must be rejected when auth is required."""
-    client = project_setup["client"]
-    project_id = project_setup["project_id"]
+    client = unauthenticated_api_client
+    project_id = setup_db_auth["project_id"]
 
     resp = await client.put(
         f"/projects/{project_id}/annotations",
@@ -64,11 +68,15 @@ async def test_no_token_rejected_for_import_in_auth_mode(project_setup):
 
 
 @pytest.mark.asyncio
-async def test_import_non_admin_created_by_overwritten(project_setup):
+async def test_import_non_admin_created_by_overwritten(
+    setup_db_auth, unauthenticated_api_client
+):
     """An annotator importing with a spoofed created_by should have it replaced."""
-    client = project_setup["client"]
-    admin_token = project_setup["admin_token"]
-    project_id = project_setup["project_id"]
+    client = unauthenticated_api_client
+    admin_token = await get_auth_token(
+        unauthenticated_api_client, "admin", "admin_pass"
+    )
+    project_id = setup_db_auth["project_id"]
 
     await client.post(
         f"/projects/{project_id}/members",
@@ -96,12 +104,16 @@ async def test_import_non_admin_created_by_overwritten(project_setup):
 
 
 @pytest.mark.asyncio
-async def test_import_admin_is_attributed_as_self(project_setup):
+async def test_import_admin_is_attributed_as_self(
+    setup_db_auth, unauthenticated_api_client
+):
     """A global admin importing annotations is recorded as the author; a
     supplied created_by is ignored so authorship stays auditable."""
-    client = project_setup["client"]
-    admin_token = project_setup["admin_token"]
-    project_id = project_setup["project_id"]
+    client = unauthenticated_api_client
+    admin_token = await get_auth_token(
+        unauthenticated_api_client, "admin", "admin_pass"
+    )
+    project_id = setup_db_auth["project_id"]
 
     resp = await client.put(
         f"/projects/{project_id}/annotations",
@@ -120,11 +132,15 @@ async def test_import_admin_is_attributed_as_self(project_setup):
 
 
 @pytest.mark.asyncio
-async def test_internal_token_preserves_arbitrary_created_by(project_setup):
+async def test_internal_token_preserves_arbitrary_created_by(
+    setup_db_auth, unauthenticated_api_client
+):
     """The internal token (Ray worker) can import with model:: prefixed created_by."""
-    client = project_setup["client"]
-    admin_token = project_setup["admin_token"]
-    project_id = project_setup["project_id"]
+    client = unauthenticated_api_client
+    admin_token = await get_auth_token(
+        unauthenticated_api_client, "admin", "admin_pass"
+    )
+    project_id = setup_db_auth["project_id"]
 
     internal_token = get_internal_token()
     resp = await client.put(
@@ -144,8 +160,10 @@ async def test_internal_token_preserves_arbitrary_created_by(project_setup):
 
 
 @pytest.mark.asyncio
-async def test_username_with_model_prefix_rejected(auth_setup):
-    client = auth_setup["client"]
+async def test_username_with_model_prefix_rejected(
+    unauthenticated_api_client, setup_db_auth
+):
+    client = unauthenticated_api_client
     admin_token = await get_auth_token(client, "admin", "admin_pass")
     resp = await client.post(
         "/users",
@@ -160,8 +178,10 @@ async def test_username_with_model_prefix_rejected(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_username_with_annotators_prefix_rejected(auth_setup):
-    client = auth_setup["client"]
+async def test_username_with_annotators_prefix_rejected(
+    unauthenticated_api_client, setup_db_auth
+):
+    client = unauthenticated_api_client
     admin_token = await get_auth_token(client, "admin", "admin_pass")
     resp = await client.post(
         "/users",
@@ -176,8 +196,10 @@ async def test_username_with_annotators_prefix_rejected(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_username_with_dunder_prefix_rejected(auth_setup):
-    client = auth_setup["client"]
+async def test_username_with_dunder_prefix_rejected(
+    unauthenticated_api_client, setup_db_auth
+):
+    client = unauthenticated_api_client
     admin_token = await get_auth_token(client, "admin", "admin_pass")
     resp = await client.post(
         "/users",
@@ -192,7 +214,9 @@ async def test_username_with_dunder_prefix_rejected(auth_setup):
 
 
 @pytest.mark.asyncio
-async def test_user_save_does_not_corrupt_model_prefixed_predictions(project_setup):
+async def test_user_save_does_not_corrupt_model_prefixed_predictions(
+    setup_db_auth, unauthenticated_api_client
+):
     """A human user named 'disruption_cnn' saving annotations must NOT delete
     model predictions stored as 'model::disruption_cnn'. The prefix is the separator.
 
@@ -203,10 +227,12 @@ async def test_user_save_does_not_corrupt_model_prefixed_predictions(project_set
     test_predict_endpoint_survives_same_named_human_save in
     tests/api/routers/test_models.py.
     """
-    client = project_setup["client"]
-    admin_token = project_setup["admin_token"]
-    project_id = project_setup["project_id"]
-    sample_id = project_setup["sample_id"]
+    client = unauthenticated_api_client
+    admin_token = await get_auth_token(
+        unauthenticated_api_client, "admin", "admin_pass"
+    )
+    project_id = setup_db_auth["project_id"]
+    sample_id = setup_db_auth["sample_id"]
 
     # Create a human user whose name matches a model type (the collision scenario).
     create_resp = await client.post(

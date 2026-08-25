@@ -17,6 +17,7 @@ from toktagger.api import config
 from toktagger.api.auth.core import create_access_token
 from toktagger.api.crud.db import MongoDBClient
 from toktagger.api.main import Server
+import toktagger.api.auth.core as auth_core
 
 MODELS_ENABLED = importlib.util.find_spec("ray") is not None
 
@@ -125,15 +126,10 @@ async def db_client(settings):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def api_client(monkeypatch, db_client):
-    # Have hit various issues getting this setup
-    # Using fastAPI TestClient() doesn't play well with async pymongo as it tries to do stuff in different event loops
-    # So have to use this AsyncClient from httpx, but this no longer just accepts an app
-    # So have to wrap it in this Transport thing, but that for some reason doesnt run the lifespan in the app
-    # So have to run this manually, however trying to run the close after the yield to close the db connection gives errors
-    # So am just going to leave it open, since the db container will be deleted after anyway
-    # Any alternative solution ideas are welcome.....
-    os.environ["API_URL"] = "http://test"
+async def unauthenticated_api_client(tmp_path, monkeypatch, db_client):
+    monkeypatch.setattr(config.settings.server, "cache_dir", tmp_path)
+    monkeypatch.setattr(auth_core, "_serializer", None)
+
     server = Server()
     server.testing_mode = True
     monkeypatch.setenv("API_URL", "http://test")
@@ -142,19 +138,21 @@ async def api_client(monkeypatch, db_client):
     app.state.db_client = db_client
     app.state.project = None
 
-    # Auth is always required now — seed the admin user and authenticate as them
-    # by default, so existing tests (which don't pass their own Authorization
-    # header) keep behaving as an implicit admin, just via a real token now.
-    await db_client.insert("users", db_definitions.USER_ADMIN)
-    admin_token = create_access_token({"sub": "admin"})
-
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
-        headers={"Authorization": f"Bearer {admin_token}"},
     ) as client:
         client.app = app
         yield client
+
+
+@pytest_asyncio.fixture(scope="function")
+async def api_client(unauthenticated_api_client, db_client):
+    # Auth is always required now — seed the admin user and authenticate as them
+    await db_client.insert("users", db_definitions.USER_ADMIN)
+    admin_token = create_access_token({"sub": "admin"})
+    unauthenticated_api_client.headers["Authorization"] = f"Bearer {admin_token}"
+    yield unauthenticated_api_client
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -251,6 +249,43 @@ async def setup_db_small(db_client):
     await db_client.delete_filtered_documents("projects")
     await db_client.delete_filtered_documents("samples")
     await db_client.delete_filtered_documents("annotations")
+
+
+@pytest_asyncio.fixture(scope="function")
+async def setup_db_auth(db_client):
+    admin_id = await db_client.insert("users", db_definitions.USER_ADMIN)
+    alice_id = await db_client.insert("users", db_definitions.USER_ALICE)
+    bob_id = await db_client.insert("users", db_definitions.USER_BOB)
+
+    # Create two projects and add admin as user
+    project_ids = []
+    sample_ids = []
+    for i in (0, 1):
+        project_ids.append(await db_client.insert("projects", db_definitions.PROJECT_1))
+        await db_client.insert(
+            "project_members",
+            db_definitions.PROJECT_ADMIN,
+            ids={"project_id": ObjectId(project_ids[i]), "user_id": ObjectId(admin_id)},
+        )
+
+        # Create sample
+        sample_ids.append(
+            await db_client.insert(
+                "samples",
+                db_definitions.SAMPLE_1,
+                ids={"project_id": ObjectId(project_ids[i])},
+            )
+        )
+
+    yield {
+        "admin_id": admin_id,
+        "alice_id": alice_id,
+        "bob_id": bob_id,
+        "project_id": project_ids[0],
+        "sample_id": sample_ids[0],
+        "other_project_id": project_ids[1],
+        "other_sample_id": sample_ids[1],
+    }
 
 
 def run_server():

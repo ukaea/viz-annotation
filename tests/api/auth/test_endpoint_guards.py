@@ -315,11 +315,15 @@ ACTIONS: dict[str, Action] = {
 @pytest.mark.asyncio
 @pytest.mark.parametrize("role", ROLES)
 @pytest.mark.parametrize("action_name", list(ACTIONS))
-async def test_permission_matrix(project_setup, action_name, role):
-    client = project_setup["client"]
-    admin_token = project_setup["admin_token"]
-    project_id = project_setup["project_id"]
-    sample_id = project_setup["sample_id"]
+async def test_permission_matrix(
+    setup_db_auth, unauthenticated_api_client, action_name, role
+):
+    client = unauthenticated_api_client
+    admin_token = await get_auth_token(
+        unauthenticated_api_client, "admin", "admin_pass"
+    )
+    project_id = setup_db_auth["project_id"]
+    sample_id = setup_db_auth["sample_id"]
     action = ACTIONS[action_name]
 
     token = await _get_role_token(client, admin_token, project_id, role)
@@ -327,7 +331,7 @@ async def test_permission_matrix(project_setup, action_name, role):
     path = action.path.format(
         project_id=project_id,
         sample_id=sample_id,
-        bob_id=project_setup["bob_id"],
+        bob_id=setup_db_auth["bob_id"],
         # Valid ObjectId shape, guaranteed not to exist.
         missing_id="0" * 24,
     )

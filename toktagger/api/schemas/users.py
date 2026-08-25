@@ -39,32 +39,6 @@ class UserUpdate(BaseModel):
     must_change_password: bool | None = None
 
 
-class ProjectMember(ConfiguredModel):
-    project_id: str
-    user_id: str
-    role: Literal["admin", "annotator", "viewer"] = "annotator"
-    show_others_annotations: bool = True
-
-
-class ProjectMemberOut(ConfiguredModel):
-    id: str = Field(..., alias="_id")
-    project_id: str
-    user_id: str
-    username: str
-    role: Literal["admin", "annotator", "viewer"]
-    show_others_annotations: bool
-
-
-class ProjectMemberCreate(BaseModel):
-    username: str
-    role: Literal["admin", "annotator", "viewer"] = "annotator"
-
-
-class ProjectMemberUpdate(BaseModel):
-    role: Literal["admin", "annotator", "viewer"] | None = None
-    show_others_annotations: bool | None = None
-
-
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

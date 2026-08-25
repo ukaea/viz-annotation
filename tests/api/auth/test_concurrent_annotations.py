@@ -266,6 +266,36 @@ async def test_save_preserves_model_created_by(project_setup):
 
 
 @pytest.mark.asyncio
+async def test_save_returns_every_updated_annotation_id(project_setup):
+    """The response lists in-place edits as well as the caller's own annotations."""
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
+    sample_id = project_setup["sample_id"]
+
+    for username in ("alice", "bob"):
+        await add_member(client, admin_token, project_id, username, "annotator")
+
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
+    bob_token = await get_auth_token(client, "bob", "bob_pass")
+
+    await put_annotations(client, project_id, sample_id, bob_token, "bob_ann")
+
+    loaded = await get_annotations(client, project_id, sample_id, alice_token)
+    loaded.extend(annotation_payload("alice_ann"))
+
+    resp = await client.put(
+        f"/projects/{project_id}/samples/{sample_id}/annotations",
+        json=loaded,
+        headers={"Authorization": f"Bearer {alice_token}"},
+    )
+    assert resp.status_code == 200, resp.text
+
+    stored = await get_annotations(client, project_id, sample_id, admin_token)
+    assert sorted(resp.json()) == sorted(a["_id"] for a in stored)
+
+
+@pytest.mark.asyncio
 async def test_edit_to_model_prediction_is_persisted(project_setup):
     """Correcting a model's prediction and saving must keep the correction.
 

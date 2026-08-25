@@ -214,7 +214,7 @@ async def update_annotations(
         description="Whether to set sample to validated (useful if no annotations present).",
     ),
     current_user: UserOut = Depends(require_project_annotator),
-):
+) -> list[str]:
     """Update the annotations for a sample.
 
     The caller's own annotations are replaced wholesale. Annotations belonging to
@@ -230,6 +230,7 @@ async def update_annotations(
 
     is_internal = current_user.username == "__internal__"
     owned_annotations = []
+    edited_ids = []
     for annotation in annotations:
         is_other_authors = (
             annotation.id is not None
@@ -240,13 +241,14 @@ async def update_annotations(
             # The replace step below is scoped to the caller's own created_by, so
             # re-saving another author's annotation there would duplicate it under
             # the caller's name.
-            await utils.update_annotation_by_id(
+            if await utils.update_annotation_by_id(
                 db_client=db_client,
                 project_id=project_id,
                 sample_id=sample_id,
                 annotation_id=annotation.id,
                 annotation=annotation,
-            )
+            ):
+                edited_ids.append(annotation.id)
             continue
 
         if annotation.id is None and not is_internal:
@@ -267,6 +269,7 @@ async def update_annotations(
         owned_annotations,
         created_by=current_user.username,
     )
+    result.extend(edited_ids)
 
     if validated or any(annotation.validated for annotation in annotations):
         await utils.update_sample(

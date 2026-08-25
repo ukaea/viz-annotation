@@ -19,7 +19,7 @@ import {
 
 import type { Annotation } from "@/types";
 import { useSample } from "@/app/contexts/SampleContext";
-import { useVideoUiState } from "@/app/video/components/video-context";
+import { useVideoUiState } from "@/app/contexts/video-context";
 import {
   VideoBoundingBoxSchema,
   VideoPointSchema,

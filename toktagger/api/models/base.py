@@ -502,16 +502,10 @@ class ActorRegistry:
         Parameters
         ----------
         task_ref : list[ray.ObjectRef]
-            The reference to the Ray task, wrapped in a single-element list.
-
-            The wrapping is essential: Ray resolves any ObjectRef passed as a
-            top-level actor-method argument as a *dependency*, blocking the call
-            until that task finishes (and handing the method the dereferenced
-            value, not the ref). Since a registered task is typically still
-            running - the whole point is to poll it later via is_ready/get_result
-            - a bare ref would hang register.remote() until the task completed.
-            Ray does not recurse into containers, so a ref nested in a list is
-            passed through untouched.
+            The task reference, wrapped in a list. Ray resolves a bare ObjectRef
+            passed to a remote call as a dependency and blocks until it finishes,
+            which would defeat polling it later via is_ready/get_result; a list
+            keeps it opaque to that.
         task_id : str | None
             The ID to store the task under, generated automatically if not given
 
@@ -527,10 +521,8 @@ class ActorRegistry:
     def is_ready(self, task_id: str) -> bool | None:
         """Non-blocking check of whether a task has finished.
 
-        Ray automatically dereferences an ObjectRef returned (even nested) from
-        a remote call, so the raw task ref itself can't be handed back to
-        callers across the actor boundary - wait/get/cancel on it must happen
-        here, inside this actor, instead.
+        Runs inside the actor because Ray auto-dereferences any ObjectRef this
+        method would otherwise hand back across the actor boundary.
 
         Returns
         -------
@@ -550,11 +542,9 @@ class ActorRegistry:
     def cancel(self, task_id: str) -> None:
         """Cancel a registered task, if it exists.
 
-        force=True: a cooperative cancel only raises an exception at the task's
-        next bytecode instruction, which never arrives for a task blocked in a
-        C-level call (e.g. time.sleep, as used by the test suite's long-running
-        pending task) - the task keeps its worker/CPU slot indefinitely instead
-        of being freed for reuse. Forcing the exit kills the worker outright.
+        Forces the cancel: a cooperative one only raises at the task's next
+        bytecode instruction, which never arrives for a task blocked in a
+        C-level call (e.g. time.sleep), leaving its worker slot stuck.
         """
         task_ref = self.tasks.get(task_id)
         if task_ref is not None:

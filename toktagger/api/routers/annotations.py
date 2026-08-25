@@ -166,10 +166,8 @@ async def get_annotations(
         db_client=db_client, project_id=project_id, sample_id=sample_id
     )
 
-    # Membership already validated by require_project_viewer; re-fetch only to check
-    # the per-user show_others_annotations preference. Fetched for admins too, since an
-    # admin who is also an explicit project member has their own preference to honor;
-    # non-member admins simply get None back and fall through to seeing everything.
+    # require_project_viewer already checked access; re-fetch to read this user's
+    # show_others_annotations preference (None for a non-member admin, who sees everything).
     membership = await utils.get_project_membership(
         db_client, project_id, current_user.id
     )

@@ -117,12 +117,9 @@ async def add_samples(
     # Remove annotations (if they exist), these will be added later
     all_annotations = [sample.annotations for sample in samples]
 
-    # Annotations that arrive with a sample are attributed to the caller, exactly as
-    # they are on the import and save routes in routers/annotations.py: the created_by
-    # in the request body is a client-side placeholder ("manual"), and storing it would
-    # leave the annotations table naming a user who does not exist. Synthetic authorship
-    # is preserved, so a project can still be seeded with model predictions, and the
-    # internal Ray-worker user keeps whatever it supplies.
+    # Attribute to the caller, as on the import/save routes in routers/annotations.py:
+    # the incoming created_by is a client-side placeholder ("manual"), not a real user.
+    # Synthetic authorship (model predictions) is preserved so seeding still works.
     is_internal = current_user.username == "__internal__"
     for annotation_list in all_annotations:
         for annotation in annotation_list or []:

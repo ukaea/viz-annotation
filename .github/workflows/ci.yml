@@ -86,12 +86,6 @@ jobs:
   test_models_disabled:
     name: Pytest (Models Disabled)
     runs-on: ubuntu-latest
-    # `playwright install --with-deps` is the long pole and its duration swings
-    # wildly with GitHub's apt/CDN throughput - observed between 1m and 17m for
-    # the same command. At 30m a slow install plus the ~13m of tests hit the
-    # ceiling and the job was cancelled moments after pytest reported success.
-    timeout-minutes: 45
-
     strategy:
       matrix:
         python-version: [3.11]
@@ -109,23 +103,21 @@ jobs:
         run: pip install uv
 
       - name: Install playwright
+        # Duration swings with GitHub's apt/CDN throughput - seen between 1m and 17m.
+        timeout-minutes: 20
         run: uv run --group dev python -m playwright install --with-deps
 
       - name: Run unit tests
+        timeout-minutes: 15
         run: uv run --group dev pytest tests/api
 
       - name: Run end to end tests
+        timeout-minutes: 15
         run: uv run --group dev pytest tests/end_to_end
 
   test_models_enabled:
     name: Pytest (Models Enabled)
     runs-on: ubuntu-latest
-    # `playwright install --with-deps` is the long pole and its duration swings
-    # wildly with GitHub's apt/CDN throughput - observed between 1m and 17m for
-    # the same command. At 30m a slow install plus the ~13m of tests hit the
-    # ceiling and the job was cancelled moments after pytest reported success.
-    timeout-minutes: 45
-
     strategy:
       matrix:
         python-version: [3.11]
@@ -143,12 +135,16 @@ jobs:
         run: pip install uv
 
       - name: Install playwright
+        # Duration swings with GitHub's apt/CDN throughput - seen between 1m and 17m.
+        timeout-minutes: 20
         run: uv run --all-extras python -m playwright install --with-deps
 
       - name: Run unit tests
+        timeout-minutes: 15
         run: uv run --all-extras pytest tests/api
 
       - name: Run end to end tests
+        timeout-minutes: 15
         run: uv run --all-extras pytest tests/end_to_end
 
   build:

@@ -79,10 +79,10 @@ gunicorn toktagger.api.asgi:app \
     --bind 0.0.0.0:8002
 ```
 
-With Docker Compose, the production stack defaults to 4 workers. Override with the `WORKERS` environment variable:
+With Docker Compose, the production stack defaults to 4 workers. Override with the `SERVER_WORKERS` environment variable:
 
 ```sh
-WORKERS=8 docker compose up
+SERVER_WORKERS=8 docker compose up
 ```
 
 See [User Management](user_management.md) for creating accounts, assigning roles, and managing project membership.

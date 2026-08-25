@@ -4427,12 +4427,7 @@ requires-dist = [
     { name = "torch", marker = "extra == 'models'" },
     { name = "uda-mast", specifier = ">=1.4.1" },
     { name = "uda-xarray", specifier = ">=0.2.1" },
-<<<<<<< HEAD
-    { name = "ultralytics", marker = "extra == 'models'", specifier = ">=8.4.90" },
     { name = "uvicorn", extras = ["standard"] },
-=======
-    { name = "uvicorn" },
->>>>>>> dev
     { name = "xarray" },
     { name = "zarr" },
 ]

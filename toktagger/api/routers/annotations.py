@@ -231,41 +231,32 @@ async def update_annotations(
     is_internal = current_user.username == "__internal__"
     owned_annotations = []
     for annotation in annotations:
-        if annotation.id is not None:
-            # Pre-existing annotation (fetched via GET, e.g. someone else's or a
-            # model's). The delete-then-reinsert path below is scoped to this user's
-            # own created_by, so re-saving it there would duplicate it under the
-            # saving user's identity. Apply a targeted in-place edit instead, which
-            # keeps the original author.
-            if not is_internal and annotation.created_by != current_user.username:
-                # A machine-authored suggestion (annotators::/model::) is not the
-                # caller's to change. The UI still lets them drag or relabel one
-                # locally, but that is a view-level tweak: persisting it would
-                # silently rewrite the suggestion this run produced, so drop it and
-                # leave the stored row alone. A *human* co-author's annotation is
-                # editable in place - a shared sample is meant to be worked on
-                # together - keeping its original author.
-                if (annotation.created_by or "").startswith(
-                    RESERVED_CREATED_BY_PREFIXES
-                ):
-                    continue
-                await utils.update_annotation_by_id(
-                    db_client=db_client,
-                    project_id=project_id,
-                    sample_id=sample_id,
-                    annotation_id=annotation.id,
-                    annotation=annotation,
-                )
-                continue
-        else:
-            # Brand-new annotation. Preserve synthetic authorship (a just-run
-            # model prediction or annotator suggestion); otherwise the server
-            # is authoritative for identity. created_by may be absent entirely
-            # (it's optional on AnnotationBatch), hence the "" fallback.
-            if not is_internal and not (annotation.created_by or "").startswith(
+        is_other_authors = (
+            annotation.id is not None
+            and not is_internal
+            and annotation.created_by != current_user.username
+        )
+        if is_other_authors:
+            # The replace step below is scoped to the caller's own created_by, so
+            # re-saving another author's annotation there would duplicate it under
+            # the caller's name.
+            await utils.update_annotation_by_id(
+                db_client=db_client,
+                project_id=project_id,
+                sample_id=sample_id,
+                annotation_id=annotation.id,
+                annotation=annotation,
+            )
+            continue
+
+        if annotation.id is None and not is_internal:
+            # A just-run model prediction or annotator suggestion keeps its synthetic
+            # author; otherwise the server is authoritative for identity.
+            if not (annotation.created_by or "").startswith(
                 RESERVED_CREATED_BY_PREFIXES
             ):
                 annotation.created_by = current_user.username
+
         annotation.shot_id = sample.shot_id
         owned_annotations.append(annotation)
 

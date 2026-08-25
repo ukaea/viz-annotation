@@ -266,6 +266,60 @@ async def test_save_preserves_model_created_by(project_setup):
 
 
 @pytest.mark.asyncio
+async def test_edit_to_model_prediction_is_persisted(project_setup):
+    """Correcting a model's prediction and saving must keep the correction.
+
+    Reviewing machine output is the point of the tool, so the edit is stored against
+    the prediction, keeping its "model::" author so provenance is not rewritten.
+    """
+    client = project_setup["client"]
+    admin_token = project_setup["admin_token"]
+    project_id = project_setup["project_id"]
+    sample_id = project_setup["sample_id"]
+
+    await add_member(client, admin_token, project_id, "alice", "annotator")
+    alice_token = await get_auth_token(client, "alice", "alice_pass")
+
+    resp = await client.put(
+        f"/projects/{project_id}/samples/{sample_id}/annotations",
+        json=[
+            {
+                "label": "predicted",
+                "time_min": 0.2,
+                "time_max": 0.6,
+                "type": "time_region",
+                "validated": False,
+                "created_by": "model::changepoint_detection",
+            }
+        ],
+        headers={"Authorization": f"Bearer {alice_token}"},
+    )
+    assert resp.status_code == 200, resp.text
+
+    loaded = await get_annotations(client, project_id, sample_id, alice_token)
+    assert len(loaded) == 1
+    loaded[0]["time_min"] = 1.25
+    loaded[0]["time_max"] = 1.75
+    loaded[0]["label"] = "corrected"
+    loaded[0]["validated"] = True
+
+    resp = await client.put(
+        f"/projects/{project_id}/samples/{sample_id}/annotations",
+        json=loaded,
+        headers={"Authorization": f"Bearer {alice_token}"},
+    )
+    assert resp.status_code == 200, resp.text
+
+    annotations = await get_annotations(client, project_id, sample_id, admin_token)
+    assert len(annotations) == 1
+    assert annotations[0]["label"] == "corrected"
+    assert annotations[0]["time_min"] == 1.25
+    assert annotations[0]["time_max"] == 1.75
+    assert annotations[0]["validated"] is True
+    assert annotations[0]["created_by"] == "model::changepoint_detection"
+
+
+@pytest.mark.asyncio
 async def test_save_does_not_duplicate_or_reattribute_others_annotation(project_setup):
     """Resending an already-saved annotation owned by someone else (as loaded via
     GET) must not duplicate it or reassign it to the saving user."""

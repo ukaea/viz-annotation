@@ -47,7 +47,7 @@ npm run build    # writes into toktagger/api/static/, do not hand-edit that outp
 
 ## Both: comments & typing
 
-Avoid multi-line comment blocks / docstrings unless the surrounding code truly needs one. A short one-line comment explaining *why* (not what) is the norm on both sides of the stack. Type everything; don't loosen a type or a test assertion just to make something pass without checking whether it's masking a real bug.
+Default to zero comments; code should read clearly on its own. If something non-obvious needs a *why*, compress it into one single-line comment, never two. Multi-line blocks are a last resort, reserved for the rare case a single line genuinely cannot carry the context at all. A short docstring is fine when introducing a brand new function. Type everything; don't loosen a type or a test assertion just to make something pass without checking whether it's masking a real bug.
 
 ## E2E tests (`tests/end_to_end`)
 

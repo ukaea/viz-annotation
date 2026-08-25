@@ -17,8 +17,7 @@ import * as d3 from "d3";
 import { useEffect, useRef } from "react";
 import { useContextMenu } from "react-contexify";
 
-// A polygon being drawn carries two helper vertices: one that tracks the cursor and a
-// temporary vertex that keeps the outline closed. Both are dropped once it is committed.
+// Extra vertices used only while drawing (cursor tracker + closing point), dropped on commit
 const HELPER_VERTEX_COUNT = 2;
 
 // Fewer real vertices than this does not describe a shape, so it cannot be committed.
@@ -47,6 +46,28 @@ export const Polygon = ({ plotId, plotReady, subplot }: ToolingProps) => {
   });
 
   useEffect(() => {
+    // Finishes closing a polygon, used by both the click-near-start and double-click paths
+    const closePolygon = (annotation: TimeSeriesAnnotation) => {
+      setOngoingAction(false); // Since this has hover functionality the callback must end the ongoing action
+      isUpdatingPolygon.current = false;
+      annotation.points.splice(annotation.points.length - 2, 2); // This removes the temporary points added to prevent polygons with 2 vertices
+      updateAnnotation(annotation);
+    };
+
+    // Shared closeness check used both to close on click and to snap the hover vertex to the start point
+    const isNearStart = (
+      x: number,
+      y: number,
+      points: TimeSeriesAnnotation["points"],
+      axisSize: { x: number; y: number },
+    ) => {
+      const closeThreshold = { x: axisSize.x * 0.02, y: axisSize.y * 0.02 };
+      return (
+        Math.abs(x - points[0].x) < closeThreshold.x &&
+        Math.abs(y - points[0].y) < closeThreshold.y
+      );
+    };
+
     const toolingCallbacks: ToolingCallbacks = {
       // For polgons the start callback is responsible for creating the polygon but also appeanding vertices and closing shape too
       start: (x, y, label, axisSize) => {
@@ -64,21 +85,12 @@ export const Polygon = ({ plotId, plotReady, subplot }: ToolingProps) => {
           }
 
           const pointArrayLength = currentAnnotation.current.points.length;
-          const closeThreshold = { x: axisSize.x * 0.02, y: axisSize.y * 0.02 };
 
           // Logic used to close the polygon when a vertex is added near the start point
-          if (
-            Math.abs(x - currentAnnotation.current.points[0].x) <
-              closeThreshold.x &&
-            Math.abs(y - currentAnnotation.current.points[0].y) <
-              closeThreshold.y
-          ) {
+          if (isNearStart(x, y, currentAnnotation.current.points, axisSize)) {
             // The polygon should only be allowed to close if there are 4 points - if not this would reduce to 2 vertices which is not allowed
             if (pointArrayLength > 4) {
-              setOngoingAction(false); // Since this has hover functionality the callback must end the ongoing action
-              isUpdatingPolygon.current = false;
-              currentAnnotation.current.points.splice(pointArrayLength - 2, 2); // This removes the temmporary point added to prevent polygons with 2 vertices
-              updateAnnotation(currentAnnotation.current);
+              closePolygon(currentAnnotation.current);
             }
             return;
           }
@@ -106,10 +118,14 @@ export const Polygon = ({ plotId, plotReady, subplot }: ToolingProps) => {
       },
       move(_x, _y) {}, // Points are added using clicks so this is not needed
       end(_x, _y) {}, // Shape is closed inside the start callback as it relies on clicks
-      hover(x, y) {
+      hover(x, y, axisSize) {
         if (!currentAnnotation.current || !isUpdatingPolygon.current) return;
-        const pointArrayLength = currentAnnotation.current.points.length;
-        currentAnnotation.current.points[pointArrayLength - 2] = { x, y }; // Ensure the temporary hover vertex is kept up-to-date with the mouse position
+        const points = currentAnnotation.current.points;
+        const pointArrayLength = points.length;
+        // Snap to the start point once close enough to close, mirroring the video tool's snap
+        const canClose =
+          pointArrayLength > 4 && isNearStart(x, y, points, axisSize);
+        points[pointArrayLength - 2] = canClose ? { ...points[0] } : { x, y };
         updateAnnotation(currentAnnotation.current);
       },
       cancel() {
@@ -119,6 +135,26 @@ export const Polygon = ({ plotId, plotReady, subplot }: ToolingProps) => {
         }
         currentAnnotation.current = null;
         isUpdatingPolygon.current = false;
+      },
+      // Closes the polygon on double-click, first removing the duplicate vertex the extra click added
+      doubleClick(_x, _y) {
+        if (
+          !isUpdatingPolygon.current ||
+          !currentAnnotation.current ||
+          currentAnnotation.current.type !== TimeSeriesAnnotationType.POLYGON
+        ) {
+          return;
+        }
+
+        const annotation = currentAnnotation.current;
+        const pointArrayLength = annotation.points.length;
+        const realVertexCount = pointArrayLength - HELPER_VERTEX_COUNT;
+
+        // Stop if removing the duplicate vertex would leave too few points for a shape
+        if (realVertexCount - 1 < MIN_POLYGON_VERTICES) return;
+
+        annotation.points.splice(pointArrayLength - 3, 1); // Drop the duplicate vertex from the preceding click
+        closePolygon(annotation);
       },
     };
     registerTooling(TimeSeriesAnnotationType.POLYGON, toolingCallbacks);
@@ -131,10 +167,7 @@ export const Polygon = ({ plotId, plotReady, subplot }: ToolingProps) => {
     updateAnnotation,
   ]);
 
-  // Releasing the modifier key ends the drawing gesture. Every other tool has already
-  // committed its shape by that point, so an in-progress polygon is committed here too
-  // rather than being left with its open edge tracking the cursor. A shape that does
-  // not yet have enough real vertices cannot be committed, so it is discarded instead.
+  // Releasing the modifier key ends drawing - commit the polygon, or discard it if too small
   const wasDrawing = useRef(isDrawing);
   useEffect(() => {
     const drawingEnded = wasDrawing.current && !isDrawing;

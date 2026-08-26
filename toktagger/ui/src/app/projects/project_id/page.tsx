@@ -363,17 +363,20 @@ export default function ProjectView() {
                 </Flex>
                 <Flex gap="size-100" alignItems="end" wrap>
                   <Flex direction="row" gap={"size-100"}>
+                    {/* Training/loading/predicting all write to the project, so
+                    a viewer gets the same disabled state the backend already
+                    enforces (require_project_annotator on these endpoints). */}
                     <ModelTrainModal
                       project={project}
-                      isEnabled={modelsEnabled}
+                      isEnabled={modelsEnabled && canAnnotate}
                     ></ModelTrainModal>
                     <ModelLoadModal
                       project={project}
-                      isEnabled={modelsEnabled}
+                      isEnabled={modelsEnabled && canAnnotate}
                     ></ModelLoadModal>
                     <ModelPredictModal
                       project={project}
-                      isEnabled={modelsEnabled}
+                      isEnabled={modelsEnabled && canAnnotate}
                     ></ModelPredictModal>
                     <ContextualHelp
                       placement="top end"

@@ -776,6 +776,39 @@ def test_samples_page_buttons_gated_by_role(
     carl_page.context.close()
 
 
+@pytest.mark.models_enabled
+@pytest.mark.parametrize(
+    ("role", "enabled"),
+    [("viewer", False), ("annotator", True), ("admin", True)],
+)
+def test_model_buttons_gated_by_role(role, enabled, server_setup, admin_token, browser):
+    """Training/loading/predicting write to the project, so a viewer gets the
+    same disabled state the backend already enforces on these endpoints
+    (require_project_annotator)."""
+    username = f"role_dana_{role}"
+    create_user(username, "dana_pass123")
+    project_id = create_project("Model Role Gated Project", "time-series", "tabular")
+    create_local_samples(project_id, [10000], pathlib.Path(__file__).parents[1], ["Ip"])
+    add_project_member(project_id, username, role=role)
+
+    dana_page = login_as(browser, username, "dana_pass123")
+    dana_page.goto(f"http://localhost:8002/ui/projects/{project_id}")
+
+    def expect_enabled(locator, is_enabled):
+        if is_enabled:
+            expect(locator).to_be_enabled()
+        else:
+            expect(locator).to_be_disabled()
+
+    expect_enabled(dana_page.get_by_role("button", name="Train ML Model"), enabled)
+    expect_enabled(dana_page.get_by_role("button", name="Load ML Model"), enabled)
+    expect_enabled(
+        dana_page.get_by_role("button", name="Create Predictions from ML Model"),
+        enabled,
+    )
+    dana_page.context.close()
+
+
 @pytest.mark.parametrize("sample_id", (True, False))
 def test_samples_page_import_annotations(sample_id: bool, server_setup, page: Page):
     # Create a project

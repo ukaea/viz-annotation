@@ -19,6 +19,7 @@ router = APIRouter(prefix="/projects/{project_id}/samples", tags=["Samples"])
 
 @router.get(
     "",
+    operation_id="get_samples",
     response_model=list[Sample],
     responses={
         200: {"description": "Samples have been retrieved successfully."},
@@ -67,6 +68,7 @@ async def get_samples(
 
 @router.post(
     "",
+    operation_id="add_samples",
     responses={
         200: {
             "description": "Samples have been added successfully, and a list of their IDs has been returned."
@@ -173,6 +175,7 @@ async def add_samples(
 
 @router.put(
     "",
+    operation_id="update_samples",
     responses={
         200: {"description": "Samples have been updated successfully."},
         404: {"description": "Project or Sample(s) not found with that ID."},
@@ -202,6 +205,7 @@ async def update_samples(
 
 @router.post(
     "/next",
+    operation_id="get_next_sample",
     response_model=Sample,
     responses={
         200: {
@@ -255,7 +259,7 @@ async def get_next_sample(
     return sample
 
 
-@router.get("/summary")
+@router.get("/summary", operation_id="get_sample_summary")
 async def get_sample_summary(
     request: Request,
     project_id: str = Path(
@@ -273,6 +277,7 @@ async def get_sample_summary(
 
 @router.get(
     "/{sample_id}",
+    operation_id="get_sample",
     response_model=Sample,
     responses={
         200: {"description": "Samples has been returned successfully."},
@@ -300,6 +305,7 @@ async def get_sample(
 
 @router.delete(
     "/{sample_id}",
+    operation_id="remove_sample",
     responses={
         200: {"description": "Samples has been returned successfully."},
         404: {
@@ -334,7 +340,7 @@ async def remove_sample(
     )
 
 
-@router.delete("")
+@router.delete("", operation_id="remove_all_samples")
 async def remove_all_samples(
     request: Request,
     project_id: str = Path(

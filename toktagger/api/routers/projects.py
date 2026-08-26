@@ -13,6 +13,7 @@ router = APIRouter(prefix="/projects", tags=["Projects"])
     responses={
         200: {"description": "Returns a list of available Projects."},
     },
+    operation_id="get_projects",
 )
 async def get_projects(
     request: Request,
@@ -54,6 +55,7 @@ async def get_projects(
 
 @router.post(
     "",
+    operation_id="create_project",
     responses={
         200: {
             "description": "Project has been created successfully, returning the Project's ID."
@@ -78,6 +80,7 @@ async def create_project(request: Request, project: ProjectIn):
 
 @router.get(
     "/{project_id}",
+    operation_id="get_project",
     responses={
         200: {"description": "Project has been retrieved successfully."},
         404: {"description": "Project not found with that ID."},
@@ -104,6 +107,7 @@ async def get_project(
 
 @router.put(
     "/{project_id}",
+    operation_id="update_project",
     responses={
         200: {
             "description": "Project has been successfully set as the active project."
@@ -125,6 +129,7 @@ async def update_project(
 
 @router.delete(
     "/{project_id}",
+    operation_id="delete_project",
     responses={
         200: {"description": "Project has been successfully deleted."},
         404: {"description": "Project not found with that ID."},
@@ -145,6 +150,7 @@ async def delete_project(
 
 @router.delete(
     "",
+    operation_id="delete_all_projects",
     responses={
         200: {"description": "Projects have been successfully deleted."},
     },

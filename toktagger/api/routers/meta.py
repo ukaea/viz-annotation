@@ -11,13 +11,13 @@ if models_dependencies_installed():
 router = APIRouter(prefix="/meta", tags=["Metadata"])
 
 
-@router.get("/dataloader")
+@router.get("/dataloader", operation_id="get_dataloaders")
 async def get_dataloaders(request: Request) -> list[str]:
     """Get list of available dataloaders."""
     return LoaderRegistry.names()
 
 
-@router.get("/dataloader/{loader}")
+@router.get("/dataloader/{loader}", operation_id="get_data_schema")
 async def get_data_schema(loader: str) -> dict[str, typing.Any]:
     """Get schema which is required for getting data with this dataloader"""
     return LoaderRegistry.get_data_schema(loader)
@@ -25,6 +25,7 @@ async def get_data_schema(loader: str) -> dict[str, typing.Any]:
 
 @router.get(
     "/models",
+    operation_id="get_model_types",
     dependencies=[Depends(check_models_enabled)],
 )
 async def get_model_types(task: str) -> list[str]:
@@ -34,6 +35,7 @@ async def get_model_types(task: str) -> list[str]:
 
 @router.get(
     "/models/load",
+    operation_id="get_model_load_methods",
     dependencies=[Depends(check_models_enabled)],
 )
 async def get_model_load_methods() -> list[str]:
@@ -51,6 +53,7 @@ async def get_model_load_methods() -> list[str]:
 
 @router.get(
     "/models/load/{load_method}",
+    operation_id="get_model_load_method_allowlist",
     dependencies=[Depends(check_models_enabled)],
 )
 async def get_model_load_method_allowlist(load_method: LoadMethods) -> str | None:
@@ -70,6 +73,7 @@ async def get_model_load_method_allowlist(load_method: LoadMethods) -> str | Non
 
 @router.get(
     "/models/{model}/train",
+    operation_id="get_model_training_schema",
     dependencies=[Depends(check_models_enabled)],
 )
 async def get_model_training_schema(model: str) -> dict[str, typing.Any] | None:
@@ -81,6 +85,7 @@ async def get_model_training_schema(model: str) -> dict[str, typing.Any] | None:
 
 @router.get(
     "/models/{model}/predict",
+    operation_id="get_model_prediction_schema",
     dependencies=[Depends(check_models_enabled)],
 )
 async def get_model_prediction_schema(model: str) -> dict[str, typing.Any] | None:

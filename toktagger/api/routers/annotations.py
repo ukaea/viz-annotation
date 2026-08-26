@@ -15,6 +15,7 @@ router = APIRouter(
 
 @router.get(
     "/annotations",
+    operation_id="get_project_annotations",
     response_model=list[AnnotationOutTypes],
     responses={
         200: {"description": "Annotations for this project returned successfully."},
@@ -70,6 +71,7 @@ async def get_all_annotations(
 
 @router.put(
     "/annotations",
+    operation_id="import_annotations",
     responses={
         200: {"description": "Annotations for this project updated successfully."},
         404: {"description": "Project not found with that ID."},
@@ -93,6 +95,7 @@ async def import_annotations(
 
 @router.delete(
     "/annotations",
+    operation_id="delete_all_annotations",
     responses={
         200: {"description": "Annotations for this project deleted successfully."},
         404: {"description": "Project not found with that ID."},
@@ -117,6 +120,7 @@ async def delete_all_annotations(
 
 @router.get(
     "/samples/{sample_id}/annotations",
+    operation_id="get_sample_annotations",
     response_model=list[AnnotationOutTypes],
     responses={
         200: {"description": "Annotations for this sample deleted successfully."},
@@ -180,6 +184,7 @@ async def get_annotations(
 
 @router.put(
     "/samples/{sample_id}/annotations",
+    operation_id="update_sample_annotations",
     responses={
         200: {"description": "Annotations for this sample updated successfully."},
         404: {"description": "Project or Sample not found with that ID."},
@@ -238,6 +243,7 @@ async def update_annotations(
 
 @router.delete(
     "/samples/{sample_id}/annotations",
+    operation_id="delete_sample_annotations",
     responses={
         200: {"description": "Annotations for this project deleted successfully."},
         404: {"description": "Project not found with that ID."},

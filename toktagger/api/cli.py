@@ -15,7 +15,7 @@ def create_app():
     # Setup ray if required
     if models_dependencies_installed():
         server._setup_ray()
-    return server.app
+    return server.main_app
 
 
 def do_open_browser(host: str, port: int):

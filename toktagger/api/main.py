@@ -2,6 +2,10 @@ import pathlib
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastmcp import FastMCP
+from fastmcp.server.providers.openapi import RouteMap, MCPType
+from fastmcp.utilities.lifespan import combine_lifespans
+
 from contextlib import asynccontextmanager
 import uvicorn
 import warnings
@@ -30,19 +34,24 @@ if models_dependencies_installed():
     import ray
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    db_name = "annotate_db"
+def create_api_lifespan(api_app: FastAPI):
+    @asynccontextmanager
+    async def lifespan(_main_app: FastAPI):
+        db_client = MongoDBClient(
+            str(config.settings.database.mongo_url),
+            "annotate_db",
+            str(config.settings.server.cache_dir),
+        )
 
-    app.state.db_client = MongoDBClient(
-        str(config.settings.database.mongo_url),
-        db_name,
-        str(config.settings.server.cache_dir),
-    )
-    app.state.project = None
-    yield
+        api_app.state.db_client = db_client
+        api_app.state.project = None
 
-    await app.state.db_client.client.close()
+        try:
+            yield
+        finally:
+            await db_client.client.close()
+
+    return lifespan
 
 
 class Server:
@@ -139,7 +148,7 @@ class Server:
                     "In testing mode, cache directories must be in temp directory!"
                 )
 
-        self.app = FastAPI(lifespan=lifespan)
+        self.app = FastAPI()
 
         # Allow requests from the frontend dev server
         origins = [
@@ -172,6 +181,29 @@ class Server:
         self.app.include_router(paths_router)
         self.app.include_router(meta_router)
         self.app.include_router(base_router)
+
+        mcp = FastMCP.from_fastapi(
+            self.app,
+            route_maps=[
+                # Don't allow the MCP to see any delete endpoints
+                RouteMap(methods=["DELETE"], mcp_type=MCPType.EXCLUDE),
+                # GET with path params → ResourceTemplates
+                RouteMap(
+                    methods=["GET"],
+                    pattern=r"/.*\{.*\}.*",
+                    mcp_type=MCPType.RESOURCE_TEMPLATE,
+                ),
+                # Other GETs → Resources
+                RouteMap(methods=["GET"], pattern=r"/.*", mcp_type=MCPType.RESOURCE),
+            ],
+        )
+        mcp_app = mcp.http_app("/")
+
+        self.main_app = FastAPI(
+            lifespan=combine_lifespans(create_api_lifespan(self.app), mcp_app.lifespan)
+        )
+        self.main_app.mount("/mcp", mcp_app)
+        self.main_app.mount("/", self.app)
 
     def run(self, host: str | None = None, port: int | None = None):
         """
@@ -207,7 +239,7 @@ class Server:
         if models_dependencies_installed():
             self._setup_ray()
         uvicorn.run(
-            self.app,
+            self.main_app,
             host=config.settings.server.host,
             port=config.settings.server.port,
         )

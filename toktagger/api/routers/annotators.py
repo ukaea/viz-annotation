@@ -16,13 +16,10 @@ router = APIRouter(
 )
 
 
-@router.get("/annotator")
-async def get_annotators(request: Request, project_id: str):
-    # Dunno if this is of any use
-    pass
-
-
-@router.post("/samples/{sample_id}/annotator/{annotator_type}")
+@router.post(
+    "/samples/{sample_id}/annotator/{annotator_type}",
+    operation_id="generate_sample_annotations",
+)
 async def create_annotations(
     request: Request,
     project_id: str,

@@ -14,7 +14,7 @@ router = APIRouter(
 )
 
 
-@router.post("", response_model=DataResponseType)
+@router.post("", operation_id="get_sample_data", response_model=DataResponseType)
 async def get_data(
     request: Request,
     project_id: str,

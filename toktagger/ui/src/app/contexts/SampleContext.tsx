@@ -31,6 +31,7 @@ import {
 } from "@/types";
 import { ApiError, BACKEND_API_URL, apiFetch, ensureOk } from "@/app/core";
 import { getSignalNames } from "@/app/utils";
+import { useProjectRole } from "@/app/hooks/useProjectRole";
 
 const viewParamsKey = (projectId: string) => `view-params-${projectId}`;
 const colorMapKey = (projectId: string) => `color-map-${projectId}`;
@@ -83,6 +84,11 @@ interface SampleContextType {
   // HTTP status behind `error`, when it came from the API. Lets the page tell
   // "no access" (403) apart from a genuine failure.
   errorStatus: number | null;
+  // Sourced here, rather than each consumer calling useProjectRole itself, because
+  // the sample view/toolbar remount on every sample change (see the stale-render
+  // guard in page.tsx) - a component-local role hook would reset to its
+  // default-open state on every remount and briefly re-enable gated controls.
+  canAnnotate: boolean;
   setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>;
   // Replaces the working set with a freshly fetched one, so `serverAnnotations`
   // stays the baseline a save diffs against.
@@ -179,6 +185,7 @@ export function SampleProvider({
   const [data, setData] = useState<Data | null>(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [serverAnnotations, setServerAnnotations] = useState<Annotation[]>([]);
+  const { canAnnotate } = useProjectRole(projectId);
 
   const [viewParams, setViewParams] = useState<
     ViewParams | Profile2DViewParams
@@ -514,6 +521,7 @@ export function SampleProvider({
     isValidated,
     error,
     errorStatus,
+    canAnnotate,
     setAnnotations,
     syncAnnotationsFromServer,
     setPlotProps,

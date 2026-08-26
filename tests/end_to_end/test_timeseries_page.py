@@ -577,6 +577,51 @@ def test_viewer_cannot_enter_edit_mode(server_setup, admin_token, browser):
     erin_page.context.close()
 
 
+def test_viewer_role_survives_sample_navigation(server_setup, admin_token, browser):
+    """A viewer's permissions must not be re-derived on every sample change.
+
+    The toolbar/nav bar remount whenever the sample changes (page.tsx's
+    stale-render guard). Role state used to live in a per-component hook, so each
+    remount briefly re-defaulted to "permitted" before the membership re-check
+    resolved -- Save and the edit toggle flashed enabled. Role now lives in
+    SampleContext instead, which does not remount, so the membership lookup
+    should fire once and Save/View Mode should never be seen enabled.
+    """
+    create_user("viewer_gail", "gail_pass123")
+    project_id = create_project("Viewer Nav Project", "time-series", "tabular")
+    ids = create_local_samples(
+        project_id, [10000, 10001], pathlib.Path(__file__).parents[1], ["Ip"]
+    )
+    add_project_member(project_id, "viewer_gail", role="viewer")
+
+    members_requests = []
+    gail_page = login_as(browser, "viewer_gail", "gail_pass123")
+    gail_page.on(
+        "request",
+        lambda request: (
+            members_requests.append(request.url)
+            if f"/projects/{project_id}/members" in request.url
+            else None
+        ),
+    )
+
+    gail_page.goto(f"http://localhost:8002/ui/projects/{project_id}/samples/{ids[0]}")
+    expect(gail_page.get_by_role("button", name="Save")).to_be_disabled()
+    assert len(members_requests) == 1
+
+    gail_page.get_by_role("button", name="Next Sample").click()
+    expect(gail_page).to_have_url(
+        f"http://localhost:8002/ui/projects/{project_id}/samples/{ids[1]}"
+    )
+    expect(gail_page.get_by_role("button", name="Save")).to_be_disabled()
+    expect(gail_page.get_by_role("button", name="View Mode")).to_be_disabled()
+    # Confirms role state was carried over rather than re-fetched and briefly
+    # defaulted open: a second fetch would mean a second remount happened.
+    assert len(members_requests) == 1
+
+    gail_page.context.close()
+
+
 def test_show_others_annotations_toggle_works_for_admin(
     server_setup, admin_token, browser, page: Page
 ):

@@ -19,7 +19,6 @@ import {
 import type { Annotation } from "@/types";
 import { useSample } from "@/app/contexts/SampleContext";
 import { useVideoUiState } from "@/app/video/components/video-context";
-import { useProjectRole } from "@/app/hooks/useProjectRole";
 import {
   VideoBoundingBoxSchema,
   VideoPointSchema,
@@ -399,6 +398,7 @@ export function VideoSessionProvider(props: {
     dataParams,
     annotations,
     setAnnotations: setSampleAnnotations,
+    canAnnotate,
   } = useSample();
   const {
     videoPanMode,
@@ -406,7 +406,6 @@ export function VideoSessionProvider(props: {
     videoDrawingTool,
     setVideoDrawingTool,
   } = useVideoUiState();
-  const { canAnnotate } = useProjectRole(projectId);
 
   const api = useAnnotator<AnnotoriousOpenSeadragonAnnotator>();
 

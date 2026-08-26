@@ -21,7 +21,6 @@ import React, {
 import { v4 as uuidv4 } from "uuid";
 import { useSample } from "./SampleContext";
 import { useAuth } from "./AuthContext";
-import { useProjectRole } from "@/app/hooks/useProjectRole";
 import {
   convertRawAnnotationsToTimeSeries,
   convertTimeSeriesToRawAnnotations,
@@ -143,12 +142,12 @@ export const TimeSeriesProvider = ({
     annotations: rawAnnotations,
     setAnnotations: setRawAnnotations,
     project,
+    canAnnotate,
   } = useSample();
 
   // project is guaranteed non-null here: TimeSeriesProvider is only rendered
   // after SampleView confirms project is loaded.
   const projectId = project?._id ?? "";
-  const { canAnnotate } = useProjectRole(project?._id);
   const { user } = useAuth();
 
   const [annotations, setAnnotations] = useState<TimeSeriesAnnotation[]>([]);

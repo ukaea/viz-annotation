@@ -39,7 +39,6 @@ import { useSampleHistory } from "@/app/contexts/SampleHistoryContext";
 import { getNextSample } from "@/app/core";
 import type { SortDescriptor, SortDirection, Key } from "@react-types/shared";
 import { useNavAdapter } from "@/app/contexts/NavAdapterContext";
-import { useProjectRole } from "@/app/hooks/useProjectRole";
 
 const TOAST_TIMEOUT = 5000;
 
@@ -510,11 +509,11 @@ type NavigationBarInfo = {
   sample_id: string;
 };
 export function NavigationBar({ project_id, sample_id }: NavigationBarInfo) {
-  const { setIsValidated, syncAnnotationsFromServer } = useSample();
+  const { setIsValidated, syncAnnotationsFromServer, canAnnotate } =
+    useSample();
   const { user } = useAuth();
   const navAdapter = useNavAdapter();
   const [permissionDenied, setPermissionDenied] = useState(false);
-  const { canAnnotate } = useProjectRole(project_id);
 
   const {
     visitedSampleIds,

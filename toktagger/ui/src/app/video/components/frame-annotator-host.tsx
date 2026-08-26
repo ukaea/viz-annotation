@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import OpenSeadragon from "openseadragon";
 import {
   OpenSeadragonAnnotator,
@@ -16,12 +16,13 @@ import {
 import "@annotorious/react/annotorious-react.css";
 import "react-contexify/ReactContexify.css";
 import { Item, Menu, Submenu, useContextMenu } from "react-contexify";
+import { ToastQueue } from "@adobe/react-spectrum";
 import { mountPlugin as mountToolsPlugin } from "@annotorious/plugin-tools";
 import "@annotorious/plugin-tools/annotorious-plugin-tools.css";
 
 import { useVideoSession } from "@/app/video/components/video-session";
 import { useSample } from "@/app/contexts/SampleContext";
-import { useVideoUiState } from "@/app/video/components/video-context";
+import { useVideoUiState } from "@/app/contexts/VideoContext";
 import {
   getLabelTrack,
   isPointAnno,
@@ -34,7 +35,6 @@ import {
 } from "./anno-utils";
 import { AnnotationPopup } from "./annotation-popup";
 import { annotationContainsPoint, setViewerCursor } from "./overlay-sync-utils";
-import { CanvasModeToolbar } from "./ui_elements";
 
 const VIDEO_CANVAS_MENU_ID = "video-canvas-menu";
 
@@ -100,19 +100,6 @@ function isSecondaryMouseEvent(event: MouseEvent | PointerEvent) {
   return event.button !== 0 || (event.buttons & 2) === 2;
 }
 
-function isEditableEventTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.isContentEditable) return true;
-
-  if (target instanceof HTMLTextAreaElement) return true;
-  if (target instanceof HTMLSelectElement) return true;
-  if (target instanceof HTMLInputElement) {
-    return target.type !== "checkbox" && target.type !== "radio";
-  }
-
-  return false;
-}
-
 function isAnnotationPopupEventTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return Boolean(target.closest('[aria-label="Annotation actions"]'));
@@ -171,12 +158,12 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
   const {
     frame,
     setImageNatural,
-    selection,
     setSelection,
     drawingTool,
-    setDrawingTool,
-    panMode,
-    setPanMode,
+    editMode,
+    drawIntent,
+    canDrawShape,
+    canDrawPoint,
     hideAnnotations,
     createPointAnnotation,
     deleteAnnotation,
@@ -190,7 +177,6 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
   >(null);
   const [isPointAnnotationSelected, setIsPointAnnotationSelected] =
     useState(false);
-  const shiftDrawActiveRef = useRef(false);
   const classItems = useMemo(
     () => annotationLabels.map((label) => ({ name: label.name })),
     [annotationLabels],
@@ -270,7 +256,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
   }, [api, dataUrl, setImageNatural]);
 
   useEffect(() => {
-    if (!api?.viewer || !panMode) return;
+    if (!api?.viewer) return;
 
     const blockTransformKeys = (event: OpenSeadragon.CanvasKeyEvent) => {
       if (!isBlockedViewModeKey(event.originalEvent)) return;
@@ -283,14 +269,14 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
     return () => {
       api.viewer.removeHandler("canvas-key", blockTransformKeys);
     };
-  }, [api, panMode]);
+  }, [api]);
 
   useEffect(() => {
     if (!api) return;
 
     if (api.viewer) {
-      api.viewer.setMouseNavEnabled(panMode);
-      setGestureNavigation(api.viewer, panMode);
+      api.viewer.setMouseNavEnabled(true);
+      setGestureNavigation(api.viewer, true);
 
       const overlay = findAnnotationOverlay(api.viewer.element as HTMLElement);
       if (overlay) {
@@ -298,14 +284,6 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
         overlay.style.opacity = hideAnnotations ? "0" : "1";
       }
     }
-
-    api.setUserSelectAction(
-      hideAnnotations
-        ? UserSelectAction.NONE
-        : panMode
-          ? UserSelectAction.SELECT
-          : UserSelectAction.EDIT,
-    );
 
     if (hideAnnotations) {
       api.setSelected?.();
@@ -320,7 +298,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
         overlay.style.opacity = "1";
       }
     };
-  }, [api, hideAnnotations, panMode]);
+  }, [api, hideAnnotations]);
 
   useEffect(() => {
     if (!api?.viewer) return;
@@ -375,9 +353,36 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
     };
   }, [api, classItems.length, hideAnnotations, showCanvasMenu]);
 
-  const drawingEnabled = !!selection.className && !panMode && !hideAnnotations;
-  const annotoriousDrawingTool = toAnnotoriousDrawingTool(drawingTool);
-  const annotoriousDrawingEnabled = drawingEnabled && drawingTool !== "point";
+  useEffect(() => {
+    if (!api?.viewer || hideAnnotations) return;
+
+    const viewerElement = api.viewer.element as HTMLElement;
+    const warnInvalidDraw = (event: PointerEvent) => {
+      if (event.button !== 0 || !event.ctrlKey) return;
+
+      if (!editMode) {
+        ToastQueue.info(
+          "Change to Edit Mode to draw annotations - see help popup in annotation toolbar for more info",
+          { timeout: 5000 },
+        );
+      } else if (!drawingTool) {
+        ToastQueue.info(
+          "Select a tool to draw annotation - see help popup in annotation toolbar for more info",
+          { timeout: 5000 },
+        );
+      }
+    };
+
+    viewerElement.addEventListener("pointerdown", warnInvalidDraw, true);
+    return () => {
+      viewerElement.removeEventListener("pointerdown", warnInvalidDraw, true);
+    };
+  }, [api, drawingTool, editMode, hideAnnotations]);
+
+  const annotoriousDrawingTool = drawingTool
+    ? toAnnotoriousDrawingTool(drawingTool)
+    : "rectangle";
+  const annotoriousDrawingEnabled = canDrawShape;
 
   const selectClassName = (name: string) => {
     const cls = (name ?? "").trim();
@@ -388,60 +393,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
   };
 
   useEffect(() => {
-    const releaseShiftDraw = () => {
-      if (!shiftDrawActiveRef.current) return;
-      shiftDrawActiveRef.current = false;
-      setPanMode(true);
-    };
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Shift") return;
-      if (event.repeat) return;
-      if (shiftDrawActiveRef.current) return;
-      if (isEditableEventTarget(event.target)) return;
-      if (hideAnnotations) return;
-      if (!panMode) return;
-
-      shiftDrawActiveRef.current = true;
-      setPanMode(false);
-    };
-
-    const onKeyUp = (event: KeyboardEvent) => {
-      if (event.key !== "Shift") return;
-      releaseShiftDraw();
-    };
-
-    const onVisibilityChange = () => {
-      if (!document.hidden) return;
-      releaseShiftDraw();
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", releaseShiftDraw);
-    document.addEventListener("visibilitychange", onVisibilityChange);
-
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", releaseShiftDraw);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
-  }, [hideAnnotations, panMode, setPanMode]);
-
-  useEffect(() => {
-    if (!api) return;
-
-    api.setDrawingTool(annotoriousDrawingTool);
-    api.setDrawingEnabled(annotoriousDrawingEnabled);
-
-    if (!annotoriousDrawingEnabled) {
-      api.cancelDrawing?.();
-    }
-  }, [api, annotoriousDrawingEnabled, annotoriousDrawingTool]);
-
-  useEffect(() => {
-    if (!api?.viewer || !drawingEnabled || drawingTool !== "point") return;
+    if (!api?.viewer || !canDrawPoint) return;
 
     const viewer = api.viewer;
     const viewerElement = viewer.element as HTMLElement;
@@ -454,21 +406,6 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
     const handlePointClick = (event: MouseEvent) => {
       if (isSecondaryMouseEvent(event)) return;
       if (isAnnotationPopupEventTarget(event.target)) return;
-
-      const annotation = findAnnotationAtPointer(api, event);
-      if (annotation) return;
-
-      if ((api.getSelected?.() ?? []).length > 0 || selection.trackId) {
-        stopEvent(event);
-        api.cancelDrawing?.();
-        api.setSelected?.();
-        setSelection({
-          className: selection.className,
-          trackId: null,
-          source: "explicit",
-        });
-        return;
-      }
 
       const viewerBounds = viewerElement.getBoundingClientRect();
       const viewerPoint = new OpenSeadragon.Point(
@@ -492,18 +429,10 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
         target.removeEventListener("click", handlePointClick, true);
       }
     };
-  }, [
-    api,
-    createPointAnnotation,
-    drawingEnabled,
-    drawingTool,
-    selection.className,
-    selection.trackId,
-    setSelection,
-  ]);
+  }, [api, canDrawPoint, createPointAnnotation]);
 
   useEffect(() => {
-    if (!api?.viewer || hideAnnotations || (!drawingEnabled && !panMode)) {
+    if (!api?.viewer || hideAnnotations || (drawIntent && !canDrawPoint)) {
       return;
     }
 
@@ -525,12 +454,12 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
           annotationContainsPoint(annotation, imagePoint),
         );
 
-      const cursor = panMode
-        ? isOverAnnotation
-          ? "default"
-          : ""
+      const cursor = canDrawPoint
+        ? "crosshair"
         : isOverAnnotation
-          ? "pointer"
+          ? editMode
+            ? "pointer"
+            : "default"
           : "";
 
       setViewerCursor(viewerElement, cursor);
@@ -548,7 +477,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
       viewerElement.removeEventListener("mouseleave", clearCursor);
       clearCursor();
     };
-  }, [api, drawingEnabled, hideAnnotations, panMode]);
+  }, [api, canDrawPoint, drawIntent, editMode, hideAnnotations]);
 
   const viewerOptions = useMemo<OpenSeadragon.Options>(
     () => ({
@@ -595,15 +524,6 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
     return `pts=${polygon.points.length}, x=${Math.round(minX)}, y=${Math.round(minY)}, w=${Math.round(width)}, h=${Math.round(height)}`;
   };
 
-  const resetView = () => {
-    const viewer = api?.viewer;
-    const viewport = viewer?.viewport;
-    if (!viewport) return;
-
-    viewport.goHome(true);
-    viewport.applyConstraints();
-  };
-
   return (
     <div className="w-full flex justify-center">
       <div
@@ -611,21 +531,17 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
           isPointAnnotationSelected ? "video-point-selected" : ""
         }`}
       >
-        <CanvasModeToolbar
-          panMode={panMode}
-          drawingTool={drawingTool}
-          hideAnnotations={hideAnnotations}
-          onTogglePanMode={() => setPanMode(!panMode)}
-          onSelectRectangle={() => setDrawingTool("rectangle")}
-          onSelectPolygon={() => setDrawingTool("polygon")}
-          onSelectPoint={() => setDrawingTool("point")}
-          onResetView={resetView}
-        />
-
         <OpenSeadragonAnnotator
           tool={annotoriousDrawingTool}
           drawingEnabled={annotoriousDrawingEnabled}
           drawingMode="drag"
+          userSelectAction={
+            hideAnnotations || drawIntent
+              ? UserSelectAction.NONE
+              : editMode
+                ? UserSelectAction.EDIT
+                : UserSelectAction.SELECT
+          }
           autoSave
           style={(_annotation: ImageAnnotation, state?: AnnotationState) => ({
             strokeWidth: state?.selected ? 3 : 2,
@@ -661,6 +577,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
                   trackId={trackId}
                   geometry={geometry}
                   details={details}
+                  deleteDisabled={!editMode}
                   onDeleteBox={() => {
                     const id = annotation?.id;
                     if (!id) return;

@@ -16,6 +16,20 @@ import type {
 import { classIdForName, makeTrackKey, buildSourceKey } from "./types";
 import { getLabelTrack } from "./anno-utils";
 
+/** True when global annotation shortcuts should yield to text entry controls. */
+export function isEditableEventTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  if (target instanceof HTMLTextAreaElement) return true;
+  if (target instanceof HTMLSelectElement) return true;
+
+  return (
+    target instanceof HTMLInputElement &&
+    target.type !== "checkbox" &&
+    target.type !== "radio"
+  );
+}
+
 /**
  * Simple deep clone for annotation payloads.
  * Annotorious annotations are plain data objects, so JSON cloning is sufficient here.

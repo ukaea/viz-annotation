@@ -12,7 +12,7 @@ import {
 import { useVideoSession } from "@/app/video/components/video-session";
 import { canonicalizeTrackId } from "@/app/video/components/video-utils";
 import { useSample } from "@/app/contexts/SampleContext";
-import { useVideoUiState } from "@/app/video/components/video-context";
+import { useVideoUiState } from "@/app/contexts/VideoContext";
 import {
   ClassPanel as VideoClassPanel,
   InstancePanel as VideoInstancePanel,

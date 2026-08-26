@@ -11,6 +11,7 @@ import React, {
   useRef,
 } from "react";
 import {
+  UserSelectAction,
   useAnnotator,
   type AnnotoriousOpenSeadragonAnnotator,
   type ImageAnnotation,
@@ -18,15 +19,15 @@ import {
 
 import type { Annotation } from "@/types";
 import { useSample } from "@/app/contexts/SampleContext";
-import { useVideoUiState } from "@/app/video/components/video-context";
+import { useVideoUiState } from "@/app/contexts/VideoContext";
 import {
   VideoBoundingBoxSchema,
   VideoPointSchema,
   VideoPolygonSchema,
 } from "@/types";
 import type {
+  ActiveDrawingTool,
   ByFrameMap,
-  DrawingTool,
   FrameIndex,
   InstanceProfile,
   Selection,
@@ -46,6 +47,7 @@ import {
   mapClearFrame,
   mapSetFrame,
   existingTrackIdsForClass,
+  isEditableEventTarget,
   uniqueReadableTrackId,
 } from "./video-utils";
 import {
@@ -90,11 +92,13 @@ type VideoSessionCtx = {
   /** Derived instance summary across all frames (used by sidebar UI). */
   instances: InstanceProfile[];
 
-  drawingTool: DrawingTool;
-  setDrawingTool: (tool: DrawingTool) => void;
-  /** When true, drawing is disabled and frame drag/pan is enabled. */
-  panMode: boolean;
-  setPanMode: (v: boolean) => void;
+  drawingTool: ActiveDrawingTool;
+  setDrawingTool: (tool: ActiveDrawingTool) => void;
+  editMode: boolean;
+  setEditMode: (v: boolean) => void;
+  drawIntent: boolean;
+  canDrawShape: boolean;
+  canDrawPoint: boolean;
   propagate: boolean;
   setPropagate: (v: boolean) => void;
   hideAnnotations: boolean;
@@ -394,11 +398,12 @@ export function VideoSessionProvider(props: {
     data,
     dataParams,
     annotations,
+    isLoading,
     setAnnotations: setSampleAnnotations,
   } = useSample();
   const {
-    videoPanMode,
-    setVideoPanMode,
+    videoEditMode,
+    setVideoEditMode,
     videoDrawingTool,
     setVideoDrawingTool,
   } = useVideoUiState();
@@ -469,10 +474,29 @@ export function VideoSessionProvider(props: {
     source: null,
   });
   const [drawingTool, setDrawingToolState] =
-    useState<DrawingTool>(videoDrawingTool);
-  const [panMode, setPanModeState] = useState(videoPanMode);
+    useState<ActiveDrawingTool>(videoDrawingTool);
+  const [editMode, setEditModeState] = useState(videoEditMode);
+  const [ctrlHeld, setCtrlHeld] = useState(false);
   const [hideAnnotations, setHideAnnotationsState] = useState(false);
   const hideAnnotationsRef = useRef(false);
+
+  const isFramePending =
+    isLoading &&
+    dataParams.name === "image" &&
+    typeof dataParams.frame === "number" &&
+    Number.isFinite(dataParams.frame) &&
+    dataParams.frame !== frame;
+
+  const drawIntent = editMode && ctrlHeld && !hideAnnotations;
+  const canCreate =
+    drawIntent &&
+    drawingTool !== null &&
+    Boolean(selection.className) &&
+    !isFramePending;
+  const canDrawShape = canCreate && drawingTool !== "point";
+  const canDrawPoint = canCreate && drawingTool === "point";
+  const drawIntentRef = useRef(drawIntent);
+  drawIntentRef.current = drawIntent;
 
   const setHideAnnotations = useCallback(
     (v: boolean) => {
@@ -480,11 +504,16 @@ export function VideoSessionProvider(props: {
       setHideAnnotationsState(v);
 
       if (v) {
-        setPanModeState(true);
-        setVideoPanMode(true);
+        api?.cancelDrawing?.();
+        api?.setSelected?.();
+        setCtrlHeld(false);
+        setEditModeState(false);
+        setVideoEditMode(false);
+        setDrawingToolState(null);
+        setVideoDrawingTool(null);
       }
     },
-    [setVideoPanMode],
+    [api, setVideoDrawingTool, setVideoEditMode],
   );
 
   const frameKey = useMemo(
@@ -591,7 +620,8 @@ export function VideoSessionProvider(props: {
   }, [api, flushPendingOverlay]);
 
   const setDrawingTool = useCallback(
-    (tool: DrawingTool) => {
+    (tool: ActiveDrawingTool) => {
+      api?.cancelDrawing?.();
       api?.setSelected?.();
       flushPendingOverlay();
       setDrawingToolState(tool);
@@ -600,15 +630,66 @@ export function VideoSessionProvider(props: {
     [api, flushPendingOverlay, setVideoDrawingTool],
   );
 
-  const setPanMode = useCallback(
+  const setEditMode = useCallback(
     (v: boolean) => {
+      if (hideAnnotationsRef.current) return;
+      api?.cancelDrawing?.();
       api?.setSelected?.();
       flushPendingOverlay();
-      setPanModeState(v);
-      setVideoPanMode(v);
+      setCtrlHeld(false);
+      setEditModeState(v);
+      setVideoEditMode(v);
     },
-    [api, flushPendingOverlay, setVideoPanMode],
+    [api, flushPendingOverlay, setVideoEditMode],
   );
+
+  useEffect(() => {
+    const releaseCtrl = () => {
+      setCtrlHeld(false);
+      api?.cancelDrawing?.();
+      api?.viewer?.setMouseNavEnabled(true);
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (isEditableEventTarget(event.target)) return;
+
+      if (event.key === "Control") {
+        if (!event.repeat) setCtrlHeld(true);
+        return;
+      }
+
+      if (
+        event.key.toLowerCase() === "e" &&
+        !event.repeat &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !hideAnnotationsRef.current
+      ) {
+        setEditMode(!editMode);
+      }
+    };
+
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.key === "Control") releaseCtrl();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) releaseCtrl();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", releaseCtrl);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", releaseCtrl);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [api, editMode, setEditMode]);
 
   const clearCurrentFrame = useCallback(() => {
     api?.setSelected?.();
@@ -658,20 +739,42 @@ export function VideoSessionProvider(props: {
   const applyAnnotatorInteractionMode = useCallback(() => {
     if (!api) return;
 
-    const hasSelected = (api.getSelected?.() ?? []).length > 0;
-    const canDraw =
-      !panMode &&
-      !hideAnnotations &&
-      Boolean(selection.className) &&
-      !hasSelected &&
-      drawingTool !== "point";
-    api.setDrawingTool(toAnnotoriousDrawingTool(drawingTool));
-    api.setDrawingEnabled(canDraw);
+    api.setUserSelectAction(
+      hideAnnotations || drawIntent
+        ? UserSelectAction.NONE
+        : editMode
+          ? UserSelectAction.EDIT
+          : UserSelectAction.SELECT,
+    );
 
-    if (!canDraw) {
+    if (drawingTool) {
+      api.setDrawingTool(toAnnotoriousDrawingTool(drawingTool));
+    }
+
+    if (drawIntent) {
+      api.setSelected?.();
+    }
+
+    api.setDrawingEnabled(canDrawShape);
+
+    if (!canDrawShape) {
       api.cancelDrawing?.();
     }
-  }, [api, drawingTool, hideAnnotations, panMode, selection.className]);
+
+    if (api.viewer && canDrawPoint) {
+      api.viewer.setMouseNavEnabled(false);
+    } else if (api.viewer && !canDrawShape) {
+      api.viewer.setMouseNavEnabled(true);
+    }
+  }, [
+    api,
+    canDrawPoint,
+    canDrawShape,
+    drawIntent,
+    drawingTool,
+    editMode,
+    hideAnnotations,
+  ]);
 
   const createNewInstanceForClass = useCallback((className: string) => {
     const cname = (className || "").trim();
@@ -1003,10 +1106,10 @@ export function VideoSessionProvider(props: {
       if (!id) return false;
       if (!api) return false;
 
-      api.setSelected(id, !panMode);
+      api.setSelected(id, editMode);
       return true;
     },
-    [api, panMode],
+    [api, editMode],
   );
 
   const tryFocusPending = useCallback(
@@ -1136,10 +1239,11 @@ export function VideoSessionProvider(props: {
     ) => {
       if (isProgrammaticAnnoSyncRef.current) return;
       if (hideAnnotations) return;
+      if (drawIntentRef.current) return;
 
       const id = clicked?.id;
       if (id) {
-        api.setSelected(id, !panMode);
+        api.setSelected(id, editMode);
       }
 
       const got = getLabelTrack(clicked);
@@ -1152,14 +1256,15 @@ export function VideoSessionProvider(props: {
           source: "explicit",
         });
       }
-
-      // While an annotation is selected, prioritize reshape/move over new drawing.
-      api.cancelDrawing?.();
-      api.setDrawingEnabled(false);
     };
 
     const onSelectionChanged = (arr: ImageAnnotation[]) => {
       if (isProgrammaticAnnoSyncRef.current) return;
+
+      if (drawIntentRef.current && arr.length > 0) {
+        api.setSelected?.();
+        return;
+      }
 
       if (arr.length > 0) {
         if (!hideAnnotations) {
@@ -1175,10 +1280,6 @@ export function VideoSessionProvider(props: {
               source: "explicit",
             });
           }
-
-          // While selected, keep drawing off so edit handles work predictably.
-          api.cancelDrawing?.();
-          api.setDrawingEnabled(false);
         }
         return;
       }
@@ -1292,7 +1393,7 @@ export function VideoSessionProvider(props: {
     drawingTool,
     frameKey,
     hideAnnotations,
-    panMode,
+    editMode,
     selection.className,
     selection.trackId,
   ]);
@@ -1343,8 +1444,11 @@ export function VideoSessionProvider(props: {
       instances,
       drawingTool,
       setDrawingTool,
-      panMode,
-      setPanMode,
+      editMode,
+      setEditMode,
+      drawIntent,
+      canDrawShape,
+      canDrawPoint,
       propagate,
       setPropagate,
       hideAnnotations,
@@ -1378,8 +1482,11 @@ export function VideoSessionProvider(props: {
       instances,
       drawingTool,
       setDrawingTool,
-      panMode,
-      setPanMode,
+      editMode,
+      setEditMode,
+      drawIntent,
+      canDrawShape,
+      canDrawPoint,
       propagate,
       setPropagate,
       hideAnnotations,

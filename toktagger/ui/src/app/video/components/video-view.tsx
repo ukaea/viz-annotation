@@ -9,13 +9,14 @@ import {
   useVideoSession,
 } from "@/app/video/components/video-session";
 import { FrameAnnotatorHost } from "@/app/video/components/frame-annotator-host";
+import { VideoAnnotationToolbar } from "@/app/video/components/video-annotation-toolbar";
 import { FrameJumpField } from "@/app/video/components/ui_elements";
 import { useSample } from "@/app/contexts/SampleContext";
 import { VideoNavAdapterBridge } from "@/app/video/components/video-nav-adapter";
 import {
   VideoUiStateProvider,
   useVideoUiState,
-} from "@/app/video/components/video-context";
+} from "@/app/contexts/VideoContext";
 import { useParams } from "react-router-dom";
 
 /**
@@ -97,7 +98,7 @@ function VideoFrameAnnotator(props: {
       <div className="relative w-full flex flex-col items-center gap-3">
         <FrameAnnotatorHost imageBase64={props.imageBase64} />
         {isFramePending && (
-          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/30">
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
             <ProgressCircle
               aria-label={`Loading frame ${props.desiredFrame}`}
               size="L"
@@ -248,14 +249,17 @@ export function VideoView() {
   };
 
   return (
-    <div className="w-full flex justify-center">
-      <div className="w-full max-w-5xl mx-auto px-4 py-3">
-        <VideoFrameAnnotator
-          imageBase64={imageBase64}
-          desiredFrame={desiredFrame}
-          goToFrame={goToFrame}
-          goToRelativeFrame={goToRelativeFrame}
-        />
+    <div className="min-w-0 flex-1">
+      <div className="flex w-full justify-between">
+        <div className="min-w-0 flex-1 px-4 py-3">
+          <VideoFrameAnnotator
+            imageBase64={imageBase64}
+            desiredFrame={desiredFrame}
+            goToFrame={goToFrame}
+            goToRelativeFrame={goToRelativeFrame}
+          />
+        </div>
+        <VideoAnnotationToolbar desiredFrame={desiredFrame} />
       </div>
     </div>
   );

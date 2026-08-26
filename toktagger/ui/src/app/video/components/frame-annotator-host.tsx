@@ -415,18 +415,20 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
     .map((frameLabel) => frameLabel.label)
     .join(", ");
 
-  const showFrameLabelPopup = (event: PressEvent) => {
-    const container = containerRef.current;
-    if (!container) return;
+  const toggleFrameLabelPopup = (event: PressEvent) => {
+    setFrameLabelPopupPoint((prev) => {
+      if (prev) return null;
 
-    const badge = event.target.getBoundingClientRect();
-    setFrameLabelPopupPoint(
-      clampPopupPoint(
+      const container = containerRef.current;
+      if (!container) return prev;
+
+      const badge = event.target.getBoundingClientRect();
+      return clampPopupPoint(
         container.getBoundingClientRect(),
         badge.left,
         badge.bottom + 8,
-      ),
-    );
+      );
+    });
   };
 
   const selectClassName = (name: string) => {
@@ -687,7 +689,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
               zIndex={55}
               staticColor="white"
               aria-label={`Frame labels: ${frameLabelNames}`}
-              onPress={showFrameLabelPopup}
+              onPress={toggleFrameLabelPopup}
             >
               <Label aria-hidden="true" />
               <Text>{frameLabelNames}</Text>

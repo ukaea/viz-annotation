@@ -16,7 +16,6 @@ import {
   type AnnotoriousOpenSeadragonAnnotator,
   type ImageAnnotation,
 } from "@annotorious/react";
-import { ToastQueue } from "@adobe/react-spectrum";
 
 import type { Annotation, VideoFrame } from "@/types";
 import { useSample } from "@/app/contexts/SampleContext";
@@ -657,25 +656,11 @@ export function VideoSessionProvider(props: {
     const cls = (selection.className ?? "").trim();
     if (!cls) return;
 
-    // A frame either has this class or it doesn't - at most one instance per class per frame.
+    // A frame either has this class or it doesn't toggle off whatever's already here.
     const existingForClass = frameLabels.find((label) => label.label === cls);
 
-    if (selection.trackId) {
-      const armedTrackId = canonicalizeTrackId(selection.trackId);
-
-      if (
-        existingForClass &&
-        canonicalizeTrackId(existingForClass.track_id) === armedTrackId
-      ) {
-        removeFrameLabel(cls, selection.trackId);
-        return;
-      }
-    }
-
     if (existingForClass) {
-      ToastQueue.info(`This frame is already labelled "${cls}".`, {
-        timeout: 3000,
-      });
+      removeFrameLabel(cls, existingForClass.track_id);
       return;
     }
 

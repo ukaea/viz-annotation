@@ -38,7 +38,6 @@ import { annotationContainsPoint, setViewerCursor } from "./overlay-sync-utils";
 
 const VIDEO_CANVAS_MENU_ID = "video-canvas-menu";
 const FRAME_LABEL_POPUP_SIZE = { w: 240, h: 120 };
-const CLICK_DRAG_TOLERANCE = 3;
 
 function setGestureNavigation(
   viewer: OpenSeadragon.Viewer,
@@ -508,50 +507,6 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
       }
     };
   }, [api, canTagFrame, selection.className, toggleFrameLabel]);
-
-  // A labelled frame has no shape to select, so a plain click on the image opens its popup.
-  useEffect(() => {
-    if (!api?.viewer || hideAnnotations || drawIntent) return;
-    if (frameLabels.length === 0) return;
-
-    const viewerElement = api.viewer.element as HTMLElement;
-    let pressPoint: { x: number; y: number } | null = null;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      pressPoint = isSecondaryMouseEvent(event)
-        ? null
-        : { x: event.clientX, y: event.clientY };
-    };
-
-    const handleClick = (event: MouseEvent) => {
-      const press = pressPoint;
-      pressPoint = null;
-
-      const container = containerRef.current;
-      if (!press || !container) return;
-      if (isAnnotationPopupEventTarget(event.target)) return;
-      if (
-        Math.abs(event.clientX - press.x) > CLICK_DRAG_TOLERANCE ||
-        Math.abs(event.clientY - press.y) > CLICK_DRAG_TOLERANCE
-      ) {
-        return;
-      }
-      if (findAnnotationAtPointer(api, event)) return;
-
-      const bounds = container.getBoundingClientRect();
-      setFrameLabelPopupPoint(
-        clampPopupPoint(bounds, event.clientX, event.clientY),
-      );
-    };
-
-    viewerElement.addEventListener("pointerdown", handlePointerDown);
-    viewerElement.addEventListener("click", handleClick);
-
-    return () => {
-      viewerElement.removeEventListener("pointerdown", handlePointerDown);
-      viewerElement.removeEventListener("click", handleClick);
-    };
-  }, [api, drawIntent, frameLabels.length, hideAnnotations]);
 
   useEffect(() => {
     if (

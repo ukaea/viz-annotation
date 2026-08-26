@@ -496,7 +496,7 @@ def test_timeseries_update_annotations(server_setup, page: Page):
     page.get_by_role("button", name="View Mode").click()
     page.locator("body").click()
 
-    # Delete a zone
+    # Delete a zone (the first one, "Flat Top")
     page.get_by_label("time-zone").first.click(button="right")
     expect(page.get_by_role("menuitem", name="Delete")).to_be_visible()
     page.get_by_role("menuitem", name="Delete").click(force=True)
@@ -512,10 +512,12 @@ def test_timeseries_update_annotations(server_setup, page: Page):
     )
     updated_disruption_time = float(row.get_by_role("gridcell").nth(2).inner_text())
 
-    # Press Save and wait for the PUT request to the server to complete
+    # Press Save and wait for the deleted zone's DELETE call to complete - it's the
+    # last of the two requests the save issues, so waiting on it covers the PUT too.
     with page.expect_response(
         lambda r: (
-            f"samples/{sample_id}/annotations" in r.url and r.request.method == "PUT"
+            f"samples/{sample_id}/annotations/" in r.url
+            and r.request.method == "DELETE"
         )
     ):
         page.get_by_role("button", name="Save").click(force=True)
@@ -529,23 +531,23 @@ def test_timeseries_update_annotations(server_setup, page: Page):
 
     time.sleep(1)
 
-    # These annotations are all annotators::peak_detection's, not admin's - admin's
-    # local delete-one/move-one edits are never admin's to persist, so saving must
-    # leave all three exactly as they were: nothing deleted, nothing moved, nothing
-    # (re)validated.
-    assert len(annotations) == 3
+    # These annotations are all annotators::peak_detection's, not admin's, but admin
+    # is still allowed to edit them in place (Ramp Up's move) and delete them (Flat
+    # Top) - the save just never claims admin validated a model's own work, so
+    # `validated` stays untouched and `created_by` keeps its original author.
+    assert len(annotations) == 2
     for annotation in annotations:
         assert not annotation["validated"]
         assert (
             annotation["created_by"]
             == f"annotators::{AnnotatorTypes.PEAK_DETECTION.value}"
         )
+    assert {a["label"] for a in annotations} == {"Ramp Up", "Disruption"}
 
     disruption_annotation = next(
         ann for ann in annotations if ann["label"] == "Disruption"
     )
-    assert disruption_annotation["time"] == 71
-    assert round(disruption_annotation["time"], 4) != updated_disruption_time
+    assert round(disruption_annotation["time"], 4) == round(updated_disruption_time, 4)
 
 
 def test_viewer_cannot_enter_edit_mode(server_setup, admin_token, browser):

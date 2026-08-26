@@ -16,7 +16,7 @@ import { VideoNavAdapterBridge } from "@/app/video/components/video-nav-adapter"
 import {
   VideoUiStateProvider,
   useVideoUiState,
-} from "@/app/contexts/video-context";
+} from "@/app/contexts/VideoContext";
 import { useParams } from "react-router-dom";
 
 /**

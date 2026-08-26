@@ -22,7 +22,7 @@ import "@annotorious/plugin-tools/annotorious-plugin-tools.css";
 
 import { useVideoSession } from "@/app/video/components/video-session";
 import { useSample } from "@/app/contexts/SampleContext";
-import { useVideoUiState } from "@/app/contexts/video-context";
+import { useVideoUiState } from "@/app/contexts/VideoContext";
 import {
   getLabelTrack,
   isPointAnno,

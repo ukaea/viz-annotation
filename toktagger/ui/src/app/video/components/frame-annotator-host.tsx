@@ -16,7 +16,9 @@ import {
 import "@annotorious/react/annotorious-react.css";
 import "react-contexify/ReactContexify.css";
 import { Item, Menu, Submenu, useContextMenu } from "react-contexify";
-import { ToastQueue } from "@adobe/react-spectrum";
+import { ActionButton, Text, ToastQueue } from "@adobe/react-spectrum";
+import type { PressEvent } from "@react-types/shared";
+import Label from "@spectrum-icons/workflow/Label";
 import { mountPlugin as mountToolsPlugin } from "@annotorious/plugin-tools";
 import "@annotorious/plugin-tools/annotorious-plugin-tools.css";
 
@@ -413,11 +415,11 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
     .map((frameLabel) => frameLabel.label)
     .join(", ");
 
-  const showFrameLabelPopup = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const showFrameLabelPopup = (event: PressEvent) => {
     const container = containerRef.current;
     if (!container) return;
 
-    const badge = event.currentTarget.getBoundingClientRect();
+    const badge = event.target.getBoundingClientRect();
     setFrameLabelPopupPoint(
       clampPopupPoint(
         container.getBoundingClientRect(),
@@ -678,14 +680,18 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
 
         {!hideAnnotations && frameLabels.length > 0 && (
           <>
-            <button
-              type="button"
-              className="absolute left-3 top-3 z-[55] rounded-md border border-white/10 bg-black/70 px-2 py-1 text-xs font-semibold text-white backdrop-blur"
+            <ActionButton
+              position="absolute"
+              top="size-150"
+              left="size-150"
+              zIndex={55}
+              staticColor="white"
               aria-label={`Frame labels: ${frameLabelNames}`}
-              onClick={showFrameLabelPopup}
+              onPress={showFrameLabelPopup}
             >
-              {frameLabelNames}
-            </button>
+              <Label aria-hidden="true" />
+              <Text>{frameLabelNames}</Text>
+            </ActionButton>
 
             {frameLabelPopupPoint && (
               <div

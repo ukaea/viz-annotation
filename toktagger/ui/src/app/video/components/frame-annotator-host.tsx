@@ -16,7 +16,7 @@ import {
 import "@annotorious/react/annotorious-react.css";
 import "react-contexify/ReactContexify.css";
 import { Item, Menu, Submenu, useContextMenu } from "react-contexify";
-import { ActionButton, Text, ToastQueue } from "@adobe/react-spectrum";
+import { ActionButton, Flex, Text, ToastQueue } from "@adobe/react-spectrum";
 import type { PressEvent } from "@react-types/shared";
 import Label from "@spectrum-icons/workflow/Label";
 import { mountPlugin as mountToolsPlugin } from "@annotorious/plugin-tools";
@@ -696,12 +696,13 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
             </ActionButton>
 
             {frameLabelPopupPoint && (
-              <div
-                className="absolute z-[60] flex flex-col gap-2"
-                style={{
-                  left: frameLabelPopupPoint.x,
-                  top: frameLabelPopupPoint.y,
-                }}
+              <Flex
+                position="absolute"
+                zIndex={60}
+                direction="column"
+                gap="size-100"
+                left={frameLabelPopupPoint.x}
+                top={frameLabelPopupPoint.y}
               >
                 {frameLabels.map((frameLabel) => (
                   <AnnotationPopup
@@ -720,7 +721,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
                     onClose={() => setFrameLabelPopupPoint(null)}
                   />
                 ))}
-              </div>
+              </Flex>
             )}
           </>
         )}

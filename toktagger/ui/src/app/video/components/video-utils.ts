@@ -4,6 +4,7 @@ import type { ImageAnnotation } from "@annotorious/react";
 import type { Annotation } from "@/types";
 import {
   VideoBoundingBoxSchema,
+  VideoFrameSchema,
   VideoPointSchema,
   VideoPolygonSchema,
 } from "@/types";
@@ -494,6 +495,21 @@ export function propagateFrameLabelsIfEmpty(
   );
   if (nextHasLabels) return annotations;
 
-  const seeded = current.map((a) => ({ ...a, frame: nextFrame }));
+  const seeded = current.flatMap((annotation) => {
+    const parsed = VideoFrameSchema.safeParse({
+      type: "video_frame_label",
+      frame: nextFrame,
+      track_id: annotation.track_id,
+      label: annotation.label,
+      created_by: annotation.created_by,
+      validated: annotation.validated,
+      uncertainty: annotation.uncertainty,
+      signal_name: annotation.signal_name,
+    });
+
+    return parsed.success ? [parsed.data] : [];
+  });
+  if (seeded.length === 0) return annotations;
+
   return [...annotations, ...seeded];
 }

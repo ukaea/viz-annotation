@@ -4,7 +4,7 @@ import type { ImageAnnotation } from "@annotorious/react";
 import type { Annotation } from "@/types";
 import {
   VideoBoundingBoxSchema,
-  VideoFrameSchema,
+  VideoFrameLabelSchema,
   VideoPointSchema,
   VideoPolygonSchema,
 } from "@/types";
@@ -496,7 +496,7 @@ export function propagateFrameLabelsIfEmpty(
   if (nextHasLabels) return annotations;
 
   const seeded = current.flatMap((annotation) => {
-    const parsed = VideoFrameSchema.safeParse({
+    const parsed = VideoFrameLabelSchema.safeParse({
       type: "video_frame_label",
       frame: nextFrame,
       track_id: annotation.track_id,

@@ -24,6 +24,15 @@ class AnnotationBase(ConfiguredModel):
         return values
 
 
+class VideoAnnotationBase(AnnotationBase):
+    frame: int
+    track_id: str
+
+
+class VideoFrameLabel(VideoAnnotationBase):
+    type: Literal["video_frame_label"] = "video_frame_label"
+    
+
 class Annotation(AnnotationBase):
     id: str = Field(..., alias="_id")
 
@@ -51,15 +60,7 @@ class BoundingBox(AnnotationBase):
     y_min: float
 
 
-class VideoFrame(AnnotationBase):
-    """A label tied to one frame and one tracked instance. The base schema for other video annotation types."""
-
-    type: Literal["video_frame_label"] = "video_frame_label"
-    frame: int
-    track_id: str
-
-
-class VideoBoundingBox(VideoFrame):
+class VideoBoundingBox(VideoAnnotationBase):
     type: Literal["video_bounding_box"] = "video_bounding_box"
     height: int
     width: int
@@ -89,7 +90,7 @@ class Polygon(AnnotationBase):
         return v
 
 
-class VideoPolygon(VideoFrame):
+class VideoPolygon(VideoAnnotationBase):
     type: Literal["video_polygon"] = "video_polygon"
     segmentation: list[list[int]] = Field(
         ...,
@@ -111,7 +112,7 @@ class VideoPolygon(VideoFrame):
         return v
 
 
-class VideoPoint(VideoFrame):
+class VideoPoint(VideoAnnotationBase):
     type: Literal["video_point"] = "video_point"
     x: int
     y: int
@@ -161,7 +162,7 @@ PolygonOut = create_out_model(Polygon)
 VideoBoundingBoxOut = create_out_model(VideoBoundingBox)
 VideoPolygonOut = create_out_model(VideoPolygon)
 VideoPointOut = create_out_model(VideoPoint)
-VideoFrameOut = create_out_model(VideoFrame)
+VideoFrameLabelOut = create_out_model(VideoFrameLabel)
 ClassLabelOut = create_out_model(ClassLabel)
 
 # Generate Batch classes using factory function
@@ -172,7 +173,7 @@ PolygonBatch = create_batch_model(Polygon)
 VideoBoundingBoxBatch = create_batch_model(VideoBoundingBox)
 VideoPolygonBatch = create_batch_model(VideoPolygon)
 VideoPointBatch = create_batch_model(VideoPoint)
-VideoFrameBatch = create_batch_model(VideoFrame)
+VideoFrameLabelBatch = create_batch_model(VideoFrameLabel)
 ClassLabelBatch = create_batch_model(ClassLabel)
 
 
@@ -185,7 +186,7 @@ AnnotationTypes = Union[
     VideoBoundingBox,
     VideoPolygon,
     VideoPoint,
-    VideoFrame,
+    VideoFrameLabel,
     ClassLabel,
 ]
 
@@ -197,7 +198,7 @@ AnnotationOutTypes = Union[
     VideoBoundingBoxOut,
     VideoPolygonOut,
     VideoPointOut,
-    VideoFrameOut,
+    VideoFrameLabelOut,
     ClassLabelOut,
 ]
 
@@ -209,7 +210,7 @@ AnnotationBatchTypes = Union[
     VideoBoundingBoxBatch,
     VideoPolygonBatch,
     VideoPointBatch,
-    VideoFrameBatch,
+    VideoFrameLabelBatch,
     ClassLabelBatch,
 ]
 

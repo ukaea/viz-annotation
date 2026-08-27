@@ -17,12 +17,12 @@ import {
   type ImageAnnotation,
 } from "@annotorious/react";
 
-import type { Annotation, VideoFrame } from "@/types";
+import type { Annotation, VideoFrameLabel } from "@/types";
 import { useSample } from "@/app/contexts/SampleContext";
 import { useVideoUiState } from "@/app/contexts/VideoContext";
 import {
   VideoBoundingBoxSchema,
-  VideoFrameSchema,
+  VideoFrameLabelSchema,
   VideoPointSchema,
   VideoPolygonSchema,
 } from "@/types";
@@ -98,7 +98,7 @@ type VideoSessionCtx = {
   instances: InstanceProfile[];
 
   /** Whole-frame class labels applied to the current frame. */
-  frameLabels: VideoFrame[];
+  frameLabels: VideoFrameLabel[];
   /** Tag the current frame: adds a new instance, or toggles the armed one off/on. */
   toggleFrameLabel: () => void;
   removeFrameLabel: (className: string, trackId: string) => void;
@@ -185,7 +185,7 @@ function parseVideoAnnotation(annotation: Annotation) {
 
 function videoAnnotationDedupeKey(annotation: Annotation): string | null {
   if (annotation.type === "video_frame_label") {
-    const parsed = VideoFrameSchema.safeParse(annotation);
+    const parsed = VideoFrameLabelSchema.safeParse(annotation);
     if (!parsed.success) return null;
 
     const { frame, label } = parsed.data;
@@ -351,10 +351,10 @@ function isVideoAnnotationType(annotation: Annotation): boolean {
   );
 }
 
-function parseFrameLabel(annotation: Annotation): VideoFrame | null {
+function parseFrameLabel(annotation: Annotation): VideoFrameLabel | null {
   if (annotation.type !== "video_frame_label") return null;
 
-  const parsed = VideoFrameSchema.safeParse(annotation);
+  const parsed = VideoFrameLabelSchema.safeParse(annotation);
   return parsed.success ? parsed.data : null;
 }
 
@@ -581,7 +581,7 @@ export function VideoSessionProvider(props: {
 
   // Frame labels are plain context annotations, so they are derived straight from there.
   const frameLabels = useMemo(() => {
-    const out: VideoFrame[] = [];
+    const out: VideoFrameLabel[] = [];
 
     for (const annotation of annotations ?? []) {
       const parsed = parseFrameLabel(annotation);
@@ -649,7 +649,7 @@ export function VideoSessionProvider(props: {
       selection.trackId ??
       uniqueReadableTrackId(collectUsedTrackIdsForClass(cls));
 
-    const created = VideoFrameSchema.safeParse({
+    const created = VideoFrameLabelSchema.safeParse({
       type: "video_frame_label",
       frame,
       track_id: trackId,

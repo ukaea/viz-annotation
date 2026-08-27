@@ -184,6 +184,17 @@ function parseVideoAnnotation(annotation: Annotation) {
 }
 
 function videoAnnotationDedupeKey(annotation: Annotation): string | null {
+  if (annotation.type === "video_frame_label") {
+    const parsed = VideoFrameSchema.safeParse(annotation);
+    if (!parsed.success) return null;
+
+    const { frame, label } = parsed.data;
+    const trimmedLabel = label.trim();
+    if (!trimmedLabel) return null;
+
+    return `video_frame_label::${frame}::${trimmedLabel}`;
+  }
+
   const parsed = parseVideoAnnotation(annotation);
   if (!parsed?.success) return null;
 
@@ -205,11 +216,6 @@ function dedupeVideoAnnotations(annotations: Annotation[]): {
   let duplicates = 0;
 
   for (const annotation of annotations ?? []) {
-    if (!isVideoAnnotationType(annotation)) {
-      nonVideoAnnotations.push(annotation);
-      continue;
-    }
-
     const key = videoAnnotationDedupeKey(annotation);
     if (!key) {
       nonVideoAnnotations.push(annotation);
@@ -614,23 +620,6 @@ export function VideoSessionProvider(props: {
     [],
   );
 
-  const addFrameLabel = useCallback(
-    (className: string, trackId: string) => {
-      const created = VideoFrameSchema.safeParse({
-        type: "video_frame_label",
-        frame,
-        track_id: trackId,
-        label: className,
-        created_by: "manual",
-      });
-      if (!created.success) return;
-
-      setSampleAnnotations((prev) => [...prev, created.data]);
-      setDirty(true);
-    },
-    [frame, setSampleAnnotations],
-  );
-
   const removeFrameLabel = useCallback(
     (className: string, trackId: string) => {
       const cls = (className || "").trim();
@@ -656,25 +645,38 @@ export function VideoSessionProvider(props: {
     const cls = (selection.className ?? "").trim();
     if (!cls) return;
 
-    // A frame either has this class or it doesn't toggle off whatever's already here.
-    const existingForClass = frameLabels.find((label) => label.label === cls);
-
-    if (existingForClass) {
-      removeFrameLabel(cls, existingForClass.track_id);
-      return;
-    }
-
     const trackId =
       selection.trackId ??
       uniqueReadableTrackId(collectUsedTrackIdsForClass(cls));
-    addFrameLabel(cls, trackId);
+
+    const created = VideoFrameSchema.safeParse({
+      type: "video_frame_label",
+      frame,
+      track_id: trackId,
+      label: cls,
+      created_by: "manual",
+    });
+    if (!created.success) return;
+
+    setSampleAnnotations((prev) => {
+      const matchesCurrentClass = (annotation: Annotation) =>
+        annotation.type === "video_frame_label" &&
+        annotation.frame === frame &&
+        annotation.label.trim() === cls;
+
+      if (prev.some(matchesCurrentClass)) {
+        return prev.filter((annotation) => !matchesCurrentClass(annotation));
+      }
+
+      return [...prev, created.data];
+    });
+    setDirty(true);
   }, [
-    addFrameLabel,
     collectUsedTrackIdsForClass,
-    frameLabels,
-    removeFrameLabel,
+    frame,
     selection.className,
     selection.trackId,
+    setSampleAnnotations,
   ]);
 
   const getFrameList = useCallback(
@@ -696,6 +698,10 @@ export function VideoSessionProvider(props: {
       dedupeVideoAnnotations(annotations);
     const signature = videoAnnotationSignature(dbAnnotations);
 
+    if (duplicates > 0) {
+      setSampleAnnotations(() => dbAnnotations);
+    }
+
     if (signature === lastExternalAnnotationSignatureRef.current) return;
     if (signature === lastLocalAnnotationSignatureRef.current) {
       nextTrackNumsRef.current = buildNextTrackIdState(dbAnnotations);
@@ -715,9 +721,6 @@ export function VideoSessionProvider(props: {
     nextTrackNumsRef.current = buildNextTrackIdState(dbAnnotations);
     lastExternalAnnotationSignatureRef.current = signature;
     lastLocalAnnotationSignatureRef.current = null;
-    if (duplicates > 0) {
-      setSampleAnnotations(() => dbAnnotations);
-    }
   }, [annotations, projectId, sampleId, setSampleAnnotations]);
 
   const commitByFrame = useCallback(

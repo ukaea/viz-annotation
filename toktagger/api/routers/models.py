@@ -134,7 +134,32 @@ async def get_models(
         description="Index of the last model you want returned when sorted by version, leave blank to return all entries",
     ),
 ) -> list[Model]:
-    # Return details about models being used by this project
+    """
+    Return details about models being used by this project.
+    --------------------------------------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Retrieve a list of trained/loaded models for a project with version information.
+
+    Use When:
+        - You want to see which models have been trained or loaded for a project
+        - You need to know available model versions before making predictions
+        - You are tracking model training progress and accuracy scores
+
+    Do Not Use When:
+        - You need a single model's details — use toktagger_read_get_model (GET by model_type) instead
+        - You want to start training — use toktagger_start_model_training instead
+        - You are querying the project itself — use toktagger_read_get_projects instead
+
+    Returns:
+        A list of Model objects with: id, type, version, status, progress, score, project_id
+
+    Example User Requests:
+        - "What models have been trained for this project?"
+        - "Show me all model versions for disruption_cnn"
+    """
     # Could be eg the ID, type of model, the accuracy, the version. link to mlflow / simvue instance, etc...
     db_client = request.app.state.db_client
     models = await utils.get_models(
@@ -159,6 +184,31 @@ async def get_model(
         description="The version of the model to return, leave blank to return the latest model.",
     ),
 ) -> Model:
+    """
+    Get details about a specific model type.
+    -----------------------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Retrieve full details about a specific model version for a project.
+
+    Use When:
+        - You need the status, version, and score of a trained model
+        - You are checking if a model is ready for predictions (status = "completed")
+        - You want to verify a specific model version exists
+
+    Do Not Use When:
+        - You need all models — use toktagger_read_get_trained_models (GET list) instead
+        - You want to train a model — use toktagger_start_model_training instead
+
+    Returns:
+        A Model object with: id, type, version, status, progress, score, project_id
+
+    Example User Requests:
+        - "What is the status of the disruption_cnn model?"
+        - "Show me version 1 of this model"
+    """
     db_client = request.app.state.db_client
     model = await utils.get_model(
         db_client, project_id=project_id, model_type=model_type, version=version
@@ -213,6 +263,32 @@ async def delete_models(
 async def get_training_info(
     request: Request, project_id: str, model_type: str
 ) -> Model:
+    """
+    Get information about an in-progress model training job.
+    --------------------------------------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Check the status of a model training job that is currently queued, training, or loading weights.
+
+    Use When:
+        - You started training and want to check progress
+        - You need to verify a training job is still running
+        - You are polling for training completion
+
+    Do Not Use When:
+        - You want to start training — use toktagger_start_model_training instead
+        - The training is already complete — use toktagger_read_get_model instead
+        - You want to stop training — use the DELETE endpoint (stop_model_training) instead
+
+    Returns:
+        A Model object if training is in progress; raises 404 if no training is active
+
+    Example User Requests:
+        - "How far along is the disruption_cnn training?"
+        - "Is the model still training?"
+    """
     db_client = request.app.state.db_client
     await utils.get_project(db_client, project_id)
     latest_model = await utils.get_model(
@@ -235,6 +311,32 @@ async def start_model_training(
         {}, description="Optional parameters for training the model", embed=True
     ),
 ):
+    """
+    Start Model Training.
+    --------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Begin training an ML model on validated annotations for a project.
+
+    Use When:
+        - You have enough validated samples/annotations to train a model
+        - You want to use GPU acceleration for faster training
+        - You are setting up a model for future predictions
+
+    Do Not Use When:
+        - There are no validated annotations — the endpoint returns 404
+        - Training for this model type is already in progress — returns 409
+        - You want to load pre-trained weights instead — use one of the load_model_weights_* endpoints
+
+    Returns:
+        A dict with task_id and model_id for tracking training progress
+
+    Example User Requests:
+        - "Start training the disruption_cnn model"
+        - "Train this model on GPU with custom hidden layers"
+    """
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
@@ -403,6 +505,32 @@ async def stop_model_training(
 async def load_model_weights_local(
     request: Request, project_id: str, model_type: str, params: LocalLoadParams
 ):
+    """
+    Load Model Weights Local.
+    -------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Load pre-trained model weights from a local file system path.
+
+    Use When:
+        - You have model weights saved on the server's local disk
+        - You want to use a locally trained model for predictions
+        - You are running in an offline environment without GitLab/HuggingFace access
+
+    Do Not Use When:
+        - The weights file doesn't exist at the specified path — returns 422
+        - Local loading is disabled in config — returns 403
+        - You want to load from GitLab or HuggingFace — use those endpoints instead
+
+    Returns:
+        A dict with task_id and model_id for tracking load progress
+
+    Example User Requests:
+        - "Load model weights from /path/to/model.pt"
+        - "Import the locally trained disruption model"
+    """
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
@@ -440,6 +568,32 @@ async def load_model_weights_local(
 async def load_model_weights_gitlab(
     request: Request, project_id: str, model_type: str, params: GitlabLoadParams
 ):
+    """
+    Load Model Weights Gitlab.
+    --------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Load pre-trained model weights from a GitLab project/artifacts.
+
+    Use When:
+        - You want to load weights hosted on a GitLab project
+        - You are using a shared model repository via GitLab
+        - GitLab loading is enabled and configured on the server
+
+    Do Not Use When:
+        - GitLab loading is disabled — returns 403
+        - Required env vars (GITLAB_URL, GITLAB_TOKEN) are not set — returns 409
+        - You want to load from local files or HuggingFace — use those endpoints instead
+
+    Returns:
+        A dict with task_id and model_id for tracking load progress
+
+    Example User Requests:
+        - "Load the model from the shared GitLab repository"
+        - "Import disruption_cnn weights from GitLab"
+    """
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
@@ -491,6 +645,32 @@ async def load_model_weights_gitlab(
 async def load_model_weights_hugging_face(
     request: Request, project_id: str, model_type: str, params: HuggingfaceLoadParams
 ):
+    """
+    Load Model Weights Hugging Face.
+    ---------------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Load pre-trained model weights from a Hugging Face model repository.
+
+    Use When:
+        - You want to load weights from a Hugging Face model hub repository
+        - You are using community-trained tokamak disruption prediction models
+        - HuggingFace loading is enabled and configured on the server
+
+    Do Not Use When:
+        - HuggingFace loading is disabled — returns 403
+        - Required userspace/organization is not configured — returns 422
+        - You want to load from local files or GitLab — use those endpoints instead
+
+    Returns:
+        A dict with task_id and model_id for tracking load progress
+
+    Example User Requests:
+        - "Load the disruption_cnn model from Hugging Face"
+        - "Import model from user/disruption-cnn-v1"
+    """
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
@@ -535,6 +715,31 @@ async def get_load_model_status(
     model_type: str = Path(description="The type of model to load."),
     task_id: str = Path(description="The load task to get results from."),
 ) -> bool | str:
+    """
+    Get the status of a model weight loading task.
+    -----------------------------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Check whether a model weight loading task is still queued, in progress, or completed.
+
+    Use When:
+        - You started loading weights and need to check if it's finished
+        - You are polling for load completion before making predictions
+        - You want to detect load failures
+
+    Do Not Use When:
+        - You want to actually load weights — use the load endpoint (toktagger_load_model_weights_local, etc.) instead
+        - You want to check training status — use toktagger_read_get_model_training_info instead
+
+    Returns:
+        true on success, or HTTP 202 with {"message": "Load task in the queue!"} while loading
+
+    Example User Requests:
+        - "Has the model loading finished?"
+        - "Check the status of the weight loading task"
+    """
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
@@ -621,6 +826,33 @@ async def predict(
         {}, description="Optional parameters for training the model", embed=True
     ),
 ):
+    """
+    Predict.
+    -------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Run inference with a trained model on selected samples to generate predicted annotations.
+
+    Use When:
+        - You have a trained model and want to generate predictions on unannotated samples
+        - You want to pre-populate annotations for human review
+        - You need model-assisted labeling for batch samples
+        - You want to evaluate model performance on new data
+
+    Do Not Use When:
+        - The model hasn't finished training (status != "completed") — returns 409
+        - You want predictions for a single specific sample — use toktagger_create_sample_model_predictions instead
+        - You are querying model info — use toktagger_read_get_trained_models instead
+
+    Returns:
+        A dict with task_id for tracking prediction progress
+
+    Example User Requests:
+        - "Run the disruption_cnn model on 20 samples"
+        - "Generate predictions for these specific samples on GPU"
+    """
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
@@ -748,6 +980,32 @@ async def create_sample_predictions(
         DataParams(), description="Data parameters fort this sample", embed=True
     ),
 ) -> dict[str, str]:
+    """
+    Create Sample Predictions.
+    --------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Run model inference on a single specific sample to generate predicted annotations.
+
+    Use When:
+        - You want predictions for one specific sample before annotating it
+        - You are comparing model predictions against your own annotations
+        - You need quick inference for a single data point
+
+    Do Not Use When:
+        - You need batch predictions across many samples — use toktagger_create_model_predictions instead
+        - The model isn't trained — use toktagger_start_model_training first
+        - You are querying the project — use toktagger_read_get_projects instead
+
+    Returns:
+        A dict with task_id for tracking prediction progress
+
+    Example User Requests:
+        - "Get predictions for shot 30421 using the disruption_cnn model"
+        - "Show me the model prediction for this sample before I annotate it"
+    """
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
@@ -806,6 +1064,31 @@ async def get_sample_predictions(
     model_type: str = Path(description="The type of model to get predictions from."),
     task_id: str = Path(description="The prediction task to get results from."),
 ) -> list[AnnotationBatchTypes]:
+    """
+    Get model prediction results for a sample.
+    ------------------------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Retrieve the annotation predictions produced by a model for a specific sample.
+
+    Use When:
+        - You started a prediction task and need to fetch the results
+        - You want to see model predictions before human annotation
+        - You are building a comparison UI (model vs. human annotations)
+
+    Do Not Use When:
+        - You want to create predictions — use toktagger_create_sample_model_predictions instead
+        - You want to load model weights — use the load_model_weights_* endpoints instead
+
+    Returns:
+        A list of predicted Annotation objects for the specified sample
+
+    Example User Requests:
+        - "Show me the predictions from task abc123"
+        - "What did the disruption_cnn model predict for this sample?"
+    """
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
@@ -882,7 +1165,32 @@ async def update_model(
         description="The ID of the model to update information about."
     ),
 ) -> None:
-    # Update model status
+    """
+    Update Model.
+    -------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Update model status fields (e.g. progress, score, status) after training or loading completes.
+
+    Use When:
+        - You need to manually update a model's progress or score
+        - A background task completed and needs to report results
+        - You are syncing model metadata from an external tracking system (MLflow, etc.)
+
+    Do Not Use When:
+        - You want to train a new model — use toktagger_start_model_training instead
+        - You want to load weights — use the load_model_weights_* endpoints instead
+        - You are querying model info — use toktagger_read_get_model or toktagger_read_get_trained_models instead
+
+    Returns:
+        None (no response body on success)
+
+    Example User Requests:
+        - "Update the disruption_cnn model to completed with score 0.95"
+        - "Sync the model progress from MLflow"
+    """
     db_client = request.app.state.db_client
     await utils.get_project(db_client, project_id)
     await utils.update_model(

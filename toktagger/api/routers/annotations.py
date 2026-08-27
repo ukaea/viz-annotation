@@ -51,6 +51,28 @@ async def get_all_annotations(
     """
     Retrieve all annotations for this project, subject to specified filters.
     ------------------------------------------------------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Get all annotations for a project, with optional filtering by validation status, creator, sorting, and pagination.
+
+    Use When:
+        - You need to review all annotations for a project
+        - You want to audit human vs. model annotations
+        - You need to filter annotations by validated/unvalidated status
+        - You want to see annotations created by a specific model or human
+
+    Do Not Use When:
+        - You need annotations for a specific sample — use toktagger_read_get_sample_annotations instead
+        - You want to create or update annotations — use toktagger_import_annotations or toktagger_update_sample_annotations instead
+
+    Returns:
+        A list of Annotation objects with fields: _id, sample_id, project_id, annotation_type, data, validated, created_by, timestamp
+
+    Example User Requests:
+        - "Show me all annotations for this project"
+        - "Which annotations were created by the disruption_cnn model?"
     """
     db_client = request.app.state.db_client
     # Check project exists
@@ -88,6 +110,27 @@ async def import_annotations(
     """
     Update or add annotations for this project.
     -------------------------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Bulk create or overwrite annotations for one or more samples within a project.
+
+    Use When:
+        - You are importing annotations from an external source (e.g. CSV, other annotation tool)
+        - You want to bulk-add annotations to multiple samples at once
+        - You are re-annotating samples and need to replace existing annotations
+
+    Do Not Use When:
+        - You are adding annotations for a single sample — use toktagger_update_sample_annotations instead
+        - You are querying annotations — use toktagger_read_get_project_annotations or toktagger_read_get_sample_annotations instead
+
+    Returns:
+        None (no response body on success)
+
+    Example User Requests:
+        - "Import these annotations from the CSV file"
+        - "Add time regions for these ELM events"
     """
     db_client = request.app.state.db_client
     await utils.import_annotations(db_client, project_id, annotations)
@@ -156,6 +199,31 @@ async def get_annotations(
         description="Whether to only return annotations created by a specific model or by a human.",
     ),
 ) -> list[AnnotationOutTypes]:
+    """
+    Get sample annotations.
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Get all annotations for a specific sample within a project, with optional filtering by validation status, creator, sorting, and pagination.
+
+    Use When:
+        - You need annotations for a specific sample before annotating or reviewing it
+        - You want to see what model predictions exist for a sample (filter by created_by)
+        - You want to check if a sample has already been human-validated
+        - You are building a sample-level annotation review UI
+
+    Do Not Use When:
+        - You need all annotations for a project — use toktagger_read_get_project_annotations instead
+        - You are creating/updating annotations — use toktagger_update_sample_annotations instead
+
+    Returns:
+        A list of Annotation objects for the specified sample
+
+    Example User Requests:
+        - "What annotations exist for this sample?"
+        - "Show me the model predictions for sample 6a8f2340b6b4f8d585fd1a6d"
+    """
     # Return annotations available for this project and sample, if any
     # Can filter by params, eg specific camera or frame being returned (or return all annotations for this sample at once and store client side?)
     # Should return whether these are validated as a boolean
@@ -207,8 +275,29 @@ async def update_annotations(
     """
     Update the list of annotations to a given sample for a specified project. Will overwrite existing annotations.
     ---------------------------------------------------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Replace all annotations for a specific sample with a new set, optionally marking the sample as validated.
+
+    Use When:
+        - An annotator has finished reviewing a sample and wants to save their annotations
+        - You want to replace model predictions with human-validated annotations
+        - You are correcting or refining annotations for a single sample
+
+    Do Not Use When:
+        - You are annotating across multiple samples — use toktagger_import_annotations (bulk) instead
+        - You are only querying annotations — use the GET endpoints instead
+        - You are deleting annotations — use the DELETE endpoint instead
+
+    Returns:
+        The updated annotation result
+
+    Example User Requests:
+        - "Save my annotations for this sample"
+        - "Mark this sample as validated with my corrections"
     """
-    # Add human annotations to this project and sample
     # Again dont know what form this data will take so have set to a Request for now
     # This data could be for one or more events per task, ie multiple ELMs or UFOs per pulse
     # This should be added into the database, with validated=True

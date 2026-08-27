@@ -52,6 +52,29 @@ async def get_samples(
     """
     Get the full list of samples available for this project.
     --------------------------------------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Retrieve all samples for a project, with optional pagination, sorting, and shot ID filtering.
+
+    Use When:
+        - You need a complete inventory of samples in a project
+        - You want to find a sample by its shot ID
+        - You need sample metadata (shot_id, data, validated status) without fetching data content
+        - You are building a sample browser or dashboard
+
+    Do Not Use When:
+        - You need the next sample to annotate — use toktagger_get_next_sample instead
+        - You need actual signal/data values — use toktagger_get_sample_data instead
+        - You only need summary info — use toktagger_read_get_sample_summary instead
+
+    Returns:
+        A list of Sample objects, each containing: _id, project_id, shot_id, data, validated_annotations, timestamp
+
+    Example User Requests:
+        - "Show me all samples in this project"
+        - "What samples are available for shot 30421?"
     """
     db_client = request.app.state.db_client
     samples = await utils.get_samples(
@@ -86,6 +109,28 @@ async def add_samples(
     """
     Add a list of samples (with optional annotations) to this project.
     ------------------------------------------------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Insert one or more new samples into a project, optionally with initial annotations.
+
+    Use When:
+        - You are bulk-importing samples from a data source or external list
+        - You want to pre-populate samples with human annotations
+        - You are setting up a new project with its initial dataset
+
+    Do Not Use When:
+        - You are adding a single sample — the endpoint still works but batching is more efficient
+        - You are updating existing samples — use toktagger_update_samples (PUT) instead
+        - The project does not exist — verify with toktagger_read_get_projects first
+
+    Returns:
+        A list of sample _id strings for the newly created samples
+
+    Example User Requests:
+        - "Add these shots from UDA to the project"
+        - "Import samples with their initial annotations"
     """
     # Add samples from the range specified to the project
     # I'm assuming these will be shot/pulse numbers, hence int, but could be unique ID strings instead
@@ -191,6 +236,27 @@ async def update_samples(
     """
     Update a list of samples (provided with their IDs) for this project.
     ---------------------------------------------------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Batch-update properties (e.g. validated status, metadata) for multiple samples in a project.
+
+    Use When:
+        - You need to mark multiple samples as validated/annotated
+        - You want to update sample metadata in bulk
+        - You are syncing sample state from an external system
+
+    Do Not Use When:
+        - You are creating new samples — use toktagger_add_samples (POST) instead
+        - You are updating only one sample — the endpoint works but the individual GET endpoint may be simpler
+
+    Returns:
+        None (no response body on success)
+
+    Example User Requests:
+        - "Mark these samples as validated"
+        - "Update the metadata for these samples in bulk"
     """
     db_client = request.app.state.db_client
     await utils.get_project(db_client, project_id)
@@ -235,6 +301,28 @@ async def get_next_sample(
     """
     Get the next sample to annotate for this project, according to query strategy.
     ------------------------------------------------------------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Get the next unannotated sample for a project based on its query strategy (random, sequential, etc.), tracking which samples have already been visited.
+
+    Use When:
+        - You are building an annotation workflow and need the next sample to annotate
+        - You want the system to pick samples according to the project's query strategy
+        - You are iterating through all samples in a project for annotation
+
+    Do Not Use When:
+        - You need all samples at once — use toktagger_read_get_samples instead
+        - You already know the sample you want — use toktagger_read_get_sample (GET by ID) instead
+        - You need sample data content — use toktagger_get_sample_data instead
+
+    Returns:
+        A Sample object (_id, project_id, shot_id, data, validated_annotations, timestamp) — or HTTP 204 if no samples remain
+
+    Example User Requests:
+        - "What's the next sample I need to annotate?"
+        - "Give me the next unreviewed shot in this project"
     """
     # Return the next sample for human validation for this project
     # Should use the query strategy, which access the database to determine the next sample to annotate
@@ -266,9 +354,32 @@ async def get_sample_summary(
         description="The ID of the project to get a summary of samples from."
     ),
 ) -> SampleSummary:
-    """Get a summary of samples for this project.
+    """
+    Get a summary of samples for this project.
 
     This includes total number of samples, min and max shot IDs, and sample data type.
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Get aggregate statistics about samples in a project without returning the full sample list.
+
+    Use When:
+        - You need a quick count of samples in a project
+        - You want to check the shot ID range
+        - You need sample data type information for a project overview
+        - You are building a dashboard or project summary view
+
+    Do Not Use When:
+        - You need individual sample details — use toktagger_read_get_samples or toktagger_read_get_sample instead
+        - You need sample data content — use toktagger_get_sample_data instead
+
+    Returns:
+        A SampleSummary object with total_samples, min_shot_id, max_shot_id, data_type
+
+    Example User Requests:
+        - "How many samples does this project have?"
+        - "Show me the shot ID range for this project"
     """
     db_client = request.app.state.db_client
     summary = await utils.get_sample_summary(db_client, project_id)
@@ -294,6 +405,27 @@ async def get_sample(
     """
     Get the specified sample from this project.
     --------------------------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Retrieve the metadata for a single sample by its ID within a project.
+
+    Use When:
+        - You need details about a specific sample (shot_id, data reference, validation status)
+        - You have a sample _id and want to verify it exists
+        - You need sample metadata before fetching its data content
+
+    Do Not Use When:
+        - You need the actual signal/data values — use toktagger_get_sample_data instead
+        - You need all samples — use toktagger_read_get_samples instead
+
+    Returns:
+        A Sample object (_id, project_id, shot_id, data, validated_annotations, timestamp)
+
+    Example User Requests:
+        - "Show me the details for sample 6a8f2340b6b4f8d585fd1a6d"
+        - "What is the shot ID for this sample?"
     """
     db_client = request.app.state.db_client
     # Check project exists

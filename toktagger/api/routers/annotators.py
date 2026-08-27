@@ -28,7 +28,32 @@ async def create_annotations(
     annotator_params: AnnotatorParamTypes,
     data_params: DataParamTypes,
 ):
-    # Use the specified annotator to label this sample for this project
+    """
+    Generate annotations for a sample using a specified annotator model.
+    --------------------------------------------------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Run an annotator (ML model) on a sample to produce predicted annotations without saving them to the database.
+
+    Use When:
+        - You want to preview model predictions before committing annotations
+        - You are testing different annotator types on a sample
+        - You need initial annotation suggestions for human review
+
+    Do Not Use When:
+        - You want to save annotations to the database — use toktagger_update_sample_annotations instead
+        - You want to train a model — use toktagger_start_model_training instead
+        - You need actual sensor data — use toktagger_get_sample_data instead
+
+    Returns:
+        A list of predicted annotations from the selected annotator
+
+    Example User Requests:
+        - "Show me what the time_region annotator predicts for this sample"
+        - "What annotations would the model generate for shot 30421?"
+    """
     # Would use the datapool to load and process the data
     # The pass it through the selected annotator within the Project to make predictions
     # Return these predictions to the user, *without* adding to the database

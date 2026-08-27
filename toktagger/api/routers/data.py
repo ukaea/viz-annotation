@@ -22,7 +22,33 @@ async def get_data(
     params: Optional[DataParamTypes] = DataParams(),
     view: Optional[ViewParamTypes] = ViewParams(),
 ) -> DataResponseType:
-    """Get data, e.g. time trace, about the given sample required for the given project"""
+    """
+    Get data, e.g. time trace, about the given sample required for the given project.
+    ----------------------------------------------------------------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Retrieve the actual sensor/time-series data for a sample, with optional view transformation (e.g. profile-2d heatmaps).
+
+    Use When:
+        - You need the raw signal values (e.g. plasma current, density) for a sample to display or analyze
+        - You want to visualize time traces, profiles, or other data views
+        - You are building an annotation UI and need to load sample data
+        - You need data for model inference or preprocessing
+
+    Do Not Use When:
+        - You only need sample metadata (shot_id, validation status) — use toktagger_read_get_sample instead
+        - You need annotations — use the annotation endpoints instead
+        - You are listing projects — use toktagger_read_get_projects instead
+
+    Returns:
+        A DataResponseType object with signal data: { "values": { <signal_name>: { "time": [...], "values": [...] }, ... } } plus optional transformed views
+
+    Example User Requests:
+        - "Get the plasma current time trace for this shot"
+        - "Show me the profile-2d heatmap for signal ip"
+    """
     db_client = request.app.state.db_client
 
     project = await utils.get_project(db_client, project_id)

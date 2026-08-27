@@ -31,7 +31,7 @@ class VideoAnnotationBase(AnnotationBase):
 
 class VideoFrameLabel(VideoAnnotationBase):
     type: Literal["video_frame_label"] = "video_frame_label"
-    
+
 
 class Annotation(AnnotationBase):
     id: str = Field(..., alias="_id")

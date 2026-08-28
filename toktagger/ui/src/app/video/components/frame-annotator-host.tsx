@@ -687,7 +687,6 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
               top="size-150"
               left="size-150"
               zIndex={55}
-              staticColor="white"
               aria-label={`Frame labels: ${frameLabelNames}`}
               onPress={toggleFrameLabelPopup}
             >

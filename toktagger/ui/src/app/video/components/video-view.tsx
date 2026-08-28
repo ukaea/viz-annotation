@@ -29,59 +29,65 @@ import { useParams } from "react-router-dom";
 
 import { AnnotationPopup } from "@/app/video/components/annotation-popup";
 
-function FrameLabelBadge() {
+function FrameLabelBadges() {
   const { frame, frameLabels, hideAnnotations, editMode, removeFrameLabel } =
     useVideoSession();
-  const [isPopupOpen, setIsPopupOpen] = React.useState(false);
+  const [selectedBadgeKey, setSelectedBadgeKey] = React.useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
-    setIsPopupOpen(false);
+    setSelectedBadgeKey(null);
   }, [frame, frameLabels, hideAnnotations]);
 
   if (hideAnnotations || frameLabels.length === 0) return null;
 
-  const frameLabelNames = frameLabels
-    .map((frameLabel) => frameLabel.label)
-    .join(", ");
-
   return (
-    <Flex position="relative">
-      <ActionButton
-        aria-label={`Frame labels: ${frameLabelNames}`}
-        onPress={() => setIsPopupOpen((prev) => !prev)}
-      >
-        <Label aria-hidden="true" />
-        <Text>{frameLabelNames}</Text>
-      </ActionButton>
+    <Flex direction="column" gap="size-100" alignItems="start">
+      {frameLabels.map((frameLabel) => {
+        const badgeKey = `${frameLabel.label}::${frameLabel.track_id}`;
+        const isSelected = selectedBadgeKey === badgeKey;
 
-      {isPopupOpen && (
-        <Flex
-          position="absolute"
-          zIndex={60}
-          direction="column"
-          gap="size-100"
-          left={0}
-          top="size-500"
-        >
-          {frameLabels.map((frameLabel) => (
-            <AnnotationPopup
-              key={`${frameLabel.label}::${frameLabel.track_id}`}
-              className={frameLabel.label}
-              trackId={frameLabel.track_id}
-              heading="Frame label"
-              details={`Frame ${frame} · ${frameLabel.created_by}`}
-              deleteDisabled={!editMode}
-              onDeleteBox={() => {
-                if (frameLabels.length <= 1) {
-                  setIsPopupOpen(false);
-                }
-                removeFrameLabel(frameLabel.label, frameLabel.track_id);
-              }}
-              onClose={() => setIsPopupOpen(false)}
-            />
-          ))}
-        </Flex>
-      )}
+        return (
+          <Flex key={badgeKey} position="relative">
+            <ActionButton
+              aria-label={`Frame label: ${frameLabel.label}`}
+              onPress={() =>
+                setSelectedBadgeKey((prev) =>
+                  prev === badgeKey ? null : badgeKey,
+                )
+              }
+            >
+              <Label aria-hidden="true" />
+              <Text>{frameLabel.label}</Text>
+            </ActionButton>
+
+            {isSelected && (
+              <Flex
+                position="absolute"
+                zIndex={60}
+                direction="column"
+                gap="size-100"
+                left="100%"
+                top={0}
+              >
+                <AnnotationPopup
+                  className={frameLabel.label}
+                  trackId={frameLabel.track_id}
+                  heading="Frame label"
+                  details={`Frame ${frame} · ${frameLabel.created_by}`}
+                  deleteDisabled={!editMode}
+                  onDeleteBox={() => {
+                    setSelectedBadgeKey(null);
+                    removeFrameLabel(frameLabel.label, frameLabel.track_id);
+                  }}
+                  onClose={() => setSelectedBadgeKey(null)}
+                />
+              </Flex>
+            )}
+          </Flex>
+        );
+      })}
     </Flex>
   );
 }
@@ -139,49 +145,55 @@ function VideoFrameAnnotator(props: {
 
   return (
     <div className="flex flex-col items-center gap-4 w-full">
-      <Grid
-        width="100%"
-        maxWidth="1100px"
-        columns={["1fr", "auto", "1fr"]}
-        areas={["badge navigation spacer"]}
-        alignItems="start"
-      >
-        <Flex gridArea="badge" justifyContent="center">
-          <FrameLabelBadge />
-        </Flex>
-        <Flex gridArea="navigation" alignItems="start" gap="size-100">
-          <Button
-            variant="primary"
-            onPress={handlePrev}
-            isDisabled={prevDisabled}
-          >
-            Prev
-          </Button>
-          <FrameJumpField frame={props.desiredFrame} onJump={handleJump} />
-          <Button
-            variant="primary"
-            onPress={handleNext}
-            isDisabled={nextDisabled}
-          >
-            Next
-          </Button>
-        </Flex>
-        <Flex gridArea="spacer" />
-      </Grid>
+      <Flex alignItems="start" gap="size-100">
+        <Button
+          variant="primary"
+          onPress={handlePrev}
+          isDisabled={prevDisabled}
+        >
+          Prev
+        </Button>
+        <FrameJumpField frame={props.desiredFrame} onJump={handleJump} />
+        <Button
+          variant="primary"
+          onPress={handleNext}
+          isDisabled={nextDisabled}
+        >
+          Next
+        </Button>
+      </Flex>
 
       {/* Frame annotator canvas (image + Annotorious overlay). */}
-      <div className="relative w-full flex flex-col items-center gap-3">
-        <FrameAnnotatorHost imageBase64={props.imageBase64} />
-        {isFramePending && (
-          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
-            <ProgressCircle
-              aria-label={`Loading frame ${props.desiredFrame}`}
-              size="L"
-              isIndeterminate
-            />
-          </div>
-        )}
-      </div>
+      <Grid
+        width="100%"
+        columns={["size-1600", "1fr", "size-1600"]}
+        areas={["labels viewer spacer"]}
+        columnGap="size-200"
+        alignItems="start"
+      >
+        <Flex gridArea="labels" alignItems="end">
+          <FrameLabelBadges />
+        </Flex>
+        <Flex
+          gridArea="viewer"
+          position="relative"
+          width="100%"
+          direction="column"
+          alignItems="center"
+          gap="size-150"
+        >
+          <FrameAnnotatorHost imageBase64={props.imageBase64} />
+          {isFramePending && (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+              <ProgressCircle
+                aria-label={`Loading frame ${props.desiredFrame}`}
+                size="L"
+                isIndeterminate
+              />
+            </div>
+          )}
+        </Flex>
+      </Grid>
     </div>
   );
 }

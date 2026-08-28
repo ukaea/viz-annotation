@@ -3,7 +3,15 @@
 import React, { useEffect } from "react";
 import { Annotorious } from "@annotorious/react";
 import { ImageDataSchema } from "@/types";
-import { Button, ProgressCircle } from "@adobe/react-spectrum";
+import {
+  ActionButton,
+  Button,
+  Flex,
+  Grid,
+  ProgressCircle,
+  Text,
+} from "@adobe/react-spectrum";
+import Label from "@spectrum-icons/workflow/Label";
 import {
   VideoSessionProvider,
   useVideoSession,
@@ -18,6 +26,65 @@ import {
   useVideoUiState,
 } from "@/app/contexts/VideoContext";
 import { useParams } from "react-router-dom";
+
+import { AnnotationPopup } from "@/app/video/components/annotation-popup";
+
+function FrameLabelBadge() {
+  const { frame, frameLabels, hideAnnotations, editMode, removeFrameLabel } =
+    useVideoSession();
+  const [isPopupOpen, setIsPopupOpen] = React.useState(false);
+
+  useEffect(() => {
+    setIsPopupOpen(false);
+  }, [frame, frameLabels, hideAnnotations]);
+
+  if (hideAnnotations || frameLabels.length === 0) return null;
+
+  const frameLabelNames = frameLabels
+    .map((frameLabel) => frameLabel.label)
+    .join(", ");
+
+  return (
+    <Flex position="relative">
+      <ActionButton
+        aria-label={`Frame labels: ${frameLabelNames}`}
+        onPress={() => setIsPopupOpen((prev) => !prev)}
+      >
+        <Label aria-hidden="true" />
+        <Text>{frameLabelNames}</Text>
+      </ActionButton>
+
+      {isPopupOpen && (
+        <Flex
+          position="absolute"
+          zIndex={60}
+          direction="column"
+          gap="size-100"
+          left={0}
+          top="size-500"
+        >
+          {frameLabels.map((frameLabel) => (
+            <AnnotationPopup
+              key={`${frameLabel.label}::${frameLabel.track_id}`}
+              className={frameLabel.label}
+              trackId={frameLabel.track_id}
+              heading="Frame label"
+              details={`Frame ${frame} · ${frameLabel.created_by}`}
+              deleteDisabled={!editMode}
+              onDeleteBox={() => {
+                if (frameLabels.length <= 1) {
+                  setIsPopupOpen(false);
+                }
+                removeFrameLabel(frameLabel.label, frameLabel.track_id);
+              }}
+              onClose={() => setIsPopupOpen(false)}
+            />
+          ))}
+        </Flex>
+      )}
+    </Flex>
+  );
+}
 
 /**
  * Frame annotator UI wrapper:
@@ -72,27 +139,35 @@ function VideoFrameAnnotator(props: {
 
   return (
     <div className="flex flex-col items-center gap-4 w-full">
-      <div className="flex flex-col items-center gap-2">
-        <div className="flex justify-center">
-          <div className="flex items-start gap-2">
-            <Button
-              variant="primary"
-              onPress={handlePrev}
-              isDisabled={prevDisabled}
-            >
-              Prev
-            </Button>
-            <FrameJumpField frame={props.desiredFrame} onJump={handleJump} />
-            <Button
-              variant="primary"
-              onPress={handleNext}
-              isDisabled={nextDisabled}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      </div>
+      <Grid
+        width="100%"
+        maxWidth="1100px"
+        columns={["1fr", "auto", "1fr"]}
+        areas={["badge navigation spacer"]}
+        alignItems="start"
+      >
+        <Flex gridArea="badge" justifyContent="center">
+          <FrameLabelBadge />
+        </Flex>
+        <Flex gridArea="navigation" alignItems="start" gap="size-100">
+          <Button
+            variant="primary"
+            onPress={handlePrev}
+            isDisabled={prevDisabled}
+          >
+            Prev
+          </Button>
+          <FrameJumpField frame={props.desiredFrame} onJump={handleJump} />
+          <Button
+            variant="primary"
+            onPress={handleNext}
+            isDisabled={nextDisabled}
+          >
+            Next
+          </Button>
+        </Flex>
+        <Flex gridArea="spacer" />
+      </Grid>
 
       {/* Frame annotator canvas (image + Annotorious overlay). */}
       <div className="relative w-full flex flex-col items-center gap-3">

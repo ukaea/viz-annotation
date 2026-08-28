@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import OpenSeadragon from "openseadragon";
 import {
   OpenSeadragonAnnotator,
@@ -16,9 +16,7 @@ import {
 import "@annotorious/react/annotorious-react.css";
 import "react-contexify/ReactContexify.css";
 import { Item, Menu, Submenu, useContextMenu } from "react-contexify";
-import { ActionButton, Flex, Text, ToastQueue } from "@adobe/react-spectrum";
-import type { PressEvent } from "@react-types/shared";
-import Label from "@spectrum-icons/workflow/Label";
+import { ToastQueue } from "@adobe/react-spectrum";
 import { mountPlugin as mountToolsPlugin } from "@annotorious/plugin-tools";
 import "@annotorious/plugin-tools/annotorious-plugin-tools.css";
 
@@ -39,7 +37,6 @@ import { AnnotationPopup } from "./annotation-popup";
 import { annotationContainsPoint, setViewerCursor } from "./overlay-sync-utils";
 
 const VIDEO_CANVAS_MENU_ID = "video-canvas-menu";
-const FRAME_LABEL_POPUP_SIZE = { w: 240, h: 120 };
 
 function setGestureNavigation(
   viewer: OpenSeadragon.Viewer,
@@ -138,19 +135,6 @@ function findAnnotationAtPointer(
   );
 }
 
-function clampPopupPoint(bounds: DOMRect, clientX: number, clientY: number) {
-  return {
-    x: Math.min(
-      Math.max(0, clientX - bounds.left),
-      Math.max(0, bounds.width - FRAME_LABEL_POPUP_SIZE.w),
-    ),
-    y: Math.min(
-      Math.max(0, clientY - bounds.top),
-      Math.max(0, bounds.height - FRAME_LABEL_POPUP_SIZE.h),
-    ),
-  };
-}
-
 /**
  * Top-level host that provides the Annotorious context and renders the annotator.
  */
@@ -183,9 +167,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
     canDrawPoint,
     canTagFrame,
     hideAnnotations,
-    frameLabels,
     toggleFrameLabel,
-    removeFrameLabel,
     createPointAnnotation,
     deleteAnnotation,
   } = useVideoSession();
@@ -198,11 +180,6 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
   >(null);
   const [isPointAnnotationSelected, setIsPointAnnotationSelected] =
     useState(false);
-  const [frameLabelPopupPoint, setFrameLabelPopupPoint] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const classItems = useMemo(
     () => annotationLabels.map((label) => ({ name: label.name })),
     [annotationLabels],
@@ -247,7 +224,6 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
 
   useEffect(() => {
     setDismissedPopupAnnotationId(null);
-    setFrameLabelPopupPoint(null);
   }, [frame]);
 
   useEffect(() => {
@@ -411,26 +387,6 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
     : "rectangle";
   const annotoriousDrawingEnabled = canDrawShape;
 
-  const frameLabelNames = frameLabels
-    .map((frameLabel) => frameLabel.label)
-    .join(", ");
-
-  const toggleFrameLabelPopup = (event: PressEvent) => {
-    setFrameLabelPopupPoint((prev) => {
-      if (prev) return null;
-
-      const container = containerRef.current;
-      if (!container) return prev;
-
-      const badge = event.target.getBoundingClientRect();
-      return clampPopupPoint(
-        container.getBoundingClientRect(),
-        badge.left,
-        badge.bottom + 8,
-      );
-    });
-  };
-
   const selectClassName = (name: string) => {
     const cls = (name ?? "").trim();
     if (!cls) return;
@@ -497,7 +453,6 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
 
       stopEvent(event);
       api.cancelDrawing?.();
-      setFrameLabelPopupPoint(null);
       toggleFrameLabel();
     };
 
@@ -613,7 +568,6 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
   return (
     <div className="w-full flex justify-center">
       <div
-        ref={containerRef}
         className={`relative w-full max-w-[1100px] h-[calc(100dvh-240px)] min-h-[360px] ${
           isPointAnnotationSelected ? "video-point-selected" : ""
         }`}
@@ -679,51 +633,6 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
             }}
           />
         </OpenSeadragonAnnotator>
-
-        {!hideAnnotations && frameLabels.length > 0 && (
-          <>
-            <ActionButton
-              position="absolute"
-              top="size-150"
-              left="size-150"
-              zIndex={55}
-              aria-label={`Frame labels: ${frameLabelNames}`}
-              onPress={toggleFrameLabelPopup}
-            >
-              <Label aria-hidden="true" />
-              <Text>{frameLabelNames}</Text>
-            </ActionButton>
-
-            {frameLabelPopupPoint && (
-              <Flex
-                position="absolute"
-                zIndex={60}
-                direction="column"
-                gap="size-100"
-                left={frameLabelPopupPoint.x}
-                top={frameLabelPopupPoint.y}
-              >
-                {frameLabels.map((frameLabel) => (
-                  <AnnotationPopup
-                    key={`${frameLabel.label}::${frameLabel.track_id}`}
-                    className={frameLabel.label}
-                    trackId={frameLabel.track_id}
-                    heading="Frame label"
-                    details={`Frame ${frame} · ${frameLabel.created_by}`}
-                    deleteDisabled={!editMode}
-                    onDeleteBox={() => {
-                      if (frameLabels.length <= 1) {
-                        setFrameLabelPopupPoint(null);
-                      }
-                      removeFrameLabel(frameLabel.label, frameLabel.track_id);
-                    }}
-                    onClose={() => setFrameLabelPopupPoint(null)}
-                  />
-                ))}
-              </Flex>
-            )}
-          </>
-        )}
 
         <style>{`
           .video-point-selected .a9s-corner-top,

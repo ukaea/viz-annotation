@@ -5,9 +5,9 @@ import type { ImageAnnotation } from "@annotorious/react";
 /** Frame number within a video (0-based). */
 export type FrameIndex = number;
 
-export type DrawingTool = "rectangle" | "polygon" | "point";
+export type DrawingTool = "rectangle" | "polygon" | "point" | "frame";
 export type ActiveDrawingTool = DrawingTool | null;
-export type AnnotoriousDrawingTool = Exclude<DrawingTool, "point">;
+export type AnnotoriousDrawingTool = Exclude<DrawingTool, "point" | "frame">;
 
 /**
  * Stable identifier for a tracked instance in the UI/session.

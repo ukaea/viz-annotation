@@ -44,10 +44,19 @@ export const BoundingBoxSchema = BaseAnnotationSchema.extend({
 
 export type BoundingBox = z.infer<typeof BoundingBoxSchema>;
 
-export const VideoBoundingBoxSchema = BaseAnnotationSchema.extend({
-  type: z.literal("video_bounding_box"),
+export const VideoAnnotationBaseSchema = BaseAnnotationSchema.extend({
   frame: z.number().int(),
   track_id: z.string(), // force string
+});
+
+export const VideoFrameLabelSchema = VideoAnnotationBaseSchema.extend({
+  type: z.literal("video_frame_label"),
+});
+
+export type VideoFrameLabel = z.infer<typeof VideoFrameLabelSchema>;
+
+export const VideoBoundingBoxSchema = VideoAnnotationBaseSchema.extend({
+  type: z.literal("video_bounding_box"),
   height: z.number().int(),
   width: z.number().int(),
   x_min: z.number().int(),
@@ -77,19 +86,15 @@ export const PolygonSchema = BaseAnnotationSchema.extend({
 
 export type Polygon = z.infer<typeof PolygonSchema>;
 
-export const VideoPolygonSchema = BaseAnnotationSchema.extend({
+export const VideoPolygonSchema = VideoAnnotationBaseSchema.extend({
   type: z.literal("video_polygon"),
-  frame: z.number().int(),
-  track_id: z.string(),
   segmentation: z.array(VideoPolygonCoordinatesSchema).length(1),
 });
 
 export type VideoPolygon = z.infer<typeof VideoPolygonSchema>;
 
-export const VideoPointSchema = BaseAnnotationSchema.extend({
+export const VideoPointSchema = VideoAnnotationBaseSchema.extend({
   type: z.literal("video_point"),
-  frame: z.number().int(),
-  track_id: z.string(),
   x: z.number().int(),
   y: z.number().int(),
 });
@@ -105,6 +110,7 @@ export const AnnotationSchema = z.union([
   VideoBoundingBoxSchema,
   VideoPolygonSchema,
   VideoPointSchema,
+  VideoFrameLabelSchema,
 ]);
 export type Annotation = z.infer<typeof AnnotationSchema>;
 

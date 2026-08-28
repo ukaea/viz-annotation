@@ -158,13 +158,16 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
   const {
     frame,
     setImageNatural,
+    selection,
     setSelection,
     drawingTool,
     editMode,
     drawIntent,
     canDrawShape,
     canDrawPoint,
+    canTagFrame,
     hideAnnotations,
+    toggleFrameLabel,
     createPointAnnotation,
     deleteAnnotation,
   } = useVideoSession();
@@ -432,7 +435,44 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
   }, [api, canDrawPoint, createPointAnnotation]);
 
   useEffect(() => {
-    if (!api?.viewer || hideAnnotations || (drawIntent && !canDrawPoint)) {
+    if (!api?.viewer || !canTagFrame) return;
+
+    const viewerElement = api.viewer.element as HTMLElement;
+    const overlay = findAnnotationOverlay(viewerElement);
+    const targets = [viewerElement, overlay].filter(
+      (target, index, list): target is HTMLElement =>
+        !!target && list.indexOf(target) === index,
+    );
+
+    const handleFrameTagClick = (event: MouseEvent) => {
+      if (isSecondaryMouseEvent(event)) return;
+      if (isAnnotationPopupEventTarget(event.target)) return;
+
+      const cls = (selection.className ?? "").trim();
+      if (!cls) return;
+
+      stopEvent(event);
+      api.cancelDrawing?.();
+      toggleFrameLabel();
+    };
+
+    for (const target of targets) {
+      target.addEventListener("click", handleFrameTagClick, true);
+    }
+
+    return () => {
+      for (const target of targets) {
+        target.removeEventListener("click", handleFrameTagClick, true);
+      }
+    };
+  }, [api, canTagFrame, selection.className, toggleFrameLabel]);
+
+  useEffect(() => {
+    if (
+      !api?.viewer ||
+      hideAnnotations ||
+      (drawIntent && !canDrawPoint && !canTagFrame)
+    ) {
       return;
     }
 
@@ -454,13 +494,14 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
           annotationContainsPoint(annotation, imagePoint),
         );
 
-      const cursor = canDrawPoint
-        ? "crosshair"
-        : isOverAnnotation
-          ? editMode
-            ? "pointer"
-            : "default"
-          : "";
+      const cursor =
+        canDrawPoint || canTagFrame
+          ? "crosshair"
+          : isOverAnnotation
+            ? editMode
+              ? "pointer"
+              : "default"
+            : "";
 
       setViewerCursor(viewerElement, cursor);
     };
@@ -477,7 +518,7 @@ function Inner({ imageBase64 }: { imageBase64: string }) {
       viewerElement.removeEventListener("mouseleave", clearCursor);
       clearCursor();
     };
-  }, [api, canDrawPoint, drawIntent, editMode, hideAnnotations]);
+  }, [api, canDrawPoint, canTagFrame, drawIntent, editMode, hideAnnotations]);
 
   const viewerOptions = useMemo<OpenSeadragon.Options>(
     () => ({

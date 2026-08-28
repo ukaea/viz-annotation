@@ -17,6 +17,7 @@ import {
 import FullScreenExit from "@spectrum-icons/workflow/FullScreenExit";
 import ImageMapPolygon from "@spectrum-icons/workflow/ImageMapPolygon";
 import ImageMapRectangle from "@spectrum-icons/workflow/ImageMapRectangle";
+import Label from "@spectrum-icons/workflow/Label";
 import Target from "@spectrum-icons/workflow/Target";
 import {
   useAnnotator,
@@ -134,6 +135,23 @@ export function VideoAnnotationToolbar(props: { desiredFrame: number }) {
             <Tooltip>Place a point with Ctrl + click</Tooltip>
           </TooltipTrigger>
 
+          <TooltipTrigger placement="left">
+            <ToggleButton
+              width="size-1600"
+              isDisabled={toolsDisabled}
+              isSelected={drawingTool === "frame"}
+              onPress={() => toggleTool("frame")}
+            >
+              <Flex width="100%" alignItems="center" gap="size-100">
+                <View width="size-250" flexShrink={0} paddingStart="size-50">
+                  <Label aria-hidden="true" size="S" />
+                </View>
+                <Text>Frame Label</Text>
+              </Flex>
+            </ToggleButton>
+            <Tooltip>Tag the whole frame with Ctrl + click</Tooltip>
+          </TooltipTrigger>
+
           <Divider size="S" marginY="size-50" />
           <TooltipTrigger placement="left">
             <ActionButton width="size-1600" onPress={resetView}>
@@ -162,6 +180,11 @@ export function VideoAnnotationToolbar(props: { desiredFrame: number }) {
               In edit mode, select a tool and hold <b>Ctrl</b> while dragging or
               clicking to create a new annotation. Ctrl drawing takes priority
               over annotations already beneath the pointer.
+              <br />
+              <br />
+              The Frame Label tool has no shape: Ctrl + click tags the whole
+              frame with the selected class, and clicking again with the same
+              class removes it.
               <br />
               <br />
               Right-click empty image space to change the selected class label.

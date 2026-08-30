@@ -181,3 +181,5 @@ toktagger/ui/*.tsbuildinfo
 
 # Ignore config file
 toktagger.toml
+joss/*.pdf
+joss/jats

@@ -65,9 +65,9 @@ async def get_samples(
         - You need sample metadata (shot_id, data, validated status) without fetching data content
 
     Do Not Use When:
-        - You need the next sample to annotate - use get_next_sample instead
-        - You need actual diagnostic signal/data values - use get_sample_data instead
-        - You only need summary info - use get_sample_summary instead
+        - You need the next sample to annotate - use toktagger_get_next_sample instead
+        - You need actual diagnostic signal/data values - use toktagger_get_sample_data instead
+        - You only need summary info - use toktagger__get_samples_summary instead
 
     Returns:
         A list of Sample objects
@@ -124,8 +124,8 @@ async def add_samples(
         - You want to add samples and pre-populate them with human annotations
 
     Do Not Use When:
-        - You are updating existing samples - use update_samples instead
-        - The project does not exist - verify with get_projects first
+        - You are updating existing samples - use toktagger_update_samples instead
+        - The project does not exist - verify with toktagger__get_projects first
 
     Returns:
         A list of sample _id strings for the newly created samples
@@ -248,7 +248,7 @@ async def update_samples(
         - You need to mark sample(s) as validated after human annotation
 
     Do Not Use When:
-        - You are creating new samples - use add_samples instead
+        - You are creating new samples - use toktagger_add_samples instead
 
     Returns:
         None (no response body on success)
@@ -313,9 +313,9 @@ async def get_next_sample(
         - You are iterating through all samples in a project for annotation
 
     Do Not Use When:
-        - You need all samples at once - use get_samples instead
-        - You already know the sample you want - use get_sample instead
-        - You need actual diagnostic data from the sample - use get_sample_data instead
+        - You need all samples at once - use toktagger__get_samples instead
+        - You already know the sample you want - use toktagger__get_sample instead
+        - You need actual diagnostic data from the sample - use toktagger_get_sample_data instead
 
     Returns:
         A Sample object, or 204 if no samples remain
@@ -374,8 +374,8 @@ async def get_sample_summary(
         - You need sample data type information for a project overview
 
     Do Not Use When:
-        - You need individual sample details - use get_samples or get_sample instead
-        - You need sample diagnostic data - use get_sample_data instead
+        - You need individual sample details - use toktagger__get_samples or toktagger__get_sample instead
+        - You need sample diagnostic data - use toktagger_get_sample_data instead
 
     Returns:
         A SampleSummary object with total_samples, min_shot_id, max_shot_id, data_type
@@ -421,8 +421,8 @@ async def get_sample(
         - You need sample metadata before fetching its data content
 
     Do Not Use When:
-        - You need the actual signal/data values - use get_sample_data instead
-        - You need all samples - use get_samples instead
+        - You need the actual signal/data values - use toktagger_get_sample_data instead
+        - You need all samples - use toktagger__get_samples instead
 
     Returns:
         A Sample object

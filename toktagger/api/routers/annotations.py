@@ -64,8 +64,8 @@ async def get_all_annotations(
         - You need to sort annotations by any of their attributes, eg by uncertainty, or timestamp
 
     Do Not Use When:
-        - You need annotations for a specific sample — use get_sample_annotations instead
-        - You want to create or update annotations — use import_annotations or toktagger_update_sample_annotations instead
+        - You need annotations for a specific sample — use toktagger__get_sample_annotations instead
+        - You want to create or update annotations — use toktagger_import_annotations or toktagger_update_sample_annotations instead
 
     Returns:
         A list of Annotation objects relating to the requested project
@@ -123,8 +123,8 @@ async def import_annotations(
         - You want to bulk-add annotations to multiple samples at once
 
     Do Not Use When:
-        - You are adding annotations for a single sample — use update_sample_annotations instead
-        - You are querying annotations — use get_project_annotations or get_sample_annotations instead
+        - You are adding annotations for a single sample — use toktagger_update_sample_annotations instead
+        - You are querying annotations — use toktagger__get_project_annotations or toktagger__get_sample_annotations instead
 
     Returns:
         None (no response body on success)
@@ -219,8 +219,8 @@ async def get_annotations(
         - You are building a sample-level annotation review UI
 
     Do Not Use When:
-        - You need all annotations for a project — use get_project_annotations instead
-        - You are creating/updating annotations — use update_sample_annotations instead
+        - You need all annotations for a project — use toktagger__get_project_annotations instead
+        - You are creating/updating annotations — use toktagger_update_sample_annotations instead
 
     Returns:
         A list of Annotation objects for the specified sample
@@ -295,7 +295,7 @@ async def update_annotations(
 
     Do Not Use When:
         - You do not have permission to overwrite existing annotations - check with the user first
-        - You are only querying annotations for a sample - use get_sample_annotations insad
+        - You are only querying annotations for a sample - use toktagger__get_sample_annotations insad
 
     Returns:
         The updated IDs of new annotations if successfully created

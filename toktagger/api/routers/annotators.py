@@ -44,10 +44,10 @@ async def create_annotations(
         - You need initial annotation suggestions for human review
 
     Do Not Use When:
-        - You want to save annotations to the database - use update_sample_annotations instead
-        - You want to train an ML model - use start_model_training instead
-        - You want to get predictions from an ML model - use create_model_predictions or create_sample_model_predictions instead
-        - You need to inspect actual diagnostic data - use get_sample_data instead
+        - You want to save annotations to the database - use toktagger_update_sample_annotations instead
+        - You want to train an ML model - use toktagger_start_model_training instead
+        - You want to get predictions from an ML model - use toktagger_create_model_predictions or toktagger_create_sample_model_predictions instead
+        - You need to inspect actual diagnostic data - use toktagger_get_sample_data instead
 
     Returns:
         A list of predicted annotations from the selected annotator

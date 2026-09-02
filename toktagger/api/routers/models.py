@@ -152,10 +152,10 @@ async def get_models(
         - You need to know available model versions before making predictions
 
     Do Not Use When:
-        - You need a specific model instance's details - use get_model instead
-        - You want to start training - use start_model_training instead
-        - You are querying metadata about the project itself - use get_project instead
-        - You need to know which models are available to be trained/loaded within this project/task - use get_model_types instead
+        - You need a specific model instance's details - use toktagger__get_model instead
+        - You want to start training - use toktagger_start_model_training instead
+        - You are querying metadata about the project itself - use toktagger__get_project instead
+        - You need to know which models are available to be trained/loaded within this project/task - use toktagger__get_model_types instead
 
     Returns:
         A list of Model objects with: id, type, version, status, progress, score, project_id
@@ -208,8 +208,8 @@ async def get_model(
         - You want to verify a specific model version exists
 
     Do Not Use When:
-        - You need all models - use get_trained_models instead
-        - You want to train a model - use start_model_training instead
+        - You need all models - use toktagger__get_trained_models instead
+        - You want to train a model - use toktagger_start_model_training instead
 
     Returns:
         A Model object with: id, type, version, status, progress, score, project_id
@@ -299,8 +299,8 @@ async def get_training_info(
         - You are polling for training completion
 
     Do Not Use When:
-        - You want to start training - use start_model_training instead
-        - The training is already complete - use get_model instead
+        - You want to start training - use toktagger_start_model_training instead
+        - The training is already complete - use toktagger__get_model instead
 
     Returns:
         A Model object if training is in progress; raises 404 if no training is active
@@ -352,8 +352,8 @@ async def start_model_training(
     Do Not Use When:
         - There are no validated annotations - the endpoint returns 404
         - Training for this model type is already in progress - returns 409
-        - You want to load pre-trained weights instead - use one of the load_model_weights_* endpoints
-        - You need to know which parameters the model needs from the user to train - use get_model_training_schema first
+        - You want to load pre-trained weights instead - use one of the toktagger_load_model_weights_* tools
+        - You need to know which parameters the model needs from the user to train - use toktagger__get_model_training_schema first
     Returns:
         A dict with task_id and model_id for tracking training progress
 
@@ -494,7 +494,7 @@ async def stop_model_training(
 
     Do Not Use When:
         - Training for this model type is not in progress - returns 409
-        - You want to delete a model instance - this is not supported by agentic workflows in TokTagger
+        - You want to delete a model instance - this is not supported by agentic workflows in TokTagger (use toktagger_delete_models)
     Returns:
         A list of aborted model's IDs
 
@@ -578,7 +578,7 @@ async def load_model_weights_local(
     Do Not Use When:
         - The weights file doesn't exist at the specified path — returns 422
         - Local loading is disabled in config — returns 403
-        - You want to load from GitLab or HuggingFace - use load_model_weights_gitlab, or load_model_weights_huggingface instead
+        - You want to load from GitLab or HuggingFace - use toktagger_load_model_weights_gitlab, or toktagger_load_model_weights_hugging_face instead
 
     Returns:
         A dict with task_id and model_id for tracking load progress
@@ -645,7 +645,7 @@ async def load_model_weights_gitlab(
     Do Not Use When:
         - GitLab loading is disabled - returns 403
         - Required env vars (GITLAB_URL, GITLAB_TOKEN) are not set on the server - returns 409
-        - You want to load from local files or HuggingFace - use load_model_weights_local, or load_model_weights_huggingface instead
+        - You want to load from local files or HuggingFace - use toktagger_load_model_weights_local, or toktagger_load_model_weights_hugging_face instead
 
     Returns:
         A dict with task_id and model_id for tracking load progress
@@ -724,7 +724,7 @@ async def load_model_weights_hugging_face(
     Do Not Use When:
         - HuggingFace loading is disabled — returns 403
         - Required userspace/organization is not configured — returns 422
-        - You want to load from local files or GitLab - use load_model_weights_local, or load_model_weights_gitlab instead
+        - You want to load from local files or GitLab - use toktagger_load_model_weights_local, or toktagger_load_model_weights_gitlab instead
 
     Returns:
         A dict with task_id and model_id for tracking load progress
@@ -795,8 +795,8 @@ async def get_load_model_status(
         - You want to detect load failures
 
     Do Not Use When:
-        - You want to actually load weights - use load_model_weights_* instead
-        - You want to check training status - use get_model_training_info instead
+        - You want to actually load weights - use toktagger_load_model_weights_* instead
+        - You want to check training status - use toktagger__get_model_training_info instead
 
     Returns:
         true on success, or HTTP 202 with {"message": "Load task in the queue!"} while loading
@@ -913,10 +913,10 @@ async def predict(
         - You want to evaluate model performance on new data
 
     Do Not Use When:
-        - The model isn't trained - use start_model_training first
-        - You want quick, automated annotations from built in annotators - use create_automated_sample_annotations instead
-        - You want predictions for a single specific sample - use create_sample_model_predictions instead
-        - You are querying model info - use get_trained_models instead
+        - The model isn't trained - use toktagger_start_model_training first
+        - You want quick, automated annotations from built in annotators - use toktagger_create_automated_sample_annotations instead
+        - You want predictions for a single specific sample - use toktagger_create_sample_model_predictions instead
+        - You are querying model info - use toktagger__get_trained_models instead
 
     Returns:
         A dict with task_id for tracking prediction progress
@@ -1068,9 +1068,9 @@ async def create_sample_predictions(
         - You are comparing model predictions against your own annotations for a sample
 
     Do Not Use When:
-        - You need batch predictions across many samples - use create_model_predictions instead
-        - You want quick, automated annotations from built in annotators - use create_automated_sample_annotations instead
-        - The model isn't trained - use start_model_training first
+        - You need batch predictions across many samples - use toktagger_create_model_predictions instead
+        - You want quick, automated annotations from built in annotators - use toktagger_create_automated_sample_annotations instead
+        - The model isn't trained - use toktagger_start_model_training first
 
     Returns:
         A dict with task_id for tracking prediction progress
@@ -1152,8 +1152,8 @@ async def get_sample_predictions(
         - You want to see model predictions before human annotation
 
     Do Not Use When:
-        - You want to create predictions - use create_model_predictions pr create_sample_model_predictions instead
-        - You want to retrieve all annotations for a sample - use get_sample_annotations instead (optionally filtering by created_by with the model name)
+        - You want to create predictions - use toktagger_create_model_predictions or toktagger_create_sample_model_predictions instead
+        - You want to retrieve all annotations for a sample - use toktagger__get_sample_annotations instead (optionally filtering by created_by with the model name)
     Returns:
         A list of predicted Annotation objects for the specified sample, or a 202 response if the predict task has not yet completed.
 

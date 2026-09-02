@@ -38,10 +38,10 @@ async def get_data(
         - You are asked what kind of data a specific sample / project contains
 
     Do Not Use When:
-        - You only need sample metadata (shot_id, validation status) — use get_sample instead
-        - You need to review existing annotations — use get_sample_annotations instead
-        - You want to create annotations from built-in annotators, use create_automated_sample_annotations instead
-        - You want to create predictions from an ML model - use create_model_predictions or create_sample_model_predictions instead
+        - You only need sample metadata (shot_id, validation status) — use toktagger__get_sample instead
+        - You need to review existing annotations — use toktagger__get_sample_annotations instead
+        - You want to create annotations from built-in annotators, use toktagger_create_automated_sample_annotations instead
+        - You want to create predictions from an ML model - use toktagger_create_model_predictions or toktagger_create_sample_model_predictions instead
 
     Returns:
         Sample data, either single/multivariate time-series, 2D profile(s), or an image encoded in a base64 string.

@@ -53,8 +53,8 @@ async def get_projects(
         - You want to list projects for auditing or summary purposes
 
     Do Not Use When:
-        - You only need a single project - use get_project instead
-        - You need project samples - use get_samples instead
+        - You only need a single project - use toktagger__get_project instead
+        - You need project samples - use toktagger__get_samples instead
 
     Returns:
         A list of Project objects, each containing: name, task, query_strategy, data_loader, time_min, time_max, shot_labels, time_region_labels, time_point_labels, bounding_box_labels, polygon_labels, video_bounding_box_labels, model_types, _id, timestamp
@@ -101,7 +101,7 @@ async def create_project(request: Request, project: ProjectIn):
         - You are preparing to add samples and annotations
 
     Do Not Use When:
-        - The project already exists and you wish to update it - use update_project instead
+        - The project already exists and you wish to update it - use toktagger_update_project instead
 
     Returns:
         A dict with _id containing the new project's unique identifier
@@ -149,8 +149,8 @@ async def get_project(
         - You are verifying project configuration before annotating or training
 
     Do Not Use When:
-        - You want to search/list multiple projects - use get_projects instead
-        - You need to get a project by name - use get_projects instead
+        - You want to search/list multiple projects - use toktagger__get_projects instead
+        - You need to get a project by name - use toktagger__get_projects instead
         - You need sample data - use the samples or data endpoints instead
 
     Returns:
@@ -202,7 +202,7 @@ async def update_project(
         - You are updating project metadata (time windows, query strategy, etc.)
 
     Do Not Use When:
-        - You are creating a new project - use create_project instead
+        - You are creating a new project - use toktagger_create_project instead
 
     Returns:
         None (no response body on success)

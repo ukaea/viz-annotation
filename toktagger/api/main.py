@@ -186,21 +186,7 @@ class Server:
             self.app,
             name="toktagger",
             route_maps=[
-                # GET with path params -> ResourceTemplates
-                RouteMap(
-                    methods=["GET"],
-                    pattern=r"/.*\{.*\}.*",
-                    tags={"MCP"},
-                    mcp_type=MCPType.RESOURCE_TEMPLATE,
-                ),
-                # Other GETs -> Resources
-                RouteMap(
-                    methods=["GET"],
-                    pattern=r"/.*",
-                    tags={"MCP"},
-                    mcp_type=MCPType.RESOURCE,
-                ),
-                # Other methods (POST, PUT, DELETE) -> tools
+                # Tagged routers turned into tools
                 RouteMap(
                     pattern=r"/.*",
                     tags={"MCP"},

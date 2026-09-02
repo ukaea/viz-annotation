@@ -44,17 +44,16 @@ async def get_projects(
     MCP Documentation
     -----------------
     Purpose:
-        Retrieve all projects in the system, with optional filtering by name, sorting, and pagination.
+        Retrieve all projects in the system, with optional sorting, pagination, and filtering by name
 
     Use When:
         - You need to discover what projects exist and their configurations
         - You need a project _id to use with other endpoints
-        - You are building a project selection UI
         - You want to list projects for auditing or summary purposes
 
     Do Not Use When:
-        - You only need a single project - use get_project (GET by ID) instead
-        - You need project samples - use the samples endpoints instead
+        - You only need a single project - use get_project instead
+        - You need project samples - use get_samples instead
 
     Returns:
         A list of Project objects, each containing: name, task, query_strategy, data_loader, time_min, time_max, shot_labels, time_region_labels, time_point_labels, bounding_box_labels, polygon_labels, video_bounding_box_labels, model_types, _id, timestamp
@@ -92,17 +91,15 @@ async def create_project(request: Request, project: ProjectIn):
     MCP Documentation
     -----------------
     Purpose:
-        Create a new annotation project with specified task, data loader, query strategy, label sets, and optional model types.
+        Create a new project with specified task, data loader, query strategy, label sets, and optional model types.
+        Users should be prompted for the required parameters in the ProjectIn schema.
 
     Use When:
         - You are setting up a new annotation workflow for a dataset
-        - You need to define label categories (shot labels, time regions, bounding boxes, etc.)
         - You are preparing to add samples and annotations
 
     Do Not Use When:
-        - The project already exists - use update_project (PUT by ID) instead
-        - You are updating an existing project - use the update endpoint instead
-        - The data_loader is not valid — check get_dataloaders first
+        - The project already exists and you wish to update it - use update_project instead
 
     Returns:
         A dict with _id containing the new project's unique identifier
@@ -141,7 +138,7 @@ async def get_project(
     MCP Documentation
     -----------------
     Purpose:
-        Retrieve the full details of a single project by its unique ID.
+        Retrieve the full details of a single project by its ID.
 
     Use When:
         - You need the complete configuration of a specific project
@@ -150,14 +147,15 @@ async def get_project(
 
     Do Not Use When:
         - You want to search/list multiple projects - use get_projects instead
+        - You need to get a project by name - use get_projects instead
         - You need sample data - use the samples or data endpoints instead
 
     Returns:
-        A Project object with all configuration fields: name, task, query_strategy, data_loader, time_min, time_max, min_time_step, shot_labels, time_region_labels, time_point_labels, bounding_box_labels, polygon_labels, video_bounding_box_labels, model_types, _id, timestamp
+        A Project object.
 
     Example User Requests:
         - "Show me the configuration for project 6a8f2340b6b4f8d585fd1a67"
-        - "What task does this project use?"
+        - "What data loader does this project use?"
     """
     # Return information about a specific project
     # Have put project_id as a string for now, but might want to use ShortUUID?
@@ -197,19 +195,17 @@ async def update_project(
     Use When:
         - You need to change a project's annotation labels after creation
         - You want to add or remove model types from a project
-        - You are correcting project metadata (time windows, query strategy, etc.)
-        - You are reconfiguring a project for a new dataset
+        - You are updating project metadata (time windows, query strategy, etc.)
 
     Do Not Use When:
-        - You are creating a new project - use create_project (POST) instead
-        - You are deleting a project - use the DELETE endpoint instead
+        - You are creating a new project - use create_project instead
 
     Returns:
         None (no response body on success)
 
     Example User Requests:
         - "Update the label set for this project"
-        - "Change the query strategy for this project"
+        - "Change the query strategy for this project to sequential"
     """
     db_client: MongoDBClient = request.app.state.db_client
     await utils.update_project(db_client, project_id, project)
@@ -230,6 +226,10 @@ async def delete_project(
     """
     Permanently delete a project.
     -----------------------------
+
+    MCP Documentation
+    -----------------
+    This endpoint is not exposed to the MCP server.
     """
     db_client = request.app.state.db_client
     # Delete this specific project
@@ -249,6 +249,10 @@ async def delete_all_projects(
     """
     Remove all projects.
     --------------------
+
+    MCP Documentation
+    -----------------
+    This endpoint is not exposed to the MCP server.
     """
     db_client = request.app.state.db_client
     # Check project exists

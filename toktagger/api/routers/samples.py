@@ -62,19 +62,20 @@ async def get_samples(
         - You need a complete inventory of samples in a project
         - You want to find a sample by its shot ID
         - You need sample metadata (shot_id, data, validated status) without fetching data content
-        - You are building a sample browser or dashboard
 
     Do Not Use When:
-        - You need the next sample to annotate — use toktagger_get_next_sample instead
-        - You need actual signal/data values — use toktagger_get_sample_data instead
-        - You only need summary info — use toktagger_read_get_sample_summary instead
+        - You need the next sample to annotate - use get_next_sample instead
+        - You need actual diagnostic signal/data values - use get_sample_data instead
+        - You only need summary info - use get_sample_summary instead
 
     Returns:
-        A list of Sample objects, each containing: _id, project_id, shot_id, data, validated_annotations, timestamp
+        A list of Sample objects
 
     Example User Requests:
         - "Show me all samples in this project"
-        - "What samples are available for shot 30421?"
+        - "Has shot 30421 been validated?"
+        - "What is the sample ID for shot 30421?"
+
     """
     db_client = request.app.state.db_client
     samples = await utils.get_samples(
@@ -116,27 +117,25 @@ async def add_samples(
         Insert one or more new samples into a project, optionally with initial annotations.
 
     Use When:
-        - You are bulk-importing samples from a data source or external list
-        - You want to pre-populate samples with human annotations
         - You are setting up a new project with its initial dataset
+        - You are bulk-importing samples from a data source or external list
+        - You want to add samples and pre-populate them with human annotations
 
     Do Not Use When:
-        - You are adding a single sample — the endpoint still works but batching is more efficient
-        - You are updating existing samples — use toktagger_update_samples (PUT) instead
-        - The project does not exist — verify with toktagger_read_get_projects first
+        - You are updating existing samples - use update_samples instead
+        - The project does not exist - verify with get_projects first
 
     Returns:
         A list of sample _id strings for the newly created samples
 
     Example User Requests:
-        - "Add these shots from UDA to the project"
-        - "Import samples with their initial annotations"
+        - "Add shots 30400 to 30500 from UDA to the project"
+        - "Add samples from my local directory of files at /path/to/my/files"
     """
     # Add samples from the range specified to the project
     # I'm assuming these will be shot/pulse numbers, hence int, but could be unique ID strings instead
     # Depends if for us a 'sample' will always be a shot/pulse, or if it could be a subset eg a single frame of video
     # Do we also want to allow a single value, or list of specific value?
-    print(samples)
     project_obj_id = convert_to_objectid(project_id, "projects")
     if not await request.app.state.db_client.get_document_by_id(
         "projects", project_obj_id
@@ -240,23 +239,19 @@ async def update_samples(
     MCP Documentation
     -----------------
     Purpose:
-        Batch-update properties (e.g. validated status, metadata) for multiple samples in a project.
+        Batch-update properties validation status for multiple samples in a project.
 
     Use When:
-        - You need to mark multiple samples as validated/annotated
-        - You want to update sample metadata in bulk
-        - You are syncing sample state from an external system
+        - You need to mark sample(s) as validated after human annotation
 
     Do Not Use When:
-        - You are creating new samples — use toktagger_add_samples (POST) instead
-        - You are updating only one sample — the endpoint works but the individual GET endpoint may be simpler
+        - You are creating new samples - use add_samples instead
 
     Returns:
         None (no response body on success)
 
     Example User Requests:
         - "Mark these samples as validated"
-        - "Update the metadata for these samples in bulk"
     """
     db_client = request.app.state.db_client
     await utils.get_project(db_client, project_id)
@@ -305,7 +300,8 @@ async def get_next_sample(
     MCP Documentation
     -----------------
     Purpose:
-        Get the next unannotated sample for a project based on its query strategy (random, sequential, etc.), tracking which samples have already been visited.
+        Get the next unannotated sample for a project based on its query strategy (random, sequential, etc.), with optional sorting.
+        Note that a list of previously visited sample IDs should be stored and provided here to prevent duplicates.
 
     Use When:
         - You are building an annotation workflow and need the next sample to annotate
@@ -313,16 +309,16 @@ async def get_next_sample(
         - You are iterating through all samples in a project for annotation
 
     Do Not Use When:
-        - You need all samples at once — use toktagger_read_get_samples instead
-        - You already know the sample you want — use toktagger_read_get_sample (GET by ID) instead
-        - You need sample data content — use toktagger_get_sample_data instead
+        - You need all samples at once - use get_samples instead
+        - You already know the sample you want - use get_sample instead
+        - You need actual diagnostic data from the sample - use get_sample_data instead
 
     Returns:
-        A Sample object (_id, project_id, shot_id, data, validated_annotations, timestamp) — or HTTP 204 if no samples remain
+        A Sample object, or 204 if no samples remain
 
     Example User Requests:
         - "What's the next sample I need to annotate?"
-        - "Give me the next unreviewed shot in this project"
+        - "Give me the next unvalidated sample in this project"
     """
     # Return the next sample for human validation for this project
     # Should use the query strategy, which access the database to determine the next sample to annotate
@@ -368,11 +364,10 @@ async def get_sample_summary(
         - You need a quick count of samples in a project
         - You want to check the shot ID range
         - You need sample data type information for a project overview
-        - You are building a dashboard or project summary view
 
     Do Not Use When:
-        - You need individual sample details — use toktagger_read_get_samples or toktagger_read_get_sample instead
-        - You need sample data content — use toktagger_get_sample_data instead
+        - You need individual sample details - use get_samples or get_sample instead
+        - You need sample diagnostic data - use get_sample_data instead
 
     Returns:
         A SampleSummary object with total_samples, min_shot_id, max_shot_id, data_type
@@ -417,11 +412,11 @@ async def get_sample(
         - You need sample metadata before fetching its data content
 
     Do Not Use When:
-        - You need the actual signal/data values — use toktagger_get_sample_data instead
-        - You need all samples — use toktagger_read_get_samples instead
+        - You need the actual signal/data values - use get_sample_data instead
+        - You need all samples - use get_samples instead
 
     Returns:
-        A Sample object (_id, project_id, shot_id, data, validated_annotations, timestamp)
+        A Sample object
 
     Example User Requests:
         - "Show me the details for sample 6a8f2340b6b4f8d585fd1a6d"
@@ -455,6 +450,10 @@ async def remove_sample(
     """
     Get the specified sample from this project.
     --------------------------------------------
+
+    MCP Documentation
+    -----------------
+    This endpoint is not exposed to the MCP server.
     """
     # Remove samples from the project
     # Dont envisage this actually deleting the data stored about these samples
@@ -482,6 +481,10 @@ async def remove_all_samples(
     """
     Remove all samples from this project.
     --------------------------------------------
+
+    MCP Documentation
+    -----------------
+    This endpoint is not exposed to the MCP server.
     """
     db_client = request.app.state.db_client
     # Check project exists

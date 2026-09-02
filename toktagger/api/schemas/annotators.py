@@ -1,6 +1,7 @@
 from typing import Literal, Optional, Union
 from pydantic import BaseModel
 from enum import Enum
+from toktagger.api.schemas.projects import Task
 
 
 class AnnotatorTypes(str, Enum):
@@ -70,3 +71,16 @@ AnnotatorParamTypes = Union[
     JumpDetectionParams,
     Profile2DThresholdParams,
 ]
+
+# Currently a fixed list of annotators with no custom option
+# Provide direct Task -> Annotator mapping
+ANNOTATOR_REGISTRY = {
+    Task.TIME_SERIES: [
+        AnnotatorTypes.PEAK_DETECTION,
+        AnnotatorTypes.CHANGE_POINT_DETECTION,
+        AnnotatorTypes.JUMP_DETECTION,
+        AnnotatorTypes.OUTLIER_DETECTION,
+    ],
+    Task.PROFILE_2D: [AnnotatorTypes.PROFILE_2D_THRESHOLD],
+    Task.VIDEO: [],
+}

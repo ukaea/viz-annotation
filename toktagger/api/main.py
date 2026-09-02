@@ -19,6 +19,7 @@ from toktagger.api.routers.samples import router as samples_router
 from toktagger.api.routers.base import router as base_router
 from toktagger.api.routers.paths import router as paths_router
 from toktagger.api.routers.meta import router as meta_router
+from toktagger.api.routers.mcp import INSTRUCTIONS
 from toktagger.api.core.data_loaders import LoaderRegistry
 from toktagger.api.crud.db import MongoDBClient
 from toktagger.api.models import models_dependencies_installed
@@ -185,6 +186,7 @@ class Server:
         mcp = FastMCP.from_fastapi(
             self.app,
             name="toktagger",
+            instructions=INSTRUCTIONS,
             route_maps=[
                 # Tagged routers turned into tools
                 RouteMap(
@@ -199,6 +201,7 @@ class Server:
                 ),
             ],
         )
+
         mcp_app = mcp.http_app("/")
 
         self.main_app = FastAPI(

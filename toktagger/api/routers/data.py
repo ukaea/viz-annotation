@@ -31,6 +31,7 @@ async def get_data(
     Purpose:
         Retrieve the actual diagnostic data for a sample, with optional view transformation (e.g. profile-2d heatmaps).
         Data formats supported are time-series, 2D profiles, and images (encoded in base64 strings by default).
+        Note that the data response may be large, so check that it hasn't been trancated before answering the user.
 
     Use When:
         - You need the raw signal values (e.g. plasma current, density) for a sample to display or analyse
@@ -38,8 +39,8 @@ async def get_data(
         - You are asked what kind of data a specific sample / project contains
 
     Do Not Use When:
-        - You only need sample metadata (shot_id, validation status) — use toktagger__get_sample instead
-        - You need to review existing annotations — use toktagger__get_sample_annotations instead
+        - You only need sample metadata (shot_id, validation status) — use toktagger_get_sample instead
+        - You need to review existing annotations — use toktagger_get_sample_annotations instead
         - You want to create annotations from built-in annotators, use toktagger_create_automated_sample_annotations instead
         - You want to create predictions from an ML model - use toktagger_create_model_predictions or toktagger_create_sample_model_predictions instead
 

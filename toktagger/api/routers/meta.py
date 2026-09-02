@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Request, Depends
 from toktagger.api.core.data_loaders import LoaderRegistry
 from toktagger.api.schemas.models import LoadMethods
+from toktagger.api.schemas.annotators import ANNOTATOR_REGISTRY
+from toktagger.api.schemas.projects import Task
 from toktagger.api.models import models_dependencies_installed, check_models_enabled
 import typing
 import toktagger.api.config as config
@@ -28,8 +30,8 @@ async def get_dataloaders(request: Request) -> list[str]:
         - Validating a data_loader name before creating samples
 
     Do Not Use When:
-        - You already know the data loader and need its schema - use toktagger__get_data_schema instead
-        - You need to know which dataloader a specific project uses - use toktagger__get_projects instead
+        - You already know the data loader and need its schema - use toktagger_get_data_schema instead
+        - You need to know which dataloader a specific project uses - use toktagger_get_projects instead
         - You need actual diagnostic data for a sample - use toktagger_get_sample_data instead
 
     Returns:
@@ -58,7 +60,7 @@ async def get_data_schema(loader: str) -> dict[str, typing.Any]:
         - You need to know which parameters to prompt the user for when getting data for a sample
 
     Do Not Use When:
-        - You need to know which dataloader a specific project uses - use toktagger__get_projects instead
+        - You need to know which dataloader a specific project uses - use toktagger_get_projects instead
         - You already know the required parameters - use toktagger_get_sample_data instead
         - You need actual diagnostic data for a sample - use toktagger_get_sample_data instead
 
@@ -73,11 +75,43 @@ async def get_data_schema(loader: str) -> dict[str, typing.Any]:
 
 
 @router.get(
+    "/annotators",
+    operation_id="get_annotator_types",
+    dependencies=[Depends(check_models_enabled)],
+)
+async def get_annotator_types(task: Task) -> list[str]:
+    """
+    Get list of available automated annotators for a given task.
+    -----------------------------------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Retrieve the list of available automated annotators for a specified task ("time-series", "video", "profile-2d").
+
+    Use When:
+        - Checking which annotators can be used for a given task
+        - Checking which annotators can be used for sample labelling within a project (need to find the tas associated with the project first via toktagget_get_project)
+
+    Do Not Use When:
+        - The user has asked for available ML models - use toktagger_get_model_types
+
+    Returns:
+        A list of model type strings (e.g. ["disruption_cnn"])
+
+    Example User Requests:
+        - "Which annotators are available for time-series tasks?"
+        - "Can I use the peak-detection annotator for this project?"
+    """
+    return ANNOTATOR_REGISTRY.get(task, [])
+
+
+@router.get(
     "/models",
     operation_id="get_model_types",
     dependencies=[Depends(check_models_enabled)],
 )
-async def get_model_types(task: str) -> list[str]:
+async def get_model_types(task: Task) -> list[str]:
     """
     Get list of available models for a given task.
     -----------------------------------------------
@@ -92,8 +126,9 @@ async def get_model_types(task: str) -> list[str]:
         - Validating a model_type before starting training
 
     Do Not Use When:
-        - You need model training parameters - use toktagger__get_model_training_schema instead
-        - You need model prediction parameters - use toktagger__get_model_prediction_schema instead
+        - The user has asked specifically for 'annotators' or 'automated annotators' - use toktagger_get_annotator_types instead
+        - You need model training parameters - use toktagger_get_model_training_schema instead
+        - You need model prediction parameters - use toktagger_get_model_prediction_schema instead
         - ML models are not enabled - this endpoint returns an error if ML is disabled
 
     Returns:
@@ -127,7 +162,7 @@ async def get_model_load_methods() -> list[str]:
 
     Do Not Use When:
         - You want to actually load model weights - use toktagger_load_model_weights_local, toktagger_load_model_weights_gitlab, or toktagger_load_model_weights_hugging_face instead
-        - You need a list of available model types for the given project/task - use toktagger__get_model_types instead
+        - You need a list of available model types for the given project/task - use toktagger_get_model_types instead
         - ML models are not enabled - this endpoint returns an error if ML is disabled
 
     Returns:
@@ -170,7 +205,7 @@ async def get_model_load_method_allowlist(load_method: LoadMethods) -> str | Non
 
     Do Not Use When:
         - You want to load weights directly - use toktagger_load_model_weights_gitlab or toktagger_load_model_weights_hugging_face instead
-        - You need the list of enabled load methods - use toktagger__get_model_load_methods instead
+        - You need the list of enabled load methods - use toktagger_get_model_load_methods instead
         - ML models are not enabled - this endpoint returns an error if ML is disabled
 
     Returns:
@@ -216,7 +251,7 @@ async def get_model_training_schema(model: str) -> dict[str, typing.Any] | None:
 
     Do Not Use When:
         - You want to actually train a model - use toktagger_start_model_training instead
-        - You need prediction parameters - use toktagger__get_model_prediction_schema instead
+        - You need prediction parameters - use toktagger_get_model_prediction_schema instead
 
     Returns:
         A JSON schema dict describing required training parameters, or null if no parameters are required
@@ -250,7 +285,7 @@ async def get_model_prediction_schema(model: str) -> dict[str, typing.Any] | Non
 
     Do Not Use When:
         - You want to actually run predictions - use toktagger_create_model_predictions or toktagger_create_sample_model_predictions instead
-        - You need training parameters - use toktagger__get_model_training_schema instead
+        - You need training parameters - use toktagger_get_model_training_schema instead
 
     Returns:
         A JSON schema dict describing required prediction parameters, or null if no parameters are required

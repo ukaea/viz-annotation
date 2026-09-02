@@ -67,7 +67,7 @@ async def get_samples(
     Do Not Use When:
         - You need the next sample to annotate - use toktagger_get_next_sample instead
         - You need actual diagnostic signal/data values - use toktagger_get_sample_data instead
-        - You only need summary info - use toktagger__get_samples_summary instead
+        - You only need summary info, such as the number of samples in a project - use toktagger_get_samples_summary instead
 
     Returns:
         A list of Sample objects
@@ -125,7 +125,7 @@ async def add_samples(
 
     Do Not Use When:
         - You are updating existing samples - use toktagger_update_samples instead
-        - The project does not exist - verify with toktagger__get_projects first
+        - The project does not exist - verify with toktagger_get_projects first
 
     Returns:
         A list of sample _id strings for the newly created samples
@@ -313,8 +313,8 @@ async def get_next_sample(
         - You are iterating through all samples in a project for annotation
 
     Do Not Use When:
-        - You need all samples at once - use toktagger__get_samples instead
-        - You already know the sample you want - use toktagger__get_sample instead
+        - You need all samples at once - use toktagger_get_samples instead
+        - You already know the sample you want - use toktagger_get_sample instead
         - You need actual diagnostic data from the sample - use toktagger_get_sample_data instead
 
     Returns:
@@ -374,7 +374,7 @@ async def get_sample_summary(
         - You need sample data type information for a project overview
 
     Do Not Use When:
-        - You need individual sample details - use toktagger__get_samples or toktagger__get_sample instead
+        - You need individual sample details - use toktagger_get_samples or toktagger_get_sample instead
         - You need sample diagnostic data - use toktagger_get_sample_data instead
 
     Returns:
@@ -422,7 +422,7 @@ async def get_sample(
 
     Do Not Use When:
         - You need the actual signal/data values - use toktagger_get_sample_data instead
-        - You need all samples - use toktagger__get_samples instead
+        - You need all samples - use toktagger_get_samples instead
 
     Returns:
         A Sample object

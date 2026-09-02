@@ -53,8 +53,8 @@ async def get_projects(
         - You want to list projects for auditing or summary purposes
 
     Do Not Use When:
-        - You only need a single project - use toktagger__get_project instead
-        - You need project samples - use toktagger__get_samples instead
+        - You only need a single project - use toktagger_get_project instead
+        - You need project samples - use toktagger_get_samples instead
 
     Returns:
         A list of Project objects, each containing: name, task, query_strategy, data_loader, time_min, time_max, shot_labels, time_region_labels, time_point_labels, bounding_box_labels, polygon_labels, video_bounding_box_labels, model_types, _id, timestamp
@@ -149,8 +149,8 @@ async def get_project(
         - You are verifying project configuration before annotating or training
 
     Do Not Use When:
-        - You want to search/list multiple projects - use toktagger__get_projects instead
-        - You need to get a project by name - use toktagger__get_projects instead
+        - You want to search/list multiple projects - use toktagger_get_projects instead
+        - You need to get a project by name - use toktagger_get_projects instead
         - You need sample data - use the samples or data endpoints instead
 
     Returns:

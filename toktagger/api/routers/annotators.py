@@ -35,8 +35,9 @@ async def create_annotations(
     MCP Documentation
     -----------------
     Purpose:
-        Run an automated annotator on a sample to produce predicted annotations without saving them to the database.
+        Run an automated annotator on a sample to produce predicted annotations *without* saving them to the database.
         Some annotators require a set of parameters to be specified - these should be prompted by the user.
+        The annotation will be returned - you should store this in memory in case the user wishes to commit it to the database later.
 
     Use When:
         - You want to generate annotations automatically using one of the built in annotators

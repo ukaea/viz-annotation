@@ -152,10 +152,10 @@ async def get_models(
         - You need to know available model versions before making predictions
 
     Do Not Use When:
-        - You need a specific model instance's details - use toktagger__get_model instead
+        - You need a specific model instance's details - use toktagger_get_model instead
         - You want to start training - use toktagger_start_model_training instead
-        - You are querying metadata about the project itself - use toktagger__get_project instead
-        - You need to know which models are available to be trained/loaded within this project/task - use toktagger__get_model_types instead
+        - You are querying metadata about the project itself - use toktagger_get_project instead
+        - You need to know which models are available to be trained/loaded within this project/task - use toktagger_get_model_types instead
 
     Returns:
         A list of Model objects with: id, type, version, status, progress, score, project_id
@@ -208,7 +208,7 @@ async def get_model(
         - You want to verify a specific model version exists
 
     Do Not Use When:
-        - You need all models - use toktagger__get_trained_models instead
+        - You need all models - use toktagger_get_trained_models instead
         - You want to train a model - use toktagger_start_model_training instead
 
     Returns:
@@ -300,7 +300,7 @@ async def get_training_info(
 
     Do Not Use When:
         - You want to start training - use toktagger_start_model_training instead
-        - The training is already complete - use toktagger__get_model instead
+        - The training is already complete - use toktagger_get_model instead
 
     Returns:
         A Model object if training is in progress; raises 404 if no training is active
@@ -353,7 +353,7 @@ async def start_model_training(
         - There are no validated annotations - the endpoint returns 404
         - Training for this model type is already in progress - returns 409
         - You want to load pre-trained weights instead - use one of the toktagger_load_model_weights_* tools
-        - You need to know which parameters the model needs from the user to train - use toktagger__get_model_training_schema first
+        - You need to know which parameters the model needs from the user to train - use toktagger_get_model_training_schema first
     Returns:
         A dict with task_id and model_id for tracking training progress
 
@@ -796,7 +796,7 @@ async def get_load_model_status(
 
     Do Not Use When:
         - You want to actually load weights - use toktagger_load_model_weights_* instead
-        - You want to check training status - use toktagger__get_model_training_info instead
+        - You want to check training status - use toktagger_get_model_training_info instead
 
     Returns:
         true on success, or HTTP 202 with {"message": "Load task in the queue!"} while loading
@@ -916,7 +916,7 @@ async def predict(
         - The model isn't trained - use toktagger_start_model_training first
         - You want quick, automated annotations from built in annotators - use toktagger_create_automated_sample_annotations instead
         - You want predictions for a single specific sample - use toktagger_create_sample_model_predictions instead
-        - You are querying model info - use toktagger__get_trained_models instead
+        - You are querying model info - use toktagger_get_trained_models instead
 
     Returns:
         A dict with task_id for tracking prediction progress
@@ -1153,7 +1153,7 @@ async def get_sample_predictions(
 
     Do Not Use When:
         - You want to create predictions - use toktagger_create_model_predictions or toktagger_create_sample_model_predictions instead
-        - You want to retrieve all annotations for a sample - use toktagger__get_sample_annotations instead (optionally filtering by created_by with the model name)
+        - You want to retrieve all annotations for a sample - use toktagger_get_sample_annotations instead (optionally filtering by created_by with the model name)
     Returns:
         A list of predicted Annotation objects for the specified sample, or a 202 response if the predict task has not yet completed.
 

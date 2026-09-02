@@ -115,13 +115,17 @@ async def create_model(db_client, project: Project, model_type: str) -> Model:
 
 router = APIRouter(
     prefix="/projects/{project_id}",
-    tags=["Models", "MCP"],
+    tags=["Models"],
     # Check models are enabled whenever an endpoint is called
     dependencies=[Depends(check_models_enabled)],
 )
 
 
-@router.get("/models", operation_id="get_trained_models")
+@router.get(
+    "/models",
+    operation_id="get_trained_models",
+    tags=["MCP"],
+)
 async def get_models(
     request: Request,
     project_id: str = Path(description="The ID of the project to get models for."),
@@ -173,7 +177,11 @@ async def get_models(
     return models
 
 
-@router.get("/models/{model_type}", operation_id="get_model")
+@router.get(
+    "/models/{model_type}",
+    operation_id="get_model",
+    tags=["MCP"],
+)
 async def get_model(
     request: Request,
     project_id: str = Path(description="The ID of the project to get models for."),
@@ -268,7 +276,11 @@ async def delete_models(
             shutil.rmtree(model_dir)
 
 
-@router.get("/models/{model_type}/train", operation_id="get_model_training_info")
+@router.get(
+    "/models/{model_type}/train",
+    operation_id="get_model_training_info",
+    tags=["MCP"],
+)
 async def get_training_info(
     request: Request, project_id: str, model_type: str
 ) -> Model:
@@ -309,7 +321,11 @@ async def get_training_info(
     return latest_model
 
 
-@router.put("/models/{model_type}/train", operation_id="start_model_training")
+@router.put(
+    "/models/{model_type}/train",
+    operation_id="start_model_training",
+    tags=["MCP"],
+)
 async def start_model_training(
     request: Request,
     project_id: str,
@@ -450,7 +466,11 @@ async def start_model_training(
     return {"task_id": task_id, "model_id": model_id}
 
 
-@router.delete("/models/{model_type}/train", operation_id="stop_model_training")
+@router.delete(
+    "/models/{model_type}/train",
+    operation_id="stop_model_training",
+    tags=["MCP"],
+)
 async def stop_model_training(
     request: Request,
     project_id: str,
@@ -459,6 +479,29 @@ async def stop_model_training(
         None, description="Version of model to use, leave blank for latest version"
     ),
 ):
+    """
+    Stop Model Training.
+    --------------------
+
+    MCP Documentation
+    -----------------
+    Purpose:
+        Stop training ML model(s) which are currently in progress, by type and (optionally) version
+        If version is not specified, stops in progress training of all models of that type.
+    Use When:
+        - You need to cancel an ML model training run
+        - You need to cancel training of all ML models of a specified type
+
+    Do Not Use When:
+        - Training for this model type is not in progress - returns 409
+        - You want to delete a model instance - this is not supported by agentic workflows in TokTagger
+    Returns:
+        A list of aborted model's IDs
+
+    Example User Requests:
+        - "Stop training the disruption_cnn model"
+        - "Stop training disruption_cnn model version 3, if it is in progress."
+    """
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
 
@@ -509,7 +552,11 @@ async def stop_model_training(
     return [model.id for model in models]
 
 
-@router.post("/models/{model_type}/load/local", operation_id="load_model_weights_local")
+@router.post(
+    "/models/{model_type}/load/local",
+    operation_id="load_model_weights_local",
+    tags=["MCP"],
+)
 async def load_model_weights_local(
     request: Request, project_id: str, model_type: str, params: LocalLoadParams
 ):
@@ -571,7 +618,9 @@ async def load_model_weights_local(
 
 
 @router.post(
-    "/models/{model_type}/load/gitlab", operation_id="load_model_weights_gitlab"
+    "/models/{model_type}/load/gitlab",
+    operation_id="load_model_weights_gitlab",
+    tags=["MCP"],
 )
 async def load_model_weights_gitlab(
     request: Request, project_id: str, model_type: str, params: GitlabLoadParams
@@ -651,6 +700,7 @@ async def load_model_weights_gitlab(
 @router.post(
     "/models/{model_type}/load/hugging_face",
     operation_id="load_model_weights_hugging_face",
+    tags=["MCP"],
 )
 async def load_model_weights_hugging_face(
     request: Request, project_id: str, model_type: str, params: HuggingfaceLoadParams
@@ -719,7 +769,11 @@ async def load_model_weights_hugging_face(
     return {"task_id": task_id, "model_id": model.id}
 
 
-@router.get("/models/{model_type}/load/{task_id}", operation_id="get_load_model_status")
+@router.get(
+    "/models/{model_type}/load/{task_id}",
+    operation_id="get_load_model_status",
+    tags=["MCP"],
+)
 async def get_load_model_status(
     request: Request,
     project_id: str = Path(description="The ID of the project to load a model for."),
@@ -814,7 +868,11 @@ async def get_load_model_status(
         raise HTTPException(status_code=404, detail="Load task not found with that ID!")
 
 
-@router.post("/models/{model_type}/predict", operation_id="create_model_predictions")
+@router.post(
+    "/models/{model_type}/predict",
+    operation_id="create_model_predictions",
+    tags=["MCP"],
+)
 async def predict(
     request: Request,
     project_id: str = Path(description="The ID of the project to get models for."),
@@ -973,6 +1031,7 @@ async def delete_predictions(
 @router.post(
     "/samples/{sample_id}/models/{model_type}/predict",
     operation_id="create_sample_model_predictions",
+    tags=["MCP"],
 )
 async def create_sample_predictions(
     request: Request,
@@ -1066,6 +1125,7 @@ async def create_sample_predictions(
 @router.get(
     "/samples/{sample_id}/models/{model_type}/predict/{task_id}",
     operation_id="get_sample_model_predictions",
+    tags=["MCP"],
 )
 async def get_sample_predictions(
     request: Request,

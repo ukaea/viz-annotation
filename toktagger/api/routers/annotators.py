@@ -12,7 +12,7 @@ from toktagger.api.core.data_loaders import LoaderRegistry
 
 router = APIRouter(
     prefix="/projects/{project_id}",
-    tags=["Annotators"],
+    tags=["Annotators", "MCP"],
 )
 
 

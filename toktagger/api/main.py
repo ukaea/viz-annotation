@@ -184,17 +184,33 @@ class Server:
 
         mcp = FastMCP.from_fastapi(
             self.app,
+            name="toktagger",
             route_maps=[
-                # Don't allow the MCP to see any delete endpoints
-                RouteMap(methods=["DELETE"], mcp_type=MCPType.EXCLUDE),
-                # GET with path params → ResourceTemplates
+                # GET with path params -> ResourceTemplates
                 RouteMap(
                     methods=["GET"],
                     pattern=r"/.*\{.*\}.*",
+                    tags={"MCP"},
                     mcp_type=MCPType.RESOURCE_TEMPLATE,
                 ),
-                # Other GETs → Resources
-                RouteMap(methods=["GET"], pattern=r"/.*", mcp_type=MCPType.RESOURCE),
+                # Other GETs -> Resources
+                RouteMap(
+                    methods=["GET"],
+                    pattern=r"/.*",
+                    tags={"MCP"},
+                    mcp_type=MCPType.RESOURCE,
+                ),
+                # Other methods (POST, PUT, DELETE) -> tools
+                RouteMap(
+                    pattern=r"/.*",
+                    tags={"MCP"},
+                    mcp_type=MCPType.TOOL,
+                ),
+                # Routers without MCP tag are excluded
+                RouteMap(
+                    pattern=r".*",
+                    mcp_type=MCPType.EXCLUDE,
+                ),
             ],
         )
         mcp_app = mcp.http_app("/")

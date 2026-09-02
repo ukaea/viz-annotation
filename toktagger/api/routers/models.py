@@ -115,7 +115,7 @@ async def create_model(db_client, project: Project, model_type: str) -> Model:
 
 router = APIRouter(
     prefix="/projects/{project_id}",
-    tags=["Models"],
+    tags=["Models", "MCP"],
     # Check models are enabled whenever an endpoint is called
     dependencies=[Depends(check_models_enabled)],
 )
@@ -141,24 +141,25 @@ async def get_models(
     MCP Documentation
     -----------------
     Purpose:
-        Retrieve a list of trained/loaded models for a project with version information.
+        Retrieve a list of trained/loaded models for a project with version information and optional pagination.
 
     Use When:
         - You want to see which models have been trained or loaded for a project
         - You need to know available model versions before making predictions
-        - You are tracking model training progress and accuracy scores
 
     Do Not Use When:
-        - You need a single model's details — use toktagger_read_get_model (GET by model_type) instead
-        - You want to start training — use toktagger_start_model_training instead
-        - You are querying the project itself — use toktagger_read_get_projects instead
+        - You need a specific model instance's details - use get_model instead
+        - You want to start training - use start_model_training instead
+        - You are querying metadata about the project itself - use get_project instead
+        - You need to know which models are available to be trained/loaded within this project/task - use get_model_types instead
 
     Returns:
         A list of Model objects with: id, type, version, status, progress, score, project_id
 
     Example User Requests:
         - "What models have been trained for this project?"
-        - "Show me all model versions for disruption_cnn"
+        - "Show me all model versions available for disruption_cnn"
+        - "Did the most recent model training for this project complete successfully?"
     """
     # Could be eg the ID, type of model, the accuracy, the version. link to mlflow / simvue instance, etc...
     db_client = request.app.state.db_client
@@ -194,20 +195,20 @@ async def get_model(
         Retrieve full details about a specific model version for a project.
 
     Use When:
-        - You need the status, version, and score of a trained model
+        - You need the status, version, and score of a specific trained model
         - You are checking if a model is ready for predictions (status = "completed")
         - You want to verify a specific model version exists
 
     Do Not Use When:
-        - You need all models — use toktagger_read_get_trained_models (GET list) instead
-        - You want to train a model — use toktagger_start_model_training instead
+        - You need all models - use get_trained_models instead
+        - You want to train a model - use start_model_training instead
 
     Returns:
         A Model object with: id, type, version, status, progress, score, project_id
 
     Example User Requests:
         - "What is the status of the disruption_cnn model?"
-        - "Show me version 1 of this model"
+        - "What accuracy score did version 1 of this model achieve?"
     """
     db_client = request.app.state.db_client
     model = await utils.get_model(
@@ -226,6 +227,14 @@ async def delete_models(
         description="The version of the model to delete, leave blank to delete all models",
     ),
 ):
+    """
+    Delete a trained model version.
+    --------------------------------
+
+    MCP Documentation
+    -----------------
+    This endpoint is not exposed to the MCP server.
+    """
     db_client = request.app.state.db_client
 
     await utils.get_project(db_client, project_id)
@@ -278,15 +287,14 @@ async def get_training_info(
         - You are polling for training completion
 
     Do Not Use When:
-        - You want to start training — use toktagger_start_model_training instead
-        - The training is already complete — use toktagger_read_get_model instead
-        - You want to stop training — use the DELETE endpoint (stop_model_training) instead
+        - You want to start training - use start_model_training instead
+        - The training is already complete - use get_model instead
 
     Returns:
         A Model object if training is in progress; raises 404 if no training is active
 
     Example User Requests:
-        - "How far along is the disruption_cnn training?"
+        - "How far along is the training of disruption_cnn?"
         - "Is the model still training?"
     """
     db_client = request.app.state.db_client
@@ -319,17 +327,17 @@ async def start_model_training(
     -----------------
     Purpose:
         Begin training an ML model on validated annotations for a project.
-
+        User should be prompted to provide relevant parameters, if required. Use get_model_training_schema to find required parameters.
+        Note that this is a non-blocking endpoint which will start the training task but not wait for it to complete.
     Use When:
+        - You are training up a model for future predictions
         - You have enough validated samples/annotations to train a model
-        - You want to use GPU acceleration for faster training
-        - You are setting up a model for future predictions
 
     Do Not Use When:
-        - There are no validated annotations — the endpoint returns 404
-        - Training for this model type is already in progress — returns 409
-        - You want to load pre-trained weights instead — use one of the load_model_weights_* endpoints
-
+        - There are no validated annotations - the endpoint returns 404
+        - Training for this model type is already in progress - returns 409
+        - You want to load pre-trained weights instead - use one of the load_model_weights_* endpoints
+        - You need to know which parameters the model needs from the user to train - use get_model_training_schema first
     Returns:
         A dict with task_id and model_id for tracking training progress
 
@@ -513,23 +521,23 @@ async def load_model_weights_local(
     -----------------
     Purpose:
         Load pre-trained model weights from a local file system path.
+        Note that this is a non-blocking endpoint which will start the loading task but not wait for it to complete.
 
     Use When:
-        - You have model weights saved on the server's local disk
+        - The user wishes to load pretrained model weights saved on the server's local disk
         - You want to use a locally trained model for predictions
         - You are running in an offline environment without GitLab/HuggingFace access
 
     Do Not Use When:
         - The weights file doesn't exist at the specified path — returns 422
         - Local loading is disabled in config — returns 403
-        - You want to load from GitLab or HuggingFace — use those endpoints instead
+        - You want to load from GitLab or HuggingFace - use load_model_weights_gitlab, or load_model_weights_huggingface instead
 
     Returns:
         A dict with task_id and model_id for tracking load progress
 
     Example User Requests:
-        - "Load model weights from /path/to/model.pt"
-        - "Import the locally trained disruption model"
+        - "Load model weights for disruption_cnn model from /path/to/model.pt"
     """
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
@@ -575,7 +583,10 @@ async def load_model_weights_gitlab(
     MCP Documentation
     -----------------
     Purpose:
-        Load pre-trained model weights from a GitLab project/artifacts.
+        Load pre-trained ML model weights from a GitLab project's model registry.
+        The user should be prompted to provide required input parameters.
+        The project_id which can be loaded from may be limited by the server, check using get_model_load_method_allowlist first.
+        Note that this is a non-blocking endpoint which will start the loading task but not wait for it to complete.
 
     Use When:
         - You want to load weights hosted on a GitLab project
@@ -583,15 +594,14 @@ async def load_model_weights_gitlab(
         - GitLab loading is enabled and configured on the server
 
     Do Not Use When:
-        - GitLab loading is disabled — returns 403
-        - Required env vars (GITLAB_URL, GITLAB_TOKEN) are not set — returns 409
-        - You want to load from local files or HuggingFace — use those endpoints instead
+        - GitLab loading is disabled - returns 403
+        - Required env vars (GITLAB_URL, GITLAB_TOKEN) are not set on the server - returns 409
+        - You want to load from local files or HuggingFace - use load_model_weights_local, or load_model_weights_huggingface instead
 
     Returns:
         A dict with task_id and model_id for tracking load progress
 
     Example User Requests:
-        - "Load the model from the shared GitLab repository"
         - "Import disruption_cnn weights from GitLab"
     """
     db_client = request.app.state.db_client
@@ -653,23 +663,24 @@ async def load_model_weights_hugging_face(
     -----------------
     Purpose:
         Load pre-trained model weights from a Hugging Face model repository.
+        The user should be prompted to provide required input parameters.
+        The userspace which can be loaded from may be limited by the server, check using get_model_load_method_allowlist first.
+        Note that this is a non-blocking endpoint which will start the loading task but not wait for it to complete.
 
     Use When:
         - You want to load weights from a Hugging Face model hub repository
-        - You are using community-trained tokamak disruption prediction models
         - HuggingFace loading is enabled and configured on the server
 
     Do Not Use When:
         - HuggingFace loading is disabled — returns 403
         - Required userspace/organization is not configured — returns 422
-        - You want to load from local files or GitLab — use those endpoints instead
+        - You want to load from local files or GitLab - use load_model_weights_local, or load_model_weights_gitlab instead
 
     Returns:
         A dict with task_id and model_id for tracking load progress
 
     Example User Requests:
-        - "Load the disruption_cnn model from Hugging Face"
-        - "Import model from user/disruption-cnn-v1"
+        - "Load a disruption_cnn model from Hugging Face"
     """
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
@@ -730,8 +741,8 @@ async def get_load_model_status(
         - You want to detect load failures
 
     Do Not Use When:
-        - You want to actually load weights — use the load endpoint (toktagger_load_model_weights_local, etc.) instead
-        - You want to check training status — use toktagger_read_get_model_training_info instead
+        - You want to actually load weights - use load_model_weights_* instead
+        - You want to check training status - use get_model_training_info instead
 
     Returns:
         true on success, or HTTP 202 with {"message": "Load task in the queue!"} while loading
@@ -827,13 +838,15 @@ async def predict(
     ),
 ):
     """
-    Predict.
+    Predict on a set of samples with an ML model.
     -------
 
     MCP Documentation
     -----------------
     Purpose:
-        Run inference with a trained model on selected samples to generate predicted annotations.
+        Run inference with a trained model on a set of samples to generate predicted annotations.
+        User should be prompted to provide relevant parameters, if required. Use get_model_prediction_schema to find required parameters.
+        Note that this is a non-blocking endpoint which will start the predictions task but not wait for it to complete.
 
     Use When:
         - You have a trained model and want to generate predictions on unannotated samples
@@ -842,16 +855,16 @@ async def predict(
         - You want to evaluate model performance on new data
 
     Do Not Use When:
-        - The model hasn't finished training (status != "completed") — returns 409
-        - You want predictions for a single specific sample — use toktagger_create_sample_model_predictions instead
-        - You are querying model info — use toktagger_read_get_trained_models instead
+        - The model isn't trained - use start_model_training first
+        - You want quick, automated annotations from built in annotators - use create_automated_sample_annotations instead
+        - You want predictions for a single specific sample - use create_sample_model_predictions instead
+        - You are querying model info - use get_trained_models instead
 
     Returns:
         A dict with task_id for tracking prediction progress
 
     Example User Requests:
-        - "Run the disruption_cnn model on 20 samples"
-        - "Generate predictions for these specific samples on GPU"
+        - "Generate predictions using the disruption_cnn model on 20 samples"
     """
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
@@ -988,16 +1001,17 @@ async def create_sample_predictions(
     -----------------
     Purpose:
         Run model inference on a single specific sample to generate predicted annotations.
+        User should be prompted to provide relevant parameters, if required. Use get_model_prediction_schema to find required parameters.
+        Note that this is a non-blocking endpoint which will start the predictions task but not wait for it to complete.
 
     Use When:
-        - You want predictions for one specific sample before annotating it
-        - You are comparing model predictions against your own annotations
-        - You need quick inference for a single data point
+        - You want predictions for one specific sample
+        - You are comparing model predictions against your own annotations for a sample
 
     Do Not Use When:
-        - You need batch predictions across many samples — use toktagger_create_model_predictions instead
-        - The model isn't trained — use toktagger_start_model_training first
-        - You are querying the project — use toktagger_read_get_projects instead
+        - You need batch predictions across many samples - use create_model_predictions instead
+        - You want quick, automated annotations from built in annotators - use create_automated_sample_annotations instead
+        - The model isn't trained - use start_model_training first
 
     Returns:
         A dict with task_id for tracking prediction progress
@@ -1071,23 +1085,21 @@ async def get_sample_predictions(
     MCP Documentation
     -----------------
     Purpose:
-        Retrieve the annotation predictions produced by a model for a specific sample.
+        Retrieve the annotation predictions produced by a model for a specific sample, if they have been completed.
 
     Use When:
-        - You started a prediction task and need to fetch the results
+        - You started a prediction task and need to check if it is complete
         - You want to see model predictions before human annotation
-        - You are building a comparison UI (model vs. human annotations)
 
     Do Not Use When:
-        - You want to create predictions — use toktagger_create_sample_model_predictions instead
-        - You want to load model weights — use the load_model_weights_* endpoints instead
-
+        - You want to create predictions - use create_model_predictions pr create_sample_model_predictions instead
+        - You want to retrieve all annotations for a sample - use get_sample_annotations instead (optionally filtering by created_by with the model name)
     Returns:
-        A list of predicted Annotation objects for the specified sample
+        A list of predicted Annotation objects for the specified sample, or a 202 response if the predict task has not yet completed.
 
     Example User Requests:
-        - "Show me the predictions from task abc123"
-        - "What did the disruption_cnn model predict for this sample?"
+        - "Has the disruption_cnn model completed its predictions for this sample?"
+        - "Did the most recent model prediction task create predictions for this sample?"
     """
     db_client = request.app.state.db_client
     task_registry = request.app.state.task_registry
@@ -1171,25 +1183,7 @@ async def update_model(
 
     MCP Documentation
     -----------------
-    Purpose:
-        Update model status fields (e.g. progress, score, status) after training or loading completes.
-
-    Use When:
-        - You need to manually update a model's progress or score
-        - A background task completed and needs to report results
-        - You are syncing model metadata from an external tracking system (MLflow, etc.)
-
-    Do Not Use When:
-        - You want to train a new model — use toktagger_start_model_training instead
-        - You want to load weights — use the load_model_weights_* endpoints instead
-        - You are querying model info — use toktagger_read_get_model or toktagger_read_get_trained_models instead
-
-    Returns:
-        None (no response body on success)
-
-    Example User Requests:
-        - "Update the disruption_cnn model to completed with score 0.95"
-        - "Sync the model progress from MLflow"
+    This endpoint is for internal TokTagger use and is not exposed to the MCP server.
     """
     db_client = request.app.state.db_client
     await utils.get_project(db_client, project_id)

@@ -5,7 +5,7 @@ from toktagger.api.crud import utils
 from toktagger.api.core.data_loaders import LoaderRegistry
 from toktagger.api.crud.db import MongoDBClient
 
-router = APIRouter(prefix="/projects", tags=["Projects"])
+router = APIRouter(prefix="/projects", tags=["Projects", "MCP"])
 
 
 @router.get(
@@ -53,8 +53,8 @@ async def get_projects(
         - You want to list projects for auditing or summary purposes
 
     Do Not Use When:
-        - You only need a single project — use toktagger_read_get_project (GET by ID) instead
-        - You need project samples — use the samples endpoints instead
+        - You only need a single project - use get_project (GET by ID) instead
+        - You need project samples - use the samples endpoints instead
 
     Returns:
         A list of Project objects, each containing: name, task, query_strategy, data_loader, time_min, time_max, shot_labels, time_region_labels, time_point_labels, bounding_box_labels, polygon_labels, video_bounding_box_labels, model_types, _id, timestamp
@@ -100,9 +100,9 @@ async def create_project(request: Request, project: ProjectIn):
         - You are preparing to add samples and annotations
 
     Do Not Use When:
-        - The project already exists — use toktagger_update_project (PUT by ID) instead
-        - You are updating an existing project — use the update endpoint instead
-        - The data_loader is not valid — check toktagger_read_get_dataloaders first
+        - The project already exists - use update_project (PUT by ID) instead
+        - You are updating an existing project - use the update endpoint instead
+        - The data_loader is not valid — check get_dataloaders first
 
     Returns:
         A dict with _id containing the new project's unique identifier
@@ -149,8 +149,8 @@ async def get_project(
         - You are verifying project configuration before annotating or training
 
     Do Not Use When:
-        - You want to search/list multiple projects — use toktagger_read_get_projects instead
-        - You need sample data — use the samples or data endpoints instead
+        - You want to search/list multiple projects - use get_projects instead
+        - You need sample data - use the samples or data endpoints instead
 
     Returns:
         A Project object with all configuration fields: name, task, query_strategy, data_loader, time_min, time_max, min_time_step, shot_labels, time_region_labels, time_point_labels, bounding_box_labels, polygon_labels, video_bounding_box_labels, model_types, _id, timestamp
@@ -201,8 +201,8 @@ async def update_project(
         - You are reconfiguring a project for a new dataset
 
     Do Not Use When:
-        - You are creating a new project — use toktagger_create_project (POST) instead
-        - You are deleting a project — use the DELETE endpoint instead
+        - You are creating a new project - use create_project (POST) instead
+        - You are deleting a project - use the DELETE endpoint instead
 
     Returns:
         None (no response body on success)

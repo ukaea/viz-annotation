@@ -18,7 +18,7 @@ router = APIRouter(
 
 @router.post(
     "/samples/{sample_id}/annotator/{annotator_type}",
-    operation_id="generate_sample_annotations",
+    operation_id="create_automated_sample_annotations",
 )
 async def create_annotations(
     request: Request,
@@ -35,24 +35,25 @@ async def create_annotations(
     MCP Documentation
     -----------------
     Purpose:
-        Run an annotator (ML model) on a sample to produce predicted annotations without saving them to the database.
+        Run an automated annotator on a sample to produce predicted annotations without saving them to the database.
+        Some annotators require a set of parameters to be specified - these should be prompted by the user.
 
     Use When:
-        - You want to preview model predictions before committing annotations
+        - You want to generate annotations automatically using one of the built in annotators
         - You are testing different annotator types on a sample
         - You need initial annotation suggestions for human review
 
     Do Not Use When:
-        - You want to save annotations to the database — use toktagger_update_sample_annotations instead
-        - You want to train a model — use toktagger_start_model_training instead
-        - You need actual sensor data — use toktagger_get_sample_data instead
+        - You want to save annotations to the database - use update_sample_annotations instead
+        - You want to train an ML model - use start_model_training instead
+        - You want to get predictions from an ML model - use create_model_predictions or create_sample_model_predictions instead
+        - You need to inspect actual diagnostic data - use get_sample_data instead
 
     Returns:
         A list of predicted annotations from the selected annotator
 
     Example User Requests:
-        - "Show me what the time_region annotator predicts for this sample"
-        - "What annotations would the model generate for shot 30421?"
+        - "Show me what the peak_detection annotator predicts for this sample"
     """
     # Would use the datapool to load and process the data
     # The pass it through the selected annotator within the Project to make predictions

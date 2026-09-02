@@ -8,7 +8,7 @@ import toktagger.api.config as config
 if models_dependencies_installed():
     from toktagger.api.models.base import ModelRegistry
 
-router = APIRouter(prefix="/meta", tags=["Metadata"])
+router = APIRouter(prefix="/meta", tags=["Metadata", "MCP"])
 
 
 @router.get("/dataloader", operation_id="get_dataloaders")
@@ -28,15 +28,16 @@ async def get_dataloaders(request: Request) -> list[str]:
         - Validating a data_loader name before creating samples
 
     Do Not Use When:
-        - You already know the data loader and need its schema — use toktagger_read_get_data_schema instead
-        - You need project data — use toktagger_read_get_projects instead
+        - You already know the data loader and need its schema - use get_data_schema instead
+        - You need to know which dataloader a specific project uses - use get_projects instead
+        - You need actual diagnostic data for a sample - use get_sample_data instead
 
     Returns:
         A list of string data loader names
 
     Example User Requests:
         - "What data loaders are available?"
-        - "Can I load UDA data?"
+        - "Can I load data from UDA?"
     """
     return LoaderRegistry.names()
 
@@ -54,12 +55,12 @@ async def get_data_schema(loader: str) -> dict[str, typing.Any]:
 
     Use When:
         - You need to know what parameters to pass to the data endpoint
-        - You are building a new data loader and need to understand the expected schema format
-        - You want to validate data parameter structures before making API calls
+        - You need to know which parameters to prompt the user for when getting data for a sample
 
     Do Not Use When:
-        - You already know the required parameters — use the data endpoint directly
-        - You need sample data values — use toktagger_get_sample_data instead
+        - You need to know which dataloader a specific project uses - use get_projects instead
+        - You already know the required parameters - use get_sample_data instead
+        - You need actual diagnostic data for a sample - use get_sample_data instead
 
     Returns:
         A dict describing the data schema (parameter names, types, defaults)
@@ -84,24 +85,23 @@ async def get_model_types(task: str) -> list[str]:
     MCP Documentation
     -----------------
     Purpose:
-        Retrieve the list of available ML model types for a specified task (e.g. "time-series", "video", "profile-2d").
+        Retrieve the list of available ML model types for a specified task ("time-series", "video", "profile-2d").
 
     Use When:
-        - Creating a project and need to know which model types are valid for its task
         - Seeing what models can be trained or used for predictions
         - Validating a model_type before starting training
 
     Do Not Use When:
-        - You already know the available models — hard-code the list if stable
-        - You need model training parameters — use toktagger_read_get_model_training_schema instead
-        - Models are not enabled — this endpoint returns an error if ML is disabled
+        - You need model training parameters - use get_model_training_schema instead
+        - You need model prediction parameters - use get_model_prediction_schema instead
+        - ML models are not enabled - this endpoint returns an error if ML is disabled
 
     Returns:
         A list of model type strings (e.g. ["disruption_cnn"])
 
     Example User Requests:
         - "What ML models are available for time-series tasks?"
-        - "Can I train a disruption detection model?"
+        - "Can I train a disruption detection model for this project?"
     """
     return ModelRegistry.names(task)
 
@@ -119,16 +119,16 @@ async def get_model_load_methods() -> list[str]:
     MCP Documentation
     -----------------
     Purpose:
-        Retrieve the list of enabled methods for loading pretrained model weights (local path, GitLab, Hugging Face).
+        Retrieve the list of enabled methods for loading pretrained ML model weights (local path, GitLab, Hugging Face).
 
     Use When:
         - You want to know which weight loading methods are configured and available
         - You are planning to load model weights and need to choose a method
-        - You need to check if GitLab or Hugging Face loading is enabled
 
     Do Not Use When:
-        - You want to actually load weights — use the appropriate load endpoint instead
-        - You need model training information — use toktagger_read_get_model_types instead
+        - You want to actually load model weights - use load_model_weights_local, load_model_weights_gitlab, or load_model_weights_huggingface instead
+        - You need a list of available model types for the given project/task - use get_model_types instead
+        - ML models are not enabled - this endpoint returns an error if ML is disabled
 
     Returns:
         A list of enabled load method strings (e.g. ["local", "huggingface"])
@@ -162,22 +162,25 @@ async def get_model_load_method_allowlist(load_method: LoadMethods) -> str | Non
     -----------------
     Purpose:
         Retrieve the allowed project/organization ID for a specific model load method (GitLab project ID or Hugging Face userspace).
+        This may be set on the server for enhanced security, or return null if any user specified project ID / userspace is accepted.
 
     Use When:
         - You need the GitLab project ID before calling the GitLab weights loader
         - You need the Hugging Face userspace/organization before loading from HuggingFace
-        - You are building a UI that needs to pre-populate load method fields
 
     Do Not Use When:
-        - You want to load weights directly — use the load endpoint for the method instead
-        - You need the list of enabled methods — use toktagger_read_get_model_load_methods instead
+        - You want to load weights directly - use load_model_weights_gitlab or load_model_weights_huggingface instead
+        - You need the list of enabled load methods - use get_model_load_methods instead
+        - ML models are not enabled - this endpoint returns an error if ML is disabled
 
     Returns:
-        A string (project ID or userspace) or null if no restriction applies (e.g. for local loads)
+        A string (project ID or userspace) if selection is restricted by the server, or null if no restriction applies
 
     Example User Requests:
-        - "What is the allowed GitLab project ID for loading models?"
-        - "Which Hugging Face userspace can I load from?"
+        - "What GitLab projects can I load models from?"
+        - "Which Hugging Face userspace(s) can I load models from?"
+        - "Can I load an ML model from my personal gitlab project?"
+        - "Can I load an ML model from the Ultralytics HuggingFace repository?"
     """
     match load_method:
         case LoadMethods.LOCAL:
@@ -209,19 +212,17 @@ async def get_model_training_schema(model: str) -> dict[str, typing.Any] | None:
 
     Use When:
         - You are about to start model training and need to know what parameters are required
-        - You are building a UI form for model training configuration
         - You want to validate training parameters before calling the training endpoint
 
     Do Not Use When:
-        - You want to actually train a model — use toktagger_start_model_training instead
-        - You need prediction parameters — use toktagger_read_get_model_prediction_schema instead
+        - You want to actually train a model - use start_model_training instead
+        - You need prediction parameters - use get_model_prediction_schema instead
 
     Returns:
         A JSON schema dict describing required training parameters, or null if no parameters are required
 
     Example User Requests:
         - "What parameters do I need to train a disruption CNN model?"
-        - "Show me the training config for this model"
     """
     return ModelRegistry.get_params_schema(
         model, schema_type="training", return_draft_07=True
@@ -245,19 +246,17 @@ async def get_model_prediction_schema(model: str) -> dict[str, typing.Any] | Non
 
     Use When:
         - You are about to create model predictions and need to know what parameters are required
-        - You are building a UI form for model prediction configuration
         - You want to validate prediction parameters before calling the prediction endpoint
 
     Do Not Use When:
-        - You want to actually run predictions — use toktagger_create_model_predictions or toktagger_create_sample_model_predictions instead
-        - You need training parameters — use toktagger_read_get_model_training_schema instead
+        - You want to actually run predictions - use create_model_predictions or create_sample_model_predictions instead
+        - You need training parameters - use get_model_training_schema instead
 
     Returns:
         A JSON schema dict describing required prediction parameters, or null if no parameters are required
 
     Example User Requests:
-        - "What parameters do I need to run predictions with this model?"
-        - "Show me the prediction config for disruption_cnn"
+        - "What parameters do I need to run predictions with th disruption CNN model?"
     """
     return ModelRegistry.get_params_schema(
         model, schema_type="prediction", return_draft_07=True

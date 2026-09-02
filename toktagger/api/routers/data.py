@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Request
 from toktagger.api.core.data_loaders import DataLoaderError
 
 router = APIRouter(
-    prefix="/projects/{project_id}/samples/{sample_id}/data", tags=["Data"]
+    prefix="/projects/{project_id}/samples/{sample_id}/data", tags=["Data", "MCP"]
 )
 
 
@@ -29,25 +29,29 @@ async def get_data(
     MCP Documentation
     -----------------
     Purpose:
-        Retrieve the actual sensor/time-series data for a sample, with optional view transformation (e.g. profile-2d heatmaps).
+        Retrieve the actual diagnostic data for a sample, with optional view transformation (e.g. profile-2d heatmaps).
+        Data formats supported are time-series, 2D profiles, and images (encoded in base64 strings by default).
 
     Use When:
-        - You need the raw signal values (e.g. plasma current, density) for a sample to display or analyze
+        - You need the raw signal values (e.g. plasma current, density) for a sample to display or analyse
         - You want to visualize time traces, profiles, or other data views
-        - You are building an annotation UI and need to load sample data
-        - You need data for model inference or preprocessing
+        - You are asked what kind of data a specific sample / project contains
 
     Do Not Use When:
-        - You only need sample metadata (shot_id, validation status) — use toktagger_read_get_sample instead
-        - You need annotations — use the annotation endpoints instead
-        - You are listing projects — use toktagger_read_get_projects instead
+        - You only need sample metadata (shot_id, validation status) — use get_sample instead
+        - You need to review existing annotations — use get_sample_annotations instead
+        - You want to create annotations from built-in annotators, use create_automated_sample_annotations instead
+        - You want to create predictions from an ML model - use create_model_predictions or create_sample_model_predictions instead
 
     Returns:
-        A DataResponseType object with signal data: { "values": { <signal_name>: { "time": [...], "values": [...] }, ... } } plus optional transformed views
+        Sample data, either single/multivariate time-series, 2D profile(s), or an image encoded in a base64 string.
 
     Example User Requests:
+        - "What does the data in this project/sample look like?"
         - "Get the plasma current time trace for this shot"
-        - "Show me the profile-2d heatmap for signal ip"
+        - "Show me the profile-2d heatmap for signal ip for this sample"
+        - "Show me frame 100 of the video from this pulse"
+        - "Analyse the plasma current trace and identify areas which could represent disruptions"
     """
     db_client = request.app.state.db_client
 

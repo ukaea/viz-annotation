@@ -86,15 +86,15 @@ async def get_data(
     """
     db_client = request.app.state.db_client
 
-    data = _get_data(db_client, project_id, sample_id, params, view)
+    data = await _get_data(db_client, project_id, sample_id, params, view)
     return data
 
 
 @router.post(
-    "",
+    "/summary",
     operation_id="get_sample_data_summary",
     tags=["MCP"],
-    response_model=DataResponseType,
+    response_model=SampleSummaryTypes,
 )
 async def get_sample_data_summary(
     request: Request,
@@ -139,7 +139,7 @@ async def get_sample_data_summary(
     """
     db_client = request.app.state.db_client
 
-    data = _get_data(db_client, project_id, sample_id, params, view)
+    data = await _get_data(db_client, project_id, sample_id, params, view)
 
     # Compute summaries
     if isinstance(data, ImageData):

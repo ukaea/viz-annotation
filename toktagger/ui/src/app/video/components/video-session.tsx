@@ -45,14 +45,14 @@ import {
   deriveFrameLabelInstances,
   deriveInstances,
   existingFrameLabelTrackIdsForClass,
-  forwardPropagateIfEmpty,
+  forwardPropagateMissingManualAnnotations,
   mapClearAll,
   mapClearFrame,
   mapSetFrame,
   mergeInstanceProfiles,
   existingTrackIdsForClass,
   isEditableEventTarget,
-  propagateFrameLabelsIfEmpty,
+  propagateMissingManualFrameLabels,
   uniqueReadableTrackId,
 } from "./video-utils";
 import {
@@ -153,9 +153,8 @@ type VideoSessionCtx = {
   /** Delete the currently selected instance across all frames. */
   deleteSelectedInstanceAcrossFrames: () => void;
 
-  // forward propagation
-  /** Seed next frame with current overlay if the next frame has no annotations. */
-  forwardPropToNextIfEmpty: (nextFrame: FrameIndex) => void;
+  /** Append missing manual instances from the current frame to the next frame in Edit mode. */
+  forwardPropMissingManualToNext: (nextFrame: FrameIndex) => void;
 };
 
 const Ctx = createContext<VideoSessionCtx | null>(null);
@@ -997,28 +996,28 @@ export function VideoSessionProvider(props: {
     deleteInstanceAcrossFrames(selection.className, selection.trackId);
   }, [deleteInstanceAcrossFrames, selection.className, selection.trackId]);
 
-  /**
-   * Copies current frame annotations into `nextFrame` if it's empty.
-   * Any copied annotations get their target.source updated to match the destination frame.
-   */
-  const forwardPropToNextIfEmpty = useCallback(
+  /** Append missing manual instances from the current frame to `nextFrame` in Edit mode. */
+  const forwardPropMissingManualToNext = useCallback(
     (nextFrame: FrameIndex) => {
+      if (!editMode) return;
+
       updateByFrame(
         (prev) =>
-          forwardPropagateIfEmpty(prev, frame, nextFrame, {
+          forwardPropagateMissingManualAnnotations(prev, frame, nextFrame, {
             projectId,
             sampleId,
           }),
         { markDirty: true },
       );
 
-      // Frame labels propagate like any other annotation type: only seed an empty nextFrame.
-      if (
-        propagateFrameLabelsIfEmpty(annotations, frame, nextFrame) !==
-        annotations
-      ) {
+      const nextAnnotations = propagateMissingManualFrameLabels(
+        annotations,
+        frame,
+        nextFrame,
+      );
+      if (nextAnnotations !== annotations) {
         setSampleAnnotations((prev) =>
-          propagateFrameLabelsIfEmpty(prev, frame, nextFrame),
+          propagateMissingManualFrameLabels(prev, frame, nextFrame),
         );
         setDirty(true);
       }
@@ -1026,6 +1025,7 @@ export function VideoSessionProvider(props: {
     [
       annotations,
       frame,
+      editMode,
       projectId,
       sampleId,
       setSampleAnnotations,
@@ -1632,7 +1632,7 @@ export function VideoSessionProvider(props: {
       createNewInstanceForClass,
       deleteInstanceAcrossFrames,
       deleteSelectedInstanceAcrossFrames,
-      forwardPropToNextIfEmpty,
+      forwardPropMissingManualToNext,
     }),
     [
       projectId,
@@ -1674,7 +1674,7 @@ export function VideoSessionProvider(props: {
       createNewInstanceForClass,
       deleteInstanceAcrossFrames,
       deleteSelectedInstanceAcrossFrames,
-      forwardPropToNextIfEmpty,
+      forwardPropMissingManualToNext,
     ],
   );
 

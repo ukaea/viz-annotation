@@ -132,9 +132,10 @@ function VideoFrameAnnotator(props: {
 
     session.flushCurrentFrameOverlay();
 
-    // Forward-propagate current annotations into the next frame if that frame is empty.
-    // This updates SampleContext working annotations; image loading is driven by goToFrame().
-    if (session.propagate) session.forwardPropToNextIfEmpty(next);
+    // Append missing manual instances only in Edit mode.
+    if (session.editMode && session.propagate) {
+      session.forwardPropMissingManualToNext(next);
+    }
   };
 
   const handleJump = (n: number) => {

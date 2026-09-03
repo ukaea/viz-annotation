@@ -136,6 +136,26 @@ def test_image_file_loader_png_raw():
     assert numpy.array(image).shape == (1079, 881, 3)
 
 
+def test_image_file_loader_missing_frame():
+    img_file = ImageFileData(
+        file_name=str(pathlib.Path(__file__).parents[2].joinpath("mast_images")),
+        type="jpeg",
+        protocol="file",
+    )
+    sample = Sample(
+        shot_id=10000,
+        data=img_file,
+        _id="test",
+        project_id="test",
+        validated_annotations=False,
+    )
+
+    with pytest.raises(data_loaders.FrameNotFoundError):
+        data_loaders.ImageDataLoader().get_sample(
+            sample, params=ImageParams(name="image", frame=999999)
+        )
+
+
 def test_parquet_file_loader():
     parquet_file = TimeSeriesFileData(
         file_name=str(pathlib.Path(__file__).parents[2].joinpath("10000.parquet")),
@@ -251,10 +271,11 @@ def test_uda_camera_loader_bit_depth_scaling(monkeypatch):
 
     data_loader = data_loaders.UDACameraDataLoader()
     image_data = data_loader.get_sample(
-        sample, params=ImageParams(name="image", frame=0)
+        sample,
+        params=ImageParams(name="image", frame=0, return_raw=True),
     )
-    base64_decoded = base64.b64decode(image_data.values)
-    frame_arr = numpy.array(Image.open(io.BytesIO(base64_decoded)))
+    assert isinstance(image_data.values, list)
+    frame_arr = numpy.array(Image.open(io.BytesIO(bytes(image_data.values))))
 
     # depth=8 means the declared max value is 255, so scaling is a no-op
     # and every value maps to itself.
@@ -375,6 +396,116 @@ def test_uda_camera_loader_rco_rgb_uint16(monkeypatch):
     assert frame_arr.shape == (2, 2, 3)
     assert frame_arr.dtype == numpy.uint8
     assert numpy.array_equal(frame_arr, numpy.squeeze(raw_values).astype(numpy.uint8))
+
+
+def test_uda_camera_loader_missing_frame(monkeypatch):
+    uda_shot = ShotData(protocol="uda", signal_names=["rba"])
+    sample = Sample(
+        shot_id=30421,
+        data=uda_shot,
+        _id="test",
+        project_id="test",
+        validated_annotations=False,
+    )
+
+    fake_dataset = xarray.Dataset(
+        {
+            "data": xarray.DataArray(
+                numpy.zeros((2, 2), dtype=numpy.uint8),
+                dims=["height", "width"],
+                attrs={"n_frames": 450},
+            )
+        }
+    )
+
+    def raise_missing_frame(*args, **kwargs):
+        if kwargs["frame_number"] == 450:
+            raise RuntimeError("Could not open UDA dataset")
+        return fake_dataset
+
+    monkeypatch.setattr(data_loaders.xr, "open_dataset", raise_missing_frame)
+
+    with pytest.raises(data_loaders.FrameNotFoundError):
+        data_loaders.UDACameraDataLoader().get_sample(
+            sample, params=ImageParams(name="image", frame=450)
+        )
+
+
+def test_uda_camera_loader_non_frame_failure_remains_data_loader_error(monkeypatch):
+    uda_shot = ShotData(protocol="uda", signal_names=["rba"])
+    sample = Sample(
+        shot_id=30421,
+        data=uda_shot,
+        _id="test",
+        project_id="test",
+        validated_annotations=False,
+    )
+
+    fake_dataset = xarray.Dataset(
+        {
+            "data": xarray.DataArray(
+                numpy.zeros((2, 2), dtype=numpy.uint8),
+                dims=["height", "width"],
+                attrs={"n_frames": 450},
+            )
+        }
+    )
+
+    def raise_uda_failure(*args, **kwargs):
+        if kwargs["frame_number"] == 0:
+            return fake_dataset
+        raise RuntimeError("UDA server unavailable")
+
+    monkeypatch.setattr(data_loaders.xr, "open_dataset", raise_uda_failure)
+
+    with pytest.raises(data_loaders.DataLoaderError) as exc_info:
+        data_loaders.UDACameraDataLoader().get_sample(
+            sample, params=ImageParams(name="image", frame=1)
+        )
+    assert not isinstance(exc_info.value, data_loaders.FrameNotFoundError)
+
+
+def test_image_array_file_loader_raw():
+    arr_file = ImageArrayFileData(
+        file_name=str(pathlib.Path(__file__).parents[2].joinpath("single_arr.npy")),
+        type="npy",
+        protocol="file",
+    )
+    sample = Sample(
+        shot_id=10000,
+        data=arr_file,
+        _id="test",
+        project_id="test",
+        validated_annotations=False,
+    )
+
+    image_data = data_loaders.ArrayDataLoader().get_sample(
+        sample, params=ImageParams(name="image", frame=0, return_raw=True)
+    )
+
+    assert isinstance(image_data.values, list)
+    image = Image.open(io.BytesIO(bytes(image_data.values)))
+    assert numpy.array(image).shape == (10, 10)
+
+
+def test_image_array_file_loader_upper_out_of_range_frame():
+    arr_file = ImageArrayFileData(
+        file_name=str(pathlib.Path(__file__).parents[2].joinpath("single_arr.npy")),
+        type="npy",
+        protocol="file",
+    )
+    sample = Sample(
+        shot_id=10000,
+        data=arr_file,
+        _id="test",
+        project_id="test",
+        validated_annotations=False,
+    )
+
+    with pytest.raises(data_loaders.FrameNotFoundError):
+        data_loaders.ArrayDataLoader().get_sample(
+            sample, params=ImageParams(name="image", frame=2)
+        )
 
 
 def test_uda_loader_data_doesnt_exist(uda_env_vars):

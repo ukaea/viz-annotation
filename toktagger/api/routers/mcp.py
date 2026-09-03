@@ -29,7 +29,7 @@ INSTRUCTIONS = """
 
     1. Call toktagger_get_projects to discover available projects, their project_ids and metadata.
     3. Call toktagger_get_samples to browse project samples metadata and their sample_ids, providing the project_id from above.
-    5. Call toktagger_get_sample_data to retrieve actual diagnostic data for the sample, providing the project_id and sample_id from above
+    5. Call toktagger_get_sample_data_summary to retrieve information about diagnostic data for the sample, providing the project_id and sample_id from above
     6. Call toktagger_get_sample_annotations to inspect existing annotations, providing the project_id and sample_id from above
     7. Call toktagger_get_annotator_types to find available annotators for the task associated with this project
     8. Call toktagger_create_automated_sample_annotations to create annotations with the selected annotator, prompting the user for required input parameters

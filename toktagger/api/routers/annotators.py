@@ -48,7 +48,7 @@ async def create_annotations(
         - You want to save annotations to the database - use toktagger_update_sample_annotations instead
         - You want to train an ML model - use toktagger_start_model_training instead
         - You want to get predictions from an ML model - use toktagger_create_model_predictions or toktagger_create_sample_model_predictions instead
-        - You need to inspect actual diagnostic data - use toktagger_get_sample_data instead
+        - You need to inspect diagnostic data - use toktagger_get_sample_data_summary instead
 
     Returns:
         A list of predicted annotations from the selected annotator

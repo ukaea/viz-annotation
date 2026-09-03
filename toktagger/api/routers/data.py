@@ -120,7 +120,8 @@ async def get_sample_data_summary(
         - You are asked for max/min/number of points in the dataset for a signal
 
     Do Not Use When:
-        - You only need sample metadata (shot_id, validation status) — use toktagger_get_sample instead
+        - You only need sample metadata (shot_id, validation status) - use toktagger_get_sample instead
+        - You need to see the schema of parameters for a given data loader - use toktagger_get_data_schema instead
         - You need the raw signal values (e.g. plasma current, density) for a sample to analyse - use the Python client instead
         - You want to analyse data / create annotations from built-in annotators, use toktagger_create_automated_sample_annotations instead
         - You want to analyse data / create predictions from an ML model - use toktagger_create_model_predictions or toktagger_create_sample_model_predictions instead

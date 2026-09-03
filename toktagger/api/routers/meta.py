@@ -32,7 +32,7 @@ async def get_dataloaders(request: Request) -> list[str]:
     Do Not Use When:
         - You already know the data loader and need its schema - use toktagger_get_data_schema instead
         - You need to know which dataloader a specific project uses - use toktagger_get_projects instead
-        - You need actual diagnostic data for a sample - use toktagger_get_sample_data instead
+        - You need information about diagnostic data for a sample - use toktagger_get_sample_data_summary instead
 
     Returns:
         A list of string data loader names
@@ -61,8 +61,7 @@ async def get_data_schema(loader: str) -> dict[str, typing.Any]:
 
     Do Not Use When:
         - You need to know which dataloader a specific project uses - use toktagger_get_projects instead
-        - You already know the required parameters - use toktagger_get_sample_data instead
-        - You need actual diagnostic data for a sample - use toktagger_get_sample_data instead
+        - You need information about diagnostic data for a sample - use toktagger_get_sample_data_summary instead
 
     Returns:
         A dict describing the data schema (parameter names, types, defaults)

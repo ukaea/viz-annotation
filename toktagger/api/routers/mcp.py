@@ -60,5 +60,8 @@ INSTRUCTIONS = """
     
     - Automated annotators and ML models can only operate on projects with relevant Tasks - find the task from toktagger_get_projects, 
       then check available annotators with toktagger_get_annotator_types, and/or ML models with toktagger_get_model_types
+    - Full signal data from the diagnostics cannot be retrieved via the MCP server, since it may be too large for the context window.
+      Summaries of the data can be retrieved with toktagger_get_sample_data_summary. If asked to complete custom analysis which is not covered
+      by one of the automated annotators on the server, reject the request. (Soon there will be a Python client to do this, but not yet.)
 
     """

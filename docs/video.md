@@ -52,7 +52,7 @@ In the top left of the interface, you'll find navigation controls to move throug
 ### Video Tools
 In the left toolbar, you'll find a Video Tools collapsible section. This section contains:
 
-- **Propogation toggle**: When enabled, pressing **Next** appends manual annotations whose class and track instance is missing from the following frame, even if that frame already contains annotations. Model-created annotations are not propagated, and existing destination instances are not overwritten.
+- **Propogation toggle**: In Edit mode, when enabled, pressing **Next** appends manual annotations whose class and track instance is missing from the following frame, even if that frame already contains annotations. Model-created annotations are not propagated, and existing destination instances are not overwritten. The switch is disabled in View mode.
 - **Hide Annotations toggle**: Allows you to temporarily hide annotations from the image - useful to see the image underneath an annotation to check if it is accurate.
 - **Class label**: The label to associate with the next annotation that is drawn. This can also be edited by right clicking on the image and selecting a new label from the menu.
 

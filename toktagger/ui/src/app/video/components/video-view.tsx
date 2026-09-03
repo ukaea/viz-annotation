@@ -132,8 +132,10 @@ function VideoFrameAnnotator(props: {
 
     session.flushCurrentFrameOverlay();
 
-    // Append missing manual instances to the next frame.
-    if (session.propagate) session.forwardPropMissingManualToNext(next);
+    // Append missing manual instances only in Edit mode.
+    if (session.editMode && session.propagate) {
+      session.forwardPropMissingManualToNext(next);
+    }
   };
 
   const handleJump = (n: number) => {

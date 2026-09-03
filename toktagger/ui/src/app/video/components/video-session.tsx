@@ -153,8 +153,7 @@ type VideoSessionCtx = {
   /** Delete the currently selected instance across all frames. */
   deleteSelectedInstanceAcrossFrames: () => void;
 
-  // forward propagation
-  /** Append missing manual instances from the current frame to the next frame. */
+  /** Append missing manual instances from the current frame to the next frame in Edit mode. */
   forwardPropMissingManualToNext: (nextFrame: FrameIndex) => void;
 };
 
@@ -997,9 +996,11 @@ export function VideoSessionProvider(props: {
     deleteInstanceAcrossFrames(selection.className, selection.trackId);
   }, [deleteInstanceAcrossFrames, selection.className, selection.trackId]);
 
-  /** Append missing manual instances from the current frame to `nextFrame`. */
+  /** Append missing manual instances from the current frame to `nextFrame` in Edit mode. */
   const forwardPropMissingManualToNext = useCallback(
     (nextFrame: FrameIndex) => {
+      if (!editMode) return;
+
       updateByFrame(
         (prev) =>
           forwardPropagateMissingManualAnnotations(prev, frame, nextFrame, {
@@ -1024,6 +1025,7 @@ export function VideoSessionProvider(props: {
     [
       annotations,
       frame,
+      editMode,
       projectId,
       sampleId,
       setSampleAnnotations,

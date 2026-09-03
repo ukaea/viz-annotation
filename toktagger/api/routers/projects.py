@@ -53,7 +53,6 @@ async def get_projects(
         - You want to list projects for auditing or summary purposes
 
     Do Not Use When:
-        - You only need a single project - use toktagger_get_project instead
         - You need project samples - use toktagger_get_samples instead
 
     Returns:
@@ -124,7 +123,6 @@ async def create_project(request: Request, project: ProjectIn):
 @router.get(
     "/{project_id}",
     operation_id="get_project",
-    tags=["MCP"],
     responses={
         200: {"description": "Project has been retrieved successfully."},
         404: {"description": "Project not found with that ID."},
@@ -140,25 +138,7 @@ async def get_project(
 
     MCP Documentation
     -----------------
-    Purpose:
-        Retrieve the full details of a single project by its ID.
-
-    Use When:
-        - You need the complete configuration of a specific project
-        - You have a project _id and need its task, labels, and settings
-        - You are verifying project configuration before annotating or training
-
-    Do Not Use When:
-        - You want to search/list multiple projects - use toktagger_get_projects instead
-        - You need to get a project by name - use toktagger_get_projects instead
-        - You need sample data - use the samples or data endpoints instead
-
-    Returns:
-        A Project object.
-
-    Example User Requests:
-        - "Show me the configuration for project 6a8f2340b6b4f8d585fd1a67"
-        - "What data loader does this project use?"
+    This endpoint is not exposed to the MCP server - should use get_projects instead.
     """
     # Return information about a specific project
     # Have put project_id as a string for now, but might want to use ShortUUID?

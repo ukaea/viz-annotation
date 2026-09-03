@@ -154,7 +154,7 @@ async def get_models(
     Do Not Use When:
         - You need a specific model instance's details - use toktagger_get_model instead
         - You want to start training - use toktagger_start_model_training instead
-        - You are querying metadata about the project itself - use toktagger_get_project instead
+        - You are querying metadata about the project itself - use toktagger_get_projects instead
         - You need to know which models are available to be trained/loaded within this project/task - use toktagger_get_model_types instead
 
     Returns:

@@ -65,9 +65,9 @@ async def get_samples(
         - You need sample metadata (shot_id, data, validated status) without fetching data content
 
     Do Not Use When:
+        - You only need summary info, such as the number of samples in a project - use toktagger_get_samples_summary instead
         - You need the next sample to annotate - use toktagger_get_next_sample instead
         - You need actual diagnostic signal/data values - use toktagger_get_sample_data instead
-        - You only need summary info, such as the number of samples in a project - use toktagger_get_samples_summary instead
 
     Returns:
         A list of Sample objects
@@ -313,8 +313,8 @@ async def get_next_sample(
         - You are iterating through all samples in a project for annotation
 
     Do Not Use When:
-        - You need all samples at once - use toktagger_get_samples instead
-        - You already know the sample you want - use toktagger_get_sample instead
+        - You need more than one sample at once - use toktagger_get_samples instead
+        - You already know the sample you want - use toktagger_get_samples instead
         - You need actual diagnostic data from the sample - use toktagger_get_sample_data instead
 
     Returns:
@@ -374,7 +374,7 @@ async def get_sample_summary(
         - You need sample data type information for a project overview
 
     Do Not Use When:
-        - You need individual sample details - use toktagger_get_samples or toktagger_get_sample instead
+        - You need individual sample details - use toktagger_get_samples instead
         - You need sample diagnostic data - use toktagger_get_sample_data instead
 
     Returns:
@@ -392,7 +392,6 @@ async def get_sample_summary(
 @router.get(
     "/{sample_id}",
     operation_id="get_sample",
-    tags=["MCP"],
     response_model=Sample,
     responses={
         200: {"description": "Samples has been returned successfully."},
@@ -412,24 +411,7 @@ async def get_sample(
 
     MCP Documentation
     -----------------
-    Purpose:
-        Retrieve the metadata for a single sample by its ID within a project.
-
-    Use When:
-        - You need details about a specific sample (shot_id, data reference, validation status)
-        - You have a sample _id and want to verify it exists
-        - You need sample metadata before fetching its data content
-
-    Do Not Use When:
-        - You need the actual signal/data values - use toktagger_get_sample_data instead
-        - You need all samples - use toktagger_get_samples instead
-
-    Returns:
-        A Sample object
-
-    Example User Requests:
-        - "Show me the details for sample 6a8f2340b6b4f8d585fd1a6d"
-        - "What is the shot ID for this sample?"
+    This endpoint is not exposed to the MCP server - should use get_samples instead.
     """
     db_client = request.app.state.db_client
     # Check project exists

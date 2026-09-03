@@ -42,12 +42,66 @@ class ImageParams(DataParams):
     return_raw: bool = False
 
 
+class SampleSummary(BaseModel):
+    type: str
+    description: str
+    num_signals: int
+
+
+class SummaryAxes(BaseModel):
+    count: int
+    max: float
+    min: float
+
+
+class SummaryValues(SummaryAxes):
+    mean: float
+
+
+class Summary2DValues(SummaryValues):
+    shape: tuple[int, int]
+
+
+class SignalSummary(BaseModel):
+    time: SummaryAxes
+    values: SummaryValues
+
+
+class Signal2DSummary(BaseModel):
+    time: SummaryAxes
+    dim_1: SummaryAxes
+    values: Summary2DValues
+
+
+class ImageSampleSummary(SampleSummary, SummaryValues):
+    type: Literal["video"]
+    frame_number: int
+    shape: tuple[int, ...]
+    height: int
+    width: int
+    colour_mode: str
+
+
+class TimeSeriesSampleSummary(SampleSummary):
+    type: Literal["time-series"]
+    signals: dict[str, SignalSummary]
+
+
+class Profile2DSampleSummary(SampleSummary):
+    type: Literal["profile-2d"]
+    signals: dict[str, Signal2DSummary]
+
+
 DataResponseType = Union[
-    Data,
     ImageData,
     MultiVariateTimeSeriesData,
-    Profile2DData,
     MultiProfile2DData,
 ]
 
 DataParamTypes = Union[DataParams, ImageParams]
+
+SampleSummaryTypes = Union[
+    ImageSampleSummary,
+    TimeSeriesSampleSummary,
+    Profile2DSampleSummary,
+]

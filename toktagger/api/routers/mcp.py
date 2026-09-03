@@ -27,10 +27,8 @@ INSTRUCTIONS = """
     
     Recommended workflow:
 
-    1. Call toktagger_get_projects to discover available projects and their project_ids.
-    2. Call toktagger_get_project to inspect a specific project's metadata.
-    3. Call toktagger_get_samples to browse project samples and their sample_ids, providing the project_id from above.
-    4. Call toktagger_get_sample to retrieve metadata about an individual.
+    1. Call toktagger_get_projects to discover available projects, their project_ids and metadata.
+    3. Call toktagger_get_samples to browse project samples metadata and their sample_ids, providing the project_id from above.
     5. Call toktagger_get_sample_data to retrieve actual diagnostic data for the sample, providing the project_id and sample_id from above
     6. Call toktagger_get_sample_annotations to inspect existing annotations, providing the project_id and sample_id from above
     7. Call toktagger_get_annotator_types to find available annotators for the task associated with this project
@@ -60,7 +58,7 @@ INSTRUCTIONS = """
 
     Notes:
     
-    - Automated annotators and ML models can only operate on projects with relevant Tasks - find the task from toktagger_get_project, 
+    - Automated annotators and ML models can only operate on projects with relevant Tasks - find the task from toktagger_get_projects, 
       then check available annotators with toktagger_get_annotator_types, and/or ML models with toktagger_get_model_types
 
     """

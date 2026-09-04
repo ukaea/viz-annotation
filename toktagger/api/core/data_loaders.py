@@ -53,6 +53,10 @@ class DataLoaderError(Exception):
     """Custom exception for data loader errors."""
 
 
+class FrameNotFoundError(DataLoaderError):
+    """The requested video frame does not exist."""
+
+
 class DataLoader(ABC):
     @classmethod
     @abstractmethod
@@ -145,12 +149,12 @@ class ImageDataLoader(DataLoader):
         elif params.frame is None:
             files = sorted(dir_path.iterdir())
             if len(files) == 0:
-                raise FileNotFoundError("No files exist in specified directory!")
+                raise FrameNotFoundError("No files exist in specified directory!")
             file_path = files[0]
         else:
             file_path = dir_path.joinpath(f"{params.frame}.{sample_data.type}")
         if not file_path.exists():
-            raise FileNotFoundError(
+            raise FrameNotFoundError(
                 f"Could not find image file at '{file_path}', relative to {pathlib.Path().cwd()}"
             )
         # return raw encoded file bytes if return_raw is True
@@ -240,7 +244,7 @@ class ArrayDataLoader(DataLoader):
         frame = params.frame if params.frame is not None else 0
 
         if frame < 0 or frame >= arr.shape[0]:
-            raise DataLoaderError(
+            raise FrameNotFoundError(
                 f"Frame {frame} unavailable! Available frame range is 0 to {arr.shape[0] - 1}."
             )
 
@@ -250,10 +254,15 @@ class ArrayDataLoader(DataLoader):
         buffer = io.BytesIO()
         im.save(buffer, format="PNG")
         buffer.seek(0)
+        png_bytes = buffer.getvalue()
 
         return ImageData(
             frame=frame,
-            values=base64.b64encode(buffer.getvalue()).decode(),
+            values=(
+                list(png_bytes)
+                if params.return_raw
+                else base64.b64encode(png_bytes).decode()
+            ),
         )
 
 
@@ -446,11 +455,28 @@ class UDACameraDataLoader(DataLoader):
             if params.frame is None:
                 params.frame = 0  # Default to first frame if not specified
 
-            signal = xr.open_dataset(
-                f"uda://{signal_name}:{sample.shot_id}",
-                engine="uda",
-                frame_number=params.frame,
-            )
+            try:
+                signal = xr.open_dataset(
+                    f"uda://{signal_name}:{sample.shot_id}",
+                    engine="uda",
+                    frame_number=params.frame,
+                )
+            except RuntimeError as e:
+                metadata_signal = xr.open_dataset(
+                    f"uda://{signal_name}:{sample.shot_id}",
+                    engine="uda",
+                    frame_number=0,
+                )
+                n_frames = metadata_signal["data"].attrs.get("n_frames")
+                if not isinstance(n_frames, (int, np.integer)):
+                    raise ValueError("UDA image metadata does not contain n_frames")
+
+                if params.frame < 0 or params.frame >= n_frames:
+                    raise FrameNotFoundError(
+                        f"Frame {params.frame} unavailable for image signal "
+                        f"'{signal_name}' and shot ID '{sample.shot_id}'."
+                    ) from e
+                raise
 
             image_array = signal["data"].values
             image_array = np.squeeze(image_array)
@@ -478,11 +504,18 @@ class UDACameraDataLoader(DataLoader):
             buffer = io.BytesIO()
             im.save(buffer, format="PNG")
             buffer.seek(0)
+            png_bytes = buffer.getvalue()
 
             return ImageData(
                 frame=str(params.frame),
-                values=base64.b64encode(buffer.getvalue()).decode(),
+                values=(
+                    list(png_bytes)
+                    if params.return_raw
+                    else base64.b64encode(png_bytes).decode()
+                ),
             )
+        except FrameNotFoundError:
+            raise
         except Exception as e:
             raise DataLoaderError(
                 f"Could not load image signal '{signal_name}' for shot ID '{sample.shot_id}': {e}"

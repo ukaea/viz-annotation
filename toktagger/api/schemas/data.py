@@ -26,12 +26,9 @@ class MultiProfile2DData(Data):
     values: dict[str, Profile2DData | None]
 
 
-RawImage = list[list[int | float]] | list[list[list[int | float]]]
-
-
 class ImageData(Data):
     frame: int
-    values: str | RawImage  # Base64-encoded string or raw pixel array
+    values: str | list[int]  # Base64-encoded string or raw encoded file bytes
 
 
 class DataParams(ConfiguredModel):
@@ -41,7 +38,7 @@ class DataParams(ConfiguredModel):
 class ImageParams(DataParams):
     name: Literal["image"] = "image"
     frame: int | None
-    # Optional: Return a raw pixel array instead of base64.
+    # Optional: Return raw encoded image bytes instead of base64.
     return_raw: bool = False
 
 

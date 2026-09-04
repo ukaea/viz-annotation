@@ -34,6 +34,15 @@ logger = logging.getLogger(__name__)
 
 YoloModelName = Literal[
     "yolov8n.pt",
+    "yolo11n.pt",
+    "yolo26n.pt",
+    "yolo26m.pt",
+    "yolo26l.pt",
+    "yolo26x.pt",
+]
+
+YoloP2ModelName = Literal[
+    "yolov8n.pt",
     "yolo26n.pt",
     "yolo26m.pt",
     "yolo26l.pt",
@@ -62,6 +71,13 @@ class YoloTrainParams(pydantic.BaseModel):
     show_training_output: bool = pydantic.Field(
         default=False,
         description="Show detailed Ultralytics training output in the server logs.",
+    )
+
+
+class YoloP2TrainParams(YoloTrainParams):
+    yolo_size: YoloP2ModelName = pydantic.Field(
+        default="yolo26n.pt",
+        description="Pretrained checkpoint initializes compatible layers; new P2-specific layers are randomly initialized.",
     )
 
 

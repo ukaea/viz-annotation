@@ -23,6 +23,7 @@ from toktagger.api.schemas.samples import Sample
 from toktagger.api.models.ultralytics_detection.base import (
     BaseUltralyticsDetection,
     DetectionRecord,
+    YoloP2TrainParams,
     YoloTrainParams,
 )
 from toktagger.api.models.ultralytics_detection.utils import (
@@ -420,7 +421,7 @@ class YoloVideoDetectionModel(BaseUltralyticsDetection):
 @ModelRegistry.register(
     "yolo_ufo_p2",
     ["video"],
-    YoloTrainParams,
+    YoloP2TrainParams,
     YoloPredictParams,
 )
 class YoloVideoDetectionP2Model(YoloVideoDetectionModel):

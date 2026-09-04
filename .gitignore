@@ -181,3 +181,6 @@ toktagger/ui/*.tsbuildinfo
 
 # Ignore config file
 toktagger.toml
+
+# Ignore beads config dir
+.beads/*

@@ -90,7 +90,7 @@ class DetectionRecord(pydantic.BaseModel):
     shot_id: int
     frame: int
     image: bytes
-    boxes: list[list[float]]
+    boxes: list[tuple[float, float, float, float]]
     classes: list[int]
 
 

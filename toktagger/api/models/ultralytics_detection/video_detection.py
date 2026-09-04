@@ -149,7 +149,7 @@ def build_video_frame_manifest(
                 [],
             )
 
-            boxes: list[list[float]] = []
+            boxes: list[tuple[float, float, float, float]] = []
             classes: list[int] = []
 
             for annotation in frame_annotations:
@@ -167,7 +167,7 @@ def build_video_frame_manifest(
                 x2 = x1 + float(annotation.width)
                 y2 = y1 + float(annotation.height)
 
-                boxes.append([x1, y1, x2, y2])
+                boxes.append((x1, y1, x2, y2))
                 classes.append(class_map[annotation.label])
 
             frame_manifest.append(

@@ -53,7 +53,7 @@ models = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["toktagger.api*"]
+include = ["toktagger.api*", "toktagger.client*"]
 
 [tool.setuptools.package-data]
 "toktagger.api" = ["static/**/*"]

@@ -462,30 +462,21 @@ class UDACameraDataLoader(DataLoader):
                     frame_number=params.frame,
                 )
             except RuntimeError as e:
-                try:
-                    metadata_signal = xr.open_dataset(
-                        f"uda://{signal_name}:{sample.shot_id}",
-                        engine="uda",
-                        frame_number=0,
-                    )
-                    n_frames = metadata_signal["data"].attrs.get("n_frames")
-                    if not isinstance(n_frames, (int, np.integer)):
-                        raise ValueError("UDA image metadata does not contain n_frames")
-                except Exception:
-                    raise DataLoaderError(
-                        f"Could not load image signal '{signal_name}' for shot ID "
-                        f"'{sample.shot_id}': {e}"
-                    ) from e
+                metadata_signal = xr.open_dataset(
+                    f"uda://{signal_name}:{sample.shot_id}",
+                    engine="uda",
+                    frame_number=0,
+                )
+                n_frames = metadata_signal["data"].attrs.get("n_frames")
+                if not isinstance(n_frames, (int, np.integer)):
+                    raise ValueError("UDA image metadata does not contain n_frames")
 
                 if params.frame < 0 or params.frame >= n_frames:
                     raise FrameNotFoundError(
                         f"Frame {params.frame} unavailable for image signal "
                         f"'{signal_name}' and shot ID '{sample.shot_id}'."
                     ) from e
-                raise DataLoaderError(
-                    f"Could not load image signal '{signal_name}' for shot ID "
-                    f"'{sample.shot_id}': {e}"
-                ) from e
+                raise
 
             image_array = signal["data"].values
             image_array = np.squeeze(image_array)

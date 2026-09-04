@@ -246,6 +246,34 @@ def test_uda_camera_loader(uda_env_vars):
     assert numpy.array(image).shape == (912, 768)
 
 
+def test_uda_camera_loader_frame_metadata_and_missing_frame(uda_test):
+    camera_name = "rba"
+    uda_shot = ShotData(protocol="uda", signal_names=[camera_name])
+    sample = Sample(
+        shot_id=30421,
+        data=uda_shot,
+        _id="test",
+        project_id="test",
+        validated_annotations=False,
+    )
+
+    metadata_signal = xarray.open_dataset(
+        f"uda://{camera_name}:{sample.shot_id}",
+        engine="uda",
+        frame_number=0,
+    )
+    n_frames = metadata_signal["data"].attrs.get("n_frames")
+
+    assert isinstance(n_frames, (int, numpy.integer))
+    assert n_frames > 0
+
+    with pytest.raises(data_loaders.FrameNotFoundError):
+        data_loaders.UDACameraDataLoader().get_sample(
+            sample,
+            params=ImageParams(name="image", frame=int(n_frames)),
+        )
+
+
 def test_uda_camera_loader_bit_depth_scaling(monkeypatch):
     # UDA can return a uint16 array even though the camera's declared bit
     # depth is smaller, e.g. RCO reports depth=8 for shot 54339. Conversion

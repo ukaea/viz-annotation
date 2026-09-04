@@ -18,7 +18,7 @@ from toktagger.api.schemas.annotations import (
     AnnotationBase,
     VideoBoundingBox,
 )
-from toktagger.api.schemas.data import ImageData, ImageParams
+from toktagger.api.schemas.data import DataParamTypes, ImageData, ImageParams
 from toktagger.api.schemas.samples import Sample
 from toktagger.api.models.ultralytics_detection.base import (
     BaseUltralyticsDetection,
@@ -53,6 +53,10 @@ class YoloPredictParams(pydantic.BaseModel):
         ge=1,
         le=100,
         description="Maximum number of detections per frame.",
+    )
+    this_frame_only: bool = pydantic.Field(
+        default=False,
+        description="Predict only the current frame for individual-sample predictions; ignored for multi-sample predictions.",
     )
 
 
@@ -279,9 +283,16 @@ class YoloVideoDetectionModel(BaseUltralyticsDetection):
         self,
         samples: list[Sample],
         params: YoloPredictParams,
-        data_params=None,
+        data_params: DataParamTypes | None = None,
     ) -> list[list[AnnotationBase]]:
-        """Predict bounding boxes for every frame in each sample."""
+        """Predict bounding boxes for the requested video frames."""
+
+        if (
+            params.this_frame_only
+            and data_params is not None
+            and not isinstance(data_params, ImageParams)
+        ):
+            raise TypeError("this_frame_only requires image data parameters.")
 
         # if load() was called self._prediction_model should exist
         # else we borrow self._trained_weights_path from self.train()
@@ -299,10 +310,25 @@ class YoloVideoDetectionModel(BaseUltralyticsDetection):
         for sample in samples:
             sample_predictions: list[AnnotationBase] = []
 
-            for frame_image in iter_sample_frames(
-                self.data_loader,
-                sample,
-            ):
+            if params.this_frame_only and data_params is not None:
+                frame_image = self.data_loader.get_sample(
+                    sample,
+                    ImageParams(
+                        name="image",
+                        frame=data_params.frame,
+                        return_raw=True,
+                    ),
+                )
+                if not isinstance(frame_image, ImageData):
+                    raise TypeError("Expected the data loader to return ImageData.")
+                frame_images = iter((frame_image,))
+            else:
+                frame_images = iter_sample_frames(
+                    self.data_loader,
+                    sample,
+                )
+
+            for frame_image in frame_images:
                 image = decode_frame_image(frame_image)
 
                 results = model.predict(

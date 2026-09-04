@@ -18,5 +18,5 @@ class NotFoundError(TokTaggerAPIError):
     """404 response, or a by-name / by-shot-id lookup which matched nothing."""
 
 
-class MultipleResultsFound(TokTaggerClientError):
+class MultipleResultsFoundError(TokTaggerClientError):
     """A by-name / by-shot-id lookup matched more than one record."""

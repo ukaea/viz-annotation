@@ -13,17 +13,6 @@ _ULTRALYTICS_ASSET_BASE_URL = (
     "https://github.com/ultralytics/assets/releases/download/v8.4.0"
 )
 
-MODEL_URLS = {
-    "yolov8n.pt": f"{_ULTRALYTICS_ASSET_BASE_URL}/yolov8n.pt",
-    "yolo11n.pt": f"{_ULTRALYTICS_ASSET_BASE_URL}/yolo11n.pt",
-    "yolo26n.pt": f"{_ULTRALYTICS_ASSET_BASE_URL}/yolo26n.pt",
-    "yolo26m.pt": f"{_ULTRALYTICS_ASSET_BASE_URL}/yolo26m.pt",
-    "yolo26l.pt": f"{_ULTRALYTICS_ASSET_BASE_URL}/yolo26l.pt",
-    "yolo26x.pt": f"{_ULTRALYTICS_ASSET_BASE_URL}/yolo26x.pt",
-    "rtdetr-x.pt": f"{_ULTRALYTICS_ASSET_BASE_URL}/rtdetr-x.pt",
-    "rtdetr-l.pt": f"{_ULTRALYTICS_ASSET_BASE_URL}/rtdetr-l.pt",
-}
-
 MODEL_FAMILIES = {
     "yolov8n.pt": "yolo",
     "yolo11n.pt": "yolo",
@@ -45,8 +34,8 @@ def check_pretrained_model_availability(
     The model is downloaded into TokTagger's cache when it is not already
     available. Setting ``force_download`` replaces an existing cached model.
     """
-    if model_name not in MODEL_URLS:
-        available_models = ", ".join(MODEL_URLS)
+    if model_name not in MODEL_FAMILIES:
+        available_models = ", ".join(MODEL_FAMILIES)
         raise ValueError(
             f"Unknown model '{model_name}'. Available models: {available_models}"
         )
@@ -76,7 +65,7 @@ def check_pretrained_model_availability(
     temporary_path.unlink(missing_ok=True)
 
     try:
-        urlretrieve(MODEL_URLS[model_name], temporary_path)
+        urlretrieve(f"{_ULTRALYTICS_ASSET_BASE_URL}/{model_name}", temporary_path)
         temporary_path.replace(model_path)
     except Exception:
         temporary_path.unlink(missing_ok=True)

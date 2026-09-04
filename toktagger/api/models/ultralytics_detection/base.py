@@ -77,7 +77,7 @@ class YoloTrainParams(pydantic.BaseModel):
 class YoloP2TrainParams(YoloTrainParams):
     yolo_size: YoloP2ModelName = pydantic.Field(
         default="yolo26n.pt",
-        description="Pretrained checkpoint initializes compatible layers; new P2-specific layers are randomly initialized.",
+        description="Pretrained checkpoint initializes compatible layers, new P2-specific layers are randomly initialized.",
     )
 
 

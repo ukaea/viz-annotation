@@ -3,7 +3,6 @@ from __future__ import annotations  # store type hints as strings
 import logging
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Literal
 
 import cv2
 import numpy as np
@@ -24,6 +23,7 @@ from toktagger.api.schemas.samples import Sample
 from toktagger.api.models.ultralytics_detection.base import (
     BaseUltralyticsDetection,
     DetectionRecord,
+    YoloTrainParams,
 )
 from toktagger.api.models.ultralytics_detection.utils import (
     check_pretrained_model_availability,
@@ -31,38 +31,6 @@ from toktagger.api.models.ultralytics_detection.utils import (
 )
 
 logger = logging.getLogger(__name__)
-
-YoloModelName = Literal[
-    "yolov8n.pt",
-    "yolo26n.pt",
-    "yolo26m.pt",
-    "yolo26l.pt",
-    "yolo26x.pt",
-]
-
-
-class YoloTrainParams(pydantic.BaseModel):
-    """Parameters exposed by the model-training form."""
-
-    learning_rate: float = pydantic.Field(
-        default=0,
-        ge=0,
-        description="Initial learning rate. Use 0 for the Ultralytics default.",
-    )
-    epochs: int = pydantic.Field(
-        default=2,
-        gt=0,
-        description="Number of training epochs.",
-    )
-    yolo_size: YoloModelName = pydantic.Field(
-        default="yolo26n.pt",
-        description="Pretrained YOLO checkpoint to fine-tune.",
-    )
-    # Boolean fields render as checkboxes
-    show_training_output: bool = pydantic.Field(
-        default=False,
-        description="Show detailed Ultralytics training output in the server logs.",
-    )
 
 
 class YoloPredictParams(pydantic.BaseModel):

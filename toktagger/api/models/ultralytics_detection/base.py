@@ -2,7 +2,7 @@ from __future__ import annotations  # store type hints as strings
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any, Literal
 import shutil
 
 import cv2
@@ -31,11 +31,37 @@ from toktagger.api.models.ultralytics_detection.utils import (
 
 logger = logging.getLogger(__name__)
 
-# TYPE_CHECKING is always false while the application runs.Type checkers treat it as true
-# Othewise this will become a circular import.
-if TYPE_CHECKING:
-    from toktagger.api.models.ultralytics_detection.video_detection import (
-        YoloTrainParams,
+
+YoloModelName = Literal[
+    "yolov8n.pt",
+    "yolo26n.pt",
+    "yolo26m.pt",
+    "yolo26l.pt",
+    "yolo26x.pt",
+]
+
+
+class YoloTrainParams(pydantic.BaseModel):
+    """Parameters exposed by the model-training form."""
+
+    learning_rate: float = pydantic.Field(
+        default=0,
+        ge=0,
+        description="Initial learning rate. Use 0 for the Ultralytics default.",
+    )
+    epochs: int = pydantic.Field(
+        default=2,
+        gt=0,
+        description="Number of training epochs.",
+    )
+    yolo_size: YoloModelName = pydantic.Field(
+        default="yolo26n.pt",
+        description="Pretrained YOLO checkpoint to fine-tune.",
+    )
+    # Boolean fields render as checkboxes
+    show_training_output: bool = pydantic.Field(
+        default=False,
+        description="Show detailed Ultralytics training output in the server logs.",
     )
 
 

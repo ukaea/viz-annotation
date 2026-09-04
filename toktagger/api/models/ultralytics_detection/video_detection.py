@@ -345,7 +345,7 @@ class YoloVideoDetectionModel(BaseUltralyticsDetection):
 
                 result = results[0]
 
-                if result.boxes is None or len(result.boxes) == 0:
+                if not result.boxes:
                     continue
 
                 coordinates = result.boxes.xyxy.cpu().numpy()

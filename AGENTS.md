@@ -49,7 +49,7 @@ Prefer running a single test (`pytest path/to/test_file.py -k test_name`) over a
 - View interaction state lives in a React Context provider — not `localStorage`, custom DOM events, or globals.
 - Route third-party library (Annotorious, Plotly) mutations through one function; use D3 for custom drawing/geometry layered on top rather than extending those libraries directly.
 
-**Both**: short one-line "why" comments, not multi-line comment blocks or docstrings. Don't loosen a type or a test assertion just to make something pass without first checking whether it's masking a real bug.
+**Both**: short one-line "why" comments, not multi-line comment blocks. Don't loosen a type or a test assertion just to make something pass without first checking whether it's masking a real bug.
 
 ## PR expectations & constraints
 

@@ -76,8 +76,8 @@ def test_image_file_loader_jpeg_raw():
     # Check we got back a list
     assert isinstance(image_data.values, list)
 
-    image = Image.open(io.BytesIO(bytes(image_data.values)))
-    assert numpy.array(image).shape == (1079, 881, 3)
+    image_array = numpy.asarray(image_data.values)
+    assert image_array.shape == (1079, 881, 3)
 
 
 def test_image_file_loader_png():
@@ -132,8 +132,8 @@ def test_image_file_loader_png_raw():
     # Check we got back a list
     assert isinstance(image_data.values, list)
 
-    image = Image.open(io.BytesIO(bytes(image_data.values)))
-    assert numpy.array(image).shape == (1079, 881, 3)
+    image_array = numpy.asarray(image_data.values)
+    assert image_array.shape == (1079, 881, 3)
 
 
 def test_image_file_loader_missing_frame():
@@ -275,7 +275,7 @@ def test_uda_camera_loader_bit_depth_scaling(monkeypatch):
         params=ImageParams(name="image", frame=0, return_raw=True),
     )
     assert isinstance(image_data.values, list)
-    frame_arr = numpy.array(Image.open(io.BytesIO(bytes(image_data.values))))
+    frame_arr = numpy.asarray(image_data.values)
 
     # depth=8 means the declared max value is 255, so scaling is a no-op
     # and every value maps to itself.
@@ -484,8 +484,8 @@ def test_image_array_file_loader_raw():
     )
 
     assert isinstance(image_data.values, list)
-    image = Image.open(io.BytesIO(bytes(image_data.values)))
-    assert numpy.array(image).shape == (10, 10)
+    image_array = numpy.asarray(image_data.values)
+    assert image_array.shape == (10, 10)
 
 
 def test_image_array_file_loader_upper_out_of_range_frame():

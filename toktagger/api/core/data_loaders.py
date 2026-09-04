@@ -157,14 +157,13 @@ class ImageDataLoader(DataLoader):
             raise FrameNotFoundError(
                 f"Could not find image file at '{file_path}', relative to {pathlib.Path().cwd()}"
             )
-        # return raw encoded file bytes if return_raw is True
+        im = Image.open(file_path)
+
         if params.return_raw:
             return ImageData(
                 frame=file_path.name.split(".")[0],
-                values=list(file_path.read_bytes()),
+                values=np.asarray(im).tolist(),
             )
-
-        im = Image.open(file_path)
 
         buffer = io.BytesIO()
         im.save(buffer, format="PNG")
@@ -250,6 +249,9 @@ class ArrayDataLoader(DataLoader):
 
         frame_arr = arr[frame, ...]
 
+        if params.return_raw:
+            return ImageData(frame=frame, values=frame_arr.tolist())
+
         im = Image.fromarray(frame_arr)
         buffer = io.BytesIO()
         im.save(buffer, format="PNG")
@@ -258,11 +260,7 @@ class ArrayDataLoader(DataLoader):
 
         return ImageData(
             frame=frame,
-            values=(
-                list(png_bytes)
-                if params.return_raw
-                else base64.b64encode(png_bytes).decode()
-            ),
+            values=base64.b64encode(png_bytes).decode(),
         )
 
 
@@ -500,6 +498,12 @@ class UDACameraDataLoader(DataLoader):
                 else:
                     image_array = np.clip(image_array, 0, 255).astype(np.uint8)
 
+            if params.return_raw:
+                return ImageData(
+                    frame=str(params.frame),
+                    values=image_array.tolist(),
+                )
+
             im = Image.fromarray(image_array)
             buffer = io.BytesIO()
             im.save(buffer, format="PNG")
@@ -508,11 +512,7 @@ class UDACameraDataLoader(DataLoader):
 
             return ImageData(
                 frame=str(params.frame),
-                values=(
-                    list(png_bytes)
-                    if params.return_raw
-                    else base64.b64encode(png_bytes).decode()
-                ),
+                values=base64.b64encode(png_bytes).decode(),
             )
         except FrameNotFoundError:
             raise

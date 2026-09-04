@@ -1,8 +1,10 @@
 import logging
-from pathlib import Path
-from urllib.request import urlretrieve
 import os
+import shutil
+from pathlib import Path
+from urllib.request import urlopen
 
+from filelock import FileLock
 import torch
 from ultralytics import settings
 
@@ -53,23 +55,32 @@ def check_pretrained_model_availability(
         )
         return model_path
 
-    logger.info(
-        "Downloading pretrained model %s to %s.",
-        model_name,
-        model_path,
-    )
-
-    # Download to a temporary file so an interrupted transfer cannot leave a
-    # partial checkpoint at the final cache path.
+    lock_path = model_path.with_name(f"{model_path.name}.lock")
     temporary_path = model_path.with_name(f"{model_path.name}.tmp")
-    temporary_path.unlink(missing_ok=True)
 
-    try:
-        urlretrieve(f"{_ULTRALYTICS_ASSET_BASE_URL}/{model_name}", temporary_path)
-        temporary_path.replace(model_path)
-    except Exception:
+    with FileLock(lock_path):
+        if model_path.exists() and not force_download:
+            return model_path
+
+        logger.info(
+            "Downloading pretrained model %s to %s.",
+            model_name,
+            model_path,
+        )
+
+        # Download to a temporary file to protect the final checkpoint.
         temporary_path.unlink(missing_ok=True)
-        raise
+
+        try:
+            with urlopen(
+                f"{_ULTRALYTICS_ASSET_BASE_URL}/{model_name}", timeout=60
+            ) as response:
+                with temporary_path.open("wb") as output:
+                    shutil.copyfileobj(response, output)
+            temporary_path.replace(model_path)
+        except Exception:
+            temporary_path.unlink(missing_ok=True)
+            raise
 
     return model_path
 
